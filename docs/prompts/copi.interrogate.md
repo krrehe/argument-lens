@@ -1,17 +1,17 @@
 # 提示词：教科书名录对照（提问模式）
 
-> Textbook Fallacy Catalogue｜模式：提问（interrogate）｜版本：v2.4.0
-> 描述类：不给档位，level 恒为 undetermined，由代码强制。
+> Textbook Fallacy Catalogue｜模式：提问（interrogate）｜版本：v2.5.0
+> 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：不替你下结论，只给你一串可以直接问出口的问题。
 > 判定单元：名录中的一个条目名
 > 原生刻度：条目匹配度。不构成有效性判定，永不给终局结论。
 > 出处：Copi & Cohen, Introduction to Logic；IEP, Fallacies (231 条)；Hong et al. 2024；Ramponi et al. 2025 (FAINA)
 
-指纹 `8fe621203a23`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `21f009d73176`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `2120144ccb81`
 
-字符 16113（预算：警戒 16000／上限 24000，当前接近上限）
-估算 6943 token｜采样温度上限 0.4｜输出上限 8192 token
+字符 16178（预算：警戒 16000／上限 24000，当前接近上限）
+估算 6979 token｜采样温度上限 0.4｜输出上限 8192 token
 规则块（13）：q.role、q.not-cross-examiner、q.no-verdict、q.aim、q.three-never、q.credibility、q.answerable、core.input-boundary、core.output-discipline、q.epistemic、q.language、q.gate-four、q.scope-gate
 
 ---
@@ -358,6 +358,7 @@
       "id": "见谬误索引；不在索引里的条目一律不许用",
       "name": "…",
       "nameEn": "…",
+      "quote": "这个名字指的是原文哪一句（必须是原文中能原样找到的连续片段）。查谬误模式下必填，缺了会被丢弃",
       "condition": "使它成为该谬误而非别种的条件（必填，写不出就别给名字）",
       "whenLegitimate": "什么情况下这其实完全合法（必填）",
       "riskOfError": "这条判断最可能错在哪（必填）",

@@ -725,6 +725,29 @@ table.grid td.basis {
   line-height: 1.6;
 }
 
+/*
+ * 「这个名字指的是原文哪一句」。
+ *
+ * 放在名字正下方而不是表格里：读者看到「事后归因」的第一反应就是「我哪句话这样了」，
+ * 答案必须紧跟着出现。塞进四行之后的表格里，他找到之前的那几秒里，
+ * 怀疑已经发过一轮了——而那条怀疑本该由引文本身来证实或打消。
+ */
+.cand-quote {
+  margin: 2px 0 9px;
+  padding: 5px 9px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  background: var(--panel);
+  border-left: 2px solid var(--line-strong);
+  border-radius: 0 3px 3px 0;
+}
+.cand-quote .cq-miss {
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--weak);
+}
+
 /* 反驳 */
 .ref {
   border: 1px solid var(--line);

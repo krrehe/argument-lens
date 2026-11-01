@@ -123,7 +123,7 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
                       <div className="hs-line1">
                         <span className="hs-time">{when(m.at)}</span>
                         <span className="hs-theory">{theory}</span>
-                        {/* 判定类模式默认不标，描述类必须标：一份没有档位的报告，不标就看不出为什么没有 */}
+                        {/* 给档位的模式默认不标，不给档位的必须标：一份没有档位的报告，不标就看不出为什么没有 */}
                         {mode !== 'diagnose' && (
                           <span className={`hs-mode mode-${mode}`}>{MODE_META[mode].label}</span>
                         )}

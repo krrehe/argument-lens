@@ -128,6 +128,18 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               rxGroups: document.querySelectorAll('.rx-group').length,
               rxItems: document.querySelectorAll('.rx-item').length,
               /*
+               * 命名栏。两件事要一起数：
+               *   labelCards 数的是卡片数——「不命名的模式」必须为 0，
+               *               而「命名的模式」必须至少有一张，否则就是主输出空了。
+               *   candQuote  数的是带原文位置的卡片数。查谬误模式的全部价值系于它：
+               *               有名字没位置，用户拿到手第一句就会问「我哪句这样了」。
+               * 只数第一样会漏掉「卡片在、位置丢」——那种报告看起来完整，实际没法用。
+               */
+              labelCards: document.querySelectorAll('.cand').length,
+              candQuote: document.querySelectorAll('.cand-quote').length,
+              /* 当前模式允不允许命名，从按钮上读——名单只存在 MODE_META 一处 */
+              modeLabels: document.querySelector('.mode-chip.on')?.getAttribute('data-labels') ?? '',
+              /*
                * 导出按钮。它坏起来比别的更安静：按钮在、点了没反应，用户会以为
                * 是保存框被浏览器拦了，然后去别处找原因。这里只能验它渲染出来，
                * 保存框弹不出来（无头环境没有对话框）——那一半靠 check:export 的纯函数断言。

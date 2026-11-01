@@ -17,7 +17,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { auditReport } from '@shared/report-audit';
 import type { Diagnosis } from '@shared/types';
-import { checkItem, claim, diag, refutation } from './fixture-report';
+import { checkItem, claim, diag, labelItem, refutation } from './fixture-report';
 
 let passed = 0;
 const failed: string[] = [];
@@ -97,6 +97,39 @@ ok(
 
 ok(has(diag({ mode: 'reconstruct', verdict: NOTHING_REFUTED }), '模式给了档位'), '描述类模式给了档位 → 报');
 
+/*
+ * 命名门控与档位门控是两件事。
+ *
+ * 这两条一起验，因为它们在代码里挨着，而搞混的后果方向相反：
+ * 漏掉前一条 → 重构报告带着一堆名字，变成伪装成结构图的判决书；
+ * 漏掉后一条 → 查谬误报告的主输出被当成矛盾，每次都被报成「自相矛盾」，
+ * 于是这条检查教会用户忽略报警。
+ */
+const NO_VERDICT = { ...NOTHING_REFUTED, level: 'undetermined' as const, whatIsRefuted: 'nothing' as const };
+/*
+ * 谬误模式的底样：不打倒任何一条、不指认落点。
+ *
+ * defeat 必须一起换成 none：默认样本的 cuts 写着「切断 P1 与 C」，
+ * 而这份样本没有 P1——那条悬空引用会先开一枪，把要测的东西盖住。
+ */
+const FALLACY_BASE = {
+  mode: 'fallacy' as const,
+  verdict: NO_VERDICT,
+  defeat: { kind: 'none' as const, checkId: null, cuts: '', explanation: '', tag: 'inferred' as const, confidence: 'undetermined' as const },
+};
+{
+  const a = auditReport(diag({ ...FALLACY_BASE, labels: [labelItem()] }));
+  ok(a.invariants.length === 0, '谬误模式下带位置的命名不算矛盾', a.invariants.join(' / '));
+}
+ok(
+  has(diag({ ...FALLACY_BASE, labels: [labelItem({ quote: null, span: null })] }), 'G11 未生效'),
+  '谬误模式的命名没有原文位置 → 报'
+);
+ok(
+  has(diag({ mode: 'reconstruct', verdict: NO_VERDICT, labels: [labelItem()] }), '命名候选'),
+  '不命名的模式却带着命名 → 报'
+);
+
 ok(has(diag({ refutations: [refutation('R1', 'P7')] }), '指向不存在的 P7'), '反驳指向不存在的主张 → 报');
 
 ok(
@@ -146,7 +179,7 @@ ok(has(diag({ context: { ...good.context, issue: '（未能确定争议之点）
 ok(JSON.stringify(auditReport(good)) === JSON.stringify(auditReport(good)), '同一份报告两次自检结果全等');
 
 /* 断言总数兜底：少跑就是静默跳过 */
-ok(passed >= 18, '断言总数不少于 18 项', `实际 ${passed}`);
+ok(passed >= 21, '断言总数不少于 21 项', `实际 ${passed}`);
 
 /* ── 五 · 真实报告现状（只打印，不断言） ── */
 

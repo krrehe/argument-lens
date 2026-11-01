@@ -1,17 +1,17 @@
 # 提示词：论证型式与批判性问题（重构模式）
 
-> Argumentation Schemes & Critical Questions｜模式：重构（reconstruct）｜版本：v2.4.0
-> 描述类：不给档位，level 恒为 undetermined，由代码强制。
+> Argumentation Schemes & Critical Questions｜模式：重构（reconstruct）｜版本：v2.5.0
+> 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：先别判。把这段话拆成结构图，看清它靠什么撑着。
 > 判定单元：型式的一条批判性问题（CQ）
 > 原生刻度：型式强度：抗 CQ 的能力
 > 出处：Walton, Reed & Macagno, Argumentation Schemes (2008)；武宏志《非形式逻辑导论》附录A
 
-指纹 `688900c4488e`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `c75372498c20`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `030072c99b22`
 
-字符 17257（预算：警戒 16000／上限 24000，当前接近上限）
-估算 7514 token｜采样温度上限 0.1｜输出上限 8192 token
+字符 17322（预算：警戒 16000／上限 24000，当前接近上限）
+估算 7550 token｜采样温度上限 0.1｜输出上限 8192 token
 规则块（12）：rc.role、rc.not-evaluator、rc.no-verdict、rc.three-never、rc.structure、rc.ambiguity、core.input-boundary、core.output-discipline、rc.epistemic、rc.language、rc.gate-four、rc.scope-gate
 
 ---
@@ -362,6 +362,7 @@
       "id": "见谬误索引；不在索引里的条目一律不许用",
       "name": "…",
       "nameEn": "…",
+      "quote": "这个名字指的是原文哪一句（必须是原文中能原样找到的连续片段）。查谬误模式下必填，缺了会被丢弃",
       "condition": "使它成为该谬误而非别种的条件（必填，写不出就别给名字）",
       "whenLegitimate": "什么情况下这其实完全合法（必填）",
       "riskOfError": "这条判断最可能错在哪（必填）",

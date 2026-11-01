@@ -14,6 +14,7 @@ import type {
   CheckItem,
   Claim,
   Diagnosis,
+  LabelCandidate,
   Refutation,
 } from '@shared/types';
 
@@ -47,8 +48,7 @@ export function claim(id: string, role: Claim['role'], text: string, start = 0):
   };
 }
 
-export function refutation(id: string, targetId: string, patch: Partial<Refutation> = {}): Refutation {
-  return {
+export function refutation(id: string, targetId: string, patch: Partial<Refutation> = {}): Refutation {  return {
     id,
     targetId,
     checkId: null,
@@ -60,6 +60,32 @@ export function refutation(id: string, targetId: string, patch: Partial<Refutati
     evidenceNeeded: [],
     burdenAfter: 'proponent',
     tag: 'argued',
+    confidence: 'medium',
+    ...patch,
+  };
+}
+
+/**
+ * 一条命名候选。
+ *
+ * 默认带 quote 与 span——因为查谬误模式生成的命名一定带位置（G11 保证），
+ * 样本要是缺了这一栏，测出来的就不是「检查器能不能抓住坏报告」，
+ * 而是「样本自己是不是坏的」。
+ */
+export function labelItem(patch: Partial<LabelCandidate> = {}): LabelCandidate {
+  const quote = patch.quote === undefined ? '取消早读之后一本率下降' : patch.quote;
+  return {
+    id: 'post-hoc',
+    name: '事后归因',
+    nameEn: 'Post Hoc Ergo Propter Hoc',
+    quote,
+    span: quote ? { start: 0, end: quote.length, quote, quality: 'exact' as const } : null,
+    condition: '仅凭时间先后断言因果，未排除其他原因',
+    whenLegitimate: '机制已知且排除了主要干扰变量时，由先后推因果是正当的',
+    riskOfError: '把「证据不足」当成「推理错误」',
+    landsOnCheck: 'CQ2',
+    tradition: 'walton',
+    tag: 'framework',
     confidence: 'medium',
     ...patch,
   };

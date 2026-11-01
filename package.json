@@ -36,6 +36,7 @@
     "check:prescriptions": "node scripts/run-check-prescriptions.mjs",
     "check:report": "node scripts/run-check-report.mjs",
     "verify": "node scripts/verify.mjs",
+    "sample:fallacy": "node scripts/run-sample-fallacy.mjs",
     "check:export": "node scripts/run-check-export.mjs"
   },
   "devDependencies": {

@@ -49,7 +49,7 @@ export default function App() {
    */
   const [whole, setWhole] = useState<string | null>(null);
   const [pickedIndex, setPickedIndex] = useState<number | null>(null);
-  /** 四种问法。判定类给档位，描述类不给——MODE_META 是唯一的定义处。 */
+  /** 五种问法。给不给档位、给不给名字，都由 MODE_META 的两个开关决定——它是唯一的定义处。 */
   const [mode, setMode] = useState<AnalysisMode>('diagnose');
   const [diag, setDiag] = useState<Diagnosis | null>(null);
   const [loading, setLoading] = useState(false);
@@ -483,6 +483,14 @@ export default function App() {
                       key={m}
                       className={`mode-chip ${mode === m ? 'on' : ''}`}
                       data-mode={m}
+                      /*
+                       * 这个模式允不允许给谬误名，由 MODE_META 一处定义，挂在按钮上给冒烟测试读。
+                       *
+                       * 为什么不写进脚本：脚本里抄一份模式名单，加模式时必然漏改，
+                       * 而漏改的表现是那一条断言**静默不跑**——输出里既不通过也不失败。
+                       * 挂在 DOM 上，脚本问的是应用自己，而不是自己记忆里的应用。
+                       */
+                      data-labels={MODE_META[m].allowsLabels ? '1' : '0'}
                       onClick={() => setMode(m)}
                       title={MODE_META[m].hint}
                       disabled={loading}

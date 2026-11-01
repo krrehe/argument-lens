@@ -176,6 +176,99 @@ ok(
   );
 }
 
+/* ── 查谬误模式：名字必须付代价（G11） ── */
+
+/**
+ * 这个模式的主输出是名字，而名字是这套工具里最容易脱离位置单独存在的东西。
+ *
+ * 「这是事后归因」——六个字，读起来像结论，实际上什么也没说：说不出是原文哪一句，
+ * 用户既不能拿它对质，也不知道自己有没有冤枉人。所以这里验的不是措辞，
+ * 是那条硬规矩：缺位置的名字不许显示。
+ *
+ * 另外三条验的是「门控有没有串」：查谬误模式给名字、不给档位、不给攻击路线。
+ * 这三件事原先由两个开关控制（givesVerdict 管档位，也被顺手用来管命名），
+ * 加模式时正是那一处会静默出错——报告照常生成，只是主输出空着。
+ */
+{
+  const located = {
+    id: 'post-hoc',
+    quote: '该校一本率从 62% 掉到 51%',
+    condition: '仅凭时间先后断言因果，且没排除其他原因',
+    whenLegitimate: '机制已知、时间间隔合理且排除了主要干扰变量时，由先后推因果是正当的',
+    riskOfError: '把「证据不足」当成「推理错误」；作者若有未写出的对照数据，这条不成立',
+    landsOnCheck: 'CQ2',
+  };
+  const base = {
+    conclusion: { text: '取消早读导致成绩下滑', quote: '可见取消早读导致成绩下滑' },
+    checks: [
+      { id: 'CQ1', answer: 'passed', basis: '文本给了两个时间点上的事实' },
+      { id: 'CQ2', answer: 'unanswered', basis: '只给了单校单年的前后对比' },
+    ],
+  };
+  const F = (patch: Record<string, unknown>) =>
+    normalizeDiagnosis({ ...base, ...patch }, PASSAGE, 'walton', { mode: 'fallacy' });
+
+  const d0 = F({ labels: [located] });
+  ok(d0.labels.length === 1, '谬误模式：位置与落点齐备的命名被保留', `剩 ${d0.labels.length} 条`);
+  ok(d0.labels[0]?.span?.quality === 'exact', '谬误模式：命名带上了原文位置', String(d0.labels[0]?.span?.quality));
+  ok(!codes(d0).includes('LABEL_NO_LOCATION'), '位置可定位的命名不报「没位置」');
+
+  const noQuote = F({ labels: [{ ...located, quote: undefined }] });
+  ok(noQuote.labels.length === 0, '谬误模式：没给原文引文的命名不显示');
+  ok(codes(noQuote).includes('LABEL_NO_LOCATION'), '丢掉没位置的命名时留了痕');
+
+  const wrongQuote = F({ labels: [{ ...located, quote: '这句话原文里根本没有' }] });
+  ok(wrongQuote.labels.length === 0, '谬误模式：引文不在原文里的命名不显示', '说过，但指的是空气');
+
+  const badCheck = F({ labels: [{ ...located, landsOnCheck: 'CQ9' }] });
+  ok(badCheck.labels.length === 0, '谬误模式：挂在不存在的检查项上的命名不显示');
+  ok(codes(badCheck).includes('LABEL_NO_CHECK'), '丢掉挂不上落点的命名时留了痕');
+
+  /*
+   * checks 为空时不要求落点，否则名录透镜下的查谬误模式永远交白卷——
+   * 那副透镜按设计不产生检查项。这不是放宽标准，是不让一条规则把整副透镜废掉。
+   */
+  const noChecks = normalizeDiagnosis(
+    { conclusion: base.conclusion, labels: [located] },
+    PASSAGE,
+    'copi',
+    { mode: 'fallacy' }
+  );
+  ok(noChecks.labels.length === 1, '透镜不产生检查项时，命名只按位置判', `剩 ${noChecks.labels.length} 条`);
+  ok(codes(noChecks).includes('LABEL_WITHOUT_CHECK'), '没有落点时明说，不假装落上了');
+  ok(noChecks.labels[0]?.landsOnCheck === 'CQ2', '落点照原样留着，只是本次无对应检查项');
+
+  /* 门控三件事：给名字、不给档位、不给攻击路线 */
+  const withVerdict = F({
+    labels: [located],
+    verdict: { level: 'fails', whatIsRefuted: 'conclusion' },
+    defeat: { kind: 'undermining', checkId: 'CQ2' },
+  });
+  ok(withVerdict.verdict.level === 'undetermined', '谬误模式给了档位 → 打回判不了');
+  ok(codes(withVerdict).includes('MODE_NO_VERDICT'), '打回档位时留了痕');
+  ok(withVerdict.labels.length === 1, '打回档位不许连带清掉命名（那是这个模式的主输出）', `剩 ${withVerdict.labels.length} 条`);
+  ok(withVerdict.defeat.kind === 'none' && withVerdict.defeat.checkId === null, '谬误模式不指认倒在哪一条');
+
+  const withRef = F({
+    labels: [located],
+    refutations: [{ script: '你这条没有对照数据。', steelman: '他会说单校就是全部' }],
+  });
+  ok(withRef.refutations.length === 0, '谬误模式清空攻击路线');
+  ok(codes(withRef).includes('MODE_NO_REFUTATIONS'), '清空攻击路线时留了痕');
+
+  /*
+   * 反向：诊断模式不受 G11 约束。
+   *
+   * 这条不是凑数。查谬误之外的三个模式里名字是末端注释，注释不必指出位置；
+   * 若 G11 一视同仁地执行，86 份旧报告里的每一条命名都会被判成废条目，
+   * 而它们在诊断模式下本来是合法显示、也被用户读过、异议过的。
+   */
+  const dg = normalizeDiagnosis({ ...base, labels: [{ ...located, quote: undefined }] }, PASSAGE, 'walton', {
+    mode: 'diagnose',
+  });
+  ok(dg.labels.length === 1, '诊断模式里没标位置的命名照旧保留', 'G11 只管查谬误模式');
+}
+
 /* ── 提示词版本要能带出来 ── */
 
 {
@@ -281,7 +374,7 @@ ok(
 );
 
 /* 同上：断言总数兜底，防止某段循环没跑起来而输出仍是全绿 */
-ok(passed >= 40, '断言总数不少于 40 项（少跑就是静默跳过）', `实际 ${passed}`);
+ok(passed >= 65, '断言总数不少于 65 项（少跑就是静默跳过）', `实际 ${passed}`);
 
 /* ── 结果 ── */
 

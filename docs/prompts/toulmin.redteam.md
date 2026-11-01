@@ -1,17 +1,17 @@
 # 提示词：图尔敏布局（红队模式）
 
-> Toulmin Model｜模式：红队（redteam）｜版本：v2.4.0
+> Toulmin Model｜模式：红队（redteam）｜版本：v2.5.0
 > 判定类：给档位。
 > 这一份问的是：同一套型式与问题，换个方向问：他会怎么打你。
 > 判定单元：六要素之一：主张／理由／担保／支援／限定／例外
 > 原生刻度：布局完整性与担保可靠性
 > 出处：Toulmin, The Uses of Argument (1958)
 
-指纹 `a6812aa848a7`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `6ef3bd406e49`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `0b13a45632bd`
 
-字符 11925（预算：警戒 16000／上限 24000，当前正常）
-估算 4844 token｜采样温度上限 0.35｜输出上限 8192 token
+字符 11990（预算：警戒 16000／上限 24000，当前正常）
+估算 4879 token｜采样温度上限 0.35｜输出上限 8192 token
 规则块（12）：red.role、red.not-jerk、red.aim、red.three-never、red.credibility、red.reconstruct、core.input-boundary、core.output-discipline、red.epistemic、red.language、red.gate-four、red.scope-gate
 
 ---
@@ -300,6 +300,7 @@
       "id": "见谬误索引；不在索引里的条目一律不许用",
       "name": "…",
       "nameEn": "…",
+      "quote": "这个名字指的是原文哪一句（必须是原文中能原样找到的连续片段）。查谬误模式下必填，缺了会被丢弃",
       "condition": "使它成为该谬误而非别种的条件（必填，写不出就别给名字）",
       "whenLegitimate": "什么情况下这其实完全合法（必填）",
       "riskOfError": "这条判断最可能错在哪（必填）",

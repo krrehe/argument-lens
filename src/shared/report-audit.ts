@@ -155,13 +155,38 @@ export function auditReport(d: Diagnosis): ReportAudit {
   }
 
   /*
-   * 描述类模式不给档位。这里用 MODE_META 而不是写死模式名——
+   * 不给档位的模式（查谬误／重构／提问）不给档位。这里用 MODE_META 而不是写死模式名——
    * 写死的话，将来加一个新模式而忘了改这里，新模式就会静默逃过检查。
    * 那条硬编码的写法在评测脚本里待了很久，正是这个毛病。
    */
   const mode = normalizeMode(d.mode);
   if (!MODE_META[mode].givesVerdict && d.verdict.level !== 'undetermined') {
     inv.push(`${MODE_META[mode].label}模式给了档位 ${d.verdict.level}`);
+  }
+  /*
+   * 命名门控与档位门控是两个开关，必须分开查。
+   *
+   * 查谬误模式给名字、不给档位。若这里仍用 givesVerdict 当命名门控，
+   * 它自己就会把主输出判成矛盾——而那份报告其实是对的。
+   * 反过来，重构模式带着一堆名字，说明 G8 那一路的清理没生效，
+   * 用户看到的是一份伪装成结构图的判决书。
+   */
+  if (!MODE_META[mode].allowsLabels && d.labels.length) {
+    inv.push(`${MODE_META[mode].label}模式给出了 ${d.labels.length} 条命名候选`);
+  }
+  /*
+   * 查谬误模式下，命名必须有原文位置（G11 的验收）。
+   *
+   * 只查「有 quote」不够：引文可能压根不在原文里。所以看 span——
+   * 那是定位器实际跑出来的结果，quality 为 failed 就是「说过，但指的是空气」。
+   * 这一条写在自检里而不是只写在 analyze 里，是因为它要能在**旧报告**上跑：
+   * 若哪天有人把 G11 删了，新生成的报告会被这里当场抓住。
+   */
+  if (MODE_META[mode].allowsLabels && mode === 'fallacy') {
+    const noLoc = d.labels.filter((l) => !l.quote || !l.span || l.span.quality === 'failed');
+    if (noLoc.length) {
+      inv.push(`${noLoc.length} 条命名没有指到原文的哪一句（G11 未生效）`);
+    }
   }
   /* 名录透镜只指出谬误名，不判整个论证的档位——名字是末端注释，不是判决。 */
   if (d.theory === 'copi' && d.verdict.level !== 'undetermined') {

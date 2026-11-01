@@ -16,7 +16,7 @@ import { ANSWER_LABEL, WHAT_REFUTED_LABEL } from '@shared/labels';
 import { prescriptionsOf } from '@shared/prescriptions';
 import { markdownFileName, reportToMarkdown } from '@shared/report-markdown';
 import type { Diagnosis } from '@shared/types';
-import { checkItem, claim, diag, refutation } from './fixture-report';
+import { checkItem, claim, diag, labelItem, refutation } from './fixture-report';
 
 let passed = 0;
 const failed: string[] = [];
@@ -128,6 +128,35 @@ ok(!md.includes('这条只是提示'), 'info 级诊断不进导出件', '记流�
   ok(offMd.includes('历史'), '给出回头路：完整报告还在本机');
 }
 
+/* ── 十 · 查谬误模式：名字要带得出原文 ── */
+
+/*
+ * 查谬误报告是最容易被误读的一份导出件：它满纸名字，读者容易把它当成判决书。
+ * 所以这一节验两件事——名字后面跟着原文哪一句，以及那句「名字挂上了不等于结论错了」
+ * 有没有真的进文件。界面里的横幅出不了这个门，文件里的那段话是最后一道防线。
+ */
+{
+  const fb = diag({
+    mode: 'fallacy',
+    labels: [labelItem({ quote: '取消早读是错的', span: null })],
+    verdict: { scale: '量表', scaleValue: '', level: 'undetermined', statement: '', qualification: '', whatIsRefuted: 'nothing' },
+  });
+  const fbMd = reportToMarkdown(fb);
+  ok(fbMd.includes('## 对得上的名字'), '查谬误导出件用「对得上的名字」作小节标题');
+  ok(fbMd.includes('- 原文：取消早读是错的'), '每条名字都带出原文那一句');
+  ok(/名字挂上了，不等于这段话的结论是错的/.test(fbMd), '导出件里写明「有名字 ≠ 结论错」');
+  ok(fbMd.includes('查谬误'), '抬头标出这是哪一个模式');
+  ok(!md.includes('名字挂上了，不等于这段话的结论是错的'), '诊断报告不背这句话', '每个模式都加一遍，话就白说了');
+
+  const missed = reportToMarkdown(
+    diag({
+      mode: 'fallacy',
+      labels: [labelItem({ quote: '这句话原文里没有', span: { start: 0, end: 3, quote: '这句话', quality: 'failed' } })],
+    })
+  );
+  ok(/没有定位到/.test(missed), '引文没定位到时明说，不让读者以为引对了');
+}
+
 /* ── 九 · 确定性与文件名 ── */
 
 ok(reportToMarkdown(full) === md, '同一份报告两次导出全等');
@@ -138,7 +167,7 @@ ok(markdownFileName(full).endsWith('.md'), '文件名以 .md 结尾');
 ok(!/\n{3,}/.test(md), '没有连续空行堆出的空洞', '空段会被读成「这里本来该有东西」');
 
 /* 断言总数兜底：少跑就是静默跳过 */
-ok(passed >= 30, '断言总数不少于 30 项', `实际 ${passed}`);
+ok(passed >= 45, '断言总数不少于 45 项', `实际 ${passed}`);
 
 if (failed.length) {
   console.error(`\n✗ 导出件检查失败 ${failed.length} 项（通过 ${passed} 项）`);

@@ -145,11 +145,11 @@ console.log(`示例报告有 ${ids.length} 条检查项：${ids.join(', ')}\n`);
  * 这两种「不可比」的措辞必须分开：判定类互比是「含义不同但都还有档位」，
  * 判定类对描述类是「有一份恒为判不了，升降读不出任何东西」。
  * 合成一句笼统的「模式不同」，用户看不出哪一种更严重。
- * 这一条同时也是给新加的两个描述类模式兜底——不加的话，那份分支就是没跑过的代码。
+ * 这一条同时也是给新加的三个不给判定的模式兜底——不加的话，那份分支就是没跑过的代码。
  */
 {
   const parent = variant({ id: 'p', level: 'weakened', mode: 'diagnose' });
-  for (const m of ['reconstruct', 'interrogate'] as const) {
+  for (const m of ['fallacy', 'reconstruct', 'interrogate'] as const) {
     const child = variant({ id: 'c', level: 'withstands', mode: m });
     const r = diffRevision(parent, child);
     ok(`诊断 vs ${m} = 不可比`, r.comparable === false);
@@ -168,7 +168,7 @@ console.log(`示例报告有 ${ids.length} 条检查项：${ids.join(', ')}\n`);
  * 数量悄悄缩水没人会发现，这与断言静默跳过是同一件事。
  * 阈值定得比当前实际值低一截，日常改动不会误报，但整段循环没跑起来一定会被抓住。
  */
-ok('断言总数不少于 18 项（少跑就是静默跳过）', passed + failed >= 18, `实际 ${passed + failed}`);
+ok('断言总数不少于 21 项（少跑就是静默跳过）', passed + failed >= 21, `实际 ${passed + failed}`);
 
 console.log(failed ? `\n${failed} 项没过。` : '\n对照逻辑全部通过。');
 process.exit(failed ? 1 : 0);

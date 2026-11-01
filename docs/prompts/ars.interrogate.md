@@ -1,17 +1,17 @@
 # 提示词：ARS 三标准（提问模式）
 
-> Acceptability · Relevance · Sufficiency｜模式：提问（interrogate）｜版本：v2.4.0
-> 描述类：不给档位，level 恒为 undetermined，由代码强制。
+> Acceptability · Relevance · Sufficiency｜模式：提问（interrogate）｜版本：v2.5.0
+> 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：不替你下结论，只给你一串可以直接问出口的问题。
 > 判定单元：单个前提上的一个标准，或单条推理链接上的一个标准
 > 原生刻度：三标准逐项符合度（每项独立评级，不合成总分）
 > 出处：Johnson & Blair, Logical Self-Defense；SEP, Informal Logic (Groarke, 2026)
 
-指纹 `402703bd72f1`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `685d6f68b540`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `2120144ccb81`
 
-字符 12749（预算：警戒 16000／上限 24000，当前正常）
-估算 5368 token｜采样温度上限 0.4｜输出上限 8192 token
+字符 12814（预算：警戒 16000／上限 24000，当前正常）
+估算 5403 token｜采样温度上限 0.4｜输出上限 8192 token
 规则块（13）：q.role、q.not-cross-examiner、q.no-verdict、q.aim、q.three-never、q.credibility、q.answerable、core.input-boundary、core.output-discipline、q.epistemic、q.language、q.gate-four、q.scope-gate
 
 ---
@@ -352,6 +352,7 @@
       "id": "见谬误索引；不在索引里的条目一律不许用",
       "name": "…",
       "nameEn": "…",
+      "quote": "这个名字指的是原文哪一句（必须是原文中能原样找到的连续片段）。查谬误模式下必填，缺了会被丢弃",
       "condition": "使它成为该谬误而非别种的条件（必填，写不出就别给名字）",
       "whenLegitimate": "什么情况下这其实完全合法（必填）",
       "riskOfError": "这条判断最可能错在哪（必填）",

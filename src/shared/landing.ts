@@ -262,7 +262,7 @@ export const LANDING: Record<string, Land[]> = {
     { k: 'ui', ref: 'Diagnosis.tsx#sec-lens', at: '每副透镜带 blind 栏：写清它看不见什么，而不是宣称全面' },
   ],
   'T7-05': [
-    { k: 'code', ref: 'src/shared/types.ts#normalizeMode', at: '模式不认识不降级成诊断；描述类模式强制 undetermined 并写诊断留痕' },
+    { k: 'code', ref: 'src/shared/types.ts#normalizeMode', at: '模式不认识不降级成诊断；不给档位的模式强制 undetermined 并写诊断留痕' },
   ],
   'T7-06': [
     { k: 'code', ref: 'scripts/check-theory.ts#warn', at: '断言收集进 errors，非空即失败；各检查器带下限断言，删条目会让总数断言响' },
@@ -303,7 +303,7 @@ export const LANDING: Record<string, Land[]> = {
     { k: 'code', ref: 'src/main/analyze.ts#LEVELS', at: '档位不输出百分比或两位小数的置信度：那会被当成测量结果' },
   ],
   'T8-11': [
-    { k: 'code', ref: 'src/main/analyze.ts#normalizeLabels', at: 'labels 只记候选名，不因命名自动下调档位；描述类模式清空 labels' },
+    { k: 'code', ref: 'src/main/analyze.ts#normalizeLabels', at: 'labels 只记候选名，不因命名自动下调档位；不给档位的模式下命名另有处置（查谬误保留但要求位置，重构与提问清空）' },
   ],
   'T8-12': [
     { k: 'code', ref: 'src/shared/limits.ts#limitsOf', at: '边界栏明写不按领域换标准：只列该领域该问的问题，不改阈值' },

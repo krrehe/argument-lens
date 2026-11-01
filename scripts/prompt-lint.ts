@@ -105,7 +105,7 @@ function quoted(s: string): string[] {
 
 /* ── 1. 块自身 ── */
 
-ok(PROMPT_BLOCKS.length >= 38, '内核块总数不少于 38', `实际 ${PROMPT_BLOCKS.length}`);
+ok(PROMPT_BLOCKS.length >= 50, '内核块总数不少于 50', `实际 ${PROMPT_BLOCKS.length}`);
 
 const ids = PROMPT_BLOCKS.map((b) => b.id);
 ok(new Set(ids).size === ids.length, '块 id 唯一', `重复：${ids.filter((x, i) => ids.indexOf(x) !== i).join('、')}`);
@@ -326,7 +326,7 @@ ok(BUDGET.maxChars <= 32_000, '预算上限不超过 32000 字符');
  * 数量悄悄缩水没人会发现，这与断言静默跳过是同一件事。
  * 阈值比当前实际值低一截：日常改动不会误报，整段循环没跑起来一定被抓住。
  */
-ok(passed >= 500, '断言总数不少于 500 项（少跑就是静默跳过）', `实际 ${passed}`);
+ok(passed >= 620, '断言总数不少于 620 项（少跑就是静默跳过）', `实际 ${passed}`);
 
 /* ── 结果 ── */
 

@@ -1,17 +1,17 @@
 # 提示词：ARS 三标准（红队模式）
 
-> Acceptability · Relevance · Sufficiency｜模式：红队（redteam）｜版本：v2.4.0
+> Acceptability · Relevance · Sufficiency｜模式：红队（redteam）｜版本：v2.5.0
 > 判定类：给档位。
 > 这一份问的是：同一套型式与问题，换个方向问：他会怎么打你。
 > 判定单元：单个前提上的一个标准，或单条推理链接上的一个标准
 > 原生刻度：三标准逐项符合度（每项独立评级，不合成总分）
 > 出处：Johnson & Blair, Logical Self-Defense；SEP, Informal Logic (Groarke, 2026)
 
-指纹 `fb7d34089c4d`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `f7ae6f920f0b`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `0b13a45632bd`
 
-字符 11383（预算：警戒 16000／上限 24000，当前正常）
-估算 4697 token｜采样温度上限 0.35｜输出上限 8192 token
+字符 11448（预算：警戒 16000／上限 24000，当前正常）
+估算 4732 token｜采样温度上限 0.35｜输出上限 8192 token
 规则块（12）：red.role、red.not-jerk、red.aim、red.three-never、red.credibility、red.reconstruct、core.input-boundary、core.output-discipline、red.epistemic、red.language、red.gate-four、red.scope-gate
 
 ---
@@ -299,6 +299,7 @@
       "id": "见谬误索引；不在索引里的条目一律不许用",
       "name": "…",
       "nameEn": "…",
+      "quote": "这个名字指的是原文哪一句（必须是原文中能原样找到的连续片段）。查谬误模式下必填，缺了会被丢弃",
       "condition": "使它成为该谬误而非别种的条件（必填，写不出就别给名字）",
       "whenLegitimate": "什么情况下这其实完全合法（必填）",
       "riskOfError": "这条判断最可能错在哪（必填）",

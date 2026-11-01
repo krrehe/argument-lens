@@ -1,17 +1,17 @@
 # 提示词：语用辩证（十规则）（红队模式）
 
-> Pragma-Dialectics: Ten Rules for Critical Discussion｜模式：红队（redteam）｜版本：v2.4.0
+> Pragma-Dialectics: Ten Rules for Critical Discussion｜模式：红队（redteam）｜版本：v2.5.0
 > 判定类：给档位。
 > 这一份问的是：同一套型式与问题，换个方向问：他会怎么打你。
 > 判定单元：四阶段 × 十条规则中的某一条
 > 原生刻度：规则违反：哪条规则、在哪个阶段、被哪个言语行为违反
 > 出处：van Eemeren & Grootendorst, Speech Acts in Argumentative Discussions；十规则（10／17 两版）
 
-指纹 `853330d754d4`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `72beac874964`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `0b13a45632bd`
 
-字符 12266（预算：警戒 16000／上限 24000，当前正常）
-估算 5136 token｜采样温度上限 0.35｜输出上限 8192 token
+字符 12331（预算：警戒 16000／上限 24000，当前正常）
+估算 5171 token｜采样温度上限 0.35｜输出上限 8192 token
 规则块（12）：red.role、red.not-jerk、red.aim、red.three-never、red.credibility、red.reconstruct、core.input-boundary、core.output-discipline、red.epistemic、red.language、red.gate-four、red.scope-gate
 
 ---
@@ -301,6 +301,7 @@
       "id": "见谬误索引；不在索引里的条目一律不许用",
       "name": "…",
       "nameEn": "…",
+      "quote": "这个名字指的是原文哪一句（必须是原文中能原样找到的连续片段）。查谬误模式下必填，缺了会被丢弃",
       "condition": "使它成为该谬误而非别种的条件（必填，写不出就别给名字）",
       "whenLegitimate": "什么情况下这其实完全合法（必填）",
       "riskOfError": "这条判断最可能错在哪（必填）",

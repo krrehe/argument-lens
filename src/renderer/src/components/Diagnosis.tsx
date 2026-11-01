@@ -465,6 +465,18 @@ function LensPanel({ d }: { d: Diagnosis }) {
 /* ═══════ 命名候选 ═══════ */
 
 function LabelCard({ c }: { c: LabelCandidate }) {
+  /*
+   * 原文位置放在名字正下方，而不是塞进 dl 的一行。
+   *
+   * 因为它是这条命名的凭据，不是它的一项属性：读者看到「事后归因」的第一反应是
+   * 「我哪句话这样了」，答案必须紧跟着出现。塞进表格里，他要在四行之后才找到，
+   * 而找的过程正是「这条可能不成立」的怀疑发酵的过程——怀疑是对的，但应该由引文来证实或打消。
+   *
+   * 定位失败时明说，不装作有位置：span 是定位器真跑出来的结果，
+   * quality 为 failed 就是「说过这句话，但原文里找不到」。
+   */
+  const locQuote = typeof c.quote === 'string' ? c.quote.trim() : '';
+  const missed = Boolean(locQuote) && c.span?.quality === 'failed';
   return (
     <div className="cand">
       <div className="cand-head">
@@ -474,6 +486,12 @@ function LabelCard({ c }: { c: LabelCandidate }) {
         <div className="spacer" />
         <ObjectBtn field="label" refId={c.id} refLabel={c.name} excerpt={c.condition} compact />
       </div>
+      {locQuote && (
+        <div className="cand-quote">
+          「{locQuote}」
+          {missed && <span className="cq-miss">（这句在原文里没定位到，请自行核对）</span>}
+        </div>
+      )}
       <dl>
         <dt>
           <Term k="condition">成立条件</Term>
@@ -514,6 +532,11 @@ const MODE_SECTIONS: Record<
     legitSub: string;
     legitPlain: string;
     legitEmpty: string;
+    labelTitle: string;
+    labelSub: string;
+    labelPlain: string;
+    /** 命名栏空着时说什么。只有查谬误模式用得上——其余模式下空栏整块不出现。 */
+    labelEmpty: string;
     showRef: boolean;
     refTitle: string;
     refSub: (n: number) => string;
@@ -533,6 +556,11 @@ const MODE_SECTIONS: Record<
     legitSub: '清单法缺的那一栏',
     legitPlain: '他做得对的地方。一个只会挑错的分析没法用——它会把对方做对的地方也算成错。',
     legitEmpty: '本次未找到「此处合法」的位置。可能确实没有，也可能没认真找——后者是清单法的老毛病。',
+    labelTitle: '命名候选',
+    labelSub: '末端注释，不是判定；三条门槛齐备才显示',
+    labelPlain:
+      '教材里可能对得上的名字。给名字是有代价的，所以每条都附了「什么时候其实合法」和「这条判断最可能错在哪」。',
+    labelEmpty: '',
     showRef: true,
     refTitle: '反驳',
     refSub: (n) => `${n} 条，均带对方最强回击`,
@@ -554,6 +582,11 @@ const MODE_SECTIONS: Record<
       '对手攻不破的位置。红队报告里这一栏不是安慰，是告诉你哪些力气不必花——攻这里会被挡回来。',
     legitEmpty:
       '没找到攻不破的位置。也可能没认真找——后者更常见，而且更危险：你会按这份报告去攻一个其实攻不动的地方。',
+    labelTitle: '命名候选',
+    labelSub: '末端注释，不是判定',
+    labelPlain:
+      '打完之后可能被叫成的名字。红队模式下这一栏是给你做预判用的：对手大概率会用这个词，你最好先想好怎么接。',
+    labelEmpty: '',
     showRef: true,
     refTitle: '他会怎么说',
     refSub: (n) => `${n} 条，按杀伤力排序`,
@@ -563,6 +596,33 @@ const MODE_SECTIONS: Record<
     repairSub: '在对手打进来之前先补上',
     repairPlain:
       '按上面的攻击路线倒推：先补哪一处，杀伤力掉得最多。补完记得再跑一次——补没补上，要看下一份报告。',
+  },
+  fallacy: {
+    bannerClass: 'fa-banner',
+    verdictTitle: '这一份不判',
+    verdictSub: (tName) => `${tName}｜查谬误模式只给名字与位置`,
+    verdictPlain:
+      '查谬误模式不给档位，这一栏固定是「判不了」。指出两三处推理没撑住，不等于这段话的结论是错的——前者只说明这一步断了，后者要另找理由。真要判这段话站不站得住，切回诊断模式。',
+    legitTitle: '看着像谬误、其实合法',
+    legitSub: '这一栏是本模式的解药',
+    legitPlain:
+      '清单法最深的病：列出来的几条里，有一条其实是对方做得对的地方，你也不改判，因为清单没有这一栏。引用专家、引用民意、反问，这三样在特定条件下都是正当的；分不清条件，名字就是冤枉。',
+    legitEmpty:
+      '本次没有标出「其实合法」的位置。可能确实没有，也可能没认真找——在这个模式里，后者更常见，也更伤人：被冤枉的那一处，恰恰是他做得最对的地方。',
+    labelTitle: '对得上的名字',
+    labelSub: '每条都指得出原文哪一句，并附三条代价',
+    labelPlain:
+      '这就是你要的那个词。但每个名字都附了原文位置、成立条件、什么时候其实合法、最可能错在哪——只给名字的清单，会让你拿着一条错的名称去对质，输得比不开口更难看。',
+    labelEmpty:
+      '本页没有显示任何名字。可能是这三种情况之一：这段文本本来就不在论证的层面上（不必再找）、名字都对不上原文（这一份是干净的）、或者模型没判断出来（换一副透镜再试一次）。下面「边界」一栏写了是哪一种；若名字找到过但被程序丢掉，那里也会说明丢的是哪一条、缺的是哪一样。',
+    showRef: false,
+    refTitle: '反驳',
+    refSub: (n) => `${n} 条`,
+    refPlain: '查谬误模式不给攻击路线。要攻击路线，切到红队模式。',
+    refEmpty: '',
+    repairSub: '名字之外还剩什么',
+    repairPlain:
+      '缺哪条前提、换一副透镜这些名字会变成什么样。名字本身不告诉你下一步做什么——它只告诉你这一处像什么，补哪儿还得看这一栏。',
   },
   reconstruct: {
     bannerClass: 'rc-banner',
@@ -575,6 +635,10 @@ const MODE_SECTIONS: Record<
     legitPlain:
       '看着像循环、其实是分两步；看着像省略、其实是双方共有的前提。这一栏是给下一个读这份图的人看的。',
     legitEmpty: '没有标注容易被看错的地方。',
+    labelTitle: '命名候选',
+    labelSub: '本模式不命名',
+    labelPlain: '重构模式不命名：说出「这是循环论证」的那一刻，就已经判过了，而这一份只描述结构。',
+    labelEmpty: '',
     showRef: false,
     refTitle: '反驳',
     refSub: (n) => `${n} 条`,
@@ -595,6 +659,10 @@ const MODE_SECTIONS: Record<
     legitPlain:
       '身份、动机、以及「你能证明不存在……」式的问句。这几类问出去，位置就反了：前者变成人身之争，后者是错置证明责任。',
     legitEmpty: '没有标注不该问的位置。',
+    labelTitle: '命名候选',
+    labelSub: '本模式不命名',
+    labelPlain: '提问模式不命名：给对方扣一个名字，他就只会回答这个名字，不再回答你的问题。',
+    labelEmpty: '',
     showRef: true,
     refTitle: '你可以问什么',
     refSub: (n) => `${n} 个问题，按「答不上来的概率 × 答上来的收益」排序`,
@@ -1219,17 +1287,25 @@ export function DiagnosisView({
         </Block>
       )}
 
-      {d.labels.length > 0 && (
+      {/*
+        命名栏在查谬误模式下是主输出，所以它空着时也要出现——
+        别处「空段落不打印」是为了不留空壳，这里反过来：用户特意来问「有没有谬误」，
+        一句名字都没有本身就是答案，而它必须带着「是哪一种没有」才算答案。
+        其余模式下空着就整块不出现（不留空壳）。
+      */}
+      {(d.labels.length > 0 || mode === 'fallacy') && (
         <Block
           id="sec-labels"
-          title="命名候选"
-          sub="末端注释，不是判定；三条门槛齐备才显示"
+          title={SEC.labelTitle}
+          sub={SEC.labelSub}
           disputes={at('sec-labels')}
-          plain="教材里可能对得上的名字。给名字是有代价的，所以每条都附了「什么时候其实合法」和「这条判断最可能错在哪」。"
+          plain={SEC.labelPlain}
         >
-          {d.labels.map((c) => (
-            <LabelCard key={c.id} c={c} />
-          ))}
+          {d.labels.length ? (
+            d.labels.map((c) => <LabelCard key={c.id} c={c} />)
+          ) : (
+            <p className="hint">{SEC.labelEmpty}</p>
+          )}
         </Block>
       )}
 

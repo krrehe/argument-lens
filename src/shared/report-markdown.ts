@@ -50,16 +50,29 @@ export function reportToMarkdown(d: Diagnosis): string {
   /* ── 抬头 ── */
   out.push(`# 论证分析 · ${t.name} · ${mode.label}`);
   out.push('');
-  out.push(
-    [
-      `> 由论证镜生成于 ${new Date(d.createdAt).toLocaleString('zh-CN')}。`,
-      `> 提示词 ${d.prompt ? `v${d.prompt.version}（指纹 ${d.prompt.fingerprint}）` : '版本未记录'}`,
+  const head = [
+    `> 由论证镜生成于 ${new Date(d.createdAt).toLocaleString('zh-CN')}。`,
+    `> 提示词 ${d.prompt ? `v${d.prompt.version}（指纹 ${d.prompt.fingerprint}）` : '版本未记录'}`,
+    '> ',
+    `> **这不是判决书。** 一个「${LEVEL_LABEL[d.verdict.level]}」的意思是：`,
+    `> 用「${t.name}」这副尺子量这段文字，量出来是这个结果。换一副尺子、换一段上下文，结果可能不同。`,
+  ];
+  /*
+   * 查谬误模式要单独加一段，因为这份文件最容易被误读成「他说的是错的」。
+   *
+   * 界面里有横幅解释，导出件没有——而导出件恰恰是会被转发、贴进群聊的那一份。
+   * 所以那句话必须在文件里也写一遍，而且写在抬头，不是藏在末尾的边界段。
+   */
+  if (d.mode === 'fallacy') {
+    head.push(
       '> ',
-      `> **这不是判决书。** 一个「${LEVEL_LABEL[d.verdict.level]}」的意思是：`,
-      `> 用「${t.name}」这副尺子量这段文字，量出来是这个结果。换一副尺子、换一段上下文，结果可能不同。`,
-      '> 每一条判断都附了原文句子；对不上原文的地方，以原文为准，不以本文件为准。',
-    ].join('\n')
-  );
+      '> 这一份只做一件事：把可疑的位置对上教材里的名字。',
+      '> **名字挂上了，不等于这段话的结论是错的。** 指出一处推理没撑住，说明的是这一步断了；',
+      '> 要不要否定结论，是另一回事（削弱 ≠ 反驳）。'
+    );
+  }
+  head.push('> 每一条判断都附了原文句子；对不上原文的地方，以原文为准，不以本文件为准。');
+  out.push(head.join('\n'));
   out.push('');
 
   /* ── 范围：不适用就到此为止 ── */
@@ -254,10 +267,23 @@ export function reportToMarkdown(d: Diagnosis): string {
 
   /* ── 命名与「此处合法」 ── */
   if (d.labels.length) {
-    out.push('## 可以这样称呼它');
+    out.push(d.mode === 'fallacy' ? '## 对得上的名字' : '## 可以这样称呼它');
     out.push('');
     for (const l of d.labels) {
       out.push(`- **${l.name}**${l.landsOnCheck ? `（对应检查项 ${l.landsOnCheck}）` : ''}`);
+      /*
+       * 原文位置写在这条名字的第二行，而不是放到末尾。
+       *
+       * 导出件是拿去对质的：用户会指着这一条问对方，对方会回「我哪句这么说」。
+       * 把引文放在最上面，他才答得出来；放在末尾，他得先翻到下面，
+       * 而那几秒的停顿在对话里就等于输了。
+       */
+      if (l.quote) {
+        out.push(`  - 原文：${oneLine(l.quote)}`);
+        if (l.span?.quality === 'failed') {
+          out.push('  - 注意：这句话在原文里没有定位到，可能被模型改写或拼接了。请回原文核对再引用。');
+        }
+      }
       if (l.condition) out.push(`  - 成立条件：${oneLine(l.condition)}`);
       if (l.whenLegitimate) out.push(`  - 什么时候它反而合法：${oneLine(l.whenLegitimate)}`);
       if (l.riskOfError) out.push(`  - 叫错的风险：${oneLine(l.riskOfError)}`);

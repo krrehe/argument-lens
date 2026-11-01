@@ -733,8 +733,24 @@
 }
 
 /*
+ * 查谬误：用「可疑」那一档的棕黄，不用红。
+ *
+ * 这一档在别处表示「前提可疑」，用在这里正好：报告里出现名字，说明有位置可疑，
+ * 不说明这段话已经被判死。用红色会把这个模式最想防的那一步偷换
+ * ——「有谬误」被读成「他说的是错的」——直接在配色上完成。
+ */
+.banner.fa-banner {
+  border-left-color: var(--weak);
+  background: var(--weak-bg);
+}
+
+.banner.fa-banner b {
+  color: var(--weak);
+}
+
+/*
  * 模式徽标（历史列表、提示词页）。
- * 判定类用中性色；描述类要能被认出来——一份没有档位的报告，
+ * 给档位的用中性色；不给档位的要能被认出来——一份没有档位的报告，
  * 列表里若看不出它是哪个模式的，用户会以为这次分析跑砸了。
  */
 .pv-mode,
@@ -763,6 +779,17 @@
 .hs-mode.mode-redteam {
   background: var(--invalid-bg);
   color: var(--invalid);
+}
+
+/*
+ * 查谬误与红队要分开：两者都能让人一眼觉得「这段不行」，
+ * 但红队找的是「对手会怎么打」，查谬误给的是「这一处叫什么」。
+ * 列表里混成一个颜色，用户会按红队报告去读一份查谬误报告。
+ */
+.pv-mode.mode-fallacy,
+.hs-mode.mode-fallacy {
+  background: var(--weak-bg);
+  color: var(--weak);
 }
 
 /*

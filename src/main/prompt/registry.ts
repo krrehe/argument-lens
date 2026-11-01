@@ -25,7 +25,7 @@ import { blocksFor, REQUIRED_BLOCKS, type PromptBlock } from './blocks';
  * 每次改动提示词都必须改这里，并写清改了什么（见 docs/提示词工程.md 的变更表）。
  */
 
-export const PROMPT_VERSION = '2.4.0';
+export const PROMPT_VERSION = '2.5.0';
 
 /**
  * 变更记录。每次改版本号都要在这里留一行，说清改了什么、为什么。
@@ -35,6 +35,14 @@ export const PROMPT_VERSION = '2.4.0';
  * 没有这份记录，半年后有人会把它当冗余删掉，然后同一个 bug 再发生一次。
  */
 export const PROMPT_VERSION_NOTE: string[] = [
+  '2.5.0 新增查谬误（fallacy）模式，七个独立内核块。这是本工具第一次把「谬误名」当主输出，' +
+    '因此加了四条代价：每条命名必须指得出原文哪一句、凭什么成立、什么时候其实合法、最可能错在哪，' +
+    '并且必须挂到一条真实存在的检查项上（代码侧 G11 逐条核，缺位置或挂不上的直接丢弃）。' +
+    '同时 mode 定义里拆出 allowsLabels：原先 labels 的有无挂在 givesVerdict 上，' +
+    '而查谬误模式是「给名字但不给档位」，沿用旧写法会把它的主输出整个清空，且报告看起来完全正常。' +
+    '重构与提问两个描述类模式原有的「不命名」规则不变，仍由 allowsLabels=false 表达——' +
+    '三类模式（判定／命名／描述）至此由 givesVerdict 与 allowsLabels 两个开关完全决定，' +
+    '代码里不再有任何一处按模式名判断该不该给名字。',
   '2.4.0 随机分隔符从 system 挪到 user 第一行，system 从此完全静态。' +
     '这不是提示词质量的改动，是计价结构的改动：原先把 system 里的 <文本> 换成随机串，' +
     '位置在 15461 字符的第 1790 字符（11.6%）处，而 DeepSeek 的自动前缀缓存要求前缀逐字节一致，' +
@@ -126,6 +134,13 @@ export const BUDGET = {
 export const SAMPLING: Record<AnalysisMode, { temperature: number; maxTokens: number }> = {
   diagnose: { temperature: 0.2, maxTokens: 8192 },
   redteam: { temperature: 0.35, maxTokens: 8192 },
+  /*
+   * 查谬误比诊断还低，这是有意的：这个模式唯一的失效方式是**凑名字**，
+   * 而凑名字正是提温最典型的产物——温度一高，模型就开始把「有点像」说成「就是」。
+   * 找名字需要的是耐心比对清单，不是发散；发散在这个模式里不产生新的发现，
+   * 只产生新的标签，而标签是要用户拿去对质的。
+   */
+  fallacy: { temperature: 0.15, maxTokens: 8192 },
   /*
    * 重构要的是**稳定**，比诊断还低。重构的性能瓶颈不是「想不出拆法」，
    * 是「想出太多拆法然后随手挑一个」——温度一高，它就会补全原文没说的话，
@@ -314,6 +329,7 @@ export const SHARED_SCHEMA = `{
       "id": "见谬误索引；不在索引里的条目一律不许用",
       "name": "…",
       "nameEn": "…",
+      "quote": "这个名字指的是原文哪一句（必须是原文中能原样找到的连续片段）。查谬误模式下必填，缺了会被丢弃",
       "condition": "使它成为该谬误而非别种的条件（必填，写不出就别给名字）",
       "whenLegitimate": "什么情况下这其实完全合法（必填）",
       "riskOfError": "这条判断最可能错在哪（必填）",
@@ -419,6 +435,7 @@ function makeDelim(passage: string): string {
 const MODE_TASK: Record<AnalysisMode, string> = {
   diagnose: '分析下面这段文本',
   redteam: '找出下面这段论证最容易被攻击的地方',
+  fallacy: '找出下面这段文本里对得上教材条目的位置（不给判定）',
   reconstruct: '把下面这段文本的结构画出来（不给判定）',
   interrogate: '就下面这段文本，准备一串可以直接问出口的问题（不给判定）',
 };
@@ -445,6 +462,17 @@ const MODE_EXTRA: Record<AnalysisMode, string[]> = {
     '主输出是结构与 supports。每一条 supports 里的 id 都必须真实存在——悬空的 id 会让结构图断线。',
     '拆法有分歧的地方写进 selfCheck.unknowns 或 context.contextGaps，说明分歧在哪一步。\n' +
       '   不要挑一种读法写下去、另一种提都不提：那等于替作者做了他没做的决定。',
+  ],
+  fallacy: [
+    '不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，refutations 必须是空数组。\n' +
+      '   这一份只回答「哪些位置对得上哪个名字」，不回答「这段话站不站得住」。',
+    '主输出是 labels，最多三条。每条必须带 quote（原文里能原样找到的一句）、condition、\n' +
+      '   whenLegitimate、riskOfError、landsOnCheck。缺 quote 或 landsOnCheck 挂不上检查项的条目，\n' +
+      '   程序会直接丢掉，不显示——说不出是哪一句，就只是贴标签。',
+    '同一处位置只给一个名字。两个名字都说得通时，选与检查项对得更准的那个，\n' +
+      '   另一个写进 selfCheck.unknowns，说明另一种叫法会把判断带到哪。',
+    '一个都没找到是正常结果：labels 给空数组，并在 unknowns 里说清是哪一种没有——\n' +
+      '   这段文本本来就不是论证、名字都站不住、还是你没判断出来。不要用「可能有……的倾向」填空。',
   ],
   interrogate: [
     '不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，labels 必须是空数组。',
@@ -474,7 +502,7 @@ const DIALOGUE_KIND_HINT =
 function userTemplateFor(theory: TheoryId, mode: AnalysisMode): string {
   const profile = THEORY_BY_ID[theory];
   const extra = MODE_EXTRA[mode];
-  // 判定类 vs 描述类由 MODE_META 一处定义，不在这里再列一遍模式名——
+  // 给不给档位由 MODE_META 一处定义，不在这里再列一遍模式名——
   // 列两遍的结果是加第五个模式时只改了一处，而错的是最难看出来的那一处。
   const tail = MODE_META[mode].givesVerdict
     ? `本透镜的判定单元是「${profile.unit}」，原生刻度是「${profile.scale}」。

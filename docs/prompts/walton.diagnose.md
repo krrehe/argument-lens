@@ -1,17 +1,17 @@
 # 提示词：论证型式与批判性问题（诊断模式）
 
-> Argumentation Schemes & Critical Questions｜模式：诊断（diagnose）｜版本：v2.4.0
+> Argumentation Schemes & Critical Questions｜模式：诊断（diagnose）｜版本：v2.5.0
 > 判定类：给档位。
 > 这一份问的是：判断这段话站不站得住。
 > 判定单元：型式的一条批判性问题（CQ）
 > 原生刻度：型式强度：抗 CQ 的能力
 > 出处：Walton, Reed & Macagno, Argumentation Schemes (2008)；武宏志《非形式逻辑导论》附录A
 
-指纹 `c532993045d9`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `cadbec610c06`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `767a8750b5d0`
 
-字符 16222（预算：警戒 16000／上限 24000，当前接近上限）
-估算 7155 token｜采样温度上限 0.2｜输出上限 8192 token
+字符 16287（预算：警戒 16000／上限 24000，当前接近上限）
+估算 7191 token｜采样温度上限 0.2｜输出上限 8192 token
 规则块（11）：core.role、core.not-hunter、core.three-never、core.credibility、core.reconstruct、core.input-boundary、core.output-discipline、core.epistemic、core.language、core.gate-four、core.scope-gate
 
 ---
@@ -316,6 +316,7 @@
       "id": "见谬误索引；不在索引里的条目一律不许用",
       "name": "…",
       "nameEn": "…",
+      "quote": "这个名字指的是原文哪一句（必须是原文中能原样找到的连续片段）。查谬误模式下必填，缺了会被丢弃",
       "condition": "使它成为该谬误而非别种的条件（必填，写不出就别给名字）",
       "whenLegitimate": "什么情况下这其实完全合法（必填）",
       "riskOfError": "这条判断最可能错在哪（必填）",

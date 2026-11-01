@@ -1,17 +1,17 @@
 # 提示词：语用辩证（十规则）（诊断模式）
 
-> Pragma-Dialectics: Ten Rules for Critical Discussion｜模式：诊断（diagnose）｜版本：v2.4.0
+> Pragma-Dialectics: Ten Rules for Critical Discussion｜模式：诊断（diagnose）｜版本：v2.5.0
 > 判定类：给档位。
 > 这一份问的是：判断这段话站不站得住。
 > 判定单元：四阶段 × 十条规则中的某一条
 > 原生刻度：规则违反：哪条规则、在哪个阶段、被哪个言语行为违反
 > 出处：van Eemeren & Grootendorst, Speech Acts in Argumentative Discussions；十规则（10／17 两版）
 
-指纹 `ee590c70b7d6`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `ba13638d5be4`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `767a8750b5d0`
 
-字符 12834（预算：警戒 16000／上限 24000，当前正常）
-估算 5482 token｜采样温度上限 0.2｜输出上限 8192 token
+字符 12899（预算：警戒 16000／上限 24000，当前正常）
+估算 5518 token｜采样温度上限 0.2｜输出上限 8192 token
 规则块（11）：core.role、core.not-hunter、core.three-never、core.credibility、core.reconstruct、core.input-boundary、core.output-discipline、core.epistemic、core.language、core.gate-four、core.scope-gate
 
 ---
@@ -313,6 +313,7 @@
       "id": "见谬误索引；不在索引里的条目一律不许用",
       "name": "…",
       "nameEn": "…",
+      "quote": "这个名字指的是原文哪一句（必须是原文中能原样找到的连续片段）。查谬误模式下必填，缺了会被丢弃",
       "condition": "使它成为该谬误而非别种的条件（必填，写不出就别给名字）",
       "whenLegitimate": "什么情况下这其实完全合法（必填）",
       "riskOfError": "这条判断最可能错在哪（必填）",

@@ -1,17 +1,17 @@
 # 提示词：型式周期表三特征（提问模式）
 
-> Periodic Table of Arguments (PTA)｜模式：提问（interrogate）｜版本：v2.4.0
-> 描述类：不给档位，level 恒为 undetermined，由代码强制。
+> Periodic Table of Arguments (PTA)｜模式：提问（interrogate）｜版本：v2.5.0
+> 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：不替你下结论，只给你一串可以直接问出口的问题。
 > 判定单元：三个正交特征：阶（一阶／二阶）× 轴（谓词／主词）× 陈述类型（事实／价值／政策）
 > 原生刻度：定位一致性与型内恰当运用（不是好坏评分）
 > 出处：Wagemans, Periodic Table of Arguments；ATIP 识别程序
 
-指纹 `6701280cb9cd`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `7d3c5c6a5527`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `2120144ccb81`
 
-字符 13434（预算：警戒 16000／上限 24000，当前正常）
-估算 5640 token｜采样温度上限 0.4｜输出上限 8192 token
+字符 13499（预算：警戒 16000／上限 24000，当前正常）
+估算 5676 token｜采样温度上限 0.4｜输出上限 8192 token
 规则块（13）：q.role、q.not-cross-examiner、q.no-verdict、q.aim、q.three-never、q.credibility、q.answerable、core.input-boundary、core.output-discipline、q.epistemic、q.language、q.gate-four、q.scope-gate
 
 ---
@@ -354,6 +354,7 @@
       "id": "见谬误索引；不在索引里的条目一律不许用",
       "name": "…",
       "nameEn": "…",
+      "quote": "这个名字指的是原文哪一句（必须是原文中能原样找到的连续片段）。查谬误模式下必填，缺了会被丢弃",
       "condition": "使它成为该谬误而非别种的条件（必填，写不出就别给名字）",
       "whenLegitimate": "什么情况下这其实完全合法（必填）",
       "riskOfError": "这条判断最可能错在哪（必填）",

@@ -246,6 +246,19 @@ export interface LabelCandidate {
   tradition: string;
   tag: EpistemicTag;
   confidence: ConfidenceLevel;
+  /**
+   * 这个名字指的是原文哪一句。
+   *
+   * 原先没有这一栏，因为名字只当末端注释，注释不必指出位置。查谬误模式把它变成了
+   * 主输出，于是缺的这一栏立刻变成要害：用户拿到「这是事后归因」，第一步要问的就是
+   * 「我哪句话事后归因了」——答不上来，这条名字对他没有任何用处，只有「你被贴了标签」。
+   *
+   * 后缀 ? 是为了让 86 份旧存档照旧能读：那时没这一栏，读出来是 undefined，
+   * 界面按「未标位置」显示，不回填假引文。新报告在查谬误模式下缺这一栏则会被
+   * G11 直接丢掉——旧报告是历史，新报告是承诺，两者不能用一个宽严标准。
+   */
+  quote?: string | null;
+  span?: Span | null;
 }
 
 /**
@@ -410,30 +423,47 @@ export interface SelfCheck {
 /* ─────────── 总和 ─────────── */
 
 /**
- * 四种问法，同一套结构。
+ * 五种问法，同一套结构。
  *
- * 分成两类，这条分类是后来才长出来的，但它比「四个模式」更能说明问题：
+ * 分成三类，这条分类是后来才长出来的，但它比「五个模式」更能说明问题：
  *
  *   【判定类】diagnose / redteam —— 会给 verdict 档位
  *     diagnose    这段话站得住吗。给位置、给合法的部分、给修补。
  *     redteam     对手会从哪儿打。只给攻击路线，按杀伤力排序。
  *
- *   【描述类】reconstruct / interrogate —— 不给档位，level 恒为 undetermined
+ *   【命名类】fallacy —— 不给档位，但给名字
+ *     fallacy     这里面有没有教材上叫得出名的毛病。只给位置 + 名字 + 代价，不判整体。
+ *
+ *   【描述类】reconstruct / interrogate —— 不给档位，不给名字
  *     reconstruct 这段话的结构是什么。只画图，不评价。
  *     interrogate 我该问他什么。只给问题，不下结论。
  *
  * 描述类为什么不判定：一旦先决定「这段话坏」，重构就会把最强读法悄悄换成最弱读法；
  * 提问也同理，判过之后的问题全是诱导性的。这两件事不是理论顾虑，是实测（E）。
  *
- * 为什么不是第七副透镜：透镜决定「问什么问题」，模式决定「替谁问、判不判」。
- * 型式库、CQ、十规则在四种模式下是同一套，混进去会破坏六副透镜的不可通约性。
+ * 命名类为什么不判定而给名字：这是被问得最多的一句（「这段有没有逻辑谬误」），
+ * 也是最容易答坏的一句。答坏的唯一方式是凑名字——「这是滑坡」「这是诉诸权威」
+ * 听起来专业，用户既不能拿它反驳，也不知道自己有没有冤枉人。
+ * 所以这个模式保留名字，但把代价顶到最前面：每条名字必须指得出原文哪一句、
+ * 必须说清什么时候其实合法、最可能错在哪、挂在哪一条检查项上；而且**不给整体档位**——
+ * 指出一处推理不成立，不等于结论为假（削弱 ≠ 反驳，B）。判整体是诊断模式的事。
+ * 「一个名字都没找到」因此是这个模式的正常结果，不是失败。
+ *
+ * 为什么不是第七副透镜：透镜决定「问什么问题」，模式决定「替谁问、判不判、给不给名字」。
+ * 型式库、CQ、十规则在五种模式下是同一套，混进去会破坏六副透镜的不可通约性。
+ *
+ * 顺序即界面按钮顺序，按「评价性递减」排：诊断（判整体）→ 红队（判可攻击面）
+ * → 查谬误（只命名，不判整体）→ 重构（只画结构）→ 提问（只出问句）。
+ * 这个顺序不是随便排的：相邻两个模式之间只差一件事，用户来回切的时候
+ * 能看出「换掉的是哪一层」，而不是五把互不相干的工具。
  */
-export type AnalysisMode = 'diagnose' | 'redteam' | 'reconstruct' | 'interrogate';
+export type AnalysisMode = 'diagnose' | 'redteam' | 'fallacy' | 'reconstruct' | 'interrogate';
 
 /** 模式的顺序即界面上按钮的顺序。改这里，界面跟着变，不用改两处。 */
 export const ANALYSIS_MODES: readonly AnalysisMode[] = [
   'diagnose',
   'redteam',
+  'fallacy',
   'reconstruct',
   'interrogate',
 ] as const;
@@ -451,6 +481,17 @@ export interface ModeMeta {
   stageVerdict: string;
   /** 这个模式给不给判定档位。false 表示运行时会把 level 强制成 undetermined。 */
   givesVerdict: boolean;
+  /**
+   * 这个模式允不允许给出谬误名。
+   *
+   * 与 givesVerdict 是两件事，必须分开：查谬误模式**给名字但不给档位**，
+   * 重构与提问两样都不给。原先只有 givesVerdict 一个开关，于是「不许命名」
+   * 被写成了「不许判定」的附庸——加第五个模式时，那行 `givesVerdict ? labels : []`
+   * 会把查谬误模式的主输出整个清空，而报告看起来一切正常。
+   *
+   * 一个开关管两件事，就会在只需要改一件的时候改错另一件。
+   */
+  allowsLabels: boolean;
   /** 报告顶部横幅的说明；null 表示不显示横幅。 */
   banner: string | null;
 }
@@ -463,6 +504,7 @@ export const MODE_META: Record<AnalysisMode, ModeMeta> = {
     stageScope: '定位语境',
     stageVerdict: '判定击败类型与结论档位',
     givesVerdict: true,
+    allowsLabels: true,
     banner: null,
   },
   redteam: {
@@ -472,8 +514,20 @@ export const MODE_META: Record<AnalysisMode, ModeMeta> = {
     stageScope: '找可攻击的位置',
     stageVerdict: '按杀伤力排序',
     givesVerdict: true,
+    allowsLabels: true,
     banner:
       '红队模式。同一套型式库、同一套关键问题，问的方向反过来：不评价这段话好不好，只找对手最容易打穿的位置。',
+  },
+  fallacy: {
+    label: '查谬误',
+    hint: '把可疑的地方对上教材里的名字——每个名字都要指得出原文哪一句，并说清它什么时候其实合法。',
+    action: '逐个比对',
+    stageScope: '按清单逐条比对',
+    stageVerdict: '收口：每条名字都得有位置',
+    givesVerdict: false,
+    allowsLabels: true,
+    banner:
+      '查谬误模式。这一份不判这段话站不站得住——那是诊断模式的事。这里只做一件事：把可疑的位置对上教材里的名字，每条都要指得出原文哪一句、什么情况下其实合法、最可能错在哪。所以「一个都没找到」是正常结果，不是没干活；而「有名字」也不等于「他的结论是错的」。',
   },
   reconstruct: {
     label: '重构',
@@ -482,6 +536,7 @@ export const MODE_META: Record<AnalysisMode, ModeMeta> = {
     stageScope: '拆结构',
     stageVerdict: '收口：检查 supports 闭合',
     givesVerdict: false,
+    allowsLabels: false,
     banner:
       '重构模式。只画结构，不给判定——档位一律是「未定」，这是设计不是省略。因为一旦先判了它坏，重构就会把最强的读法悄悄换成最弱的读法。',
   },
@@ -492,6 +547,7 @@ export const MODE_META: Record<AnalysisMode, ModeMeta> = {
     stageScope: '找可以问的角度',
     stageVerdict: '按「答不上来的概率 × 答上来的收益」排序',
     givesVerdict: false,
+    allowsLabels: false,
     banner:
       '提问模式。只给问题，不给判定——档位一律是「未定」。判过之后再问，问出来的都是诱导句；先问，才知道对方手里到底有没有东西。',
   },

@@ -44,15 +44,22 @@ const settingsFile = join(smokeUserData, 'settings.json');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /*
- * 模式：默认诊断。SMOKE_MODE 可传 diagnose / redteam / reconstruct / interrogate。
+ * 模式：默认诊断。SMOKE_MODE 可传 diagnose / redteam / fallacy / reconstruct / interrogate。
  *
  * 这里**必须**用 SMOKE_* 而不是 AL_*：AL_MODE 是传给子进程（应用）的那个，
  * 本进程读 AL_MODE 也能读到（因为 env 展开了），但读错名字会拿到 undefined，
  * 于是条件恒不成立、该项静默不跑——输出里既不通过也不失败，看上去像全绿。
  */
 const SMOKE_MODE = process.env.SMOKE_MODE ?? 'diagnose';
-/** 描述类模式不给判定，报告上要挂一条横幅解释为什么没有档位。 */
-const DESCRIPTIVE = new Set(['reconstruct', 'interrogate']);
+/**
+ * 不给判定的模式：报告上要挂一条横幅解释为什么没有档位，
+ * 而且跑道上不许出现「倒在哪一关」——它们把 defeat.checkId 清空了。
+ *
+ * 查谬误模式也在这一组里：它给名字，但不给档位、不给落点。
+ * 名字在不在，由下面那条从 DOM 读出的 data-labels 单独判，不混进这一组——
+ * 混进来的话，一份「模式对了但命名栏整个空着」的报告会照样全绿。
+ */
+const NO_VERDICT = new Set(['fallacy', 'reconstruct', 'interrogate']);
 
 function waitForPort(port, tries = 40) {
   return new Promise((resolveP) => {
@@ -142,7 +149,7 @@ const env = {
   ...(process.env.SMOKE_CLICK_CHECK ? { AL_CLICK_CHECK: process.env.SMOKE_CLICK_CHECK } : {}),
   // SMOKE_PANEL=usage|disputes|history：跑完分析再点开某个面板
   ...(process.env.SMOKE_PANEL ? { AL_PANEL: process.env.SMOKE_PANEL } : {}),
-  // SMOKE_MODE=<模式名>：切成该模式再跑。四种模式各自单独验，
+  // SMOKE_MODE=<模式名>：切成该模式再跑。五种模式各自单独验，
   // 因为「新模式被静默降级成诊断」是这类改动最容易出的错：界面照常出报告。
   ...(process.env.SMOKE_MODE ? { AL_MODE: process.env.SMOKE_MODE } : {}),
   // SMOKE_REVISE=1：跑完再点「拿这一版再判一次」，验修订对照整条链
@@ -201,7 +208,30 @@ const checks = [
    * 少了页面照常跑，所以各自单独断言。异议按钮尤其要数——
    * 它是唯一一处让工具承认「可能是我错」的入口，静默消失最容易被忽略。
    */
-  ['模式开关四档', resultLine.includes('"modeChips":4')],
+  ['模式开关五档', resultLine.includes('"modeChips":5')],
+  /*
+   * 命名栏与模式的契约。
+   *
+   * 期望值不从脚本里的模式名单推，而是从选中按钮上的 data-labels 读——
+   * 那个属性由 MODE_META.allowsLabels 生成。抄一份名单进脚本，加模式时必漏改，
+   * 而漏改的表现是这条断言静默不跑：既不通过也不失败，看上去像全绿。
+   *
+   * 两个方向都要判：
+   *   allowsLabels=0 → 一张卡片都不许有（命名是评价，与「只描述」冲突）
+   *   allowsLabels=1 → 至少一张卡片，且至少一张带原文位置（缺位置的会被 G11 丢掉）
+   * 读不到 data-labels 直接判红，不当作通过——那正是「静默跳过」的样子。
+   */
+  [
+    '命名栏与模式相符',
+    (() => {
+      const allows = /"modeLabels":"([01])"/.exec(resultLine)?.[1];
+      const cards = Number(/"labelCards":(\d+)/.exec(resultLine)?.[1] ?? -1);
+      const quotes = Number(/"candQuote":(\d+)/.exec(resultLine)?.[1] ?? -1);
+      if (allows === '0') return cards === 0;
+      if (allows === '1') return cards >= 1 && quotes >= 1;
+      return false;
+    })(),
+  ],
   ['历史入口在顶栏', resultLine.includes('"histBtn":true')],
   ['切分条出现', resultLine.includes('"segBar":true')],
   ['异议按钮已挂载', /"objBtns":(\d+)/.exec(resultLine)?.[1] >= 1],
@@ -224,14 +254,14 @@ const checks = [
    * 反过来也别写成「>=0」那种恒真条件：那就是静默不跑。
    */
   [
-    DESCRIPTIVE.has(SMOKE_MODE) ? '描述类模式不标「倒在哪一关」' : '跑道上标出倒下的那一关',
-    DESCRIPTIVE.has(SMOKE_MODE)
+    NO_VERDICT.has(SMOKE_MODE) ? '描述类模式不标「倒在哪一关」' : '跑道上标出倒下的那一关',
+    NO_VERDICT.has(SMOKE_MODE)
       ? resultLine.includes('"stripDown":0')
       : /"stripDown":[1-9]/.test(resultLine),
   ],
   [
-    DESCRIPTIVE.has(SMOKE_MODE) ? '描述类模式不写判定倒在哪' : '跑道写明判定倒在哪',
-    DESCRIPTIVE.has(SMOKE_MODE)
+    NO_VERDICT.has(SMOKE_MODE) ? '描述类模式不写判定倒在哪' : '跑道写明判定倒在哪',
+    NO_VERDICT.has(SMOKE_MODE)
       ? resultLine.includes('"stripDies":false')
       : resultLine.includes('"stripDies":true'),
   ],

@@ -903,7 +903,7 @@ export const RAW_CLAIMS: TheoryClaim[] = [
     tier: 'C',
     refs: ['本工具的判断：来自对「模式不认识就当诊断」这类旧代码的复盘'],
     decides:
-      '禁止按「未知就当 diagnose」写三元降级；描述类模式强制 undetermined 时写 MODE_NO_VERDICT 诊断留痕。凡是跳过的步骤都必须在报告里看得见。',
+      '禁止按「未知就当 diagnose」写三元降级；不给档位的模式强制 undetermined 时写 MODE_NO_VERDICT 诊断留痕。凡是跳过的步骤都必须在报告里看得见。',
     sub: 'trace',
   },
   {
@@ -1054,7 +1054,7 @@ export const RAW_CLAIMS: TheoryClaim[] = [
     tier: 'B',
     refs: ['Facione, P. (1990)（分析与评价为两项分列技能）', 'Ennis, R. (1987)'],
     decides:
-      'labels 只标候选名，不因命名自动下调档位；命名必须连带说出「此处它合法或它不成立」的理由。描述类模式清空 labels——先看清结构再谈名字。',
+      'labels 只标候选名，不因命名自动下调档位；命名必须连带说出「此处它合法或它不成立」的理由。查谬误模式把名字当主输出，但每条都要指得出原文哪一句；重构与提问模式清空 labels——先看清结构再谈名字。',
     sub: 'naming',
   },
   {

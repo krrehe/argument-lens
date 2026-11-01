@@ -43,7 +43,7 @@ import { PRAGMA_RULES } from './kb/pragma';
  * 这里做的不只是「把模型的话翻译成结构」。这里有一层**确定性裁决**，
  * 它存在的唯一理由是：模型会给出越界的判断，而以下几类越界可以被代码抓住。
  *
- * 抓住的九类：
+ * 抓住的十一类：
  *   G1 名录透镜给出了终局判定        → 强制打回 undetermined
  *   G2 范围门判不适用却仍有检查项     → 清空 checks
  *   G3 削弱性击败写成「结论为假」     → 改回 argument-only
@@ -51,13 +51,15 @@ import { PRAGMA_RULES } from './kb/pragma';
  *   G5 型式 id 不在库内               → 降为 none
  *   G6 检查项 system 与透镜不符        → 改正并留痕
  *   G7 固定清单未列全（十规则/六要素）→ 补齐为「未覆盖」，不假装评估过
- *   G8 描述类模式给出档位             → 打回 undetermined
+ *   G8 不给档位的模式给出档位           → 打回 undetermined
  *   G9 同一句既当依据又当中间结论      → 合并为一步
  *   G10 判为适用却抽不出结论           → 清引文并打回 undetermined
+ *   G11 查谬误模式的命名没有位置        → 丢弃该条目，不显示
  *
  * 前七类是设计时就知道要防的；G8、G9 是评测跑出来的——真实语料里
- * 「描述类模式顺手给档位」和「一句话被算成两级支撑」都不是偶发，
+ * 「不给档位的模式顺手给档位」和「一句话被算成两级支撑」都不是偶发，
  * 而是模型在没有外部约束时的默认走法。代码不抓，它们就会一直出现。
+ * G11 是加查谬误模式时一并加的：那个模式把名字当主输出，而名字最容易脱离位置单独存在。
  *
  * 每一类都往 diagnostics 里写一条，界面必须展示。静默修正是另一种撒谎。
  */
@@ -301,7 +303,7 @@ function normalizeChecks(raw: unknown, theory: TheoryId, diagnostics: Diagnostic
 
 /* ─────────── 透镜负载 ─────────── */
 
-function normalizeLens(raw: any, theory: TheoryId, diagnostics: Diagnostic[]): LensDetail {
+function normalizeLens(raw: any, theory: TheoryId, diagnostics: Diagnostic[], passage: string): LensDetail {
   const l = raw?.lens ?? raw ?? {};
 
   switch (theory) {
@@ -417,7 +419,7 @@ function normalizeLens(raw: any, theory: TheoryId, diagnostics: Diagnostic[]): L
     case 'copi': {
       const detail: CatalogLens = {
         kind: 'copi',
-        candidates: normalizeLabels(l.candidates ?? raw?.labels, diagnostics),
+        candidates: normalizeLabels(l.candidates ?? raw?.labels, diagnostics, passage),
         whatItMisses: str(l.whatItMisses),
       };
       return detail;
@@ -427,7 +429,7 @@ function normalizeLens(raw: any, theory: TheoryId, diagnostics: Diagnostic[]): L
 
 /* ─────────── 命名候选：三条门槛 ─────────── */
 
-function normalizeLabels(raw: unknown, diagnostics: Diagnostic[]): LabelCandidate[] {
+function normalizeLabels(raw: unknown, diagnostics: Diagnostic[], passage: string): LabelCandidate[] {
   const out: LabelCandidate[] = [];
   const seen = new Set<string>();
   for (const f of arr<any>(raw)) {
@@ -472,6 +474,8 @@ function normalizeLabels(raw: unknown, diagnostics: Diagnostic[]): LabelCandidat
       id,
       name: def.name,
       nameEn: def.nameEn,
+      quote: optStr(f?.quote),
+      span: locate(passage, optStr(f?.quote)),
       condition,
       whenLegitimate: legit,
       riskOfError: risk,
@@ -515,7 +519,7 @@ export function normalizeDiagnosis(
    * 界面照常出报告，报告上写着「诊断」，而用户以为自己在重构。
    */
   const mode: AnalysisMode = normalizeMode(opts.mode);
-  /** 描述类模式不给档位。这一条在下面 G8 处由代码强制，不靠模型自觉。 */
+  /** 三个模式不给档位（查谬误／重构／提问）。这一条在下面 G8 处由代码强制，不靠模型自觉。 */
   const givesVerdict: boolean = MODE_META[mode].givesVerdict;
 
   if (!raw || typeof raw !== 'object') {
@@ -654,7 +658,7 @@ export function normalizeDiagnosis(
   resolveSupports([conclusion as Claim, ...premises, ...intermediate], diagnostics);
 
   /* 透镜负载 */
-  const lens = normalizeLens(raw, theory, diagnostics);
+  const lens = normalizeLens(raw, theory, diagnostics, passage);
 
   /* 检查项 */
   let checks = normalizeChecks(raw.checks, theory, diagnostics);
@@ -720,7 +724,7 @@ export function normalizeDiagnosis(
   }
 
   /*
-   * G8：描述类模式（重构 / 提问）不给判定。
+   * G8：不给档位的模式（查谬误 / 重构 / 提问）不给判定。
    *
    * 提示词里已经明写了，这里再强制一遍，因为提示词是**请求**，这里是**保证**：
    * 模型照样会顺手给一个档位，界面会照常把它渲染成一份判定，
@@ -734,7 +738,7 @@ export function normalizeDiagnosis(
       diagnostics.push({
         level: 'warn',
         code: 'MODE_NO_VERDICT',
-        message: `本次是「${MODE_META[mode].label}」模式，该模式不给判定档位；模型给出的是「${level}」，已强制打回「判不了」。这不是解析错误，是模式定义：先判了再重构，重构就会往最弱的读法上靠。`,
+        message: `本次是「${MODE_META[mode].label}」模式，该模式不给判定档位；模型给出的是「${level}」，已强制打回「判不了」。这不是解析错误，是模式定义：${MODE_META[mode].allowsLabels ? '指出几处推理不成立，不等于这段话的结论是错的' : '先判了再重构，重构就会往最弱的读法上靠'}。`,
       });
     }
     level = 'undetermined';
@@ -781,22 +785,79 @@ export function normalizeDiagnosis(
   /*
    * 命名候选：名录透镜从 lens 取，其余从顶层取。
    *
-   * 描述类模式一律不命名。命名是评价，不是描述：说出「这是循环论证」的那一刻，
-   * 你就已经判过了。重构模式若带着一堆名字，用户看到的是一份伪装成结构图的判决书。
+   * 门控用 allowsLabels，不再用 givesVerdict。
+   *
+   * 原先那行是 `givesVerdict ? … : []`——在四个模式下它是对的，因为「不给档位的」
+   * 恰好就是「不命名的」。加了查谬误模式之后这两件事分开了：它给名字，但不给档位。
+   * 沿用旧写法会把它的主输出整个清空，而报告看起来完全正常——只有一张空白的命名栏，
+   * 用户会以为自己这段文本干干净净。一个开关管两件事，就会在只需要改一件时改错另一件。
+   *
+   * 重构 / 提问两个模式仍然不命名：命名是评价，与「只描述」冲突。
    */
   const rawLabelCount =
     theory === 'copi' ? (lens as CatalogLens).candidates.length : arr<any>(raw.labels).length;
-  const labels: LabelCandidate[] = givesVerdict
+  let labels: LabelCandidate[] = MODE_META[mode].allowsLabels
     ? theory === 'copi'
       ? (lens as CatalogLens).candidates
-      : normalizeLabels(raw.labels, diagnostics)
+      : normalizeLabels(raw.labels, diagnostics, passage)
     : [];
-  if (!givesVerdict && rawLabelCount > 0) {
+  if (!MODE_META[mode].allowsLabels && rawLabelCount > 0) {
     diagnostics.push({
       level: 'warn',
       code: 'MODE_NO_LABELS',
       message: `本次是「${MODE_META[mode].label}」模式，该模式不命名；模型给了 ${rawLabelCount} 条命名候选，已清空。命名是评价，与「只描述」冲突。`,
     });
+  }
+
+  /*
+   * G11：查谬误模式下，每条命名必须指得出原文哪一句、落得了一条检查项。
+   *
+   * 为什么只在查谬误模式下执行：其他三个模式里名字是末端注释，注释不必指出位置；
+   * 而在这个模式里名字就是主输出——用户要拿它去对质，第一句就会问「我哪句话这样了」。
+   * 答不上来，这条名字对他只有负作用：他不是多知道了一件事，是多背了一个标签。
+   *
+   * 两条判据分开处理，因为它们的性质不同：
+   *
+   *   位置（quote + 能定位）：硬要求，任何情况下都执行。说不出是哪一句，名字作废。
+   *   落点（landsOnCheck）：只在**本透镜确实产生检查项**时才要求。
+   *     名录透镜与 PTA 透镜按设计不产生检查项（checks 为空），
+   *     这时候要求落点，等于让这两个透镜下的查谬误模式永远交白卷。
+   *     检查项为空时不假装有条可落，改留一条 info 说明「这份名字只有位置、没有落点」。
+   *
+   * 丢弃一律留痕，并且说出丢的是哪一条、缺的是哪一样——静默丢弃会让用户以为
+   * 模型什么都没找到，那是另一种撒谎。
+   */
+  if (mode === 'fallacy' && labels.length) {
+    const checkIds = new Set(checks.map((c) => c.id));
+    const kept: LabelCandidate[] = [];
+    for (const l of labels) {
+      const located = Boolean(l.quote && l.span && l.span.quality !== 'failed');
+      if (!located) {
+        diagnostics.push({
+          level: 'warn',
+          code: 'LABEL_NO_LOCATION',
+          message: `「${l.name}」${l.quote ? '的引文在原文里找不到' : '没有给出原文引文'}，已不显示。查谬误模式下，说不清是原文哪一句的名字只是贴标签。`,
+        });
+        continue;
+      }
+      if (checkIds.size && (!l.landsOnCheck || !checkIds.has(l.landsOnCheck))) {
+        diagnostics.push({
+          level: 'warn',
+          code: 'LABEL_NO_CHECK',
+          message: `「${l.name}」${l.landsOnCheck ? `挂在 ${l.landsOnCheck} 上，但这份报告没有这一条检查项` : '没有挂在任何检查项上'}，已不显示。名字是末端注释，落到检查项上才算分析。`,
+        });
+        continue;
+      }
+      kept.push(l);
+    }
+    if (checkIds.size === 0 && kept.length) {
+      diagnostics.push({
+        level: 'info',
+        code: 'LABEL_WITHOUT_CHECK',
+        message: `本次透镜不产生检查项，所以这 ${kept.length} 条名字只有原文位置、没有落点。名字能对上原文，但它不挂在任何一条逐关检查上——判读时请以原文那一句为准。`,
+      });
+    }
+    labels = kept;
   }
 
   /* 此处合法 */
@@ -859,14 +920,23 @@ export function normalizeDiagnosis(
     }));
 
   /*
-   * 重构模式清空反驳。提问模式**保留**——那里它们是问题清单，是这个模式的主输出。
+   * 哪些模式清空反驳。提问模式**保留**——那里它是主输出（问题清单）。
    * 一个模式清、一个模式留，不看「是不是判定模式」，看这一栏在该模式下有没有意义。
+   *
+   * 写成一张小表而不是两段 if：加第三个要清的模式时，只可能改这张表，
+   * 不可能出现「复制了一段 if 却忘了改里面的模式名」——那种错的后果是
+   * 某一份报告里混着两套输出，而报告本身看起来毫发无损。
    */
-  if (mode === 'reconstruct' && refutations.length > 0) {
+  const REFUTATION_OFF: Partial<Record<AnalysisMode, string>> = {
+    reconstruct: '攻击路线属于红队模式，画结构属于这里。',
+    fallacy: '攻击路线属于红队模式。这一份里混进攻击路线，用户会把它读成「这段有谬误」的证据。',
+  };
+  const refutationOffReason = REFUTATION_OFF[mode];
+  if (refutationOffReason && refutations.length > 0) {
     diagnostics.push({
       level: 'warn',
       code: 'MODE_NO_REFUTATIONS',
-      message: `重构模式不给攻击路线；模型给了 ${refutations.length} 条，已清空。攻击路线属于红队模式，画结构属于这里。`,
+      message: `本次是「${MODE_META[mode].label}」模式，不产出攻击路线；模型给了 ${refutations.length} 条，已清空。${refutationOffReason}`,
     });
     refutations = [];
   }

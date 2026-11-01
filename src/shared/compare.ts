@@ -138,7 +138,7 @@ export function diffRevision(parent: Diagnosis, child: Diagnosis): RevisionDiff 
     /*
      * 跨模式对照分三种，措辞必须分开：
      * 判定类之间换模式，档位含义不同但都还有档位；
-     * 判定类对描述类，后者根本没有档位——这时「升降」是纯粹的假象。
+     * 一方给档位、一方不给：后者根本没有档位——这时「升降」是纯粹的假象。
      * 写一句笼统的「模式不同」会把这两种混成一件事，用户看不出哪一种更严重。
      */
     const a = MODE_META[parent.mode];
