@@ -101,7 +101,8 @@ function rebuildIndex(): ReportMeta[] {
       const bytes = Buffer.byteLength(JSON.stringify(d), 'utf-8');
       out.push(metaOf(d, null, bytes));
     } catch {
-      /* 单个坏文件不拖垮整次重建 */
+      // @allow-silent: 单个坏文件不拖垮整次重建。文件还在磁盘上（没被删），
+      // 下次重建仍会扫到它；索引是缓存，文件是真相。
     }
   }
   out.sort((a, b) => b.at - a.at);
@@ -159,7 +160,8 @@ export function removeReport(id: string): ReportMeta[] {
   try {
     if (existsSync(p)) unlinkSync(p);
   } catch {
-    /* 删不掉文件也把索引清掉：否则列表里会留一条点开是空的幽灵 */
+    // @allow-silent: 文件删不掉也要把索引清掉，否则列表里留一条点开是空的幽灵。
+    // 删不掉通常是权限或占用，用户会在文件夹里看到那个文件本身。
   }
   const list = readIndex().filter((m) => m.id !== id);
   writeIndex(list);

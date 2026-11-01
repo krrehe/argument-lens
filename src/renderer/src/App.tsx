@@ -55,6 +55,14 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<ProgressEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * 一条「事情没成，但结果照给你」的提示。
+   *
+   * 和 error 分开是因为这两件事不能混：error 意味着这次分析没有结果，
+   * notice 意味着结果有了，只是另外一件事没做成（异议没记上、报告没存进历史）。
+   * 混在一起显示，用户会以为报告是坏的——而报告是好的。
+   */
+  const [notice, setNotice] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [onboard, setOnboard] = useState(false);
   const [hasKey, setHasKey] = useState(true);
@@ -170,6 +178,7 @@ export default function App() {
       abortRef.current = false;
       setLoading(true);
       setError(null);
+      setNotice(null);
       setDiag(null);
       setProgress({ stage: 'scope', label: '准备', percent: 4 });
 
@@ -213,6 +222,18 @@ export default function App() {
       if (res.ok && res.data) {
         setDiag(res.data);
         setLastUsage(res.usage ?? null);
+        /*
+         * 存档没写进去要明说。
+         *
+         * 结果照常显示（这一次的钱已经花了），但这份从此不在历史里：
+         * 下次想拿它当「上一版」做修订对照时，找不到它。
+         * 不说，用户会在那个时刻才发现，而那时他不知道原因，只会以为软件丢了东西。
+         */
+        if (res.saved === false) {
+          setNotice(
+            `这一份没能存进历史（${res.saveError ?? '原因不明'}）。报告照常显示，但它不会出现在历史里，也无法作为下一版的对照对象。`
+          );
+        }
       } else {
         setError(res.error?.message ?? '分析失败，原因不明。');
       }
@@ -247,14 +268,21 @@ export default function App() {
             }) => {
               window.api.objections
                 .add({ diagId: diag.id, theory: diag.theory, ...v })
-                .then(setObjections)
-                .catch(() => {});
+                .then((r) => {
+                  if (r.ok) setObjections(r.list);
+                  // 记不上去必须说出来：按钮弹回原样，用户只会以为自己没点中
+                  else setNotice(`这条不同意见没记上：${r.error ?? '写入失败'}。可以看看磁盘是不是只读或满了。`);
+                })
+                .catch((err: Error) => setNotice(`这条不同意见没记上：${err?.message ?? '与主进程通信失败'}`));
             },
             remove: (key: string) => {
               window.api.objections
                 .remove(diag.id, key)
-                .then(setObjections)
-                .catch(() => {});
+                .then((r) => {
+                  if (r.ok) setObjections(r.list);
+                  else setNotice(`撤销没生效：${r.error ?? '写入失败'}。文件里的那条还在。`);
+                })
+                .catch((err: Error) => setNotice(`撤销没生效：${err?.message ?? '与主进程通信失败'}`));
             },
           }
         : null,
@@ -316,7 +344,12 @@ export default function App() {
         setPickedIndex(null);
         setHistOpen(false);
       })
-      .catch(() => {});
+      /*
+       * 读不出来要说出来。以前这里接住异常却什么都不做：
+       * 点在历史里的一份报告上、屏幕毫无变化，用户只能以为自己没点中。
+       * 常见原因就是文件被手动删了或写坏了一半。
+       */
+      .catch(() => setNotice('这份报告读不出来（文件可能被手动删掉或写坏了一半）。列表里那一行可以先移除。'));
   }, []);
 
   /**
@@ -562,6 +595,18 @@ export default function App() {
                   </div>
                   <button className="banner-act" onClick={() => setUsageOpen(true)}>
                     看余额与用量
+                  </button>
+                </div>
+              )}
+
+              {notice && (
+                <div className="banner warn">
+                  <div>
+                    <b>有一件事没做成</b>
+                    {notice}
+                  </div>
+                  <button className="banner-x" onClick={() => setNotice(null)} aria-label="知道了">
+                    ✕
                   </button>
                 </div>
               )}

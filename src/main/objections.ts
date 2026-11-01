@@ -1,9 +1,10 @@
 import { app } from 'electron';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Objection, ObjectionStat } from '@shared/types';
 import type { TheoryId } from '@shared/theories';
 import { objectionKey } from '@shared/objection';
+import { appendJsonl, readJsonl, rewriteJsonl } from './jsonl';
 
 /**
  * 用户异议的存放处。
@@ -15,6 +16,11 @@ import { objectionKey } from '@shared/objection';
  * 为什么不存进报告文件里：报告可能被删（用户清理历史），
  * 但「我对这条判定有意见」这件事本身有价值，不该跟着报告一起消失。
  * 异议自带 excerpt，所以报告没了它仍然能独立读。
+ *
+ * 写失败一律往上抛，不在这一层兜。
+ * 以前这里吞掉写盘的异常，后果是用户点了「记下」、界面回到原样，
+ * 他以为自己留了意见，下一次打开什么都没有——而这恰恰是这个功能唯一的产品价值：
+ * 把「我不同意」留下来。留不下来却说成功了，比不提供这个功能更糟。
  */
 
 function objDir(): string {
@@ -44,46 +50,48 @@ function isObjection(o: any): o is Objection {
   );
 }
 
+/** 一行文本 → 一条异议。认不出来返回 null，由 jsonl 层计进坏行数。 */
+function parseLine(line: string): Objection | null {
+  const o = JSON.parse(line);
+  if (!isObjection(o)) return null;
+  return {
+    key: o.key,
+    diagId: o.diagId,
+    at: o.at,
+    theory: o.theory,
+    field: o.field,
+    refId: o.refId,
+    refLabel: String(o.refLabel ?? ''),
+    excerpt: String(o.excerpt ?? ''),
+    reason: String(o.reason ?? ''),
+  };
+}
+
+/**
+ * 最近一次读出来的坏行数。
+ *
+ * 坏行仍然跳过——不因为一行坏掉整份记录，用户看不见一条胜过看不见全部。
+ * 但「有几行坏」必须留个痕迹：否则一份正在损坏的文件会一直显示成「完好」，
+ * 等人发现时已经丢了一片。这里打到主进程日志，界面不打扰用户。
+ */
+let lastBadLines = 0;
+
+export function objectionsBadLines(): number {
+  return lastBadLines;
+}
+
 function readAll(): Objection[] {
-  const p = objFile();
-  if (!existsSync(p)) return [];
-  let raw: string;
-  try {
-    raw = readFileSync(p, 'utf-8');
-  } catch {
-    return [];
+  const { items, badLines } = readJsonl(objFile(), parseLine);
+  if (badLines > 0 && badLines !== lastBadLines) {
+    // @allow-silent: 单行损坏不影响其余记录，坏行数记进 lastBadLines 并打到日志，不当成错误抛给用户
+    console.warn(`[objections] 有 ${badLines} 行读不出来，已跳过：${objFile()}`);
   }
-  const out: Objection[] = [];
-  for (const line of raw.split('\n')) {
-    const t = line.trim();
-    if (!t) continue;
-    try {
-      const o = JSON.parse(t);
-      if (isObjection(o)) {
-        out.push({
-          key: o.key,
-          diagId: o.diagId,
-          at: o.at,
-          theory: o.theory,
-          field: o.field,
-          refId: o.refId,
-          refLabel: String(o.refLabel ?? ''),
-          excerpt: String(o.excerpt ?? ''),
-          reason: String(o.reason ?? ''),
-        });
-      }
-    } catch {
-      // 坏行跳过，不因为一行坏掉整份记录。用户看不见这条，胜过看不见全部。
-    }
-  }
-  return out;
+  lastBadLines = badLines;
+  return items;
 }
 
 function writeAll(list: Objection[]): void {
-  const p = objFile();
-  const tmp = `${p}.tmp`;
-  writeFileSync(tmp, list.map((o) => JSON.stringify(o)).join('\n') + (list.length ? '\n' : ''), 'utf-8');
-  renameSync(tmp, p);
+  rewriteJsonl(objFile(), list);
 }
 
 /** 全部异议，新的在前。 */
@@ -109,6 +117,8 @@ export interface ObjectionInput {
 /**
  * 记一条异议。同一条判定在同一份报告里只留一条——重复点等于刷票，
  * 会把「最常被反对」这个统计做成假象。
+ *
+ * 写失败会抛：由 IPC 层翻成界面上看得见的一句话。
  */
 export function addObjection(input: ObjectionInput): Objection[] {
   const key = objectionKey(input.theory, input.field, input.refId, input.excerpt);
@@ -130,7 +140,7 @@ export function addObjection(input: ObjectionInput): Objection[] {
     all[dup] = record;
     writeAll(all);
   } else {
-    appendFileSync(objFile(), `${JSON.stringify(record)}\n`, 'utf-8');
+    appendJsonl(objFile(), record);
   }
   return listObjections();
 }

@@ -29,6 +29,27 @@ export class LlmError extends Error {
 
 const TIMEOUT_MS = 120_000;
 
+/**
+ * 服务端报错摘要。
+ *
+ * 两件事都在这里做，因为它们是同一件事的两面：这段文本要显示在界面上，
+ * 而它的内容是别人家的服务器给的。
+ *
+ *   1. 截短。整段回显会把一屏提示变成一屏日志，用户要的只是「哪错了」，
+ *      而那句话通常在开头 160 个字符里。
+ *   2. 抹掉凭据。有些网关会把请求头原样回显（包括 Bearer 与 Key 片段），
+ *      有些代理会把整个请求体塞进 400 的响应里。这段文本最终显示在界面上、
+ *      也可能被截图或粘到别处——凭据跟着一起出去，是这一层不该做的事。
+ */
+function briefOf(raw: string, max = 160): string {
+  return raw
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/sk-[A-Za-z0-9_-]{4,}/g, 'sk-***')
+    .replace(/Bearer\s+[A-Za-z0-9._-]{4,}/gi, 'Bearer ***')
+    .slice(0, max);
+}
+
 export async function chat(
   system: string,
   user: string,
@@ -85,7 +106,7 @@ export async function chat(
 
     if (!res.ok) {
       const raw = await res.text().catch(() => '');
-      const brief = raw.slice(0, 400);
+      const brief = briefOf(raw);
       if (res.status === 401 || res.status === 403) {
         throw new LlmError('AUTH', `API Key 无效或无权限（${res.status}）。请检查设置。`, res.status);
       }
@@ -172,7 +193,7 @@ export async function testConnection(cfg: Partial<LlmSettings>): Promise<TestRes
     }
 
     const raw = await res.text().catch(() => '');
-    const brief = raw.replace(/\s+/g, ' ').slice(0, 300);
+    const brief = briefOf(raw);
 
     if (res.status === 401 || res.status === 403) {
       return { ok: false, message: `Key 无效或无权限（${res.status}）。${brief}`, latencyMs };

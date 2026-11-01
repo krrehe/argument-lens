@@ -23,7 +23,8 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
     try {
       appendFileSync(trace, `${new Date().toISOString()} ${line}\n`);
     } catch {
-      /* 日志失败不能影响主流程 */
+      // @allow-silent: 冒烟日志写不进磁盘不影响被冒烟的功能本身；
+      // 断言结论走画面断言与退出码，不靠这份日志（它只是排错时的旁证）。
     }
   };
   writeFileSync(trace, '');
@@ -162,6 +163,15 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               candQuote: document.querySelectorAll('.cand-quote').length,
               /* 当前模式允不允许命名，从按钮上读——名单只存在 MODE_META 一处 */
               modeLabels: document.querySelector('.mode-chip.on')?.getAttribute('data-labels') ?? '',
+              /*
+               * 「有一件事没做成」的提示条。
+               *
+               * 这是本轮新加的那条（存档没写进去、异议没记上）。它的风险方向和别的
+               * 元素相反：别的怕消失，它怕**凭空出现**——存档明明成功了却提示没存，
+               * 用户就会开始怀疑历史面板里到底有几份是真的。
+               * 所以这里数它是 0，不是数它在。
+               */
+              noticeBars: document.querySelectorAll('.banner.warn').length,
               /*
                * 导出按钮。它坏起来比别的更安静：按钮在、点了没反应，用户会以为
                * 是保存框被浏览器拦了，然后去别处找原因。这里只能验它渲染出来，

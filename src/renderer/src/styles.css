@@ -300,6 +300,25 @@ select {
   line-height: 1.6;
 }
 
+/*
+ * 一句说明里的文字按钮（设置页的「清除已保存的 Key」）。
+ * 用按钮而不是 <a>：它触发的是本机操作，不是跳转，
+ * 做成链接的样子只是因为它出现在一句话的中间。
+ */
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0 0 0 4px;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.link-btn:hover {
+  opacity: 0.75;
+}
+
 .brief {
   padding: 12px 16px 18px;
   overflow-y: auto;

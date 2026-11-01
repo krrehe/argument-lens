@@ -51,11 +51,24 @@ export function Settings({
    * 但对用户是两件完全不同的事——他改个模型名，不该把 Key 一起弄没。
    */
   const [keyUnreadable, setKeyUnreadable] = useState(false);
+  /**
+   * 本机存着一个 Key（hasKey）。
+   *
+   * 有了它，输入框才不需要显示明文：主进程不再把 Key 发回来（一条能读回凭据的
+   * 通道，等于给渲染层留了一份可复制的凭据），界面只需要知道「有没有」。
+   * 于是「留空」的含义也跟着定了：留空 = 不动它。想清掉要显式按一下清除。
+   */
+  const [savedKey, setSavedKey] = useState(false);
+  /** 用户按了「清除」：这一次保存要把 Key 真的清掉，而不是「没填」。 */
+  const [clearKey, setClearKey] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const onboard = mode === 'onboard';
 
   useEffect(() => {
     window.api.settings.get().then((s) => {
-      setForm({ baseUrl: s.baseUrl, apiKey: s.apiKey, model: s.model, temperature: s.temperature });
+      // apiKey 一栏永远是空的：主进程不回明文，留空表示「不动原来那个」
+      setForm({ baseUrl: s.baseUrl, apiKey: '', model: s.model, temperature: s.temperature });
+      setSavedKey(!!s.hasKey);
       setKeyUnreadable(!!s.keyUnreadable);
       setLoaded(true);
     });
@@ -74,12 +87,27 @@ export function Settings({
 
   const save = async () => {
     /*
-     * 解不开的那种 Key，只要用户没重新输入，就别把 apiKey 这个字段发出去。
-     * 发一个空串看起来无害，实际是把磁盘上那段仍然有用的密文覆盖掉。
+     * 三种情形，差别全在 apiKey 这一个字段上：
+     *
+     *   填了新的      → 发新值，覆盖
+     *   空 + 按过清除 → 发空串，真的清掉
+     *   空 + 没按清除 → 不发这个字段，让主进程保留原来那段（可能是它解不开的密文）
+     *
+     * 第三种最容易写错：发一个空串看起来无害，实际是把磁盘上仍然有用的凭据抹掉。
+     * 用户只是改了个模型名，不该顺手把 Key 弄没。
      */
-    const payload = keyUnreadable && !form.apiKey ? { ...form, apiKey: undefined } : form;
-    await window.api.settings.save(payload);
+    const payload = form.apiKey ? form : clearKey ? { ...form, apiKey: '' } : { ...form, apiKey: undefined };
+    const r = await window.api.settings.save(payload);
+    if (!r.ok) {
+      // 校验不过就停在设置页：写进去了再报错，用户面对的会是一条指向网络的假线索
+      setSaveError(r.error ?? '没保存：这一版设置不合法。');
+      setTest({ kind: 'done', ok: false, message: r.error ?? '没保存。' });
+      return;
+    }
+    setSaveError(null);
     const s = await window.api.settings.get();
+    setSavedKey(!!s.hasKey);
+    setClearKey(false);
     onSaved(s);
   };
 
@@ -149,10 +177,41 @@ export function Settings({
             <input
               type="password"
               value={form.apiKey}
-              onChange={(e) => patch({ apiKey: e.target.value })}
-              placeholder={keyUnreadable ? '（这台机器解不开原来那个，可重填）' : 'sk-…　（本地 Ollama 填 ollama 即可）'}
+              onChange={(e) => {
+                patch({ apiKey: e.target.value });
+                setSaveError(null);
+              }}
+              placeholder={
+                keyUnreadable
+                  ? '（这台机器解不开原来那个，可重填）'
+                  : savedKey
+                    ? '已保存。留空 = 不改；要换就填新的'
+                    : 'sk-…　（本地 Ollama 填 ollama 即可）'
+              }
               spellCheck={false}
             />
+            {savedKey && !clearKey && (
+              <span className="hint">
+                Key 用系统加密存在本机，这里读不出来也不显示——
+                <button
+                  className="link-btn"
+                  onClick={() => {
+                    setClearKey(true);
+                    setForm((f) => ({ ...f, apiKey: '' }));
+                  }}
+                >
+                  清除已保存的 Key
+                </button>
+              </span>
+            )}
+            {clearKey && (
+              <span className="hint">
+                点了保存之后，本机那个 Key 会被清掉（这次无法撤销）。
+                <button className="link-btn" onClick={() => setClearKey(false)}>
+                  不清了
+                </button>
+              </span>
+            )}
             {keyUnreadable && (
               <span className="hint">
                 本机存着一个 Key，但当前系统账户解不开它（换过账户或系统密钥环被重置）。
@@ -179,6 +238,10 @@ export function Settings({
           <p className="hint" style={{ borderTop: '1px dashed var(--line)', paddingTop: 8 }}>
             想看这个模型每次花多少钱，点顶栏的「今日 …」：那里填单价、记余额，也能导出明细。
           </p>
+
+          {/* 校验不通过的提示留在这里，不跟着「改一下输入框」就消失：
+              地址写错的人正要反复改，提示闪一下就没了等于没提示。 */}
+          {saveError && <p className="hint warn">{saveError}</p>}
 
         </div>
 

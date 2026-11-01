@@ -164,8 +164,8 @@ export function recordUsage(
     try {
       appendFileSync(monthFile(monthKey(at)), `${JSON.stringify(full)}\n`, 'utf-8');
     } catch {
-      // 记账失败绝不能影响分析本身。这里静默，但不能在有记录时假装成功——
-      // 面板里的数字会少一条，用户看到的仍是可解释的（次数比实际少，不会多）。
+      // @allow-silent: 记账失败绝不能影响分析本身（钱已经花了，结果必须照给）。
+      // 代价是面板次数偏少——偏少是可解释的方向，偏多才是假账。
     }
   }
   return full;
@@ -254,7 +254,8 @@ function readRecords(): UsageRecord[] {
           chars: Number(r.chars) || 0,
         });
       } catch {
-        // 半行（写入时断电）跳过，不让一条坏记录毁掉整月
+        // @allow-silent: 半行（写入时断电）跳过，不让一条坏记录毁掉整月账本。
+        // 与异议文件同一条规矩：局部损坏只丢局部。
       }
     }
   }

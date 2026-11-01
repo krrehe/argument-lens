@@ -22,6 +22,7 @@ import type { Diagnosis } from '@shared/types';
 import { FALLACIES } from './kb/fallacies';
 import { PRAGMA_RULES } from './kb/pragma';
 import { normalizeMode, type AnalysisMode, type LlmSettings, type Pricing } from '@shared/types';
+import { describeProblems, validateSettingsPatch } from '@shared/settings-check';
 import { DEFAULT_THEORY, THEORIES, isTheoryId, type TheoryId } from '@shared/theories';
 import { buildPrompt, renderPrompt, SAMPLING, BUDGET } from './prompt';
 
@@ -64,7 +65,17 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      /*
+       * sandbox 打开。
+       *
+       * 以前是 false，理由是「preload 里可能会用到 node」——实际上 preload 只用
+       * ipcRenderer 和 contextBridge，两者在沙箱里都可用。关掉沙箱换来的只有风险：
+       * 渲染层一旦被注入脚本，它拿到的就是一个完整的 node 运行时。
+       *
+       * 渲染层的边界是三层的：nodeIntegration 关、contextIsolation 开、sandbox 开。
+       * 缺第三层，前两层只是「正常路径上不会用到 node」，而不是「用不了 node」。
+       */
+      sandbox: true,
       spellcheck: false,
     },
   });
@@ -92,7 +103,18 @@ function registerIpc(): void {
       baseUrl: s.baseUrl,
       model: s.model,
       temperature: s.temperature,
-      apiKey: s.apiKey,
+      /*
+       * 不回 Key 明文。
+       *
+       * 以前这里把解密后的 Key 原样发回渲染层，仅仅是为了让设置页的输入框
+       * 显示出来「已经填过」。为一次显示把凭据复制一份到渲染进程，
+       * 换来的好处是用户少看一个占位符——代价却是任何能读到渲染层状态的东西
+       * 都能读到它（开发者工具、注入的脚本、将来接进来的任何一段前端代码）。
+       *
+       * 现在只回「有没有」和「解不解得开」两个事实，这两件事才是界面真正需要的：
+       * 没有 → 引导去填；有 → 显示「已保存，留空则不改」。
+       */
+      apiKey: '',
       hasKey: hasApiKey(),
       // 「配过但这台机器解不开」要单独说。只报 hasKey=false 的话，
       // 用户会把它当成没配过，回头去填一个新的，旧密文就被覆盖了。
@@ -101,6 +123,17 @@ function registerIpc(): void {
   });
 
   ipcMain.handle('settings:save', (_e, payload: Partial<LlmSettings>) => {
+    const problems = validateSettingsPatch(payload);
+    if (problems.length) {
+      /*
+       * 不写。
+       *
+       * 保存时不做校验的后果是：错误被推迟到下一次请求才暴露，而那时界面上
+       * 显示的是「网络请求失败」——一条把用户指向错误方向的提示。
+       * 更坏的一种是 file:// 开头的地址：它会被 new URL 接受，也会真的发出去。
+       */
+      return { ok: false, error: describeProblems(problems) };
+    }
     writeSettings(payload);
     return { ok: true };
   });
@@ -122,17 +155,24 @@ function registerIpc(): void {
         );
         /*
          * 自动存档。放在这里而不是 runAnalysis 里，是因为「跑分析」和「留住结果」
-         * 是两件事：前者是纯计算，后者是应用行为。存失败也不能影响这次的结果——
-         * 用户已经花了钱，不能因为磁盘满了就把报告也扣下。
+         * 是两件事：前者是纯计算，后者是应用行为。
+         *
+         * 存失败不再只是「算了」：它照样返回结果（用户已经花了钱，不能因为磁盘
+         * 满了把报告也扣下），但把失败一并报回去。以前这个 catch 是空的，
+         * 于是列表里没有这一份、修订对照也找不到上一版，而界面上什么都没说——
+         * 用户第一次发现是在他想对照的时候，那时原因已经无从查起。
          */
+        let saved = true;
+        let saveError: string | null = null;
         try {
           saveReport(diagnosis, usage);
-        } catch {
-          /* 存不下就算了，报告本身照常返回 */
+        } catch (err) {
+          saved = false;
+          saveError = (err as Error)?.message ?? '写不进存档目录';
         }
         // 把这次记账一并返回：报告顶部要显示「这一份花了多少」，
         // 再去账本里取最近一条会有认错记录的风险。
-        return { ok: true, data: diagnosis, usage };
+        return { ok: true, data: diagnosis, usage, saved, saveError };
       } catch (err) {
         /*
          * 错误码只从 LlmError 上取。
@@ -186,8 +226,28 @@ function registerIpc(): void {
   /* 异议：只记录，不改报告。所有写操作返回全量，界面直接替换状态。 */
   ipcMain.handle('objections:list', () => listObjections());
   ipcMain.handle('objections:of', (_e, diagId: string) => objectionsOf(diagId));
-  ipcMain.handle('objections:add', (_e, input: ObjectionInput) => addObjection(input));
-  ipcMain.handle('objections:remove', (_e, diagId: string, key: string) => removeObjection(diagId, key));
+  /*
+   * 写失败要变成界面上的一句话，不能是静默的空操作。
+   *
+   * 异议这个功能唯一的价值是「留下来」。写不进去却回一个正常的列表，
+   * 界面上就表现为「点了一下，什么也没发生」——用户会以为是自己没点对，
+   * 再点一次，还是没有。这比直接告诉他「没记上」坏得多：前者让他怀疑自己，
+   * 后者让他知道磁盘出了什么事。
+   */
+  ipcMain.handle('objections:add', (_e, input: ObjectionInput) => {
+    try {
+      return { ok: true, list: addObjection(input) };
+    } catch (err) {
+      return { ok: false, list: listObjections(), error: (err as Error)?.message ?? '异议没能写进文件。' };
+    }
+  });
+  ipcMain.handle('objections:remove', (_e, diagId: string, key: string) => {
+    try {
+      return { ok: true, list: removeObjection(diagId, key) };
+    } catch (err) {
+      return { ok: false, list: listObjections(), error: (err as Error)?.message ?? '异议没能从文件里删掉。' };
+    }
+  });
   ipcMain.handle('objections:stats', () => objectionStats());
   ipcMain.handle('objections:reveal', () => shell.openPath(objectionsDirPath()));
 

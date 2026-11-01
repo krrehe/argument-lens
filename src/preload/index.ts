@@ -19,24 +19,40 @@ import type { TheoryId } from '@shared/theories';
 
 /**
  * 渲染进程只能通过这里访问主进程。
- * key 不常驻渲染层：只在设置页读写时短暂经过。
+ *
+ * 通道里不再有 Key：settings.get 只回「有没有 / 解不解得开」，
+ * 要改 Key 就往 settings.save 里发一个明文——单向，不回读。
+ * 一条能读回凭据的通道，等于给渲染层留了一份可复制的凭据。
  */
 const api = {
   settings: {
     get: (): Promise<LlmSettings & { hasKey: boolean; keyUnreadable: boolean }> =>
       ipcRenderer.invoke('settings:get'),
-    save: (patch: Partial<LlmSettings>): Promise<{ ok: boolean }> => ipcRenderer.invoke('settings:save', patch),
+    /** 校验不通过时 ok=false 并带上原因；没校验这一步，错配置会一直拖到请求时才炸。 */
+    save: (patch: Partial<LlmSettings>): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('settings:save', patch),
     test: (patch: Partial<LlmSettings>): Promise<{ ok: boolean; message: string; latencyMs: number }> =>
       ipcRenderer.invoke('settings:test', patch),
   },
   analysis: {
+    /*
+     * 报告照常返回，但 `saved` 会说明它有没有进历史。
+     * 存档失败不拦结果（钱已经花了），但不说明的话，用户会在想做修订对照的那天
+     * 才发现少了一份，而那时原因无从查起。
+     */
     run: (
       passage: string,
       theory: TheoryId,
       mode?: AnalysisMode,
       parentId?: string | null
-    ): Promise<{ ok: boolean; data?: Diagnosis; usage?: UsageRecord; error?: { code: string; message: string } }> =>
-      ipcRenderer.invoke('analysis:run', passage, theory, mode, parentId),
+    ): Promise<{
+      ok: boolean;
+      data?: Diagnosis;
+      usage?: UsageRecord;
+      saved?: boolean;
+      saveError?: string | null;
+      error?: { code: string; message: string };
+    }> => ipcRenderer.invoke('analysis:run', passage, theory, mode, parentId),
     onProgress: (cb: (e: ProgressEvent) => void): (() => void) => {
       const handler = (_e: unknown, payload: ProgressEvent) => cb(payload);
       ipcRenderer.on('analysis:progress', handler);
@@ -78,6 +94,10 @@ const api = {
   objections: {
     list: (): Promise<Objection[]> => ipcRenderer.invoke('objections:list'),
     of: (diagId: string): Promise<Objection[]> => ipcRenderer.invoke('objections:of', diagId),
+    /*
+     * 写操作的返回带 ok：写不进去时要能把原因带到界面上。
+     * 只回一个列表的话，「没记上」和「记上了」在界面上是同一个样子。
+     */
     add: (input: {
       diagId: string;
       theory: TheoryId;
@@ -86,8 +106,10 @@ const api = {
       refLabel: string;
       excerpt: string;
       reason: string;
-    }): Promise<Objection[]> => ipcRenderer.invoke('objections:add', input),
-    remove: (diagId: string, key: string): Promise<Objection[]> => ipcRenderer.invoke('objections:remove', diagId, key),
+    }): Promise<{ ok: boolean; list: Objection[]; error?: string }> =>
+      ipcRenderer.invoke('objections:add', input),
+    remove: (diagId: string, key: string): Promise<{ ok: boolean; list: Objection[]; error?: string }> =>
+      ipcRenderer.invoke('objections:remove', diagId, key),
     stats: (): Promise<ObjectionStat[]> => ipcRenderer.invoke('objections:stats'),
     reveal: (): Promise<string> => ipcRenderer.invoke('objections:reveal'),
   },

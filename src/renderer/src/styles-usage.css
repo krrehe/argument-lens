@@ -598,3 +598,23 @@ sup.est {
   opacity: 1;
 }
 
+/*
+ * 提示条右侧的关闭。
+ *
+ * 「有一件事没做成」这类提示看过就该能关掉：它描述的是已经结束的那一次，
+ * 留着只会一直占着报告顶部。但关闭按钮必须是用户点的——自动消失的话，
+ * 一眼没看到就等于没提示过。
+ */
+.banner-x {
+  margin-left: auto;
+  align-self: flex-start;
+  flex: 0 0 auto;
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1.2;
+  opacity: 0.6;
+}
+.banner-x:hover {
+  opacity: 1;
+}
+
