@@ -62,6 +62,16 @@ const api = {
     reveal: (): Promise<string> => ipcRenderer.invoke('usage:reveal'),
   },
   /**
+   * 报告导出。
+   *
+   * 只给一个方向：报告 → 一份 Markdown 文件。没有「从文件导入」——
+   * 报告是模型输出的解析结果，手写一份 JSON 塞进来，程序无法分辨它是不是真的分析过。
+   */
+  report: {
+    exportMarkdown: (d: Diagnosis): Promise<{ ok: boolean; path?: string; canceled?: boolean }> =>
+      ipcRenderer.invoke('report:exportMarkdown', d),
+  },
+  /**
    * 异议：用户对某条判定说不认同。
    * 只记录、不改判——所以这里没有「应用我的意见」这种接口，也不该有。
    */

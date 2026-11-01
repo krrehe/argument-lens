@@ -10,6 +10,7 @@ import {
   type Refutation,
   type Span,
 } from '@shared/types';
+import { ACCEPT_PILL, ANSWER_CLASS, ANSWER_LABEL, BURDEN_LABEL, CONF_LABEL, STRATEGY_LABEL, TAG_LABEL } from '@shared/labels';
 import { LEVEL_LABEL, THEORY_BY_ID } from '@shared/theories';
 import { DISPUTE_BY_ID, DISPUTE_SECTION, disputesIn, type DisputeId } from '@shared/disputes';
 import { topicsOf, type TopicHit } from '@shared/topics';
@@ -25,62 +26,8 @@ import { ArsGapMap, PtaLocator, ToulminLayout, WaltonFamilyPath } from './LensDi
 
 /* ═══════ 通用小件 ═══════ */
 
-const ANSWER_LABEL: Record<CheckItem['answer'], string> = {
-  passed: '通过',
-  violated: '未过',
-  unanswered: '未答',
-  'not-applicable': '不适用',
-};
-
-const ANSWER_CLASS: Record<CheckItem['answer'], string> = {
-  passed: 'passed',
-  violated: 'violated',
-  unanswered: 'unanswered',
-  'not-applicable': 'na',
-};
-
-const ACCEPT_PILL: Record<string, string> = {
-  acceptable: 'ok',
-  questionable: 'mid',
-  unacceptable: 'bad',
-  unknown: '',
-};
-
-const BURDEN_LABEL: Record<string, string> = {
-  proponent: '在提议方',
-  respondent: '在回应方',
-  both: '双方',
-  unclear: '不清',
-};
-
-const STRATEGY_LABEL: Record<string, string> = {
-  'premise-false': '攻前提为假',
-  'premise-unsupported': '前提未获担保',
-  'missing-premise': '隐含前提不成立',
-  counterexample: '构造反例',
-  distinguo: '区分情形',
-  'alternative-explanation': '另有更好解释',
-  'scheme-mismatch': '型式／定位不当',
-  'burden-shift': '证明责任错置',
-  'procedure-violation': '程序规则被违反',
-};
-
-const CONF_LABEL: Record<string, string> = {
-  high: '高',
-  medium: '中',
-  low: '低',
-  'very-low': '很低',
-  undetermined: '未定',
-};
-
-const TAG_LABEL: Record<string, string> = {
-  known: '有据',
-  computed: '算出',
-  inferred: '推论',
-  general: '常识',
-  framework: '框架内',
-  guess: '猜测',
-};
+/* 标签表在 shared/labels.ts：界面与导出必须说同一套话，
+   否则改了一处措辞，另一处还留着旧的。 */
 
 function Block({
   id,
@@ -916,6 +863,26 @@ export function DiagnosisView({
   const rx = useMemo(() => prescriptionsOf(d), [d]);
   const topicsHit = topics.filter((t) => t.hit).length;
 
+  /**
+   * 导出成 Markdown。
+   *
+   * 状态里要区分「取消」和「失败」：取消是用户的正常操作，弹一句红字去怪他
+   * 只会让人下一次不敢点；而真正的失败（目录不可写、磁盘满）必须说出来，
+   * 否则他会以为文件在某个地方等着他。
+   */
+  const [exp, setExp] = useState<{ kind: 'idle' | 'busy' | 'ok' | 'fail'; msg?: string }>({ kind: 'idle' });
+  const exportMd = async () => {
+    setExp({ kind: 'busy' });
+    try {
+      const r = await window.api.report.exportMarkdown(d);
+      if (r.ok && r.path) setExp({ kind: 'ok', msg: r.path });
+      else if (r.canceled) setExp({ kind: 'idle' });
+      else setExp({ kind: 'fail', msg: '没能写成功。换一个目录再试一次。' });
+    } catch (e) {
+      setExp({ kind: 'fail', msg: `导出失败：${(e as Error)?.message ?? '原因不明'}` });
+    }
+  };
+
   return (
     <>
       {MODE_META[mode].banner && (
@@ -926,6 +893,24 @@ export function DiagnosisView({
           </div>
         </div>
       )}
+
+      {/*
+        导出条放在最前，理由不是显眼，是它服务于「读完就走」的那一半用法：
+        报告再细，也只有少数人会一直开着窗口；多数人是看完、带走、在自己的写作软件里改。
+        放在最前面，意味着不用滚到底也能找到它。
+      */}
+      <div className="exp-bar">
+        <button className="exp-btn" onClick={exportMd} disabled={exp.kind === 'busy'}>
+          {exp.kind === 'busy' ? '正在导出…' : '导出为 Markdown'}
+        </button>
+        {exp.kind === 'ok' && (
+          <span className="exp-ok" title={exp.msg}>
+            已保存：{exp.msg}
+          </span>
+        )}
+        {exp.kind === 'fail' && <span className="exp-fail">{exp.msg}</span>}
+        {exp.kind === 'idle' && <span className="exp-hint">一份能照着改的清单：判定、原文引文、下一步逐条可勾选</span>}
+      </div>
 
       {!d.scope.applicable && (
         <div className="banner bad">

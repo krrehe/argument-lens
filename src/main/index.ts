@@ -6,6 +6,7 @@ import { runAnalysis } from './analyze';
 import { testConnection, LlmError } from './llm';
 import { attachSmoke } from './smoke';
 import { archiveDirPath, getReport, listReports, removeReport, saveReport } from './archive';
+import { exportReportMarkdown } from './report-export';
 import { clearAnchor, exportUsageCsv, setAnchor, setPricing, summarizeUsage, usageDirPath } from './usage';
 import {
   addObjection,
@@ -17,6 +18,7 @@ import {
   type ObjectionInput,
 } from './objections';
 import { SCHEMES } from './kb/schemes';
+import type { Diagnosis } from '@shared/types';
 import { FALLACIES } from './kb/fallacies';
 import { PRAGMA_RULES } from './kb/pragma';
 import { normalizeMode, type AnalysisMode, type LlmSettings, type Pricing } from '@shared/types';
@@ -166,6 +168,14 @@ function registerIpc(): void {
     return summarizeUsage();
   });
   ipcMain.handle('usage:export', (e) => exportUsageCsv(BrowserWindow.fromWebContents(e.sender)));
+  /*
+   * 报告的导出走主进程，是因为要弹系统保存框。
+   * 传进来的是整份报告：导出的排版由 shared/report-markdown.ts 做，
+   * 与界面用的是同一份数据、同一套标签，不存在「导出件与界面不一致」的第三种结果。
+   */
+  ipcMain.handle('report:exportMarkdown', (e, d: Diagnosis) =>
+    exportReportMarkdown(BrowserWindow.fromWebContents(e.sender), d)
+  );
   ipcMain.handle('usage:reveal', () => shell.openPath(usageDirPath()));
 
   ipcMain.handle('kb:schemes', () => SCHEMES);

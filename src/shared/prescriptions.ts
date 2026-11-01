@@ -210,9 +210,21 @@ function costOf(d: Diagnosis): string {
 
 /* ───────────────── 五 · 组装 ───────────────── */
 
+/**
+ * 检查项的全名。
+ *
+ * label 本身常常已经带编号（「CQ2 因果方向」），再无条件拼一次会得到
+ * 「CQ2（CQ2 因果方向）」——读者第一反应是这软件没检查过自己的输出。
+ * 界线取「label 以 id 开头」，不是「包含 id」：「第 2 条 CQ2」这种正常写法不该被削掉。
+ */
+function nameOf(c: CheckItem): string {
+  const label = c.label.trim();
+  return label.startsWith(c.id) ? label : `${c.id}（${label}）`;
+}
+
 /** 验收标准：一句话，指回具体的检查项。这句是处方能被证伪的地方。 */
 function acceptOf(c: CheckItem): string {
-  return `补上之后，${c.id}（${c.label}）应当从「未答」变成「过」。改完重跑一次，对照栏会自动核对——没变，就说明补的不是这一环要的东西。`;
+  return `补上之后，${nameOf(c)} 应当从「未答」变成「过」。改完重跑一次，对照栏会自动核对——没变，就说明补的不是这一环要的东西。`;
 }
 
 /**
@@ -229,7 +241,7 @@ function missingPremiseOf(d: Diagnosis): PrescriptionView['missingPremise'] {
   return {
     text,
     accept: hasCheck
-      ? `把这句话补进原文之后，${hasCheck.id}（${hasCheck.label}）应当能答「过」。但前提本身也会被要求有支持——补完它，下一轮它会变成新的依据，然后被问同样的问题。`
+      ? `把这句话补进原文之后，${nameOf(hasCheck)} 应当能答「过」。但前提本身也会被要求有支持——补完它，下一轮它会变成新的依据，然后被问同样的问题。`
       : '把这句话补进原文之后，重跑一次，看未答的检查项有没有减少。',
     cost: '不补的话，结论和依据之间那一步始终由读者替你补——而读者补进去的，往往不是你想的那个。',
   };
@@ -295,6 +307,24 @@ export function prescriptionsOf(d: Diagnosis): PrescriptionView {
     const items = bySite.get(site);
     if (!items?.length) continue;
     groups.push({ site, ...SITE_META[site], items });
+  }
+
+  /*
+   * 同一处的两条处方，问句会一模一样——因为问法按「环」给，不按条给。
+   * 只有一条时看不出问题，两条并排时立刻变成「它是不是根本没看我的文本」。
+   *
+   * 所以重复时补上这条具体针对什么（照录 guards 原文，仍不是自由发挥）。
+   * 不改「按环问」这个设计：问法之所以按环，是因为同一环要补的东西形状相同；
+   * 但形状相同不等于两条一模一样，位置得说清。
+   */
+  for (const g of groups) {
+    const counts = new Map<string, number>();
+    for (const it of g.items) counts.set(it.need, (counts.get(it.need) ?? 0) + 1);
+    for (const it of g.items) {
+      if ((counts.get(it.need) ?? 0) > 1 && it.ring && !it.need.includes(it.ring)) {
+        it.need = `${it.need}（这一条针对的是：${it.ring}）`;
+      }
+    }
   }
 
   return { groups, emptyReason: null, total: open.length, missingPremise: mp };

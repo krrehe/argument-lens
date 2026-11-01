@@ -24,6 +24,12 @@ const cssFiles = fs.readdirSync(root).filter((f) => f.endsWith('.css'));
 if (cssFiles.length < 2) fail(`样式表只有 ${cssFiles.length} 个，这个检查的前提不成立`);
 let css = '';
 for (const f of cssFiles) css += fs.readFileSync(path.join(root, f), 'utf8');
+/*
+ * 注释里提到的类名和变量名不是真的使用。不剥掉的话，一段解释性注释
+ * （「原来是 var(--line-2)，但它从没定义」）会让检查误报一处并不存在的问题——
+ * 而误报比漏报更耗人：它教人开始忽略这个检查。
+ */
+css = css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 const defined = new Set();
 for (const m of css.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)) defined.add(m[1]);
@@ -91,13 +97,40 @@ for (const f of files) {
 }
 
 if (checked < 200) fail(`只比对了 ${checked} 个类名，少得可疑——多半是正则没匹配上，属于假绿`);
+
+/*
+ * 变量：用到的必须有定义。
+ *
+ * 这一条是补上来的，因为两类失败的可见度差着一整个量级：
+ * 类名漏了会整块裸奔，人一眼能看见；变量名写错只让那一条属性失效——
+ * 颜色退回继承、间距退回 0，页面看起来「还行」，只是不对。
+ * 它不报错、不崩溃、构建照过，和这个项目最忌讳的那种失败同形。
+ *
+ * 有 fallback 的也照报：写了 var(--x, #fff) 说明作者知道它可能没有，
+ * 但「知道」不等于「应该」——真想要的默认值是 fallback 里那个，就不该再引用一个不存在的变量。
+ */
+const varDefined = new Set();
+for (const m of css.matchAll(/(--[a-z0-9-]+)\s*:/g)) varDefined.add(m[1]);
+
+const varUsed = new Map();
+for (const m of css.matchAll(/var\(\s*(--[a-z0-9-]+)\s*(,)?/g)) {
+  varUsed.set(m[1], (varUsed.get(m[1]) ?? false) || Boolean(m[2]));
+}
+
+if (varUsed.size < 20) fail(`只扫到 ${varUsed.size} 个变量引用，少得可疑——正则没匹配上就是假绿`);
+const missingVar = [...varUsed.entries()].filter(([n]) => !varDefined.has(n));
+if (missingVar.length) {
+  console.error(`变量未定义 ${missingVar.length} 处：`);
+  for (const [n, fb] of missingVar) console.error(`  var(${n})${fb ? '　（有 fallback，仍算缺定义）' : ''}`);
+  fail('');
+}
 if (missing.length) {
   console.error(`样式缺失 ${missing.length} 处：`);
   for (const m of missing) console.error('  ' + m);
   fail('');
 }
 
-console.log(`✓ 样式覆盖：${checked} 个类名全部有定义（${cssFiles.length} 个样式表，${Object.keys(HOOKS).length} 个纯钩子）`);
+console.log(`✓ 样式覆盖：${checked} 个类名、${varUsed.size} 个变量引用全部有定义（${cssFiles.length} 个样式表，${Object.keys(HOOKS).length} 个纯钩子）`);
 
 function fail(msg) {
   console.error('✗ ' + (msg || '样式覆盖检查失败'));

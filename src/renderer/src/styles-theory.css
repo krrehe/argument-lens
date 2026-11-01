@@ -640,6 +640,9 @@
   line-height: 16px;
   padding: 0 6px;
   border-radius: 3px;
-  border: 1px dashed var(--line-2, var(--line));
+  /* 原来写的是 var(--line-2, var(--line))，但 --line-2 从未定义过，一直走 fallback。
+     它看起来像「比 --line 再浅一档」，其实没有这一档；留着会让人以为色阶是四级。
+     现在 --line 就是最浅的一级，直接用它。 */
+  border: 1px dashed var(--line);
   color: var(--ink-3);
 }

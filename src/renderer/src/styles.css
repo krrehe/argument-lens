@@ -1875,3 +1875,56 @@ table.grid > caption.grid-note {
   color: var(--ink-3);
   letter-spacing: 0.06em;
 }
+
+/* ─────────── 导出条 ─────────── */
+/*
+ * 一行，不占地方。它服务于「读完就走」的那一半用法：
+ * 报告再细也只有少数人一直开着窗口，多数人看完就带走，去自己的写作软件里改。
+ */
+
+.exp-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.exp-btn {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+}
+.exp-btn:hover:not(:disabled) {
+  border-color: var(--ink-3);
+  background: var(--panel-2);
+}
+.exp-btn:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.exp-hint,
+.exp-ok,
+.exp-fail {
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+.exp-hint {
+  color: var(--ink-3);
+}
+.exp-ok {
+  color: var(--strong);
+  max-width: 60ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.exp-fail {
+  color: var(--invalid);
+}

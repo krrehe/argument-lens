@@ -35,7 +35,8 @@
     "pack:check": "node scripts/pack-smoke.mjs",
     "check:prescriptions": "node scripts/run-check-prescriptions.mjs",
     "check:report": "node scripts/run-check-report.mjs",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "check:export": "node scripts/run-check-export.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

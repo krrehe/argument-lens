@@ -211,6 +211,7 @@ const checks = [
    * 推导函数一抛异常被 catch 掉，容器照样渲染，只是里面什么都没有。
    */
   ['下一步栏给出了处方', /"rxGroups":([1-9]\d*)/.test(resultLine) && /"rxItems":([1-9]\d*)/.test(resultLine)],
+  ['导出按钮在', resultLine.includes('"expBtn":true')],
   // 几何：新元素不许宽或高为 0（数得出来但点不到），页面不许横向溢出（截图看不出来的那种坏）
   ['新元素都有实际尺寸', sizesOk()],
   ['无横向溢出', domObj().overflowX === 0],
