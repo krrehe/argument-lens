@@ -134,7 +134,12 @@ rmSync(trace, { force: true });
 const env = {
   ...process.env,
   AL_SMOKE: shot,
-  AL_ACTION: 'analyze',
+  /*
+   * SMOKE_EMPTY=1：不分析，验首屏空态。
+   * 空态是每个新用户的第一屏，而默认跑道永远带着一份报告——
+   * 没有这条岔路，空态的改动只能靠运气发现坏没坏。
+   */
+  ...(process.env.SMOKE_EMPTY === '1' ? { AL_EMPTY: '1' } : { AL_ACTION: 'analyze' }),
   // 默认拉高到 5200：报告一屏放不下，截成一次便于人眼核对。调小可以只看上半页。
   AL_SHOT_H: String(process.env.SMOKE_H ?? 5200),
   AL_SHOT_W: String(process.env.SMOKE_W ?? 1400),
@@ -175,6 +180,43 @@ if (!existsSync(trace)) {
 const log = readFileSync(trace, 'utf-8');
 const resultLine = log.split('\n').find((l) => l.includes('RESULT')) ?? '';
 const domLine = log.split('\n').find((l) => l.includes('DOM')) ?? '';
+
+/*
+ * 首屏空态跑道（SMOKE_EMPTY=1）。
+ *
+ * 它的断言与报告跑道完全不同——那边验「报告里每块都在」，这边验「没有报告时页面说了什么」。
+ * 空态的三样东西各自单独断言，因为它们坏法不同：
+ *   整块消失（empty:false）→ 用户对着一片空白，不知道该干什么；
+ *   步骤缺一步（steps<3）→ 新用户在第二步迷路；
+ *   模式提示没跟上（modeChips≠5）→ 加模式时漏改了空态文案，首屏与功能脱节。
+ */
+if (process.env.SMOKE_EMPTY === '1') {
+  const line = log.split('\n').find((l) => l.includes('EMPTYDOM')) ?? '';
+  const j = (k, d = '') => {
+    try {
+      return JSON.parse(line.slice(line.indexOf('{')))[k] ?? d;
+    } catch {
+      return d;
+    }
+  };
+  const emptyChecks = [
+    ['首屏空态在', line.includes('"empty":true')],
+    ['空态标题不是空串', j('title').length >= 4],
+    ['三步引导齐', j('steps') === 3],
+    ['报告样例四步齐', j('emSteps') === 4],
+    ['模式开关五档（空态同款跑道）', j('modeChips') === 5],
+    ['模式提示不是空串', j('modeNote').length >= 4],
+    ['空态文案与功能一致（提到查谬误）', j('emptyP').includes('查谬误')],
+    ['截图产出', existsSync(shot)],
+  ];
+  let bad = 0;
+  for (const [name, pass] of emptyChecks) {
+    console.log(`${pass ? '通过' : '失败'}  ${name}`);
+    if (!pass) bad++;
+  }
+  console.log(bad ? `\n首屏空态验收失败 ${bad} 项` : '\n首屏空态端到端通过。');
+  process.exit(bad ? 1 : 0);
+}
 
 /*
  * 板块数单独解析出来，既用于断言也打印。

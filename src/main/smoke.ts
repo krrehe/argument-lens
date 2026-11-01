@@ -72,9 +72,32 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         }
       }
 
-      // AL_ACTION=analyze：填入示例、点分析、等结果落屏。
-      // 这一步验证的是整条链，而不只是窗口能开：IPC → HTTP → 解析 → 裁决 → 渲染。
-      if (process.env['AL_ACTION'] === 'analyze') {
+      /*
+       * AL_EMPTY=1：不分析，只验首屏空态。
+       *
+       * 空态是每个新用户看到的第一屏，而端到端跑道永远带着一份报告——
+       * 不加这条岔路，空态的任何改动都只能靠运气被发现坏没坏。
+       * 它坏了同样安静：整块消失或文字缺失，页面不报任何错。
+       */
+      if (process.env['AL_EMPTY'] === '1') {
+        add('action=empty');
+        await new Promise((r) => setTimeout(r, 800));
+        const probe = await wc.executeJavaScript(
+          `JSON.stringify({
+            empty: !!document.querySelector('.empty'),
+            title: (document.querySelector('.empty h2')?.innerText || '').trim(),
+            emptyP: (document.querySelector('.empty > p')?.innerText || '').trim(),
+            steps: document.querySelectorAll('.empty .step').length,
+            emSteps: document.querySelectorAll('.empty .em-steps > div').length,
+            modeNote: (document.querySelector('.mode-note')?.innerText || '').trim(),
+            hint: (document.querySelector('.composer p.hint')?.innerText || '').trim(),
+            modeChips: document.querySelectorAll('.mode-chip').length,
+          })`
+        );
+        add(`EMPTYDOM ${probe}`);
+      } else if (process.env['AL_ACTION'] === 'analyze') {
+        // AL_ACTION=analyze：填入示例、点分析、等结果落屏。
+        // 这一步验证的是整条链，而不只是窗口能开：IPC → HTTP → 解析 → 裁决 → 渲染。
         add('action=analyze');
         // AL_MODE=<模式名>：先切模式再跑。不同模式走的是同一套透镜与 CQ，
         // 变的是提示词与报告主语——这两处如果没真的生效，界面会安静地显示成诊断版。

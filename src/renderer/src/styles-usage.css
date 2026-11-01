@@ -198,9 +198,15 @@
   flex-wrap: wrap;
 }
 .u-kpi-val b {
-  font-family: var(--serif);
-  font-size: 25px;
-  font-weight: 600;
+  /*
+   * 这里刻意不用 --serif：Georgia 的数字是 oldstyle 等位（0 矮得像小写 o、
+   * 6/9 带降部），放进一张数据卡里高低不齐，font-variant-numeric 对它也不生效
+   * （那套属性管的是 OpenType 特性，Georgia 的数字形状是字体自带的设计）。
+   * 数据用无衬线 + 等宽数字，编辑体留给标题与引文。
+   */
+  font-family: var(--sans);
+  font-size: 24px;
+  font-weight: 650;
   line-height: 1.15;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;

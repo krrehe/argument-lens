@@ -523,8 +523,9 @@ export default function App() {
                   </button>
                 </div>
                 <p className="hint">
-                  按「{profile.name}」{MODE_META[mode].hint}
-                  换一副透镜，同一处地方会被判成不同的东西——这不是错误，是这个工具的立场。
+                  {/* 模式条下面那行 mode-note 已经显示过 MODE_META[mode].hint，
+                      这里再重复一遍，同一句话会在 50px 内出现两次。这里只说透镜立场。 */}
+                  这副透镜是「{profile.name}」。换一副透镜，同一处地方会被判成不同的东西——这不是错误，是这个工具的立场。
                 </p>
                 {usage?.balance.runsLeft === 0 && (
                   <button className="u-exhausted" onClick={() => setUsageOpen(true)}>
@@ -627,9 +628,16 @@ export default function App() {
                 !error && (
                   <div className="empty">
                     <h2>先给一段真话</h2>
+                    {/*
+                      这段话设定的是期望，所以它必须跟着功能走：
+                      加了查谬误模式之后，「这里不检测谬误」就成了假话——
+                      它检测，只是不给一串光秃秃的名字。文案与功能不一致，
+                      用户会按旧印象低估新功能，或按新名词高估旧承诺，两头都是误读。
+                    */}
                     <p>
-                      这里不检测「谬误」，也不给打分。它把一段话拆成一张结构图，逐条走完这套理论要问的问题，
-                      告诉你它站在哪、倒在哪、哪一处其实站得住。
+                      这里不给总分，也不替你站队。它把一段话拆成结构，逐条走完这套理论要问的问题，
+                      告诉你它站在哪、倒在哪、哪一处其实站得住。想要「有没有谬误」的名单，
+                      切到查谬误——但每个名字都得指得出原文哪一句，附上什么时候其实合法。
                     </p>
                     <div className="steps">
                       <div className="step">
@@ -665,6 +673,10 @@ export default function App() {
                           <span>能直接拿去说的话，附对方最强回击</span>
                         </div>
                       </div>
+                      <p className="hint">
+                        上面画的是诊断模式。输入框下面还有四种问法，各出一份不同的报告：
+                        红队找攻击点、查谬误给名字、重构只画结构、提问只给问题——不判档位的那些，报告上会写明为什么。
+                      </p>
                     </div>
                   </div>
                 )
