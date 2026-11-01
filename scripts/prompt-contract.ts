@@ -112,7 +112,18 @@ ok(
  * 给一条击败、给几条反驳与命名，断言它们分别被改回来、并且都留了痕。
  */
 {
-  const verdictOut = { verdict: { level: 'fails', whatIsRefuted: 'conclusion' } };
+  /*
+   * 这条样本必须带一个真结论。
+   *
+   * 它原本只给了 verdict、没给 conclusion，能过是因为当时没有 G10。
+   * 现在有了：判为适用却抽不出结论 → 档位打回未定，于是这条样本自己触发了 G10，
+   * 断言的意图（「判定类模式不受描述类规则影响」）被另一条规则盖住了。
+   * 补上结论，测的才是它想测的东西。
+   */
+  const verdictOut = {
+    conclusion: { text: '取消早读是错的', quote: '这说明取消早读是错的' },
+    verdict: { level: 'fails', whatIsRefuted: 'conclusion' },
+  };
   for (const mode of ['reconstruct', 'interrogate'] as const) {
     const d = normalizeDiagnosis(verdictOut, PASSAGE, 'walton', { mode });
     ok(d.verdict.level === 'undetermined', `${mode} 档位被强制为 undetermined`, d.verdict.level);
@@ -145,6 +156,24 @@ ok(
   ok(dg.verdict.level === 'fails', '诊断模式照常给档位（不受描述类规则影响）');
   const rt = normalizeDiagnosis(verdictOut, PASSAGE, 'walton', { mode: 'redteam' });
   ok(rt.verdict.level === 'fails', '红队模式照常给档位');
+
+  /*
+   * G10 的正面测试：判为适用，却一条结论都没抽出来。
+   * 这时档位没有落点——「这份论证被削弱了」这句话，说的是哪一句被削弱了？
+   * 所以即使是诊断模式，也要打回未定，并且留痕。
+   */
+  const noClaim = normalizeDiagnosis(
+    { verdict: { level: 'fails', whatIsRefuted: 'conclusion' } },
+    PASSAGE,
+    'walton',
+    { mode: 'diagnose' }
+  );
+  ok(noClaim.verdict.level === 'undetermined', '抽不出结论时，诊断模式也不给档位（G10）');
+  ok(noClaim.verdict.whatIsRefuted === 'nothing', '没有结论时不声称否证了任何东西');
+  ok(
+    noClaim.diagnostics.some((x) => x.code === 'APPLICABLE_BUT_NO_CLAIM'),
+    'G10 打回档位时留了痕'
+  );
 }
 
 /* ── 提示词版本要能带出来 ── */

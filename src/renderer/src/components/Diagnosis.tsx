@@ -15,6 +15,7 @@ import { DISPUTE_BY_ID, DISPUTE_SECTION, disputesIn, type DisputeId } from '@sha
 import { topicsOf, type TopicHit } from '@shared/topics';
 import { academicOf, BY_TOOL_LABEL, type AcademicView, type ByTool } from '@shared/academic';
 import { limitsOf } from '@shared/limits';
+import { prescriptionsOf } from '@shared/prescriptions';
 import { CheckStrip, StructureMap, VerdictGauge } from './Diagram';
 import { DisputeStrip, focusDispute } from './Disputes';
 import { QuickRead } from './Overview';
@@ -908,6 +909,11 @@ export function DiagnosisView({
    * 同样全本地推导——它不含任何模型判断，所以可以随手重算。
    */
   const academic = useMemo(() => academicOf(d), [d]);
+  /**
+   * 下一步：每一处空着的地方要填什么形状的东西。
+   * 同样全本地推导——它不含模型判断，只把已落盘的检查项重新组织一遍。
+   */
+  const rx = useMemo(() => prescriptionsOf(d), [d]);
   const topicsHit = topics.filter((t) => t.hit).length;
 
   return (
@@ -1304,6 +1310,53 @@ export function DiagnosisView({
             </span>
           </div>
         )}
+      </Block>
+
+      {/*
+        下一步：把「这一环空着」翻译成「要填什么形状的东西」。
+        放在修补之后，是因为修补给的是补完的样子，这一栏说的是每一步为什么那样补。
+        两条信息必须挨着看：分开两屏，用户只会记住那份重构版，记不住它凭什么成立。
+      */}
+      <Block
+        title="下一步"
+        sub="每一处空着的地方，要填什么形状的东西"
+        plain="诊断说完就走，等于把最费力的一步留给用户。这一栏把「CQ2 未答」翻译成这一环要填什么形状的内容，并且给出验收标准——补完之后该是哪一条变过。它不给答案，也不承诺补得上。"
+      >
+        {rx.emptyReason && <div className="rx-empty">{rx.emptyReason}</div>}
+
+        {/* 缺的前提单列在最前：它是最直接能动的一处，而且补完之后会被继续追问 */}
+        {rx.missingPremise && (
+          <div className="rx-item rx-lead">
+            <div className="rx-head">
+              <span className="rx-state rx-viol">先补这句</span>
+              <span className="rx-ring">依据与结论之间的那一步</span>
+            </div>
+            <div className="rx-need">「{rx.missingPremise.text}」</div>
+            <div className="rx-accept">{rx.missingPremise.accept}</div>
+            <div className="rx-cost">{rx.missingPremise.cost}</div>
+          </div>
+        )}
+
+        {rx.groups.map((g) => (
+          <div className="rx-group" key={g.site}>
+            <div className="rx-gtitle">{g.title}</div>
+            <div className="rx-gist">{g.gist}</div>
+            {g.items.map((it) => (
+              <div className="rx-item" key={it.checkId}>
+                <div className="rx-head">
+                  <span className={`rx-state ${it.state === 'violated' ? 'rx-viol' : 'rx-open'}`}>
+                    {it.state === 'violated' ? '没过' : '未答'}
+                  </span>
+                  <span className="rx-ring">{it.ring}</span>
+                  <code className="rx-cid">{it.checkId}</code>
+                </div>
+                <div className="rx-need">{it.need}</div>
+                <div className="rx-accept">{it.accept}</div>
+                <div className="rx-cost">{it.cost}</div>
+              </div>
+            ))}
+          </div>
+        ))}
       </Block>
 
       <Block

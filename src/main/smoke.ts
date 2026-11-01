@@ -122,6 +122,12 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               modeChips: document.querySelectorAll('.mode-chip').length,
               histBtn: !!document.querySelector('[data-panel="history"]'),
               /*
+               * 「下一步」栏。它同样是坏了不报错的那种——整块消失，页面照常。
+               * 数的是处方条目：只验标题在不在，等于允许它渲染成一个空壳。
+               */
+              rxGroups: document.querySelectorAll('.rx-group').length,
+              rxItems: document.querySelectorAll('.rx-item').length,
+              /*
                * 模式横幅与当前选中的模式片。
                * 这两个必须一起验：横幅出现但选中片不对，说明切了模式而报告没跟着走；
                * 选中片对了而横幅不出现，说明报告渲染走了默认分支。

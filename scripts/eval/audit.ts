@@ -14,6 +14,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CASES, type EvalCase } from './cases';
 import type { Diagnosis } from '@shared/types';
+import { auditReport, PLACEHOLDER_CONCLUSION } from '@shared/report-audit';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dir = resolve(here, '../.out/eval');
@@ -62,107 +63,13 @@ function coverageOf(d: Diagnosis): { ratio: number; uncovered: string[] } {
 }
 
 function audit(c: EvalCase, d: Diagnosis): Row {
-  const inv: string[] = [];
-  const notes: string[] = [];
+  /* 不变量由共享模块给出——生产端与评测端跑的是同一份代码。 */
+  const { invariants: inv, gaps, notes: auditNotes } = auditReport(d);
+  /* 缺口不算破，但也别让它消失：前缀写「缺口｜」，与真正的提示分开看。 */
+  const notes = [...auditNotes, ...gaps.map((g) => `缺口｜${g}`)];
   const exp: string[] = [];
   const claims = [d.conclusion as any, ...d.premises, ...d.intermediate];
-  const ids = new Set(claims.map((x) => x?.id).filter(Boolean));
   const blob = JSON.stringify(d);
-
-  /* ── 不变量 ── */
-  if (!d.conclusion?.text?.trim()) inv.push('结论为空');
-
-  const failed = claims.filter((x) => x?.span && x.span.quality === 'failed' && !x.implicit);
-  const quoteDiag = d.diagnostics.filter((x) => x.code === 'QUOTE_NOT_FOUND').length;
-  if (failed.length) inv.push(`${failed.length} 条显式主张的引文在原文里找不到（另 ${quoteDiag} 条已降级留痕）`);
-
-  /*
-   * 同一句被两条主张引用，分两种情形，混在一起报会制造假警报：
-   *
-   *   结论与依据共用一句：合法。权威型式的结论本来就是「那句话可被接受」，
-   *   条件型的结论也常常就写在前提那一句里。这类只作提示。
-   *   依据与依据（或依据与中间结论）共用一句：真问题——结构图上多出一级，
-   *   读者会以为结论被两级撑住。中间结论那种由 G9 合并，剩下的在这里报。
-   */
-  {
-    const seenSpan = new Map<number, { id: string; role: string; text: string }>();
-    for (const c of claims) {
-      const k = c?.span?.start;
-      if (typeof k !== 'number' || k < 0 || c.span?.quality === 'failed') continue;
-      const prev = seenSpan.get(k);
-      if (!prev) {
-        seenSpan.set(k, { id: c.id, role: c.role, text: c.text });
-        continue;
-      }
-      const line = `${prev.id}（${prev.role}）与 ${c.id}（${c.role}）指向同一句：${prev.text.slice(0, 18)}`;
-      if (prev.role === 'conclusion' || c.role === 'conclusion') notes.push(`提示｜${line}`);
-      else inv.push(`重复占位｜${line}`);
-    }
-  }
-
-  /*
-   * 同一句既当依据又当中间结论，是结构图上的假步骤：
-   * 图上多出一级，读者以为结论被两级支撑，实际只有一句原话。
-   * 结论与依据同占一句不在此列——权威型式的结论本来就是「那句话可被接受」，
-   * 它和「某人说了那句话」指向同一处是结构使然，不是错。
-   */
-  for (const p of d.premises) {
-    for (const m of d.intermediate) {
-      if (p.span?.start === m.span?.start && p.span?.quality !== 'failed') {
-        inv.push(`「${p.text.slice(0, 18)}」既被当作依据 ${p.id}，又被当作中间结论 ${m.id}——同一句话被算成两步`);
-      }
-    }
-  }
-
-  /*
-  * 只抓「占位结论还挂着原文引文」，不是所有不适用文本。
-  * 判了不适用、但确实抽出了一条真结论（比如社论）是合法的：
-  * 那说明这副透镜不适用，而文本本身有主张——两件事可以同时为真。
-  * 我要抓的是另一种：结论栏写着「无结论可规范化」，却仍指向原文某一联，
-  * 界面上就会出现「结论：无结论…「没有人说话。」」这种自相矛盾的呈现。
-  */
-  const placeholder = /^无结论|^（未能|^未提出|^文本未/.test(d.conclusion?.text ?? '');
-  if (!d.scope.applicable && placeholder && d.conclusion?.quote && d.conclusion.span?.quality !== 'failed') {
-    inv.push(`结论栏是占位文字（「${d.conclusion.text.slice(0, 14)}」），却仍挂着原文引文「${d.conclusion.quote.slice(0, 14)}」`);
-  }
-
-  for (const k of d.checks) {
-    if ((k.answer === 'passed' || k.answer === 'violated') && !k.basis.trim()) {
-      inv.push(`检查项 ${k.id} 给了「${k.answer}」却没有依据`);
-    }
-  }
-  if (new Set(d.checks.map((k) => k.id)).size < d.checks.length) inv.push('检查项 id 重复');
-
-  if (!d.scope.applicable) {
-    if (d.checks.length) inv.push('判了不适用却仍有检查项');
-    if (d.verdict.level !== 'undetermined') inv.push(`判了不适用却给了档位 ${d.verdict.level}`);
-  }
-
-  if (!['diagnose', 'redteam'].includes(d.mode) && d.verdict.level !== 'undetermined') {
-    inv.push(`描述类模式给了档位 ${d.verdict.level}`);
-  }
-  if (d.theory === 'copi' && d.verdict.level !== 'undetermined') inv.push(`名录透镜给了档位 ${d.verdict.level}`);
-
-  // 悬空引用：正文里提到的 P3 / I1 之类，必须真有
-  const mentioned = new Set((d.defeat.cuts + ' ' + d.repair.missingPremise + ' ' + d.verdict.statement).match(/\b[PIM]\d+\b/g) ?? []);
-  const dangling = [...mentioned].filter((x) => !ids.has(x));
-  if (dangling.length) inv.push(`正文引用了不存在的主张编号 ${dangling.join('、')}`);
-
-  for (const r of d.refutations) {
-    if (!r.steelman?.trim()) inv.push(`反驳 ${r.id} 没有写对方最可能的反击`);
-    if (!r.evidenceNeeded?.length) inv.push(`反驳 ${r.id} 没写需要什么证据`);
-    if (r.targetId && !ids.has(r.targetId)) inv.push(`反驳 ${r.id} 指向不存在的 ${r.targetId}`);
-  }
-  for (const l of d.labels) {
-    if (!l.condition?.trim() || !l.whenLegitimate?.trim() || !l.riskOfError?.trim()) {
-      inv.push(`命名「${l.name}」缺门槛字段`);
-    }
-  }
-  for (const m of d.legitimateMoves) {
-    if (m.targetId && !ids.has(m.targetId)) inv.push(`「此处合法」指向不存在的 ${m.targetId}`);
-  }
-  if (!d.context.issue.trim() || d.context.issue.startsWith('（未能')) inv.push('争议之点没识别出来');
-  if (d.scope.applicable && !d.context.dialogueTypeBasis.trim()) inv.push('对话类型没给依据');
 
   /* ── 期望值 ── */
   if (c.expect.scopeApplicable !== undefined && d.scope.applicable !== c.expect.scopeApplicable) {
@@ -179,8 +86,7 @@ function audit(c: EvalCase, d: Diagnosis): Row {
    * 「无结论可重构：文本未提出任何可检验的主张」——那是说明，不是主张。
    * 把它算进去，非论证样本就永远「多出一条主张」，检查器于是天天喊狼来了。
    */
-  const placeholderRe = /^无结论|^（未能|^未提出|^文本未/;
-  const n = claims.filter((x) => x?.text?.trim() && !placeholderRe.test(x.text)).length;
+  const n = claims.filter((x) => x?.text?.trim() && !PLACEHOLDER_CONCLUSION.test(x.text)).length;
   if (c.expect.minClaims !== undefined && n < c.expect.minClaims) exp.push(`主张数：期望 ≥${c.expect.minClaims}，实得 ${n}`);
   if (c.expect.maxClaims !== undefined && n > c.expect.maxClaims) exp.push(`主张数：期望 ≤${c.expect.maxClaims}，实得 ${n}`);
   if (c.expect.levelNot?.includes(d.verdict.level)) exp.push(`档位 ${d.verdict.level} 不该出现`);

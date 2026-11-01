@@ -26,6 +26,7 @@ import type {
   WaltonLens,
 } from '@shared/types';
 import { DEFAULT_THEORY, THEORY_BY_ID, isTheoryId, type TheoryId } from '@shared/theories';
+import { auditReport } from '@shared/report-audit';
 import { buildPrompt, renderPrompt, SAMPLING } from './prompt';
 import { chat, extractJson, LlmError, type ChatResult } from './llm';
 import { locate } from './locator';
@@ -52,6 +53,7 @@ import { PRAGMA_RULES } from './kb/pragma';
  *   G7 固定清单未列全（十规则/六要素）→ 补齐为「未覆盖」，不假装评估过
  *   G8 描述类模式给出档位             → 打回 undetermined
  *   G9 同一句既当依据又当中间结论      → 合并为一步
+ *   G10 判为适用却抽不出结论           → 清引文并打回 undetermined
  *
  * 前七类是设计时就知道要防的；G8、G9 是评测跑出来的——真实语料里
  * 「描述类模式顺手给档位」和「一句话被算成两级支撑」都不是偶发，
@@ -219,6 +221,41 @@ function normalizeChecks(raw: unknown, theory: TheoryId, diagnostics: Diagnostic
       landsOn: optStr(c?.landsOn),
     };
   });
+
+  /*
+   * 同一编号出现两次：保留信息最全的那一条。
+   *
+   * 模型偶尔会把同一项写两遍——一条只有编号和 label，另一条才有 answer 和 basis。
+   * 原样留下的话，界面上是两张长得一样的卡，其中一张是空壳；更要紧的是
+   * 渲染层的 key 撞车，列表会错位。自检里「检查项 id 重复」那条抓的就是这个，
+   * 而它抓到的第一份真实报告正是这个形态。
+   *
+   * 不简单「保留第一条」：第一条常常是空壳，真正的判断在第二条。
+   * 也不合并——两条的 basis 说的是不同的事，硬拼会造出一句谁也没说过的话。
+   */
+  {
+    const byId = new Map<string, CheckItem>();
+    const order: string[] = [];
+    const score = (c: CheckItem) => (c.answer === 'passed' || c.answer === 'violated' ? 2 : 0) + (c.basis.trim() ? 1 : 0);
+    for (const it of items) {
+      const prev = byId.get(it.id);
+      if (!prev) {
+        byId.set(it.id, it);
+        order.push(it.id);
+        continue;
+      }
+      const winner = score(it) > score(prev) ? it : prev;
+      const loser = winner === it ? prev : it;
+      diagnostics.push({
+        level: 'warn',
+        code: 'CHECK_ID_DUP',
+        message: `检查项 ${it.id} 出现了两次，已保留信息更全的那一条。丢弃的那条是「${loser.label}」（${loser.answer}，依据${loser.basis.trim() ? '有' : '空'}）。`,
+      });
+      byId.set(it.id, winner);
+    }
+    items.length = 0;
+    for (const id of order) items.push(byId.get(id)!);
+  }
 
   // G7：固定清单必须列全。缺的不假装答过，标「未覆盖」。
   const fixedIds = theory === 'pragma' ? PRAGMA_IDS : theory === 'toulmin' ? TOULMIN_IDS : null;
@@ -552,11 +589,31 @@ export function normalizeDiagnosis(
    * （「无结论可规范化：文本未提出任何可检验的主张」），而模型仍会顺手给它
    * 找一个 quote。于是报告上出现「结论：无结论……「没有人说话。」」——
    * 一句话自己否定自己，读者只会以为界面坏了。它确实坏了，只是坏在数据层。
+   *
+   * 清引文这件事与 scope 无关，所以这里不再要求 !scope.applicable：
+   * 占位文字不是主张，它不指向原文任何位置，挂着 quote 在任何情况下都是自相矛盾。
+   * 真实账上就有这样一份——透镜判为适用、结论栏却是占位文字、引文照样挂到了原文上。
+   * 那种情形本身还多一层矛盾（适用意味着能分析，却一条结论都没抽出来），
+   * 所以额外留一条 G10。
    */
   const PLACEHOLDER_CONCLUSION = /^无结论|^（未能|^未提出|^文本未/;
-  if (!scope.applicable && PLACEHOLDER_CONCLUSION.test(conclusion.text)) {
+  if (PLACEHOLDER_CONCLUSION.test(conclusion.text)) {
+    const hadQuote = Boolean(conclusion.quote || conclusion.span);
     conclusion.quote = null;
     conclusion.span = null;
+    if (scope.applicable) {
+      diagnostics.push({
+        level: 'warn',
+        code: 'APPLICABLE_BUT_NO_CLAIM',
+        message: `这副透镜在本文本上判为适用，却没有抽出一条可检验的结论（结论栏是「${conclusion.text.slice(0, 20)}」）。适用与无结论不能同时成立：要么这份文本其实不适用，要么结论没被抽出来。引文已清掉，档位已打回「判不了」。`,
+      });
+    } else if (hadQuote) {
+      diagnostics.push({
+        level: 'info',
+        code: 'PLACEHOLDER_QUOTE_CLEARED',
+        message: '结论栏是占位文字，原本挂着的原文引文已清除——占位文字不指向原文任何位置。',
+      });
+    }
   }
 
   /*
@@ -684,6 +741,22 @@ export function normalizeDiagnosis(
     whatIsRefuted = 'nothing';
     defeat.kind = 'none';
     defeat.checkId = null;
+  }
+
+  /*
+   * G10：判为适用、却抽不出一条结论 → 档位打回「判不了」。
+   *
+   * 上面清引文那一处已经留了痕，这里补最后一刀：档位也不能当真。
+   * 「这副透镜适用于本文本」与「本文本没有可检验的结论」不能同时成立——
+   * 适用范围是拿来判定结论的，结论都不存在，判定就没有落点。
+   *
+   * 放在 G8 之后：模式本身不给档位时，档位已经回未定，这一条就没别的事可做。
+   * 不单独再push一条：同一次生成里两条说同一件事的警告，
+   * 只会让人以为出了两个问题。
+   */
+  if (scope.applicable && PLACEHOLDER_CONCLUSION.test(conclusion.text) && level !== 'undetermined') {
+    level = 'undetermined';
+    whatIsRefuted = 'nothing';
   }
 
   const verdict = {
@@ -878,7 +951,7 @@ export function normalizeDiagnosis(
     for (const m of legitimateMoves) m.targetId = redirect.get(m.targetId) ?? m.targetId;
   }
 
-  return {
+  const report: Diagnosis = {
     version: 2,
     id: opts.id ?? newReportId(),
     parentId: opts.parentId ?? null,
@@ -911,6 +984,42 @@ export function normalizeDiagnosis(
     diagnostics,
     prompt: opts.prompt,
   };
+
+  /*
+   * 自检：九道裁决全部跑完之后，报告还得自己过一遍。
+   *
+   * 为什么放在最后：前面几道裁决各自修一处，修完会互相影响——G9 把中间结论合并了，
+   * 正文里的编号就要跟着换；换漏一处就是悬空引用。只有全部跑完，才知道整体是否自洽。
+   *
+   * 为什么不能吞掉：不变量破了意味着这份报告有结构性缺陷，用户拿它做的判断可能是错的。
+   * 他不知道这件事，比看到一条警告糟得多。但这里也不拦着不让看——
+   * 报告仍然可读，只是要带着这个前提读。
+   *
+   * 两级的严重性不同，所以分开记：
+   *   SELF_AUDIT  结构自相矛盾（warn）——照着改会改错地方
+   *   REPORT_GAP  该写没写（info）——判断本身成立，只是缺了下一步
+   * 混成一级的话，79 条「这条反驳没写证据」会把 3 条「引用了不存在的 P3」淹掉。
+   *
+   * 这套检查原本只活在评测脚本里，跑一次要六分钟、十七万 token。
+   * 现在每份报告都过一遍：本地计算，不花钱，不联网。
+   */
+  const audit = auditReport(report);
+  for (const issue of audit.invariants) {
+    diagnostics.push({
+      level: 'warn',
+      code: 'SELF_AUDIT',
+      message: `报告自相矛盾：${issue}。其余部分不受影响，但涉及这一处的判读请自行核对原文。`,
+    });
+  }
+  for (const gap of audit.gaps) {
+    diagnostics.push({
+      level: 'info',
+      code: 'REPORT_GAP',
+      message: `这一栏没写全：${gap}。判断本身不受影响。`,
+    });
+  }
+
+  return report;
 }
 
 /* ─────────── 入口 ─────────── */

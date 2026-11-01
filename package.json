@@ -32,7 +32,9 @@
     "check:usage": "node scripts/run-check-usage.mjs",
     "eval": "node scripts/eval/run.mjs",
     "eval:audit": "node scripts/eval/run-audit.mjs",
-    "pack:check": "node scripts/pack-smoke.mjs"
+    "pack:check": "node scripts/pack-smoke.mjs",
+    "check:prescriptions": "node scripts/run-check-prescriptions.mjs",
+    "check:report": "node scripts/run-check-report.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

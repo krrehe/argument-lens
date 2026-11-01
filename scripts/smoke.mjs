@@ -176,9 +176,13 @@ const domLine = log.split('\n').find((l) => l.includes('DOM')) ?? '';
  * ② 门槛停在 10，而实际早就过了 13——加了三块之后这条断言一点没变紧，
  * 删掉两块它也照样绿。断言不跟着功能生长，就是慢慢变成假绿。
  *
- * 门槛 15 是实测值，不是拍的：诊断 17、红队 17、重构 15、提问 16（描述类模式少了
- * 「倒在哪一关」那几块）。取四模式最小值，意味着任何一个模式少渲染一块都会响——
- * 这是有意的，掉了就该知道；写宽一格，这条断言就退回到只能防白屏。
+ * 门槛 16 是实测值，不是拍的：诊断 18、提问 17（这两项本轮实测），
+ * 红队 18、重构 16（本轮未单独跑成——环境的安全删除钩子拦了三次，
+ * 所以这两个数是从上一轮实测的 17／15 各加一推出来的；「下一步」栏四个模式无条件渲染，
+ * 加它只可能整体 +1）。
+ *
+ * 取四模式最小值，意味着任何一个模式少渲染一块都会响——这是有意的，掉了就该知道；
+ * 写宽一格，这条断言就退回到只能防白屏。
  */
 const blocks = Number(/"blocks":(\d+)/.exec(resultLine)?.[1] ?? 0);
 const downCount = Number(/"stripDown":(\d+)/.exec(resultLine)?.[1] ?? 0);
@@ -189,7 +193,7 @@ const checks = [
   ['六副透镜就位', domLine.includes('"lensChips":6')],
   ['preload 桥接可用', domLine.includes('"hasApi":true')],
   ['分析结果落屏', resultLine.includes('"grid":true')],
-  ['板块全部渲染', blocks >= 15],
+  ['板块全部渲染', blocks >= 16],
   ['无失败提示', resultLine.includes('"failed":false')],
   ['截图产出', existsSync(shot)],
   /*
@@ -201,6 +205,12 @@ const checks = [
   ['历史入口在顶栏', resultLine.includes('"histBtn":true')],
   ['切分条出现', resultLine.includes('"segBar":true')],
   ['异议按钮已挂载', /"objBtns":(\d+)/.exec(resultLine)?.[1] >= 1],
+  /*
+   * 「下一步」栏：至少一组、至少一条处方。
+   * 数条目而不是只看标题——标题在、内容空，是这一栏最常见的坏法：
+   * 推导函数一抛异常被 catch 掉，容器照样渲染，只是里面什么都没有。
+   */
+  ['下一步栏给出了处方', /"rxGroups":([1-9]\d*)/.test(resultLine) && /"rxItems":([1-9]\d*)/.test(resultLine)],
   // 几何：新元素不许宽或高为 0（数得出来但点不到），页面不许横向溢出（截图看不出来的那种坏）
   ['新元素都有实际尺寸', sizesOk()],
   ['无横向溢出', domObj().overflowX === 0],
