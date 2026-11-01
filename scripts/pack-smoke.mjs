@@ -164,7 +164,7 @@ const checks = [
   ['侧栏的主张入口在', /"claims":[1-9]/.test(result)],
   ['顶栏「理论」入口在', /"theoryBtn":true/.test(result)],
   // 本轮四条新功能。它们的共同点是坏了不报错，所以进包之后要逐个数。
-  ['模式开关四档进了包', /"modeChips":4/.test(result)],
+  ['模式开关五档进了包', /"modeChips":5/.test(result)],
   // 模式横幅：进包后最容易坏的一处是 MODE_META 被摇树摇掉，
   // 表现为报告照常渲染、横幅安静消失——而横幅是「这份为什么没有档位」的唯一解释。
   ['模式与横幅机制进了包', /"modeOn":"[a-z]+"/.test(result) && /"modeBanner":"/.test(result)],
