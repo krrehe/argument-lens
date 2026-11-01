@@ -10,7 +10,7 @@ import { DisputeDialog } from './components/Disputes';
 import { GlossaryDialog, PlainCtx } from './components/Term';
 import { MOCK, MOCK_BY_THEORY } from './mock-data';
 import { UsagePanel } from './components/Usage';
-import type { ObjectionStat, ReportMeta, TheoryId, UsageRecord, UsageSummary } from '@shared/types';
+import type { ObjectionStat, ReportMeta, TheoryId, UsageRow, UsageSummary } from '@shared/types';
 import './styles.css';
 import './styles-usage.css';
 import './styles-disputes.css';
@@ -130,26 +130,33 @@ const mockRun = (
   pt: number,
   ct: number,
   ms: number,
-  cacheHit: number | undefined
-): UsageRecord => ({
-  id: `u${i}`,
-  at: Date.now() - i * 7 * 60_000,
-  ok: true,
-  theory,
-  model: 'deepseek-chat',
-  host: 'api.deepseek.com',
-  promptTokens: pt,
-  completionTokens: ct,
-  estimated: false,
-  cost: (pt * 1 + ct * 2) / 1e6,
-  priced: true,
-  currency: '¥',
-  priceIn: 1,
-  priceOut: 2,
-  ms,
-  chars: 428,
-  cacheHitTokens: cacheHit,
-});
+  cacheHit: number | undefined,
+  /** 预览里留一条「按现价回填」的样本，界面上那个「回」标记才看得见 */
+  backfilled = false
+): UsageRow => {
+  const cost = (pt * 1 + ct * 2) / 1e6;
+  return {
+    id: `u${i}`,
+    at: Date.now() - i * 7 * 60_000,
+    ok: true,
+    theory,
+    model: 'deepseek-chat',
+    host: 'api.deepseek.com',
+    promptTokens: pt,
+    completionTokens: ct,
+    estimated: false,
+    cost: backfilled ? 0 : cost,
+    effCost: cost,
+    backfilled,
+    priced: !backfilled,
+    currency: '¥',
+    priceIn: backfilled ? 0 : 1,
+    priceOut: backfilled ? 0 : 2,
+    ms,
+    chars: 428,
+    cacheHitTokens: cacheHit,
+  };
+};
 
 const MOCK_USAGE: UsageSummary = {
   today: { count: 6, okCount: 6, tokens: 48_600, cost: 0.068 },
@@ -162,7 +169,7 @@ const MOCK_USAGE: UsageSummary = {
   }),
   recent: [
     mockRun(0, 'walton', 8_457, 2_826, 14_390, 7_460),
-    mockRun(1, 'copi', 7_471, 3_133, 16_935, 6_600),
+    mockRun(1, 'copi', 7_471, 3_133, 16_935, 6_600, true),
     mockRun(2, 'toulmin', 6_159, 3_435, 19_130, undefined),
   ],
   pricing: { inPerM: 0, outPerM: 0, currency: '¥' },

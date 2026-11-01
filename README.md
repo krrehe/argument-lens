@@ -283,7 +283,7 @@ npm run check:lens     # 六副透镜的图与走向图：渲染成 HTML 再验�
 npm run check:css      # 样式覆盖：组件里写下的类名样式表里必须有（历史面板整块裸奔过，防复发）
 npm run check:theory   # 理论主张库：id/档位/细分域全覆盖、每编有文档、专题域≥3 条、每透镜≥4 条专有、相似度防注水、decides 与别处引用的 id 都不能是幻影
 npm run check:academic # 学术分析：三条「查不了」的规范不许改成「会查」、体裁识别不许猜、待核线索六类都要抽得出、反驳顺序不许改坏、动态样式取值逐个点名
-npm run check:usage    # 记账规则：本地 Ollama 不算模拟调用、用户填的价不会被内置参考价盖掉、不在表里的模型不许猜价
+npm run check:usage    # 记账规则：本地 Ollama 不算模拟调用、用户填的价不会被内置参考价盖掉、不在表里的模型不许猜价、CSV 的行和表头一样长
 npm run eval           # 二十三条真实语料逐条跑真模型（要 Key，六分钟、约十七万 token）
 npm run eval:audit     # 只读评测结果：不变量（报告自相矛盾、指向不存在的主张）与期望值
 npm run pack:check     # 打包产物自检：直接跑 dist 里的 exe
@@ -294,10 +294,11 @@ npm run dist           # 打包安装版与便携版
 
 ```
 src/
-  shared/          theories.ts（六副透镜元数据）· types.ts（三层数据契约）· tokens.ts（token 估算与计费）· usage-rules.ts（记账规则：谁算模拟调用、取价顺序——纯函数，由 check:usage 断言）· theory-notes.ts（每副透镜的「凭什么」卡）· theory-base.ts（102 条主张：它凭什么、有多硬、让本工具做了什么，跨十编，带 20 个细分域作第二根筛选轴）· landing.ts（每条主张的落点：提示词块/透镜片段/函数/界面区块，由 check:landing 逐条校验存在）· topics.ts（专题分析：六类论证的共识问题清单，本地推导）· limits.ts（这份分析自身的边界：本地推导，不调模型）· academic.ts（学术分析：体裁、待核的引用与数据、八条规范、反驳顺序，本地推导）· disputes.ts（11 条理论争议与站位）· segment.ts（长文切分，纯启发式）· compare.ts（修订对照：档位、检查项、争议数的走向）· objection.ts（异议的身份规则）
+  shared/          theories.ts（六副透镜元数据）· types.ts（三层数据契约）· tokens.ts（token 估算与计费）· usage-rules.ts（记账规则：谁算模拟调用、取价顺序——纯函数，由 check:usage 断言）· usage-csv.ts（导出的表头与行：形状单独放在这里，才验得了「行和表头一样长」）· theory-notes.ts（每副透镜的「凭什么」卡）· theory-base.ts（102 条主张：它凭什么、有多硬、让本工具做了什么，跨十编，带 20 个细分域作第二根筛选轴）· landing.ts（每条主张的落点：提示词块/透镜片段/函数/界面区块，由 check:landing 逐条校验存在）· topics.ts（专题分析：六类论证的共识问题清单，本地推导）· limits.ts（这份分析自身的边界：本地推导，不调模型）· academic.ts（学术分析：体裁、待核的引用与数据、八条规范、反驳顺序，本地推导）· disputes.ts（11 条理论争议与站位）· segment.ts（长文切分，纯启发式）· compare.ts（修订对照：档位、检查项、争议数的走向）· objection.ts（异议的身份规则）
   main/
-    index.ts       窗口、IPC、冒烟检查
-    analyze.ts     分析管线与八道裁决 —— 应用的中枢
+    index.ts       窗口与 IPC —— 只负责「启动时接上了什么」
+    smoke.ts       打包自检：点按钮、数节点、截图（无 AL_SMOKE 时不执行）
+    analyze.ts     分析管线与九道裁决 —— 应用的中枢
     llm.ts         模型调用、JSON 宽容解析、连接测试
     usage.ts       用量账本：追加式记账、按天聚合、余额锚点、CSV 导出
     archive.ts     报告存档：全文按 id 落盘，列表只给元数据

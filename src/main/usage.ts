@@ -12,6 +12,7 @@ import type {
 import type { TheoryId } from '@shared/theories';
 import { costOf, dayKey, hasPrice, monthKey } from '@shared/tokens';
 import { KNOWN_PRICES, isMockCall, pickPricing } from '@shared/usage-rules';
+import { CSV_HEAD, csvCell, csvRow } from '@shared/usage-csv';
 
 /**
  * 用量账本。
@@ -417,7 +418,17 @@ export function summarizeUsage(): UsageSummary {
     month,
     all,
     daily: buildDaily(records, priceOfModel, now),
-    recent: records.slice(-30).reverse(),
+    /*
+     * 明细带上算好的金额。
+     *
+     * 只给原始记录的话，面板只能显示 `r.cost`——没填单价的那条是 0，
+     * 而合计里它是按现价回填过的，于是「明细加起来」和「本月花费」对不上。
+     * 一个账本最不能被质疑的就是这个加法。
+     */
+    recent: records.slice(-30).reverse().map((r) => {
+      const e = effectiveCost(r, priceOfModel);
+      return { ...r, effCost: e.cost, backfilled: e.backfilled };
+    }),
     pricing,
     hasPricing: hasPrice(pricing),
     balance: {
@@ -438,13 +449,11 @@ export function summarizeUsage(): UsageSummary {
 
 /* ─────────── 导出 ─────────── */
 
-function csvCell(v: string | number | boolean): string {
-  const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 /**
  * 导出 CSV。
+ *
+ * 表格形状（表头、每一行的排布）在 `@shared/usage-csv`，那里不依赖 electron，
+ * 所以 `check:usage` 能直接断言「行和表头一样长」。这里只负责取价和落盘。
  *
  * 带 BOM 是必须的：不带的话 Excel 打开中文列名会是乱码，
  * 而用户拿到一份乱码文件之后就再也不会点第二次了。
@@ -452,52 +461,11 @@ function csvCell(v: string | number | boolean): string {
 export function usageToCsv(): string {
   const pricing = getPricing();
   const priceOfModel = (model: string) => priceOf(model, pricing);
-  const rows = readRecords();
-  /*
-   * 表头必须与下面的行一一对齐。少一列不会报错，只会让「备注」那一列
-   * 掉到表头之外——Excel 打开是一列没有名字的数据，读者会以为导出坏了。
-   * 这一处曾经就少了一列，所以行尾的备注保持固定位置，新增列一律加在它前面。
-   */
-  const head = [
-    '时间',
-    '是否完成',
-    '透镜',
-    '模型',
-    '供应商',
-    '输入token',
-    '输出token',
-    'token来源',
-    '费用',
-    '单价(输入/M)',
-    '单价(输出/M)',
-    '耗时ms',
-    '原文长度',
-    '备注',
-  ];
-  const lines = [head.map(csvCell).join(',')];
-  for (const r of rows) {
+  const lines = [CSV_HEAD.map(csvCell).join(',')];
+  for (const r of readRecords()) {
     // 金额与面板同源：都走 effectiveCost，不在这里另算一遍取价顺序
     const { cost, backfilled } = effectiveCost(r, priceOfModel);
-    lines.push(
-      [
-        new Date(r.at).toLocaleString('zh-CN'),
-        r.ok ? '完成' : '未完成',
-        r.theory ?? '',
-        r.model,
-        r.host,
-        r.promptTokens,
-        r.completionTokens,
-        r.estimated ? '估算' : '接口返回',
-        cost.toFixed(6),
-        r.priceIn || '',
-        r.priceOut || '',
-        r.ms,
-        r.chars,
-        backfilled ? '按现价回填' : '',
-      ]
-        .map(csvCell)
-        .join(',')
-    );
+    lines.push(csvRow(r, cost, backfilled).map(csvCell).join(','));
   }
   return `\uFEFF${lines.join('\r\n')}`;
 }

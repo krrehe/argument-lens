@@ -945,12 +945,10 @@ export async function runAnalysis(
   const mode: AnalysisMode = normalizeMode(opts.mode);
 
   if (!passage) {
-    throw Object.assign(new Error('文本为空。'), { code: 'EMPTY_INPUT' });
+    throw new LlmError('EMPTY_INPUT', '文本为空。');
   }
   if (passage.length > MAX_LEN) {
-    throw Object.assign(new Error(`文本过长（${passage.length} 字）。当前上限 ${MAX_LEN} 字，请分段分析。`), {
-      code: 'TOO_LONG',
-    });
+    throw new LlmError('TOO_LONG', `文本过长（${passage.length} 字）。当前上限 ${MAX_LEN} 字，请分段分析。`);
   }
 
   const profile = THEORY_BY_ID[theory];

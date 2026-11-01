@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readSettings, writeSettings, hasApiKey, keyUnreadable } from './store';
 import { runAnalysis } from './analyze';
-import { testConnection } from './llm';
+import { testConnection, LlmError } from './llm';
 import { attachSmoke } from './smoke';
 import { archiveDirPath, getReport, listReports, removeReport, saveReport } from './archive';
 import { clearAnchor, exportUsageCsv, setAnchor, setPricing, summarizeUsage, usageDirPath } from './usage';
@@ -132,10 +132,18 @@ function registerIpc(): void {
         // 再去账本里取最近一条会有认错记录的风险。
         return { ok: true, data: diagnosis, usage };
       } catch (err) {
-        const e = err as Error;
+        /*
+         * 错误码只从 LlmError 上取。
+         * 以前这里读的是 `(e as any).code`，于是任何带 code 字段的意外错误
+         * （比如 Node 的 `ENOENT`）都会被当成业务错误码报给界面，
+         * 而界面上那些码是拿来对应「去改 Key / 去改地址」的。有码不等于有语义。
+         */
         return {
           ok: false,
-          error: { code: (e as any).code ?? 'ANALYSIS_FAILED', message: e.message },
+          error: {
+            code: err instanceof LlmError ? err.code : 'ANALYSIS_FAILED',
+            message: (err as Error)?.message ?? '分析失败，原因不明。',
+          },
         };
       }
     }

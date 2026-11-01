@@ -8,8 +8,9 @@
  * 两条都写反过一次，而且写反了都不报错：一条让用量少算，一条让钱算错。
  */
 import { KNOWN_PRICES, isMockCall, pickPricing } from '@shared/usage-rules';
+import { CSV_HEAD, csvCell, csvRow } from '@shared/usage-csv';
 import { hasPrice } from '@shared/tokens';
-import type { Pricing } from '@shared/types';
+import type { Pricing, UsageRecord } from '@shared/types';
 
 let passed = 0;
 const failed: string[] = [];
@@ -79,8 +80,50 @@ for (const n of names) {
 }
 ok(sane, '每条内置价的正负与量级都正常（输出价不应低于输入价）', names.join(','));
 
+/* ── 4. 导出的表格形状 ── */
+
+/*
+ * 这一段守的是一个已经发生过的事实：表头 13 列、数据 14 项，
+ * 「按现价回填」那一列掉到表头之外。Excel 打开是一列没有名字的数据，谁也不会报错。
+ * 所以这里不比「看起来对不对」，直接比列数和每列的位置。
+ */
+const sample: UsageRecord = {
+  id: 'x',
+  at: Date.parse('2026-03-01T10:00:00+08:00'),
+  ok: true,
+  theory: 'walton',
+  model: 'deepseek-chat',
+  host: 'api.deepseek.com',
+  promptTokens: 8457,
+  completionTokens: 2100,
+  estimated: false,
+  cost: 0.0126,
+  priced: true,
+  currency: '¥',
+  priceIn: 1,
+  priceOut: 2,
+  ms: 12_000,
+  chars: 900,
+};
+
+const row = csvRow(sample, 0.0099, true);
+ok(row.length === CSV_HEAD.length, 'CSV 行与表头一样长', `行 ${row.length} / 表头 ${CSV_HEAD.length}`);
+ok(new Set(CSV_HEAD).size === CSV_HEAD.length, '表头没有重名列');
+
+const col = (name: string) => CSV_HEAD.indexOf(name as (typeof CSV_HEAD)[number]);
+ok(col('费用') >= 0 && col('备注') === CSV_HEAD.length - 1, '「备注」固定在最后一列', `位置 ${col('备注')}`);
+ok(
+  row[col('费用')] === '0.009900',
+  '费用列用的是传进来的金额，不是记录里冻结的那一个',
+  `实得 ${row[col('费用')]}，记录里是 ${sample.cost}`
+);
+ok(row[col('备注')] === '按现价回填', '备注列在回填时写明「按现价回填」');
+ok(csvRow(sample, 0.0099, false)[col('备注')] === '', '没有回填时备注是空的，不留一句废话');
+ok(csvCell('a,b') === '"a,b"', '字段里有逗号就加引号，否则整行错位');
+ok(csvCell('he said "hi"') === '"he said ""hi"""', '字段里的引号要成对转义');
+
 /* 断言总数兜底：少跑就是静默跳过 */
-ok(passed >= 12, '断言总数不少于 12 项', `实际 ${passed}`);
+ok(passed >= 22, '断言总数不少于 22 项', `实际 ${passed}`);
 
 if (failed.length) {
   console.error(`\n✗ 记账规则检查失败 ${failed.length} 项（通过 ${passed} 项）`);

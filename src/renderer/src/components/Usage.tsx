@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Pricing, UsageRecord, UsageSummary } from '@shared/types';
+import type { Pricing, UsageRow, UsageSummary } from '@shared/types';
 import { THEORY_BY_ID } from '@shared/theories';
 import { formatAgo, formatMoney, formatTokens } from '@shared/tokens';
 
@@ -503,12 +503,14 @@ function RecentTable({
   );
 }
 
-function Row({ r, s, cur }: { r: UsageRecord; s: UsageSummary; cur: string }) {
+function Row({ r, s, cur }: { r: UsageRow; s: UsageSummary; cur: string }) {
   const theory = r.theory ? THEORY_BY_ID[r.theory]?.short ?? r.theory : '—';
   const est = r.estimated;
   /*
-   * 费用列：当时没填单价的记录，用现价回填，并标一个小圆点。
-   * 不标的话，用户改了单价会以为历史被篡改了。
+   * 费用列：用主进程算好的 effCost，不在这里读 r.cost。
+   * 当时没填单价的记录会被按现价回填，并标一个小圆点——
+   * 不标的话，用户改了单价会以为历史被篡改了；不按同一个算法算，
+   * 明细加起来就对不上上面的合计，那比贵一块钱更糟。
    */
   const showCost = s.pricingSource !== 'none' && r.ok;
 
@@ -524,7 +526,20 @@ function Row({ r, s, cur }: { r: UsageRecord; s: UsageSummary; cur: string }) {
         {r.ok ? formatTokens(r.completionTokens) : '—'}
         {est && r.ok && <sup className="est">估</sup>}
       </span>
-      <span className="num">{r.ok ? (showCost ? formatMoney(r.cost, cur) : '—') : <em>未完成</em>}</span>
+      <span className="num">
+        {r.ok ? (
+          showCost ? (
+            <>
+              {formatMoney(r.effCost, cur)}
+              {r.backfilled && <sup className="est" title="这条记录当时没填单价，金额是按现价回填的">回</sup>}
+            </>
+          ) : (
+            '—'
+          )
+        ) : (
+          <em>未完成</em>
+        )}
+      </span>
       <span className="num dim">{(r.ms / 1000).toFixed(1)}s</span>
     </div>
   );

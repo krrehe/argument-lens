@@ -843,6 +843,21 @@ export interface UsageDay {
   cost: number;
 }
 
+/**
+ * 明细里的一行。
+ *
+ * 比 UsageRecord 多两个字段，因为**面板上的金额必须和合计用同一个算法**。
+ * 只给原始记录的话，渲染层只能拿 `r.cost` 显示：没填单价的那条是 0，
+ * 而合计里它是按现价回填过的——于是明细加起来永远对不上上面写的本月花费，
+ * 用户会以为账本在骗他。回填的计算留在主进程，这里只带着结果走。
+ */
+export interface UsageRow extends UsageRecord {
+  /** 这一条实际算多少钱（冻结价 → 按模型回填 → 0） */
+  effCost: number;
+  /** 金额是不是按现价回填出来的 */
+  backfilled: boolean;
+}
+
 export interface UsageSummary {
   today: UsageBucket;
   month: UsageBucket;
@@ -850,7 +865,7 @@ export interface UsageSummary {
   /** 近 14 天，缺的那天补 0 */
   daily: UsageDay[];
   /** 最近 30 条，新的在前 */
-  recent: UsageRecord[];
+  recent: UsageRow[];
   pricing: Pricing;
   hasPricing: boolean;
   balance: {
