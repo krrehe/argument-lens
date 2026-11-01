@@ -1203,6 +1203,19 @@ export async function runAnalysis(
     prompt: { version: build.version, fingerprint: build.fingerprint },
   });
 
+  /*
+   * 把模型原文一并存下。
+   *
+   * 放在 normalizeDiagnosis 之后，是因为这里才确定「哪一次的输出被采用了」——
+   * 解析失败时会重出，前面那些原文不该覆盖掉真正生效的那一份。
+   * 这段代码对报告内容没有任何影响，它是留给出事后核对用的：
+   * 有了它，才可能在不调模型的前提下重跑整条解析与裁决链路。
+   */
+  diagnosis.raw = {
+    text: calls[calls.length - 1].text,
+    attempts: calls.length,
+  };
+
   /* 运行时的工程事实也要留痕：模型调用了几次、温度有没有被裁、提示词是否超预算 */
   if (calls.length > 1) {
     diagnosis.diagnostics.push({
