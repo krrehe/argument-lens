@@ -206,7 +206,8 @@ export async function testConnection(cfg: Partial<LlmSettings>): Promise<TestRes
   }
 }
 
-/** 从模型返回的文本中抠出 JSON。模型有时会加围栏或前后缀。 */export function extractJson(text: string): unknown {
+/** 从模型返回的文本中抠出 JSON。模型有时会加围栏或前后缀。 */
+export function extractJson(text: string): unknown {
   let t = text.trim();
 
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);

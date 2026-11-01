@@ -159,26 +159,6 @@ interface Box {
   lines: string[];
 }
 
-/**
- * 断口定位。
- *
- * 模型给的 defeat.cuts 是一句话（「切断 P1 与 C 之间的因果联结」），
- * 里面通常带主张编号。扫出这些编号，就能知道该在哪根线上开个口子。
- * 扫不到就不画断口，只在图下写一句「击败位置未能落到具体连线」——
- * 画错一根线比不画更糟，用户会照着错的图去改论证。
- */
-function findCuts(d: Diagnosis): Set<string> {
-  const out = new Set<string>();
-  if (d.defeat.kind === 'none') return out;
-  const text = `${d.defeat.cuts} ${d.defeat.explanation}`;
-  const ids = [d.conclusion, ...d.premises, ...d.intermediate].map((c) => c.id);
-  for (const id of ids) {
-    const re = new RegExp(`(^|[^A-Za-z0-9])${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^0-9]|$)`);
-    if (re.test(text)) out.add(id);
-  }
-  return out;
-}
-
 export function StructureMap({
   d,
   sel,

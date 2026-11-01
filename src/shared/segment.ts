@@ -98,9 +98,6 @@ export const SEGMENT_HINT_CHARS = 800;
 /** 单块超过这个长度，一定要再切。下面两种手段依次尝试。 */
 const LONG_BLOCK = 700;
 
-/** 目标段长：太短上下文不够，太长就回到了原来的问题。 */
-const TARGET_CHARS = 320;
-
 /** 累积到这个长度、且当前句带结论指示词，就在这里断——一段刚好是「理由…所以结论」。 */
 const MIN_BEFORE_CUE_CUT = 260;
 

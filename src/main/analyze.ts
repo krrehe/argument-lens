@@ -91,6 +91,17 @@ const EXPECTED_SYSTEM: Record<TheoryId, CheckSystem> = {
 function str(v: unknown, fallback = ''): string {
   return typeof v === 'string' ? v : fallback;
 }
+/**
+ * 取一个「必须有字」的字段。
+ *
+ * `str` 只在类型不对时才用兜底，空串会原样通过——于是模型返回 `"text": ""` 时，
+ * 主张卡上是一块没有标题的空白，判定那一段也是空白。读者看到的是「界面坏了」，
+ * 而数据层只知道自己拿到一个合法的字符串。空串在语义上就是缺值，这里按缺值处理。
+ */
+function strNonEmpty(v: unknown, fallback: string): string {
+  const s = typeof v === 'string' ? v.trim() : '';
+  return s || fallback;
+}
 function arr<T>(v: unknown): T[] {
   return Array.isArray(v) ? (v as T[]) : [];
 }
@@ -115,7 +126,7 @@ function normalizeClaim(raw: any, passage: string, role: ClaimRole, fallbackId: 
   return {
     id: str(raw?.id, fallbackId),
     role,
-    text: str(raw?.text, quote ?? '（未能抽出陈述）'),
+    text: strNonEmpty(raw?.text, quote ?? '（未能抽出陈述）'),
     supports: arr<string>(raw?.supports).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim()),
     quote,
     span: locate(passage, quote),
@@ -477,7 +488,7 @@ export function normalizeDiagnosis(
   /* 语境 */
   const c = raw.context ?? {};
   const context = {
-    issue: str(c.issue, '（未能确定争议之点）'),
+    issue: strNonEmpty(c.issue, '（未能确定争议之点）'),
     speakerPosition: str(c.speakerPosition),
     opposingPosition: optStr(c.opposingPosition),
     dialogueType: oneOf(
@@ -676,10 +687,10 @@ export function normalizeDiagnosis(
   }
 
   const verdict = {
-    scale: str(v.scale, THEORY_BY_ID[theory].scale),
+    scale: strNonEmpty(v.scale, THEORY_BY_ID[theory].scale),
     scaleValue: str(v.scaleValue),
     level,
-    statement: str(v.statement, '在目前给出的信息下，无法给出可靠判断。'),
+    statement: strNonEmpty(v.statement, '在目前给出的信息下，无法给出可靠判断。'),
     qualification: str(v.qualification),
     whatIsRefuted,
   };
@@ -871,7 +882,15 @@ export function normalizeDiagnosis(
     version: 2,
     id: opts.id ?? newReportId(),
     parentId: opts.parentId ?? null,
-    mode: opts.mode ?? 'diagnose',
+    /*
+     * 存归一化后的 mode，不是 opts.mode。
+     *
+     * `opts.mode ?? 'diagnose'` 只兜住了 undefined，兜不住非法字符串：
+     * 传进来 'redteam2' 时它会把原样存进报告，而上面所有与模式有关的裁决
+     * 走的是归一化后的 mode。于是报告自称一种模式、行为按另一种走——
+     * 这正是 normalizeMode 当初要消灭的那种静默不一致，只是换了个位置复发。
+     */
+    mode,
     theory,
     createdAt: opts.createdAt ?? Date.now(),
     passage,
@@ -1048,11 +1067,21 @@ export async function runAnalysis(
       ? calls[0].rec
       : (() => {
           const last = calls[calls.length - 1].rec;
+          /*
+           * 命中数跟着输入 token 一起求和，不能沿用最后一笔。
+           *
+           * 修复重跑时，第二笔常常整段前缀都命中（system 与原文没变），
+           * 只取最后一笔会把「总输入里有多少是命中的」算高；反过来若第一次命中、第二次没有，
+           * 又会算低。这个字段唯一的用途就是看命中率，口径错了它就没有意义。
+           * 供应商没报的那些不参与求和——把「不说」当 0 会造出假的低命中。
+           */
+          const hits = calls.map((c) => c.rec.cacheHitTokens).filter((n): n is number => typeof n === 'number');
           return {
             ...last,
             promptTokens: calls.reduce((s, c) => s + c.rec.promptTokens, 0),
             completionTokens: calls.reduce((s, c) => s + c.rec.completionTokens, 0),
             cost: calls.reduce((s, c) => s + c.rec.cost, 0),
+            cacheHitTokens: hits.length ? hits.reduce((s, n) => s + n, 0) : undefined,
             ms: calls.reduce((s, c) => s + c.rec.ms, 0),
             estimated: calls.some((c) => c.rec.estimated),
           };

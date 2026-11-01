@@ -1,5 +1,3 @@
-import type { TheoryId } from './theories';
-
 /**
  * 理论主张的落点表。
  *

@@ -261,13 +261,6 @@ function readRecords(): UsageRecord[] {
 }
 
 /**
- * 一条记录按什么价算。
- *
- * 优先用记录里冻结的单价；当时没填单价（priced=false）的，用现在填的价回填。
- * 回填出来的钱是**近似值**——token 数是真的，价是今天的。界面上要说清这件事，
- * 否则用户会拿一个用今天价格算出来的去年数字去对去年的账单。
- */
-/**
  * 一条记录实际算多少钱。
  *
  * 取价顺序：记录里冻结的当时单价 → 按**这条记录的模型**取当时该用的价 → 0。
@@ -460,9 +453,30 @@ export function usageToCsv(): string {
   const pricing = getPricing();
   const priceOfModel = (model: string) => priceOf(model, pricing);
   const rows = readRecords();
-  const head = ['时间', '是否完成', '透镜', '模型', '供应商', '输入token', '输出token', 'token来源', '费用', '单价(输入/M)', '单价(输出/M)', '耗时ms', '原文长度'];
+  /*
+   * 表头必须与下面的行一一对齐。少一列不会报错，只会让「备注」那一列
+   * 掉到表头之外——Excel 打开是一列没有名字的数据，读者会以为导出坏了。
+   * 这一处曾经就少了一列，所以行尾的备注保持固定位置，新增列一律加在它前面。
+   */
+  const head = [
+    '时间',
+    '是否完成',
+    '透镜',
+    '模型',
+    '供应商',
+    '输入token',
+    '输出token',
+    'token来源',
+    '费用',
+    '单价(输入/M)',
+    '单价(输出/M)',
+    '耗时ms',
+    '原文长度',
+    '备注',
+  ];
   const lines = [head.map(csvCell).join(',')];
   for (const r of rows) {
+    // 金额与面板同源：都走 effectiveCost，不在这里另算一遍取价顺序
     const { cost, backfilled } = effectiveCost(r, priceOfModel);
     lines.push(
       [
@@ -474,7 +488,7 @@ export function usageToCsv(): string {
         r.promptTokens,
         r.completionTokens,
         r.estimated ? '估算' : '接口返回',
-        (r.priced ? r.cost : cost).toFixed(6),
+        cost.toFixed(6),
         r.priceIn || '',
         r.priceOut || '',
         r.ms,

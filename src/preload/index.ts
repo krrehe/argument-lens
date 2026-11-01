@@ -23,7 +23,8 @@ import type { TheoryId } from '@shared/theories';
  */
 const api = {
   settings: {
-    get: (): Promise<LlmSettings & { hasKey: boolean }> => ipcRenderer.invoke('settings:get'),
+    get: (): Promise<LlmSettings & { hasKey: boolean; keyUnreadable: boolean }> =>
+      ipcRenderer.invoke('settings:get'),
     save: (patch: Partial<LlmSettings>): Promise<{ ok: boolean }> => ipcRenderer.invoke('settings:save', patch),
     test: (patch: Partial<LlmSettings>): Promise<{ ok: boolean; message: string; latencyMs: number }> =>
       ipcRenderer.invoke('settings:test', patch),

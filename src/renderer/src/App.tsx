@@ -31,6 +31,9 @@ import { diffRevision } from '@shared/compare';
 
 type Tab = 'analyze' | 'prompt';
 
+/** 一次分析调用的返回形状。推断出来而不是手写，免得 preload 改了这里不跟。 */
+type RunResult = Awaited<ReturnType<typeof window.api.analysis.run>>;
+
 const SAMPLE = `我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。
 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读书。
 很多家长也支持恢复早读，可见早读肯定有益。
@@ -171,20 +174,41 @@ export default function App() {
       setProgress({ stage: 'scope', label: '准备', percent: 4 });
 
       /* 切分过的段落照样能跑：切分只是帮人选一段，不是改写文本。 */
+      /*
+       * IPC 调用本身也要兜住。
+       *
+       * 主进程里的 try/catch 只盖住 runAnalysis 抛的错；通道名写错、主进程崩溃、
+       * 返回值无法序列化，这几种会直接 reject 到渲染层。不接住它们，
+       * `loading` 就永远停在 true——按钮点不动、进度条卡住，
+       * 用户唯一能得出的结论是「软件死了」，而那恰恰是最难报的一个 bug。
+       */
       const res = await window.api.analysis.run(
         text,
         theory,
         mode,
         override?.parentId ?? pendingParent ?? null
+      ).catch(
+        (err: Error): RunResult => ({
+          ok: false,
+          error: { code: 'IPC_FAILED', message: `与主进程通信失败：${err?.message ?? '原因不明'}` },
+        })
       );
       // 用掉就清掉：下一次分析默认是新的一份，不该莫名其妙接着上一次比
       setPendingParent(null);
 
       // 无论成败都刷一次：失败也计费，成功更要知道花了多少
       refreshUsage();
-      if (abortRef.current) return;
+      /*
+       * 先复位 loading，再判断要不要丢掉结果。
+       *
+       * 原来的顺序反了：`if (abortRef.current) return;` 在 `setLoading(false)` 之前，
+       * 一旦真的放弃，进度条会永远停在那个百分比、按钮永远是禁用——
+       * 而「放弃」本来就该意味着界面回到可操作状态。这条分支以前从不成立
+       * （没人把 abortRef 置 true），所以顺序错着也看不出来。
+       */
       setLoading(false);
       setProgress(null);
+      if (abortRef.current) return;
 
       if (res.ok && res.data) {
         setDiag(res.data);
@@ -267,6 +291,17 @@ export default function App() {
    * 花费不清空也不补：存档里没有那一条，凭印象写一个数字比留空更糟。
    */
   const openReport = useCallback((id: string) => {
+    /*
+     * 放弃正在进行的那一次。
+     *
+     * 用户在看某份旧报告时，如果刚才那次分析稍后返回，它会把这份覆盖成
+     * 另一段话的结果——屏幕上换了内容，却没有任何提示，用户会以为
+     * 自己点开的就是刚跑出来的那份。`abortRef` 存在的唯一理由就是这个场景；
+     * 不在这里置位，它就是一个永远为 false 的摆设。
+     */
+    abortRef.current = true;
+    setLoading(false);
+    setProgress(null);
     window.api.archive
       .get(id)
       .then((d) => {
@@ -572,7 +607,6 @@ export default function App() {
                   <DiagnosisView
                     d={diag}
                     onLoadRepair={loadRepair}
-                    onOpenParent={() => parent && openReport(parent.id)}
                     onOpenClaim={(id) => {
                       // 从报告里的边界栏点一条主张进来：打开库并滚到那一条。
                       // 「点开能看到出处与反对意见」这句话要是点不动，文档就比软件自信了。

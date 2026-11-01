@@ -858,7 +858,6 @@ function AcademicBlock({ a, onOpenClaim }: { a: AcademicView; onOpenClaim?: (id:
 export function DiagnosisView({
   d,
   onLoadRepair,
-  onOpenParent,
   onOpenClaim,
 }: {
   d: Diagnosis;
@@ -869,8 +868,6 @@ export function DiagnosisView({
    * 所以这里只负责把候选版摆到你面前，跑不跑由你按「分析」决定。
    */
   onLoadRepair?: () => void;
-  /** 打开上一版报告 */
-  onOpenParent?: () => void;
   /**
    * 打开理论主张库并定位到某一条。
    * 边界栏每行挂一个主张 id，那不是为了显得有依据——点了要真能跳到那条的
@@ -879,16 +876,7 @@ export function DiagnosisView({
   onOpenClaim?: (claimId: string) => void;
 }) {
   const [sel, setSel] = useState<string | null>(null);
-  const p = usePlain();
   const t = THEORY_BY_ID[d.theory];
-  const levelClass =
-    d.verdict.level === 'withstands'
-      ? 'ok'
-      : d.verdict.level === 'fails'
-        ? 'bad'
-        : d.verdict.level === 'weakened'
-          ? 'mid'
-          : '';
 
   const allClaims: Claim[] = [d.conclusion, ...d.premises, ...d.intermediate];
 

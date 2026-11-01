@@ -275,7 +275,6 @@ export function ArsGapMap({ d, l }: { d: Diagnosis; l: ArsLens }) {
   const conclText = d.conclusion?.text ?? '—';
 
   const pw = 150;
-  const gapX = 176;
   const premX = 8;
   const cw = 168;
   const cx = W - cw - 8;

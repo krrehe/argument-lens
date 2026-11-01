@@ -43,11 +43,20 @@ export function Settings({
   const [form, setForm] = useState<LlmSettings>({ baseUrl: '', apiKey: '', model: '', temperature: 0.2 });
   const [loaded, setLoaded] = useState(false);
   const [test, setTest] = useState<TestState>({ kind: 'idle' });
+  /**
+   * 磁盘上存着 Key，但这台机器解不开（换了账户、系统密钥环重置）。
+   *
+   * 这一位决定保存时传不传 apiKey：不传 = 让主进程保留原密文，
+   * 传空串 = 把它删掉。两者在界面上看起来一样（输入框都是空的），
+   * 但对用户是两件完全不同的事——他改个模型名，不该把 Key 一起弄没。
+   */
+  const [keyUnreadable, setKeyUnreadable] = useState(false);
   const onboard = mode === 'onboard';
 
   useEffect(() => {
     window.api.settings.get().then((s) => {
       setForm({ baseUrl: s.baseUrl, apiKey: s.apiKey, model: s.model, temperature: s.temperature });
+      setKeyUnreadable(!!s.keyUnreadable);
       setLoaded(true);
     });
   }, []);
@@ -64,7 +73,12 @@ export function Settings({
   };
 
   const save = async () => {
-    await window.api.settings.save(form);
+    /*
+     * 解不开的那种 Key，只要用户没重新输入，就别把 apiKey 这个字段发出去。
+     * 发一个空串看起来无害，实际是把磁盘上那段仍然有用的密文覆盖掉。
+     */
+    const payload = keyUnreadable && !form.apiKey ? { ...form, apiKey: undefined } : form;
+    await window.api.settings.save(payload);
     const s = await window.api.settings.get();
     onSaved(s);
   };
@@ -136,9 +150,15 @@ export function Settings({
               type="password"
               value={form.apiKey}
               onChange={(e) => patch({ apiKey: e.target.value })}
-              placeholder="sk-…　（本地 Ollama 填 ollama 即可）"
+              placeholder={keyUnreadable ? '（这台机器解不开原来那个，可重填）' : 'sk-…　（本地 Ollama 填 ollama 即可）'}
               spellCheck={false}
             />
+            {keyUnreadable && (
+              <span className="hint">
+                本机存着一个 Key，但当前系统账户解不开它（换过账户或系统密钥环被重置）。
+                不重填也没关系：原来那段会原样留着，换回原账户还能用；重填会覆盖它。
+              </span>
+            )}
           </div>
 
           <div className="field">

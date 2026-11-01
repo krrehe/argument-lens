@@ -11,7 +11,6 @@ import type { FallacyDefinition } from '@shared/types';
  * 2. whenLegitimate 不是免责声明，是这个条目最有用的一半。多数「谬误指控」死在这里。
  * 3. 汉森统计 23 种文献：「无效性条件」只占 9%。谬误不是「无效论证」的同义词。
  */
-const SRC = '武宏志《非形式逻辑导论》附录B';
 
 export const FALLACIES: FallacyDefinition[] = [
   {

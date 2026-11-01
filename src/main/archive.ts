@@ -133,7 +133,16 @@ export function getReport(id: string): Diagnosis | null {
 export function saveReport(d: Diagnosis, usage?: UsageRecord | null): ReportMeta[] {
   const p = reportPath(d.id);
   const body = JSON.stringify(d);
-  writeFileSync(p, body, 'utf-8');
+  /*
+   * 先写临时文件再改名，和索引、账本、设置三处保持同一种写法。
+   *
+   * 直接写目标文件的话，写到一半断电会留下半截 JSON：getReport 解不开、
+   * rebuildIndex 会跳过它，而索引里那条元数据还在——列表上有一行，
+   * 点开是空的。改名的原子性把「半份报告」这个状态整个消掉了。
+   */
+  const tmp = `${p}.tmp`;
+  writeFileSync(tmp, body, 'utf-8');
+  renameSync(tmp, p);
 
   const cost = usage && usage.priced ? usage.cost : null;
   const meta = metaOf(d, cost, Buffer.byteLength(body, 'utf-8'));
