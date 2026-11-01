@@ -17,6 +17,7 @@ import { topicsOf, type TopicHit } from '@shared/topics';
 import { academicOf, BY_TOOL_LABEL, type AcademicView, type ByTool } from '@shared/academic';
 import { limitsOf } from '@shared/limits';
 import { prescriptionsOf } from '@shared/prescriptions';
+import { fallacyHits, mapSentences } from '@shared/fallacy-map';
 import { CheckStrip, StructureMap, VerdictGauge } from './Diagram';
 import { DisputeStrip, focusDispute } from './Disputes';
 import { QuickRead } from './Overview';
@@ -464,7 +465,132 @@ function LensPanel({ d }: { d: Diagnosis }) {
 
 /* ═══════ 命名候选 ═══════ */
 
-function LabelCard({ c }: { c: LabelCandidate }) {
+/**
+ * 谬误落点图：查谬误模式的第五张图。
+ *
+ * 前四张图各解决一个「看不懂」，这张解决的是命名卡的第一个盲点：
+ * 「事后归因」三个字看得懂，但它指的那句话在原文的第几句，文字引文要读者
+ * 自己拿眼睛去对——句子一多，对的成本就是怀疑发酵的成本。
+ * 图把这件事一眼摆出来：哪几格着了色、下面挂着哪个名字。
+ *
+ * 与前四张同一底线：**定位失败的不画**。span 质量是 failed 的命名留在图下
+ * 明说，绝不为图面完整猜一个位置——猜错的格子比缺一格害处大得多。
+ */
+function FallacyMap({
+  d,
+  sel,
+  onPick,
+}: {
+  d: Diagnosis;
+  sel: string | null;
+  onPick: (id: string | null) => void;
+}) {
+  const sentences = useMemo(() => mapSentences(d.passage), [d.passage]);
+  const hits = useMemo(() => fallacyHits(d.passage, d.labels), [d.passage, d.labels]);
+  const byLabel = useMemo(() => new Map(hits.map((h) => [h.labelId, h])), [hits]);
+  const labelById = useMemo(() => new Map(d.labels.map((l) => [l.id, l])), [d.labels]);
+
+  /** 句子 → 挂在这句上的命名（按 span 交集算出的，不是重新猜的）。 */
+  const onSentence = useMemo(() => {
+    const m = new Map<number, string[]>();
+    for (const h of hits) {
+      if (!h.at) continue;
+      for (const i of h.at) {
+        const list = m.get(i) ?? [];
+        list.push(h.labelId);
+        m.set(i, list);
+      }
+    }
+    return m;
+  }, [hits]);
+
+  /** 没画上去的：定位失败或模型没给位置。图可以缺格子，理由不能缺。 */
+  const unpainted = hits.filter((h) => !h.at);
+  if (!sentences.length) return null;
+
+  /*
+   * 定位质量照样说。
+   *
+   * 精确匹配和模糊匹配画在同一个格子里，视觉上毫无区别——而它们的可信度不同：
+   * fuzzy 是「找到一句很像的」，用户若拿它去质问原作者，句子可能不是原句。
+   * 不区分，等于把推测画成事实。
+   */
+  const qLabel = (id: string) => {
+    const q = labelById.get(id)?.span?.quality;
+    return q === 'normalized'
+      ? '归一化后匹配'
+      : q === 'fuzzy'
+        ? '模糊匹配（找到一句很像的，未必是原句）'
+        : '精确定位';
+  };
+
+  return (
+    <div className="fmap">
+      <div className="fmap-flow">
+        {sentences.map((s) => {
+          const hitIds = onSentence.get(s.index) ?? [];
+          const anyHit = hitIds.length > 0;
+          return (
+            <span
+              key={s.index}
+              className={`fmap-s ${anyHit ? 'fmap-s-hit' : ''}`}
+              title={
+                anyHit
+                  ? `${s.text}\n\n挂着：${hitIds.map((id) => labelById.get(id)?.name ?? id).join('、')}\n定位方式：${hitIds.map(qLabel).join('、')}`
+                  : s.text
+              }
+            >
+              {s.text}
+              {hitIds.map((id) => {
+                const l = labelById.get(id);
+                if (!l) return null;
+                return (
+                  <button
+                    key={id}
+                    className={`fmap-chip ${sel === id ? 'on' : ''}`}
+                    onClick={() => onPick(sel === id ? null : id)}
+                  >
+                    {l.name}
+                    {l.landsOnCheck ? ` → ${l.landsOnCheck}` : ''}
+                  </button>
+                );
+              })}
+            </span>
+          );
+        })}
+      </div>
+      <div className="legend">
+        <span className="legend-item">
+          <i className="l-dot" style={{ background: 'var(--weak)' }} />
+          有谬误候选挂着的句子
+        </span>
+        <span className="legend-item">点名字 → 下面的命名卡亮边框</span>
+      </div>
+      <p className="diagram-note">
+        读法：每个格子是原文的一句，照原文顺序排。着色格下面挂的名单，就是报告认为问题落在那句上；
+        名字后面的 CQ 编号是它挂到的检查关。这份对应由 span 定位算出，不靠人眼对引文；
+        句子悬停会写明这条是精确定位还是模糊匹配——两者画在同一个格子里，可信度却不同。
+        {unpainted.length > 0 && (
+          <>
+            {' '}
+            <b>有 {unpainted.length} 条没画上去</b>
+            （
+            {unpainted
+              .map((h) => {
+                const l = labelById.get(h.labelId);
+                const why = h.reason === 'failed' ? '引文在原文里没定位到' : '报告没给出位置';
+                return `${l?.name ?? h.labelId}：${why}`;
+              })
+              .join('；')}
+            ）——宁缺毋错，它们只以引文形式出现在下面的卡里。
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
+function LabelCard({ c, active, onPick }: { c: LabelCandidate; active?: boolean; onPick?: () => void }) {
   /*
    * 原文位置放在名字正下方，而不是塞进 dl 的一行。
    *
@@ -478,9 +604,21 @@ function LabelCard({ c }: { c: LabelCandidate }) {
   const locQuote = typeof c.quote === 'string' ? c.quote.trim() : '';
   const missed = Boolean(locQuote) && c.span?.quality === 'failed';
   return (
-    <div className="cand">
+    <div className={`cand ${active ? 'cand-on' : ''}`}>
       <div className="cand-head">
-        <span className="nm">{c.name}</span>
+        {/*
+          名字本身是按钮，用来和落点图双向对位。
+          单向联动（点图上胶囊 → 卡亮）只解决一半：用户更常见的动作是从卡出发——
+          读完四样代价，回头想知道「那这句在原文第几句」。给不了这个，图就只是装饰。
+          没有图时不给按钮：一个点了没反应的按钮比没有按钮更糟。
+        */}
+        {onPick ? (
+          <button className="nm nm-btn" onClick={onPick} title="在落点图上找到这一条">
+            {c.name}
+          </button>
+        ) : (
+          <span className="nm">{c.name}</span>
+        )}
         <span className="en">{c.nameEn}</span>
         <Meta tag={c.tag} confidence={c.confidence} />
         <div className="spacer" />
@@ -892,6 +1030,8 @@ export function DiagnosisView({
   onOpenClaim?: (claimId: string) => void;
 }) {
   const [sel, setSel] = useState<string | null>(null);
+  /** 落点图选中的命名。和结构图的 sel 分开：一个选主张，一个选谬误，别共用。 */
+  const [labelSel, setLabelSel] = useState<string | null>(null);
   const t = THEORY_BY_ID[d.theory];
 
   const allClaims: Claim[] = [d.conclusion, ...d.premises, ...d.intermediate];
@@ -1302,7 +1442,17 @@ export function DiagnosisView({
           plain={SEC.labelPlain}
         >
           {d.labels.length ? (
-            d.labels.map((c) => <LabelCard key={c.id} c={c} />)
+            <>
+              {mode === 'fallacy' && <FallacyMap d={d} sel={labelSel} onPick={setLabelSel} />}
+              {d.labels.map((c) => (
+                <LabelCard
+                  key={c.id}
+                  c={c}
+                  active={labelSel === c.id}
+                  onPick={mode === 'fallacy' ? () => setLabelSel(labelSel === c.id ? null : c.id) : undefined}
+                />
+              ))}
+            </>
           ) : (
             <p className="hint">{SEC.labelEmpty}</p>
           )}

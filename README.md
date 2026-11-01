@@ -67,10 +67,11 @@
 
 **六副透镜各有一句人话。** 不是把「担保」换成「保证」，是重写整句。
 
-**四张图，各治一种看不懂：**
+**每张图各治一种看不懂：**
 
 | 图 | 治什么 | 关键约定 |
 |---|---|---|
+| 谬误落点图（查谬误模式） | 这个名字指的是我哪句话 | 每格一句，按原文顺序；挂着候选的句子下挂「名字 → 检查关」胶囊；与命名卡双向对位；**定位失败或没给位置的不画**，写明原因 |
 | 结构图（思维导图） | 他在论证什么 | 左依据→右结论；实线＝原文说的，虚线＝替他补的；左侧色条＝听众认不认；红叉＝这一步接不上 |
 | 判读刻度尺 | 到底算不算站得住 | 三档横条 + 指针，被削弱与不成立是两个位置 |
 | 逐关检查 | 检查表那么多行在说什么 | 一排关卡（✓ 过 / ✕ 没过 / ? 没答），点开看依据 |
@@ -329,12 +330,15 @@ npm run prompts        # 导出三十份完整提示词到 docs/prompts/，并�
 npm run prompt:lint    # 提示词静态检查 666 项：块、跨模式隔离、禁语登记、指纹稳定、输入隔离、schema 对齐
 npm run verify         # 一条命令跑完下面全部静态检查（14 项，约 15 秒）。清单从 package.json 自动发现，
                        # 新增的 check 会被自动纳入——硬编码的清单会静默漏掉后来加的那些，而它照常打印「全部通过」
-npm run check:contract # 提示词契约 71 项：喂越界输出，断言代码真的抓住（含不给档位的三种模式、抽不出结论时也不给档位、查谬误模式的命名必须有位置）
+npm run check:contract # 提示词契约 81 项：喂越界输出，断言代码真的抓住（含不给档位的三种模式、抽不出结论时也不给档位、查谬误模式的命名必须有位置、落点图的切句与命中规则）
 npm run smoke          # 端到端：起假模型 → 拉起应用 → 跑分析 → 验收渲染
 SMOKE_MODE=redteam npm run smoke      # 同上，切红队（五种模式各可切：diagnose/redteam/fallacy/reconstruct/interrogate）
 SMOKE_REVISE=1 npm run smoke          # 同上，走完「填回输入框 → 再分析 → 对照」整条链
 SMOKE_PANEL=prompt npm run smoke   # 同上，再切提示词页验版本号与指纹
 SMOKE_EMPTY=1 npm run smoke        # 不分析，只验首屏空态：三步引导、报告样例、五种问法的说明
+npm run ui:preview     # 界面截图（不打 Electron）：预览页支持 ?lens=<透镜> 与 ?mode=<模式> 两个开关，
+                       # 两个维度各自单独换，改措辞或改图之后能逐模式截一版，不必真跑分析
+node scripts/shot-ui.mjs 11000 0 "mode=fallacy"   # 截到 11000 高，查谬误模式的落点图才在画面里
 npm run check:compare  # 修订对照的断言测试（不跑应用，直接测比较逻辑）
 npm run check:lens     # 六副透镜的图与走向图：渲染成 HTML 再验它们真的画出来了
 npm run check:css      # 样式覆盖：组件里写下的类名样式表里必须有（历史面板整块裸奔过，防复发）
@@ -356,7 +360,7 @@ npm run dist           # 打包安装版与便携版
 
 ```
 src/
-  shared/          theories.ts（六副透镜元数据）· types.ts（三层数据契约）· tokens.ts（token 估算与计费）· usage-rules.ts（记账规则：谁算模拟调用、取价顺序——纯函数，由 check:usage 断言）· usage-csv.ts（导出的表头与行：形状单独放在这里，才验得了「行和表头一样长」）· theory-notes.ts（每副透镜的「凭什么」卡）· theory-base.ts（102 条主张：它凭什么、有多硬、让本工具做了什么，跨十编，带 20 个细分域作第二根筛选轴）· landing.ts（每条主张的落点：提示词块/透镜片段/函数/界面区块，由 check:landing 逐条校验存在）· topics.ts（专题分析：六类论证的共识问题清单，本地推导）· limits.ts（这份分析自身的边界：本地推导，不调模型）· academic.ts（学术分析：体裁、待核的引用与数据、八条规范、反驳顺序，本地推导）· disputes.ts（11 条理论争议与站位）· segment.ts（长文切分，纯启发式）· compare.ts（修订对照：档位、检查项、争议数的走向）· prescriptions.ts（下一步：每处空着的检查项要填什么形状、怎么算填上，本地推导，由 check:prescriptions 断言）· report-audit.ts（报告自检：结构矛盾与缺项分开报，生产端与评测端共用）· report-markdown.ts（导出：只排版不重算，判了不适用的不出判定段）· labels.ts（界面与导出共用的中文标签：同一枚举两处各写一遍，迟早说两套话）· objection.ts（异议的身份规则）· settings-check.ts（设置校验：挡住 file:// 与越界温度，纯函数，由 check:robustness 断言）
+  shared/          theories.ts（六副透镜元数据）· types.ts（三层数据契约）· tokens.ts（token 估算与计费）· usage-rules.ts（记账规则：谁算模拟调用、取价顺序——纯函数，由 check:usage 断言）· usage-csv.ts（导出的表头与行：形状单独放在这里，才验得了「行和表头一样长」）· theory-notes.ts（每副透镜的「凭什么」卡）· theory-base.ts（102 条主张：它凭什么、有多硬、让本工具做了什么，跨十编，带 20 个细分域作第二根筛选轴）· landing.ts（每条主张的落点：提示词块/透镜片段/函数/界面区块，由 check:landing 逐条校验存在）· topics.ts（专题分析：六类论证的共识问题清单，本地推导）· limits.ts（这份分析自身的边界：本地推导，不调模型）· academic.ts（学术分析：体裁、待核的引用与数据、八条规范、反驳顺序，本地推导）· disputes.ts（11 条理论争议与站位）· segment.ts（长文切分，纯启发式）· compare.ts（修订对照：档位、检查项、争议数的走向）· prescriptions.ts（下一步：每处空着的检查项要填什么形状、怎么算填上，本地推导，由 check:prescriptions 断言）· report-audit.ts（报告自检：结构矛盾与缺项分开报，生产端与评测端共用）· report-markdown.ts（导出：只排版不重算，判了不适用的不出判定段）· labels.ts（界面与导出共用的中文标签：同一枚举两处各写一遍，迟早说两套话）· objection.ts（异议的身份规则）· settings-check.ts（设置校验：挡住 file:// 与越界温度，纯函数，由 check:robustness 断言）· fallacy-map.ts（谬误落点图的计算层：切句与 span 交集命中，纯函数，由 check:contract 断言）
   main/
     index.ts       窗口与 IPC —— 只负责「启动时接上了什么」
     smoke.ts       打包自检：点按钮、数节点、截图（无 AL_SMOKE 时不执行）

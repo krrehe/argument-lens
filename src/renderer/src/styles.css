@@ -724,6 +724,21 @@ table.grid td.basis {
   font-size: 13.5px;
   font-weight: 600;
 }
+/* 可点的名字（与落点图对位）。虚线下划线提示「这行能点」，
+   而不改颜色——改了色就与「可信度标签」的用色抢语义。 */
+.cand-head .nm-btn {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-bottom: 1px dashed var(--line-strong);
+  cursor: pointer;
+}
+.cand-head .nm-btn:hover {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
 .cand-head .en {
   font-family: var(--mono);
   font-size: 11px;
@@ -765,6 +780,64 @@ table.grid td.basis {
   margin-left: 4px;
   font-size: 11px;
   color: var(--weak);
+}
+
+/* 命名卡被落点图选中时的边框。和结构图的选中一致：外圈一圈描边，不改底色——
+   底色一改，卡里的信息层级（引文、成立条件）反而被盖住。 */
+.cand-on {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/*
+ * 谬误落点图。
+ *
+ * 句子做成流式格子而不是 SVG：句子长短悬殊，SVG 得自己排版换行，
+ * 而这里的排版要求只有「按原文顺序、别并成一段」——交给浏览器就行。
+ * 工具不炫技：这张图的价值在「哪句挂了哪个名字」，不在形状。
+ */
+.fmap {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.fmap-flow {
+  font-size: 12.5px;
+  line-height: 2.1;
+  color: var(--ink-2);
+}
+.fmap-s {
+  display: inline;
+  padding: 2px 0;
+}
+.fmap-s-hit {
+  background: var(--weak-bg);
+  box-shadow: 0 0 0 2px var(--weak-bg);
+  border-radius: 3px;
+  /* 底色 weak-bg 和纸底几乎分不出，光靠它「着色格」是句空话；
+     文字跟着变可疑金，与命名卡左条同一语义：这句挂着候选，不是中性陈述。 */
+  color: var(--weak);
+}
+.fmap-chip {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 7px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--weak);
+  background: var(--panel);
+  border: 1px solid var(--weak);
+  border-radius: 9px;
+  cursor: pointer;
+}
+.fmap-chip:hover {
+  background: var(--weak-bg);
+}
+.fmap-chip.on {
+  color: var(--panel);
+  background: var(--weak);
 }
 
 /* 反驳 */

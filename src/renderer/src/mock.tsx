@@ -10,7 +10,7 @@ import { DisputeDialog } from './components/Disputes';
 import { GlossaryDialog, PlainCtx } from './components/Term';
 import { MOCK, MOCK_BY_THEORY } from './mock-data';
 import { UsagePanel } from './components/Usage';
-import type { ObjectionStat, ReportMeta, TheoryId, UsageRow, UsageSummary } from '@shared/types';
+import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
 import './styles.css';
 import './styles-usage.css';
 import './styles-disputes.css';
@@ -261,7 +261,37 @@ function Preview() {
       alternativeReading: '换用型式法或 ARS 三标准，可以逐条检验「北欧经验不可搬」的类比是否恰当、托育与生育意愿的因果概括是否可靠，而不要求文本里存在对手。',
     },
   };
-  const shown: typeof D = acOn ? { ...D, passage: AC_SAMPLE } : oosOn ? OOS : D;
+  /*
+   * ?mode=<模式名>：换报告的显示模式。
+   *
+   * 为什么要有它：模式改的是**措辞与分区**，不是数据，端到端冒烟虽然五模式各跑一趟，
+   * 但它的截图是整页长图，人眼核对措辞不如预览页方便。加了这个开关，
+   * 截图跑道（ui:preview 传入参数）就能对五个模式各截一版，改动措辞后能逐模式看一眼。
+   * 不是五模式之一的值直接忽略——预览页宁可退回诊断版，也不显示一半错的状态。
+   */
+  const QMODE = new URLSearchParams(location.search).get('mode');
+  const qMode: typeof D['mode'] | null = (ANALYSIS_MODES as readonly string[]).includes(QMODE ?? '')
+    ? (QMODE as typeof D['mode'])
+    : null;
+  const shown: typeof D = acOn
+    ? { ...D, passage: AC_SAMPLE }
+    : oosOn
+      ? OOS
+      : qMode
+        ? {
+            ...D,
+            mode: qMode,
+            /*
+             * 命名类模式不给档位，端到端里这步是裁决层做的（MODE_NO_VERDICT），
+             * 预览页跳过了裁决层，所以要在这里补上——否则预览页显示「被削弱」的刻度尺，
+             * 而真应用同一份数据显示「判不了」。预览页说谎，截图审计就会带着错截图走。
+             */
+            verdict:
+              MODE_META[qMode].givesVerdict
+                ? D.verdict
+                : { ...D.verdict, level: 'undetermined' as const },
+          }
+        : D;
   const [theoryOpen, setTheoryOpen] = useState(new URLSearchParams(location.search).get('dlg') === 'theory');
   const [dispOpen, setDispOpen] = useState(false);
   const [focusClaim, setFocusClaim] = useState<string | undefined>(undefined);

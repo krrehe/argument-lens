@@ -161,6 +161,14 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
                */
               labelCards: document.querySelectorAll('.cand').length,
               candQuote: document.querySelectorAll('.cand-quote').length,
+              /*
+               * 谬误落点图（查谬误模式的第五张图）。
+               * fmapSent 数格子（原文句），fmapHit 数命中格。
+               * 它的坏法与命名卡同款：图不渲染页面照常，命名卡也都在——
+               * 少的只是「哪句挂了哪个名字」那张一眼图，只能数出来。
+               */
+              fmapSent: document.querySelectorAll('.fmap-s').length,
+              fmapHit: document.querySelectorAll('.fmap-s-hit').length,
               /* 当前模式允不允许命名，从按钮上读——名单只存在 MODE_META 一处 */
               modeLabels: document.querySelector('.mode-chip.on')?.getAttribute('data-labels') ?? '',
               /*

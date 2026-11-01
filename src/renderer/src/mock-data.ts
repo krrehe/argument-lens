@@ -213,6 +213,9 @@ export const MOCK: Diagnosis = {
       tradition: 'Copi 系',
       tag: 'inferred',
       confidence: 'medium',
+      // 预览页要走真定位链路：落点图按 span 画格子，没有 span 就只显示引文块
+      quote: '我们学校去年取消了早读，今年高考一本率下降了 6 个百分点',
+      span: at('我们学校去年取消了早读，今年高考一本率下降了 6 个百分点'),
     },
   ],
   legitimateMoves: [

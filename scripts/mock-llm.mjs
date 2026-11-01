@@ -175,6 +175,13 @@ const payload = {
       name: '事后归因',
       nameEn: 'Post Hoc Ergo Propter Hoc',
       quote: '我们学校去年取消了早读，今年高考一本率下降了 6 个百分点',
+      /*
+       * span 必须给：查谬误模式下 G11 会丢掉说不出位置的名字，
+       * 不给 span 的话，冒烟里命名卡永远是空的——链路「跑通了」，
+       * 实际上每条候选都被丢光，那是最典型的假绿。
+       * 下标对着 smoke 的 SAMPLE 原文算（首句从 0 起），引文改动这里要跟着改。
+       */
+      span: { start: 0, end: 29, quote: '我们学校去年取消了早读，今年高考一本率下降了 6 个百分点', quality: 'exact' },
       condition: '使它成为该谬误而非别种的条件：仅凭时间先后断言因果，且未给出任何机制或排除第三因素',
       whenLegitimate: '当因果机制已知、时间间隔合理、并且排除了主要干扰变量时，由先后推因果是正当的——流行病学与临床判断大量依赖这种推理',
       riskOfError: '本条最可能错在把「证据不足」当成「推理错误」。文本作者若有未写出的对照数据，这条判定即不成立',
@@ -188,10 +195,14 @@ const payload = {
       name: '诉诸多数',
       nameEn: 'Argumentum ad Populum',
       quote: '很多家长也支持恢复早读，可见早读肯定有益',
+      // 与上一条同理：没有 span 就过不了 G11，冒烟里它会静默消失
+      span: { start: 77, end: 97, quote: '很多家长也支持恢复早读，可见早读肯定有益', quality: 'exact' },
       condition: '使它成为该谬误而非别种的条件：以支持者数量作为主张为真的理由，且该主张是可独立检验的事实或效果判断',
       whenLegitimate: '在「应不应当」的决策里，多数人的偏好本身就是相干理由之一——民主程序正是建立在此之上。区别在于它支持的是「受欢迎」，不是「有效」',
       riskOfError: '若作者本意只是说「此事有民意基础」，则不构成谬误，只是理由不充分',
-      landsOnCheck: null,
+      // 挂 CQ1（相干性）：G11 要求落点必须是 checks 里真实存在的关。
+      // 留 null 的话这条会被 G11 丢弃，冒烟里命名卡就只剩一条——多条同图的样子没人验过。
+      landsOnCheck: 'CQ1',
       tradition: 'copi',
       tag: 'framework',
       confidence: 'medium',

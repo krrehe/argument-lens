@@ -151,6 +151,17 @@ const env = {
   ...(process.env.SMOKE_CLIP ? { AL_CLIP: process.env.SMOKE_CLIP } : {}),
   // SMOKE_CLICK / SMOKE_CLICK_CHECK：点一下、再验它有没有进视野（验跳转类交互用）
   ...(process.env.SMOKE_CLICK ? { AL_CLICK: process.env.SMOKE_CLICK } : {}),
+  /*
+   * 查谬误模式下自动加一次「点命名卡」：验的是命名卡与落点图的双向对位。
+   *
+   * 单向联动（点图上的胶囊 → 卡亮边框）只解决一半；用户更常见的动作是从卡出发——
+   * 读完四样代价后想知道「那这句在原文第几句」。AL_CLICK_CHECK 指到「图上高亮的胶囊」，
+   * 点完它必须存在：不存在说明点了没反应，而点了没反应在截图里完全看不出来。
+   * 手传了 SMOKE_CLICK 时不覆盖——那是人指定的目标，别替他改。
+   */
+  ...(process.env.SMOKE_MODE === 'fallacy' && !process.env.SMOKE_CLICK
+    ? { AL_CLICK: '.cand-head .nm-btn', AL_CLICK_CHECK: '.fmap-chip.on' }
+    : {}),
   ...(process.env.SMOKE_CLICK_CHECK ? { AL_CLICK_CHECK: process.env.SMOKE_CLICK_CHECK } : {}),
   // SMOKE_PANEL=usage|disputes|history：跑完分析再点开某个面板
   ...(process.env.SMOKE_PANEL ? { AL_PANEL: process.env.SMOKE_PANEL } : {}),
@@ -283,6 +294,33 @@ const checks = [
       return false;
     })(),
   ],
+  /*
+   * 落点图：查谬误模式下必须有格子且有命中格；其他模式不渲染，数值为 0 是对的。
+   * 反向也断言：判定类模式下若 fmap 出现了，说明渲染条件写松了——图跟着数据走，
+   * 但「名录对照」模式下它不该出现（那里名字是末端注释，不配一张图）。
+   * mock 报告的两条命名都带真实 span，所以命中格必须 ≥1：全 0 就是定位链路断了。
+   */
+  [
+    SMOKE_MODE === 'fallacy' ? '落点图有格子且有命中' : '非查谬误模式不出落点图',
+    SMOKE_MODE === 'fallacy'
+      ? /"fmapSent":[1-9]/.test(resultLine) && /"fmapHit":[1-9]/.test(resultLine)
+      : resultLine.includes('"fmapSent":0'),
+  ],
+  /*
+   * 命名卡 → 落点图：点了名字，图上对应的胶囊必须亮起来。
+   * 只在查谬误模式下断言——别的模式不给按钮（点了没反应的按钮不如不给），也就没有这条。
+   */
+  ...(SMOKE_MODE === 'fallacy'
+    ? [
+        [
+          '点命名卡 → 图上对应句高亮',
+          (() => {
+            const line = log.split('\n').find((l) => l.includes('CLICK ')) ?? '';
+            return line.includes('.cand-head .nm-btn=clicked') && line.includes('"found":true');
+          })(),
+        ],
+      ]
+    : []),
   ['历史入口在顶栏', resultLine.includes('"histBtn":true')],
   ['切分条出现', resultLine.includes('"segBar":true')],
   ['异议按钮已挂载', /"objBtns":(\d+)/.exec(resultLine)?.[1] >= 1],

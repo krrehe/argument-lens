@@ -1,4 +1,5 @@
 import { normalizeDiagnosis } from '../src/main/analyze';
+import { fallacyHits, mapSentences } from '@shared/fallacy-map';
 import type { TheoryId } from '@shared/theories';
 
 /**
@@ -373,8 +374,74 @@ ok(
   '适用而没找到「此处合法」时，该提示仍然出现'
 );
 
+/* ── 谬误落点图：切句与命中 ── */
+
+const FM_PASSAGE = '第一句在这里。第二句在那边！末句没有句号';
+const S = mapSentences(FM_PASSAGE);
+ok(S.length === 3, '落点图：句末标点切句，末句无标点也保留', `实际 ${S.length} 句`);
+ok(S[0]?.start === 0 && S[0]?.text === '第一句在这里。', '落点图：句子带原文下标（UTF-16 坐标系）');
+ok(
+  mapSentences('他说「早读有益。」就走')?.[0]?.text === '他说「早读有益。」',
+  '落点图：收尾引号跟着句子走'
+);
+ok(mapSentences('   \n  ').length === 0, '落点图：纯空白不产出句子');
+
+const mkLabel = (span: { start: number; end: number; quality: 'exact' | 'failed' } | null) => ({
+  id: 'x1',
+  name: '事后归因',
+  condition: 'c',
+  whenLegitimate: 'w',
+  riskOfError: 'r',
+  landsOnCheck: null,
+  tradition: 'walton',
+  tag: 'inferred' as const,
+  confidence: 'medium' as const,
+  span,
+});
+const hitsOf = (span: { start: number; end: number; quality: 'exact' | 'failed' } | null) =>
+  fallacyHits(
+    FM_PASSAGE,
+    [mkLabel(span)] as unknown as Parameters<typeof fallacyHits>[1]
+  )[0];
+
+const hit = hitsOf({ start: 0, end: 7, quality: 'exact' }) as { at: number[] };
+ok(Array.isArray(hit.at) && hit.at.length === 1 && hit.at[0] === 0, '落点图：span 与句子交集即命中');
+const cross = hitsOf({ start: 5, end: 12, quality: 'exact' }) as { at: number[] };
+ok(
+  Array.isArray(cross.at) && cross.at.includes(0) && cross.at.includes(1),
+  '落点图：跨句的引文落在每一句上，不猜最近句'
+);
+ok(
+  (() => {
+    const h = hitsOf({ start: 0, end: 3, quality: 'failed' }) as { at: unknown; reason?: string };
+    return h.at === null && h.reason === 'failed';
+  })(),
+  '落点图：定位失败不画位置（failed），留痕不静默'
+);
+ok(
+  (() => {
+    const h = hitsOf(null) as { at: unknown; reason?: string };
+    return h.at === null && h.reason === 'missing';
+  })(),
+  '落点图：没给 span 的不画位置（missing），留痕不静默'
+);
+ok(
+  (() => {
+    const h = hitsOf({ start: 0, end: 7, quality: 'fuzzy' }) as { at: number[] };
+    return Array.isArray(h.at) && h.at.length === 1;
+  })(),
+  '落点图：模糊匹配照样画，但界面必须写明是模糊（画同一格子≠同等可信）'
+);
+ok(
+  (() => {
+    const h = hitsOf({ start: 999, end: 1001, quality: 'exact' }) as { at: number[] };
+    return Array.isArray(h.at) && h.at.length === 0;
+  })(),
+  '落点图：span 越界得空命中，图上不出现，也不冒充 failed'
+);
+
 /* 同上：断言总数兜底，防止某段循环没跑起来而输出仍是全绿 */
-ok(passed >= 65, '断言总数不少于 65 项（少跑就是静默跳过）', `实际 ${passed}`);
+ok(passed >= 75, '断言总数不少于 75 项（少跑就是静默跳过）', `实际 ${passed}`);
 
 /* ── 结果 ── */
 
