@@ -1,0 +1,378 @@
+/*
+ * 历史面板的样式。
+ *
+ * 为什么单独一个文件：这一段原来是**整个缺失的**——组件写了三十多个 hs- 类名，
+ * 样式表里一个都没有（只有 .hs-mode 被顺手塞在 styles-flow.css 里）。
+ * 结果是一个能点开、有数据、但排版全裸的面板：行挤成一团，删除按钮压在文字上，
+ * 「修订自哪一版」那条线索完全看不出来。
+ *
+ * 分成一类文件还有第二个理由：它是最容易被「改了组件忘了改样式」打中的地方。
+ * 所以 scripts/check-css-cover.mjs 会把「组件里用到的类名在样式表里查不到」
+ * 当失败报出来——这次的缺失就是靠那个脚本数出来的，不是靠肉眼。
+ */
+
+.hs-dialog {
+  width: 720px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─────────── 头：标题 + 两个页签 ─────────── */
+
+.hs-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.hs-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.hs-tabs {
+  display: flex;
+  gap: 6px;
+}
+.hs-tab {
+  font-size: 12px;
+  color: var(--ink-2);
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hs-tab:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.hs-tab.on {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+/* 计数：用等宽，免得数字一变整行跟着抖 */
+.hs-n {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 15px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--muted-bg);
+  color: var(--ink-3);
+}
+.hs-tab.on .hs-n {
+  background: var(--panel);
+  color: var(--accent);
+}
+.hs-spacer {
+  flex: 1;
+}
+.hs-x {
+  font-size: 17px;
+  line-height: 1;
+  color: var(--ink-3);
+  padding: 0 3px;
+}
+.hs-x:hover {
+  color: var(--ink);
+}
+
+/* ─────────── 正文 ─────────── */
+
+.hs-body {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 16px;
+}
+.hs-note {
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--ink-2);
+  background: var(--panel-2);
+  border-left: 2px solid var(--line-strong);
+  padding: 8px 11px;
+}
+.hs-note b {
+  color: var(--ink);
+}
+.hs-empty {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  padding: 22px 6px;
+  text-align: center;
+  line-height: 1.7;
+}
+
+/* ─────────── 报告列表 ─────────── */
+
+.hs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hs-row {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.hs-row:hover {
+  border-color: var(--line-strong);
+}
+/*
+ * 左边色条按档位着色：列表扫一眼就知道哪几份是被判「不成立」的。
+ * 档位是归一化后的四档，与正文里的刻度条同一套颜色，不另发明一套。
+ */
+.hs-row.lv-withstands {
+  border-left: 3px solid var(--strong);
+}
+.hs-row.lv-weakened {
+  border-left: 3px solid var(--weak);
+}
+.hs-row.lv-fails {
+  border-left: 3px solid var(--invalid);
+}
+.hs-row.lv-undetermined {
+  border-left: 3px solid var(--line-strong);
+}
+
+.hs-main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+.hs-main:hover .hs-excerpt {
+  color: var(--ink);
+}
+.hs-line1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 7px;
+}
+.hs-time {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.hs-theory {
+  font-size: 12px;
+  font-weight: 600;
+}
+.hs-level {
+  font-size: 10.5px;
+  line-height: 15px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--muted-bg);
+  color: var(--ink-2);
+}
+.hs-level.lv-withstands {
+  background: var(--strong-bg);
+  color: var(--strong);
+}
+.hs-level.lv-weakened {
+  background: var(--weak-bg);
+  color: var(--weak);
+}
+.hs-level.lv-fails {
+  background: var(--invalid-bg);
+  color: var(--invalid);
+}
+.hs-level.lv-undetermined {
+  background: var(--muted-bg);
+  color: var(--ink-3);
+}
+/* 「这一份是从哪一份改出来的」——修订链的入口，没有它列表只是一堆时间戳 */
+.hs-parent {
+  font-size: 11px;
+  color: var(--ink-3);
+  border-bottom: 1px dotted var(--line-strong);
+}
+.hs-excerpt {
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hs-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.hs-meta .open {
+  color: var(--weak);
+}
+
+/* ─────────── 删除：两步 ─────────── */
+
+.hs-del {
+  flex: 0 0 auto;
+  width: 38px;
+  border: none;
+  border-left: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink-3);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.hs-del:hover {
+  background: var(--invalid-bg);
+  color: var(--invalid);
+}
+/*
+ * 点了第一次变成「确认？」，再点一次才真删。
+ * 报告删掉之后，「改完好没好」那条对照就永远看不到了——
+ * 而这个工具唯一能给出的闭环正是那条对照，所以它不配一键删除。
+ */
+.hs-del.confirm {
+  background: var(--invalid-bg);
+  color: var(--invalid);
+  width: 52px;
+  font-weight: 600;
+}
+
+/* ─────────── 底：文件夹入口与那句提醒 ─────────── */
+
+.hs-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--line);
+}
+.hs-link {
+  font-size: 12px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+.hs-link:hover {
+  color: var(--ink);
+}
+.hs-fine {
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.6;
+  text-align: right;
+}
+
+/* ─────────── 我不同意过 ─────────── */
+
+.hs-obj {
+  padding: 8px 0 9px;
+  border-bottom: 1px dotted var(--line);
+}
+.hs-obj:last-child {
+  border-bottom: none;
+}
+.hs-field,
+.hs-ref {
+  font-size: 10.5px;
+  line-height: 15px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.hs-count {
+  font-size: 11px;
+  color: var(--invalid);
+}
+.hs-obj-time {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.hs-obj-q {
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--panel-2);
+  border-left: 2px solid var(--line-strong);
+  padding: 4px 8px;
+  margin-top: 5px;
+}
+.hs-reasons {
+  margin: 5px 0 0 18px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.hs-reasons li {
+  margin-bottom: 2px;
+}
+
+/* ─────────── 档位色（历史列表之外也用得到） ─────────── */
+
+.lv-withstands {
+  color: var(--strong);
+}
+.lv-weakened {
+  color: var(--weak);
+}
+.lv-fails {
+  color: var(--invalid);
+}
+.lv-undetermined {
+  color: var(--ink-3);
+}
+
+/* ─────────── 修补区块里「填回输入框」那一行 ─────────── */
+
+/*
+ * 这一行原来是裸的：按钮和说明文字各占一行，说明压在按钮下面看不出是同一件事。
+ * 它要做的是「先让你看见要被分析的那段话是什么，再决定要不要跑」——
+ * 排版散了，这个意图就丢了。
+ */
+.rp-rerun {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.rp-rerun-btn {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 5px 11px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.rp-rerun-btn:hover {
+  background: var(--accent);
+  color: var(--panel);
+}
+.rp-rerun-note {
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}

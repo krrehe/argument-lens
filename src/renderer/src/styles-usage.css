@@ -1,0 +1,594 @@
+/* ══════════════════════════════════════════════════════════════
+   用量与余额（自 styles.css 拆出，因为它自成一套、行数不少）
+   ══════════════════════════════════════════════════════════════
+   这一层的设计约束和报告层不同：报告层要「读懂」，这一层要「不误读」。
+   所以：
+     - 钱一律带货币符号，token 一律带量级单位，不留裸数字
+     - 估算值必须带可见标记（.est），不能和实测混排
+     - 没数据时写清楚「为什么没有」，不画一根 0 高的柱子假装是 0
+   ══════════════════════════════════════════════════════════════ */
+
+/* ─────────── 顶栏芯片 ─────────── */
+
+.usage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px 4px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--panel);
+  white-space: nowrap;
+  transition: border-color 0.14s, background 0.14s, color 0.14s;
+}
+.usage-chip:hover {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+.uc-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--strong);
+  flex: 0 0 auto;
+}
+.uc-runs {
+  color: var(--ink-3);
+  padding-left: 7px;
+  border-left: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.usage-chip.warn {
+  border-color: #ddc79a;
+  background: var(--weak-bg);
+  color: var(--weak);
+}
+.usage-chip.warn .uc-dot {
+  background: var(--weak);
+}
+.usage-chip.warn .uc-runs {
+  border-left-color: #e6d6b6;
+  color: #8a6a2c;
+}
+.usage-chip.bad {
+  border-color: #e0bdb7;
+  background: var(--invalid-bg);
+  color: var(--invalid);
+}
+.usage-chip.bad .uc-dot {
+  background: var(--invalid);
+}
+.usage-chip.bad .uc-runs {
+  border-left-color: #ecd0cb;
+  color: #8a4038;
+}
+
+/* 余额告急提示：放在输入框下面，不弹窗不拦截 */
+.u-exhausted,
+.u-low {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+.u-exhausted {
+  color: var(--invalid);
+  background: var(--invalid-bg);
+  border: 1px solid #ecd5d0;
+}
+.u-exhausted b {
+  margin-left: 4px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.u-low {
+  color: var(--weak);
+  background: var(--weak-bg);
+  border: 1px solid #e8dcc4;
+}
+.u-exhausted:hover,
+.u-low:hover {
+  filter: brightness(0.975);
+}
+
+/* ─────────── 面板外壳 ─────────── */
+
+.dialog.usage {
+  width: 720px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+.u-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.u-head-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+.u-x {
+  font-size: 19px;
+  line-height: 1;
+  color: var(--ink-3);
+  padding: 0 2px;
+  align-self: center;
+}
+.u-x:hover {
+  color: var(--ink);
+}
+.u-body {
+  overflow-y: auto;
+  gap: 18px;
+  padding-bottom: 20px;
+}
+.u-loading {
+  padding: 30px 0;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+/* 小节标题：右侧总能挂一句「这个数是哪来的」 */
+.u-sec-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  margin-bottom: 8px;
+}
+.u-sec-note {
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+.u-mini {
+  font-size: 11.5px;
+  color: var(--accent);
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-2);
+}
+.u-mini:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+/* ─────────── 三个数字 ─────────── */
+
+.u-kpis {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr;
+  gap: 10px;
+}
+.u-kpi {
+  padding: 11px 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.u-kpi.wide {
+  background: var(--accent-bg);
+  border-color: #d9e2ea;
+}
+.u-kpi-label {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  margin-bottom: 3px;
+}
+.u-kpi-val {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.u-kpi-val b {
+  font-family: var(--serif);
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.u-kpi.wide .u-kpi-val b {
+  color: var(--accent);
+}
+.u-kpi-val b.warn {
+  color: var(--weak);
+}
+.u-kpi-val b.bad {
+  color: var(--invalid);
+}
+.u-kpi-val b.u-unknown {
+  font-size: 17px;
+  color: var(--ink-3);
+  font-family: var(--sans);
+  font-weight: 500;
+}
+.u-kpi-val span {
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+/* ─────────── 余额尺 ─────────── */
+
+.u-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.u-bar-used {
+  background: #c9c2b4;
+  display: block;
+  height: 100%;
+}
+.u-bar-left {
+  background: var(--strong);
+  display: block;
+  height: 100%;
+  opacity: 0.75;
+}
+.u-bar-legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.u-bar-legend .lb-used {
+  color: var(--ink-3);
+}
+.u-bar-legend .lb-left {
+  color: var(--strong);
+  font-weight: 600;
+}
+
+.u-bar-empty {
+  padding: 10px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 7px;
+  font-size: 11.5px;
+  line-height: 1.72;
+  color: var(--ink-3);
+  background: var(--panel-2);
+}
+.u-bar-empty b {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.u-anchor-form {
+  display: flex;
+  gap: 7px;
+  margin-top: 9px;
+}
+.u-anchor-form input {
+  padding: 6px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  outline: none;
+  font-size: 12px;
+  background: var(--panel);
+}
+.u-anchor-form input:focus {
+  border-color: var(--accent);
+}
+.u-anchor-amount {
+  width: 150px;
+  font-variant-numeric: tabular-nums;
+}
+.u-anchor-note {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─────────── 近 14 天 ─────────── */
+
+.u-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 92px;
+  padding: 6px 2px 0;
+  border-bottom: 1px solid var(--line);
+}
+.u-day {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+  position: relative;
+}
+.u-day-track {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+}
+.u-day-track i {
+  display: block;
+  width: 100%;
+  background: #cdd7d1;
+  border-radius: 3px 3px 0 0;
+  min-height: 0;
+  transition: background 0.14s;
+}
+.u-day:hover .u-day-track i {
+  background: var(--accent);
+}
+.u-day.today .u-day-track i {
+  background: var(--accent);
+  opacity: 0.85;
+}
+.u-day-lb {
+  position: absolute;
+  bottom: -17px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.u-day.today .u-day-lb {
+  color: var(--accent);
+  font-weight: 600;
+}
+.u-chart-wrap {
+  padding-bottom: 20px;
+}
+.u-chart-empty {
+  padding: 22px 0;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  border: 1px dashed var(--line-strong);
+  border-radius: 7px;
+  background: var(--panel-2);
+}
+
+/* ─────────── 明细表 ─────────── */
+
+.u-table {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.u-tr {
+  display: grid;
+  grid-template-columns: 88px 1fr 72px 72px 82px 56px;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 11px;
+  font-size: 11.5px;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.u-tr:last-child {
+  border-bottom: none;
+}
+.u-th {
+  background: var(--panel-2);
+  color: var(--ink-3);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.u-tr .num {
+  text-align: right;
+}
+.u-tr .dim {
+  color: var(--ink-3);
+}
+.u-tr.dead {
+  color: var(--ink-3);
+  background: #fbf9f6;
+}
+.u-tr.dead em {
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--invalid);
+}
+.u-table > .u-tr:not(.u-th):hover {
+  background: var(--accent-bg);
+}
+
+/* 估算标记：小、但必须在。上标位置让它不会把列宽撑开 */
+sup.est {
+  font-size: 8.5px;
+  color: var(--weak);
+  margin-left: 1px;
+  letter-spacing: 0;
+  vertical-align: super;
+}
+
+/* ─────────── 单价 ─────────── */
+
+.u-price-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.u-price-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.03em;
+}
+.u-price-row input {
+  width: 108px;
+  padding: 6px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  outline: none;
+  font-size: 12px;
+  background: var(--panel);
+  font-variant-numeric: tabular-nums;
+}
+.u-price-row input:focus {
+  border-color: var(--accent);
+}
+.u-price-row .u-cur input {
+  width: 46px;
+  text-align: center;
+}
+.u-save {
+  margin-bottom: 1px;
+}
+
+.u-fine {
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--ink-3);
+  margin-top: 8px;
+}
+.u-fine b {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.u-ok {
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--strong);
+  font-weight: 600;
+}
+.u-ok.block {
+  display: block;
+  margin: 8px 0 0;
+  font-size: 11px;
+}
+.u-ok-block {
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--strong);
+  background: var(--strong-bg);
+  border: 1px solid #cfe1d8;
+  border-radius: 5px;
+  word-break: break-all;
+}
+.u-link {
+  margin-left: 4px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 11px;
+}
+
+/* ─────────── 这些数字有多硬 ─────────── */
+
+.u-honest {
+  padding: 12px 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.u-honest ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.u-honest li {
+  padding-left: 12px;
+  position: relative;
+}
+.u-honest li::before {
+  content: '·';
+  position: absolute;
+  left: 3px;
+  top: -1px;
+  color: var(--ink-3);
+  font-weight: 700;
+}
+.u-honest b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.u-pricing.first {
+  padding: 11px 14px;
+  border: 1px solid #d9e2ea;
+  background: var(--accent-bg);
+  border-radius: 8px;
+}
+.u-pricing.first .u-sec-title {
+  color: var(--accent);
+}
+.u-pricing.first .u-price-row input {
+  background: var(--panel);
+}
+
+/* ─────────── 报告顶部的一次性账 ─────────── */
+
+.run-cost {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 5px 11px;
+  font-size: 11px;
+  color: var(--ink-3);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.run-cost .rc-k {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+.run-cost i {
+  font-style: normal;
+  color: var(--line-strong);
+}
+.rc-link {
+  font-size: 11px;
+  color: var(--weak);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* 错误横幅右侧的动作按钮：失败时最想知道的是「是不是没钱了」 */
+.banner-act {
+  margin-left: auto;
+  align-self: flex-start;
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  font-size: 11.5px;
+  opacity: 0.78;
+  white-space: nowrap;
+}
+.banner-act:hover {
+  opacity: 1;
+}
+

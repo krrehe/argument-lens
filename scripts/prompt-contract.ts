@@ -1,0 +1,264 @@
+import { normalizeDiagnosis } from '../src/main/analyze';
+import type { TheoryId } from '@shared/theories';
+
+/**
+ * 提示词契约检查。
+ *
+ * 提示词里那些硬规矩（不许把削弱写成反驳、命名要过三道门槛、不许编引文……）
+ * 如果只写在提示词里，它们就只是**请求**。模型会违反，而且违反得很有条理。
+ * 所以每一条都在 `analyze.ts` 里有一道确定性裁决兜底。
+ *
+ * 这个文件验证的是兜底本身：喂一个**故意越界**的模型输出，
+ * 断言对应的 diagnostic 一定出现。
+ *
+ * 这不是模型质量评估——没有模型参与，也没有打分。
+ * 它只回答一件事：提示词要求守的规矩，代码是不是真的在守。
+ * 声称评了模型质量而实际没评，是这类工具最常见的自欺。
+ */
+
+let passed = 0;
+const failures: string[] = [];
+
+function ok(cond: boolean, name: string, detail = ''): void {
+  if (cond) {
+    passed += 1;
+    return;
+  }
+  failures.push(`${name}${detail ? ` — ${detail}` : ''}`);
+}
+
+const PASSAGE = '早读取消之后，该校一本率从 62% 掉到 51%。可见取消早读导致成绩下滑，应当恢复早读。';
+
+function run(raw: unknown, theory: TheoryId = 'walton', passage = PASSAGE) {
+  return normalizeDiagnosis(raw, passage, theory);
+}
+
+function codes(d: ReturnType<typeof run>): string[] {
+  return d.diagnostics.map((x) => x.code);
+}
+
+function has(raw: unknown, code: string, theory: TheoryId = 'walton'): boolean {
+  return codes(run(raw, theory)).includes(code);
+}
+
+/* ── 逐条越界 ── */
+
+// 注意：必须显式给一个非 undetermined 的档位才触发——
+// 空输入本身档位就是 undetermined，用它测等于什么都没测。
+ok(has({ verdict: { level: 'withstands' } }, 'CATALOG_OVERREACH', 'copi'), '名录透镜给出终局判定 → 打回判不了');
+ok(
+  run({ verdict: { level: 'withstands' } }, 'copi').verdict.level === 'undetermined',
+  '名录透镜的档位被强制为 undetermined'
+);
+
+ok(
+  has({ scope: { applicable: false, reason: '不适用' }, checks: [{ id: 'CQ1', answer: 'violated' }] }, 'SCOPE_CHECKS_DROPPED'),
+  '范围门判不适用却仍给检查项 → 清空'
+);
+
+ok(
+  has(
+    {
+      defeat: { kind: 'undermining' },
+      verdict: { level: 'fails', whatIsRefuted: 'conclusion' },
+    },
+    'OVERRUN_CORRECTED'
+  ),
+  '削弱性击败被写成结论为假 → 改回仅否证论证'
+);
+
+ok(has({ labels: [{ id: 'post-hoc', name: '后此谬误' }] }, 'NAMING_GATE'), '命名缺三道门槛 → 不予显示');
+ok(has({ labels: [{ id: '不存在的条目' }] }, 'UNKNOWN_LABEL'), '索引外的名字 → 丢弃');
+ok(has({ lens: { schemeId: 'invented-scheme' } }, 'UNKNOWN_SCHEME'), '型式 id 不在库内 → 降为 none');
+
+ok(
+  has({ premises: [{ id: 'P1', supports: ['P9'] }] }, 'SUPPORTS_UNRESOLVED'),
+  '支撑关系指向不存在的 id → 丢弃并留痕'
+);
+
+ok(has({ selfCheck: { underOtherLens: '' } }, 'NO_LENS_CONTRAST'), '未写「换另一副透镜会怎样」→ 提示');
+ok(has({ refutations: [{ script: '你这条没有根据。' }] }, 'NO_STEELMAN'), '反驳缺 steelman → 提示');
+
+ok(has({ lens: { burdenStandard: '' } }, 'NO_BURDEN_STANDARD', 'ars'), 'ARS 未写论证负担 → 提示');
+ok(
+  has({ lens: { order: 'undetermined', axis: 'undetermined', premiseType: 'undetermined' } }, 'PTA_NO_FEATURE', 'pta'),
+  'PTA 三特征全未定 → 提示这是失效而非中性'
+);
+
+ok(
+  has({ checks: [{ id: 'R1', answer: 'passed' }] }, 'CHECKLIST_INCOMPLETE', 'pragma'),
+  '固定清单未列全 → 补齐为「未覆盖」'
+);
+ok(
+  has({ checks: [{ id: 'T-claim', answer: 'passed' }] }, 'CHECKLIST_INCOMPLETE', 'toulmin'),
+  '图尔敏六要素未列全 → 补齐为「未覆盖」'
+);
+
+ok(
+  has({ conclusion: { quote: '这句话原文里根本没有' } }, 'QUOTE_NOT_FOUND'),
+  '引文在原文中找不到 → 降级为推定'
+);
+
+/* ── 描述类模式不给判定 ── */
+
+/**
+ * 这两个模式的「不给档位」不能只写在提示词里。
+ *
+ * 提示词是请求，代码是保证。模型几乎每次都会顺手给一个 level——
+ * 它在一个要求填 level 的 schema 里，填一个值是它的默认动作。
+ * 而界面会照常把这个档位渲染成一份判定，用户切到重构模式要的就是「别判」。
+ *
+ * 所以下面三条都验的是**故意越界**的输入：给一个非 undetermined 的档位、
+ * 给一条击败、给几条反驳与命名，断言它们分别被改回来、并且都留了痕。
+ */
+{
+  const verdictOut = { verdict: { level: 'fails', whatIsRefuted: 'conclusion' } };
+  for (const mode of ['reconstruct', 'interrogate'] as const) {
+    const d = normalizeDiagnosis(verdictOut, PASSAGE, 'walton', { mode });
+    ok(d.verdict.level === 'undetermined', `${mode} 档位被强制为 undetermined`, d.verdict.level);
+    ok(d.verdict.whatIsRefuted === 'nothing', `${mode} 不声称否证了任何东西`);
+    ok(d.defeat.kind === 'none', `${mode} 击败类型被清空`);
+    ok(d.defeat.checkId === null, `${mode} 不指认倒在哪一条`);
+    ok(codes(d).includes('MODE_NO_VERDICT'), `${mode} 强制档位时留了痕`);
+    ok(d.mode === mode, `${mode} 模式被记进报告（不是被静默降级成诊断）`);
+  }
+
+  // 命名在描述类模式下也要清空：命名是评价，不是描述
+  const lab = { labels: [{ id: 'post-hoc', condition: 'a', whenLegitimate: 'b', riskOfError: 'c' }] };
+  for (const mode of ['reconstruct', 'interrogate'] as const) {
+    const d = normalizeDiagnosis(lab, PASSAGE, 'walton', { mode });
+    ok(d.labels.length === 0, `${mode} 命名候选被清空`, `剩 ${d.labels.length}`);
+    ok(codes(d).includes('MODE_NO_LABELS'), `${mode} 清空命名时留了痕`);
+  }
+
+  // 重构清空反驳；提问**保留**——那里它是主输出（问题清单）
+  const refs = { refutations: [{ script: '你说多数研究表明，指的是哪几项？', steelman: '他会举一篇', reply: '那就问那一篇的样本' }] };
+  const rc = normalizeDiagnosis(refs, PASSAGE, 'walton', { mode: 'reconstruct' });
+  ok(rc.refutations.length === 0, '重构模式清空攻击路线');
+  ok(codes(rc).includes('MODE_NO_REFUTATIONS'), '重构清空反驳时留了痕');
+  const q = normalizeDiagnosis(refs, PASSAGE, 'walton', { mode: 'interrogate' });
+  ok(q.refutations.length === 1, '提问模式保留问题清单（它是主输出）');
+  ok(q.refutations[0].script.includes('指的是哪几项'), '问题清单内容原样保留');
+
+  // 判定类模式不受影响：给档位就是给档位，不该被清
+  const dg = normalizeDiagnosis(verdictOut, PASSAGE, 'walton', { mode: 'diagnose' });
+  ok(dg.verdict.level === 'fails', '诊断模式照常给档位（不受描述类规则影响）');
+  const rt = normalizeDiagnosis(verdictOut, PASSAGE, 'walton', { mode: 'redteam' });
+  ok(rt.verdict.level === 'fails', '红队模式照常给档位');
+}
+
+/* ── 提示词版本要能带出来 ── */
+
+{
+  const d = normalizeDiagnosis({}, PASSAGE, 'walton', {
+    prompt: { version: '2.0.0', fingerprint: 'abcdef012345' },
+  });
+  ok(d.prompt?.version === '2.0.0', '提示词版本写进报告');
+  ok(d.prompt?.fingerprint === 'abcdef012345', '提示词指纹写进报告');
+  const noPrompt = normalizeDiagnosis({}, PASSAGE, 'walton');
+  ok(noPrompt.prompt === undefined, '未传版本时不回填假值');
+}
+
+/* ── 健壮性 ── */
+
+ok(
+  (() => {
+    try {
+      const d = run(undefined as unknown);
+      return false;
+    } catch {
+      return true;
+    }
+  })(),
+  '空结构直接抛错，不产出一份假报告'
+);
+
+ok(
+  (() => {
+    const d = run({});
+    return Array.isArray(d.checks) && !!d.conclusion && !!d.verdict && !!d.selfCheck;
+  })(),
+  '最小输入也能产出完整结构（字段齐全，值可以是缺省）'
+);
+
+ok(
+  (() => {
+    const d = run({ refutations: [{ script: 'x'.repeat(500) }] });
+    return (d.refutations[0]?.script.length ?? 0) <= 200;
+  })(),
+  '话术过长被截断（提示词要求 ≤120 字，代码兜底 200）'
+);
+
+ok(
+  (() => {
+    const d = run({ labels: Array.from({ length: 8 }, () => ({ id: 'post-hoc', condition: 'a', whenLegitimate: 'b', riskOfError: 'c' })) });
+    return d.labels.length <= 3;
+  })(),
+  '命名候选不超过三条（贴标签要付代价）'
+);
+
+/* ── 评测跑出来的三类真实失效（2026-11，见 docs/评测报告.md） ── */
+
+ok(
+  (() => {
+    const d = run(
+      {
+        conclusion: { text: '应当恢复早读', quote: '应当恢复早读' },
+        premises: [{ id: 'P1', text: '一本率掉了 11 个百分点', quote: '该校一本率从 62% 掉到 51%' }],
+        intermediate: [{ id: 'I1', text: '取消早读导致下滑（因果成立）', quote: '该校一本率从 62% 掉到 51%' }],
+        defeat: { kind: 'undermining', cuts: 'P1 到 I1 的联结', explanation: 'I1 未获得担保' },
+      },
+      'walton',
+      PASSAGE
+    );
+    return (
+      d.diagnostics.some((x) => x.code === 'RESTATED_STEP') &&
+      d.intermediate.length === 0 &&
+      d.defeat.cuts.includes('P1') &&
+      !/I1/.test(d.defeat.cuts)
+    );
+  })(),
+  '同一句既当依据又当中间结论 → 合并为一步，并改写正文里的旧编号'
+);
+
+ok(
+  (() => {
+    const d = run({
+      scope: { applicable: false, reason: '没有论证' },
+      conclusion: { text: '无结论可规范化', quote: '早读取消之后' },
+    });
+    return d.conclusion.quote === null && d.conclusion.span === null;
+  })(),
+  '判不适用时的占位结论不许挂原文引文'
+);
+
+ok(
+  (() => {
+    const one = { id: 'post-hoc', condition: 'a', whenLegitimate: 'b', riskOfError: 'c' };
+    const d = run({ labels: [one, one] }, 'copi');
+    return d.labels.length === 1 && d.diagnostics.some((x) => x.code === 'LABEL_DUPLICATED');
+  })(),
+  '同一条目重复出现 → 合并为一条'
+);
+
+ok(
+  !codes(run({ scope: { applicable: false, reason: '没有论证' } })).includes('NO_LEGITIMATE_FOUND'),
+  '判不适用时不再提示「没找到此处合法」（那是拿免责声明当指控）'
+);
+
+ok(
+  codes(run({ scope: { applicable: true, reason: '有论证' } })).includes('NO_LEGITIMATE_FOUND'),
+  '适用而没找到「此处合法」时，该提示仍然出现'
+);
+
+/* 同上：断言总数兜底，防止某段循环没跑起来而输出仍是全绿 */
+ok(passed >= 40, '断言总数不少于 40 项（少跑就是静默跳过）', `实际 ${passed}`);
+
+/* ── 结果 ── */
+
+if (failures.length) {
+  console.error(`✗ 提示词契约检查失败 ${failures.length} 项（通过 ${passed} 项）`);
+  for (const f of failures) console.error(`  - ${f}`);
+  process.exit(1);
+}
+console.log(`✓ 提示词契约检查通过 ${passed} 项`);

@@ -1,0 +1,645 @@
+/* ─────────────────────────────────────────────
+   理论主张库
+   ─────────────────────────────────────────────
+
+   与 styles-disputes.css 同一套观感，理由也一样：这一层要「看清楚」，
+   不是要「好看」。所以：不用阴影堆层次，用细线与留白；档位用三枚
+   低饱和色块（绿／黄／蓝灰），不用红——红在这里会被读成「错的」，
+   而 C 档不是错的，是「本工具的判断，可能错，请来打」。
+*/
+
+.dialog.tbl {
+  width: min(880px, 92vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tbl-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 15px 20px 13px;
+  border-bottom: 1px solid var(--line);
+}
+.tbl-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.tbl-sub {
+  margin-top: 3px;
+  font-size: 11.5px;
+  line-height: 1.62;
+  color: var(--ink-2);
+  max-width: 64ch;
+}
+.tbl-sub b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* 搜索 + 档位筛选 */
+.tbl-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.tbl-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  outline: none;
+}
+.tbl-search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
+.tbl-tiers {
+  display: flex;
+  gap: 5px;
+  flex: 0 0 auto;
+}
+.tbl-tf {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 10.5px;
+  font-family: inherit;
+  color: var(--ink-2);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tbl-tf b {
+  font-weight: 700;
+  margin-left: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.tbl-tf:hover {
+  border-color: var(--line-strong);
+}
+.tbl-tf.on.tb-a {
+  color: var(--strong);
+  background: var(--strong-bg);
+  border-color: #b9d2c6;
+}
+.tbl-tf.on.tb-b {
+  color: var(--weak);
+  background: var(--weak-bg);
+  border-color: #e2cfa6;
+}
+.tbl-tf.on.tb-c {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: #c3cfdc;
+}
+.tbl-clear {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 10.5px;
+  font-family: inherit;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tbl-note {
+  margin: 0;
+  padding: 9px 20px 10px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--line);
+}
+.tbl-note b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.tbl-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  /* 底部多留一点：最后一条会贴在页脚上，看着像被压住 */
+  padding: 6px 20px 26px;
+}
+.tbl-hitcount {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  padding: 8px 0 4px;
+}
+.tbl-empty {
+  padding: 36px 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* 一编 */
+.tb-book {
+  margin-top: 14px;
+}
+.tb-book-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 0 7px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.tb-book-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--panel);
+  background: var(--accent);
+  border-radius: 3px;
+  align-self: center;
+}
+.tb-book-t {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.tb-book-asks {
+  flex: 1 1 auto;
+  font-size: 11px;
+  color: var(--ink-3);
+  min-width: 0;
+}
+.tb-book-c {
+  font-size: 10px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 一条 */
+.tb-row {
+  padding: 9px 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+.tb-row:last-child {
+  border-bottom: none;
+}
+.tb-row-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+.tb-row-head:hover .tb-claim {
+  color: var(--accent);
+}
+.tb-id {
+  flex: 0 0 auto;
+  /* 46px 是按最长的编号量的：T10-01（六字符）比 T1-01 宽两格，
+     原先 40px 会把后面的细分域标签挤出容器一个字的宽度——第十编进来时才暴露 */
+  width: 46px;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.9;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+.tb-claim {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.62;
+  color: var(--ink);
+  transition: color 0.12s;
+}
+.tb-caret {
+  flex: 0 0 auto;
+  width: 14px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--ink-3);
+}
+
+/* 档位徽标：三色但都低饱和，不做视觉降级 */
+.tb-tier {
+  flex: 0 0 auto;
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 9.5px;
+  line-height: 1.55;
+  border-radius: 3px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.tb-tier.tb-a {
+  color: var(--strong);
+  background: var(--strong-bg);
+  border-color: #c6dbd0;
+}
+.tb-tier.tb-b {
+  color: var(--weak);
+  background: var(--weak-bg);
+  border-color: #e6d5ae;
+}
+.tb-tier.tb-c {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: #c9d5e0;
+}
+
+/* 「它让本工具做了什么」——每条都有，不许缺。
+   标签只用一个 ↳，不写全称：一副透镜挂七八条，同一个标签重复七八遍
+   就变成了噪音，而噪音会让人跳过内容。全称在弹窗顶部说明一次。 */
+.tb-decides {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 0 48px;
+  padding: 6px 9px 7px;
+  font-size: 11.5px;
+  line-height: 1.62;
+  color: var(--ink-2);
+  background: var(--muted-bg);
+  border-radius: 4px;
+  border-left: 2px solid var(--line-strong);
+}
+.tb-decides-k {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+/* 展开部分 */
+.tb-more {
+  margin: 7px 0 0 48px;
+}
+.tb-contested {
+  font-size: 11.5px;
+  line-height: 1.62;
+  color: var(--ink-2);
+  padding: 6px 9px;
+  background: var(--panel-2);
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+}
+.tb-contested-k,
+.tb-refs-k {
+  display: block;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  margin-bottom: 2px;
+}
+.tb-refs {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.tb-refs ul {
+  list-style: none;
+  padding: 0;
+}
+.tb-refs li {
+  padding: 1px 0 1px 10px;
+  position: relative;
+  line-height: 1.6;
+}
+.tb-refs li::before {
+  content: '·';
+  position: absolute;
+  left: 2px;
+  color: var(--ink-3);
+}
+.tb-scope {
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+/*
+ * 落点栏。与「出处」并排，但两者管的不是一回事：
+ * 出处说这条主张凭什么，落点说它在软件里变成了什么。
+ * 排版刻意区分——出处的引用是人名与书名（等宽字不适合），落点的地址是标识符（必须等宽）。
+ */
+.tb-land {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.tb-land ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tb-land li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  line-height: 1.6;
+}
+/* 四类落点各一个标：它们分量不同，混成一种颜色就分不出这条主张是靠提示词、靠代码还是靠声明活着 */
+.tb-land-k {
+  flex: 0 0 auto;
+  font-size: 9px;
+  line-height: 1.6;
+  padding: 0 5px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  color: var(--ink-3);
+  background: var(--panel-2);
+}
+.tb-land-block,
+.tb-land-lens {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tb-land-code {
+  border-color: var(--ink-3);
+  color: var(--ink-2);
+}
+.tb-land-ref {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  word-break: break-all;
+}
+.tb-land-at {
+  flex: 1 1 100%;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  padding-left: 1px;
+}
+
+.tb-focus {
+  background: #fdfbf4;
+  box-shadow: inset 3px 0 0 var(--accent);
+  margin-left: -8px;
+  padding-left: 8px;
+  border-radius: 3px;
+}
+
+.tbl-foot {
+  padding: 9px 20px 11px;
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+.tbl-foot-key {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--ink-2);
+  margin-right: 1px;
+}
+.tbl-foot-dim {
+  display: block;
+  margin-top: 2px;
+  color: #a9a294;
+}
+.tbl-foot code {
+  font-family: var(--mono);
+  font-size: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+/* ─────────── 侧栏里的「站在哪几条主张上」 ─────────── */
+
+.tb-refs-inline {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.tb-ri-head {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+.tb-ri-hint {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+.tb-ri-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tb-ri {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 7px;
+  text-align: left;
+  font-family: inherit;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.tb-ri:hover {
+  border-color: var(--line-strong);
+  background: var(--accent-bg);
+}
+.tb-ri-id {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  line-height: 1.75;
+  color: var(--ink-3);
+}
+.tb-ri-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.tb-ri-more {
+  margin-top: 4px;
+  width: 100%;
+  padding: 5px 0;
+  font-family: inherit;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  background: none;
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.tb-ri-more:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.tb-ri-shared {
+  margin: 7px 0 0;
+  font-size: 10px;
+  line-height: 1.62;
+  color: var(--ink-3);
+}
+
+/* ─────────── 附：十规则 ─────────── */
+
+.tb-rule-sec {
+  margin-top: 22px;
+  padding-top: 4px;
+  border-top: 2px solid var(--line-strong);
+}
+.tb-rule-head {
+  cursor: pointer;
+}
+.tb-rule-head:hover .tb-book-t {
+  color: var(--accent);
+}
+.tb-rule-intro {
+  margin: 4px 0 2px;
+  font-size: 11px;
+  line-height: 1.66;
+  color: var(--ink-3);
+  max-width: 72ch;
+}
+.tb-rule {
+  padding: 9px 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+.tb-rule:last-child {
+  border-bottom: none;
+}
+.tb-rule-t {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.tb-rule-n {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-3);
+  background: var(--muted-bg);
+  border-radius: 3px;
+}
+.tb-rule-row {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 11.5px;
+  line-height: 1.62;
+  color: var(--ink-2);
+}
+.tb-rule-k {
+  flex: 0 0 auto;
+  width: 58px;
+  font-size: 10px;
+  line-height: 1.85;
+  color: var(--ink-3);
+  text-align: right;
+}
+/* 「它守什么」是这一节的重点，给一点底色把它托起来。
+   底色只包正文、不包左侧标签——包住标签会让这一行的缩进比其它三行多 8px，
+   四行标签就不在一条竖线上了。 */
+.tb-rule-v {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tb-rule-why {
+  padding: 4px 9px 5px;
+  background: var(--muted-bg);
+  border-radius: 4px;
+  border-left: 2px solid var(--line-strong);
+  color: var(--ink);
+}
+.tb-rule-code {
+  color: var(--accent);
+}
+
+/* 灰底块有 4px 上内边距，标签要跟着下移同样的量，否则整行的标签会浮在上面 */
+.tb-rule-row-why {
+  align-items: flex-start;
+}
+.tb-rule-row-why .tb-rule-k {
+  padding-top: 5px;
+}
+
+/* ─────────── 细分域：第二根筛选轴 ─────────── */
+
+/*
+ * 编（1—7）按「理论在回答什么」分；细分域按「话题」分。
+ * 同一话题（比如举证责任）的主张散在两编里，这条轴让它们一屏看全，
+ * 也是报告里「专题分析」区块与这个库之间的接口。
+ */
+.tbl-subs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0 16px 10px;
+}
+.tbl-subf {
+  height: 22px;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.tbl-subf b {
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.tbl-subf.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+/* 行头上的细分域小标：浅灰，不与档位徽章抢注意力 */
+.tb-sub {
+  flex: 0 0 auto;
+  font-size: 10px;
+  line-height: 1.9;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* 工程判断编标记：第七编整编是 C 档，性质与文献编不同，得标出来 */
+.tb-book-eng {
+  flex: 0 0 auto;
+  font-size: 10px;
+  line-height: 16px;
+  padding: 0 6px;
+  border-radius: 3px;
+  border: 1px dashed var(--line-2, var(--line));
+  color: var(--ink-3);
+}

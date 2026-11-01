@@ -1,0 +1,163 @@
+import { app } from 'electron';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { Diagnosis, ReportMeta, UsageRecord } from '@shared/types';
+
+/**
+ * 报告存档。
+ *
+ * 为什么要有它：这个工具的闭环断在最后一步——它给修补建议，但修补版从来没被重新判过。
+ * 「这样补就站得住」于是只是另一句没有依据的话。要接上这段，就必须能把上一份留着，
+ * 等新版出来后摆在一起看。所以存档不是「历史记录功能」，是**修订验收的前提**。
+ *
+ * 存储形状：
+ *   archive/<id>.json     完整报告，一份一个文件
+ *   archive/index.json    元数据数组，列表页只读它
+ *
+ * 为什么不把报告塞进一个 jsonl：一份报告几十到几百 KB，列表页要读几十份，
+ * 一次 IO 读全部会明显卡；而列表真正需要的只是 level / 字数 / 时间这几项。
+ *
+ * 为什么索引能重建：索引和文件是两份数据，永远可能不同步（用户手动删文件、
+ * 写到一半断电）。规则是「文件是真相，索引是缓存」——索引读不到就扫目录重建，
+ * 宁可慢一次，也不要让用户的报告因为一个 json 坏掉就全部消失。
+ */
+
+function archiveDir(): string {
+  const dir = join(app.getPath('userData'), 'archive');
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+export function archiveDirPath(): string {
+  return archiveDir();
+}
+
+function indexPath(): string {
+  return join(archiveDir(), 'index.json');
+}
+
+function reportPath(id: string): string {
+  // id 由本程序生成（时间戳-随机），不含路径分隔符；这里再挡一次，防的是将来改 id 规则时引入穿越
+  const safe = id.replace(/[^a-zA-Z0-9_-]/g, '');
+  return join(archiveDir(), `${safe}.json`);
+}
+
+function excerptOf(passage: string): string {
+  return passage.replace(/\s+/g, ' ').trim().slice(0, 72);
+}
+
+function metaOf(d: Diagnosis, cost: number | null, bytes: number): ReportMeta {
+  return {
+    id: d.id,
+    at: d.createdAt,
+    theory: d.theory,
+    mode: d.mode,
+    parentId: d.parentId,
+    chars: d.passage.length,
+    excerpt: excerptOf(d.passage),
+    level: d.verdict.level,
+    open: d.checks.filter((c) => c.answer === 'unanswered').length,
+    cost,
+    bytes,
+  };
+}
+
+function readIndex(): ReportMeta[] {
+  const p = indexPath();
+  if (!existsSync(p)) return rebuildIndex();
+  try {
+    const raw = JSON.parse(readFileSync(p, 'utf-8'));
+    if (!Array.isArray(raw)) return rebuildIndex();
+    return raw.filter((m: any) => m && typeof m.id === 'string') as ReportMeta[];
+  } catch {
+    return rebuildIndex();
+  }
+}
+
+function writeIndex(list: ReportMeta[]): void {
+  const p = indexPath();
+  const tmp = `${p}.tmp`;
+  writeFileSync(tmp, JSON.stringify(list, null, 0), 'utf-8');
+  renameSync(tmp, p);
+}
+
+/**
+ * 从磁盘重建索引。索引丢了不该让报告也跟着「消失」——
+ * 文件还在，只是没人记得它们。
+ */
+function rebuildIndex(): ReportMeta[] {
+  const dir = archiveDir();
+  let files: string[] = [];
+  try {
+    files = readdirSync(dir).filter((f) => f.endsWith('.json') && f !== 'index.json');
+  } catch {
+    return [];
+  }
+  const out: ReportMeta[] = [];
+  for (const f of files) {
+    try {
+      const d = JSON.parse(readFileSync(join(dir, f), 'utf-8')) as Diagnosis;
+      if (!d?.id || !d.theory || !d.verdict) continue;
+      const bytes = Buffer.byteLength(JSON.stringify(d), 'utf-8');
+      out.push(metaOf(d, null, bytes));
+    } catch {
+      /* 单个坏文件不拖垮整次重建 */
+    }
+  }
+  out.sort((a, b) => b.at - a.at);
+  if (out.length) writeIndex(out);
+  return out;
+}
+
+export function listReports(): ReportMeta[] {
+  return readIndex().sort((a, b) => b.at - a.at);
+}
+
+export function getReport(id: string): Diagnosis | null {
+  const p = reportPath(id);
+  if (!existsSync(p)) return null;
+  try {
+    return JSON.parse(readFileSync(p, 'utf-8')) as Diagnosis;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 存一份报告。每次分析成功都自动存——不设「手动存档」按钮。
+ *
+ * 理由：修订对照要求 parent 在场。如果存档靠手点，用户跑修补版时上一版多半没存，
+ * 那条最该看的对照就永远看不到了。自动存的代价是占点磁盘，几十 MB 量级，
+ * 比「关键对照缺失」便宜得多。
+ */
+export function saveReport(d: Diagnosis, usage?: UsageRecord | null): ReportMeta[] {
+  const p = reportPath(d.id);
+  const body = JSON.stringify(d);
+  writeFileSync(p, body, 'utf-8');
+
+  const cost = usage && usage.priced ? usage.cost : null;
+  const meta = metaOf(d, cost, Buffer.byteLength(body, 'utf-8'));
+
+  const list = readIndex().filter((m) => m.id !== d.id);
+  list.unshift(meta);
+  list.sort((a, b) => b.at - a.at);
+  writeIndex(list);
+  return list;
+}
+
+export function removeReport(id: string): ReportMeta[] {
+  const p = reportPath(id);
+  try {
+    if (existsSync(p)) unlinkSync(p);
+  } catch {
+    /* 删不掉文件也把索引清掉：否则列表里会留一条点开是空的幽灵 */
+  }
+  const list = readIndex().filter((m) => m.id !== id);
+  writeIndex(list);
+  return list.sort((a, b) => b.at - a.at);
+}
+
+/** 取某一份的上一版。修订对照靠它找 parent。 */
+export function getParent(d: Diagnosis): Diagnosis | null {
+  return d.parentId ? getReport(d.parentId) : null;
+}

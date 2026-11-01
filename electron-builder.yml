@@ -1,0 +1,54 @@
+appId: cn.argumentlens.desktop
+productName: 论证镜
+copyright: 论证镜 Argument Lens
+
+directories:
+  output: dist
+  buildResources: build
+
+# 只带构建产物。主进程不用任何第三方 npm 包（只有 electron 与 node 内置），
+# 渲染层已由 vite 打成单文件，所以不需要 node_modules 进安装包。
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+  - '!**/.DS_Store'
+
+asar: true
+compression: maximum
+
+# 只装中文界面的语言包。
+# Electron 默认带上全部 55 个 locales（约 49MB），而本工具界面只有中文，
+# 那些语言包一个字节都不会被读到。en-US 必须留：Chromium 的资源回退以它为基线，
+# 缺了会有取不到字符串的控件。留这两个，体积从 49MB 降到约 1.2MB。
+electronLanguages:
+  - zh-CN
+  - en-US
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: build/icon.ico
+  # 文件名用英文：中文名在某些解压工具与 CI 上会出编码问题
+  artifactName: ArgumentLens-${version}-${arch}.${ext}
+  executableName: ArgumentLens
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: 论证镜
+  installerLanguages:
+    - zh_CN
+  language: '2052'
+  # 卸载时保留设置与 API Key：重装不必重填
+  deleteAppDataOnUninstall: false
+  artifactName: ArgumentLens-Setup-${version}.${ext}
+
+portable:
+  artifactName: ArgumentLens-${version}-portable.${ext}

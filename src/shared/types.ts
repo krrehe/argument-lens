@@ -1,0 +1,899 @@
+/**
+ * 论证镜 · 核心数据契约（v2：透镜无关）
+ *
+ * 结构分三层：
+ *
+ *   1. 共享内核 —— 与理论无关的部分。语境坐标、论证重构、认识论标签。
+ *      换任何理论，这一段都照做，因为任何理论都要求先把话说清。
+ *
+ *   2. checks —— 统一成「一组检查项 + 每项的回答」。
+ *      这是本应用的架构主张：六副透镜看起来互不相容，
+ *      但落到可执行层面，全都能归约成检查表。
+ *      差值在「问什么、问多细、答完怎么算」，不在结构。
+ *
+ *   3. lens —— 每副透镜自己的东西。
+ *      型式法的族与型式、PTA 的三特征、图尔敏的六要素、名录的候选。
+ *      这一层是不可通约的，所以必须分区存放，不许压成一个字段。
+ *
+ * 一条铁律：本文件没有「严重程度」「得分」「错误」。
+ * 只有「位置」「检查项」「击败类型」「限定语」「可撤回条件」。
+ */
+
+import type { TheoryId } from './theories';
+
+export type { TheoryId };
+
+/* ─────────── 基础标量 ─────────── */
+
+/** 认识论标签：判断的根据类型，不是判断的强度 */
+export type EpistemicTag =
+  | 'known' // 已知：有文献／文本依据
+  | 'computed' // 计算：由确定性算法得出
+  | 'inferred' // 推论：由机制推出，无直接证据
+  | 'general' // 通用：领域常识
+  | 'framework' // 框架：符号体系内部自洽，不等于现实
+  | 'guess'; // 猜测：没有根据
+
+export type EpistemicTags = readonly EpistemicTag[];
+
+/** 置信度。框架判断与猜测最高只能到 low。 */
+export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'very-low' | 'undetermined';
+
+export type ConfidenceLevels = readonly ConfidenceLevel[];
+
+/** 原文定位。定位失败必须留痕，不允许静默。 */
+export interface Span {
+  start: number; // UTF-16 下标
+  end: number;
+  quote: string;
+  quality: 'exact' | 'normalized' | 'fuzzy' | 'failed';
+}
+
+/* ─────────── 第一层：语境坐标 ─────────── */
+
+/** 沃尔顿八种对话类型。同一句话在不同对话类型里合法性不同。 */
+export type DialogueType =
+  | 'persuasion'
+  | 'inquiry'
+  | 'negotiation'
+  | 'deliberation'
+  | 'information-seeking'
+  | 'eristic'
+  | 'mixed'
+  | 'unknown';
+
+/** 批判性讨论四阶段。语用辩证透镜靠它定位。 */
+export type DiscussionStage = 'confrontation' | 'opening' | 'argumentation' | 'concluding' | 'unknown';
+
+export interface Context {
+  /** 争议之点：到底在争什么。这是所有后续判断的锚点。 */
+  issue: string;
+  speakerPosition: string;
+  /** 可识别的对方立场。没有的话，语用辩证透镜无法适用。 */
+  opposingPosition: string | null;
+  dialogueType: DialogueType;
+  dialogueTypeBasis: string;
+  stage: DiscussionStage;
+  /** 受众。ARS 透镜里它参与可接受性判定，不是描述性字段。 */
+  audience: string;
+  /** 受众类型，决定可接受性判断往哪个方向偏 */
+  audienceKind: 'general' | 'specialist' | 'adversarial' | 'supportive' | 'unknown';
+  contextGaps: string[];
+}
+
+/* ─────────── 第二层：重构 ─────────── */
+
+export type ClaimRole = 'premise' | 'intermediate' | 'conclusion';
+
+export interface Acceptability {
+  status: 'acceptable' | 'questionable' | 'unacceptable' | 'unknown';
+  reason: string;
+  /**
+   * 对该受众是否可接受。与 status 可以不同，且必须允许不同：
+   * 一个客观有据的前提可能对某类受众不可接受（如对不承认统计学的人）。
+   * 可接受性不是真值。
+   */
+  forAudience: string;
+  tag: EpistemicTag;
+  confidence: ConfidenceLevel;
+}
+
+export interface Claim {
+  id: string;
+  role: ClaimRole;
+  /** 规范化陈述：把口语整理成可检验的命题 */
+  text: string;
+  /**
+   * 这条主张在支撑谁（id 列表）。结构图靠它画线。
+   * 为空时按最朴素的重构处理：直接支撑结论 C。
+   * 它存在的意义是让「思维导图」画的是真的结构，而不是猜出来的结构。
+   */
+  supports: string[];
+  /** 原文逐字引用。显式主张必填。 */
+  quote: string | null;
+  span: Span | null;
+  implicit: boolean;
+  /**
+   * 隐含前提必填，格式固定：
+   * 「若不假定 X，则从 {前提} 推不出 {结论}」
+   * 写不出来就不该把它列为隐含前提。
+   */
+  implicitBasis: string | null;
+  /** 举证责任归属。批评 I（前提可疑）在提议者，批评 II（另有反证）在回应者。 */
+  burden: 'proponent' | 'respondent' | 'both' | 'unclear';
+  acceptability: Acceptability;
+}
+
+export interface Conclusion extends Claim {
+  /** 结论的模态强度是否过头：把「很可能」说成「必然」是越界 */
+  modalOverreach: boolean;
+  modalNote: string;
+}
+
+/* ─────────── 第三层：检查项（透镜的统一形态） ─────────── */
+
+export type CheckSystem = 'walton-cq' | 'pragma-rule' | 'ars' | 'pta' | 'toulmin' | 'catalog';
+
+/**
+ * answer 的语义按透镜不同，但结构只有这四个：
+ * - walton-cq：CQ 回答了 → passed；答否 → violated
+ * - pragma-rule：规则未被违反 → passed；被违反 → violated
+ * - ars：该标准满足 → passed
+ * - toulmin：该要素齐备 → passed
+ * - pta / catalog：一般不产生检查项
+ */
+export type CheckAnswer = 'passed' | 'violated' | 'unanswered' | 'not-applicable';
+
+export interface CheckItem {
+  /** 该透镜内的编号：CQ2 / R4 / ARS-P1-relevance / T-warrant */
+  id: string;
+  system: CheckSystem;
+  /** 显示名，如「第 4 条 相干规则」「CQ2 领域相关性」 */
+  label: string;
+  question: string;
+  /** 元问题：答否则后续全部免除 */
+  meta: boolean;
+  answer: CheckAnswer;
+  /** 判断依据。给 passed 或 violated 都必须有理由，不许空着。 */
+  basis: string;
+  /** 这条守着论证的哪一处 */
+  guards: string;
+  /** 违反后落到名录里的哪一条（可空：相当多违反根本不该被命名） */
+  landsOn: string | null;
+}
+
+/* ─────────── 范围门：每副透镜都得能说自己不适用 ─────────── */
+
+export interface Scope {
+  /** 这副透镜在本文本上是否适用 */
+  applicable: boolean;
+  /** 不适用的理由。applicable=true 时写「为什么适用」。 */
+  reason: string;
+  /**
+   * 不适用的确切位置：比如语用辩证透镜遇到广告，
+   * 不是「文本不好」，而是「说话人不以解决分歧为目标」。这一栏要说清是哪一条前提不成立。
+   */
+  outOfScopeAt: string | null;
+  /** 部分适用时：哪一部分可用，哪一部分不可用 */
+  partialNote: string | null;
+}
+
+/* ─────────── 击败与结论 ─────────── */
+
+/**
+ * 削弱性击败：切断前提与结论的联结，不否定结论。
+ * 反驳性击败：直接给出结论为假的理由。
+ * 两者不可混。把削弱写成「该论证不成立」是越界。
+ */
+export type DefeatKind = 'undermining' | 'rebutting' | 'none';
+
+export interface Defeat {
+  kind: DefeatKind;
+  /** 倒在哪条检查项上 */
+  checkId: string | null;
+  /** 切断的是哪一步 */
+  cuts: string;
+  explanation: string;
+  tag: EpistemicTag;
+  confidence: ConfidenceLevel;
+}
+
+/** 归一化后的四档。原生刻度另存，不覆盖。 */
+export type VerdictLevel = 'withstands' | 'weakened' | 'fails' | 'undetermined';
+
+export interface Verdict {
+  /** 本透镜的评级刻度名 */
+  scale: string;
+  /** 原生取值，用该理论自己的话说 */
+  scaleValue: string;
+  /** 归一化档位。归一化是有损的，界面必须同时显示原生刻度。 */
+  level: VerdictLevel;
+  statement: string;
+  qualification: string;
+  /** 被否证的是论证还是结论。绝大多数情况只能否证前者。 */
+  whatIsRefuted: 'argument-only' | 'conclusion' | 'nothing';
+}
+
+/* ─────────── 修补 ─────────── */
+
+export interface Repair {
+  missingPremise: string | null;
+  /** 换一副透镜会看到什么。这是透镜切换的实质内容，不是装饰。 */
+  alternativeReading: string | null;
+  answerable: string[];
+  burdenStatus: string;
+  repairedForm: string | null;
+}
+
+/* ─────────── 命名候选 ─────────── */
+
+/**
+ * 谬误名是末端注释，不是核心输出。
+ * 每条必须同时带三样东西才允许显示：
+ *   condition（使它成为该谬误而非别种的条件）
+ *   whenLegitimate（什么情况下其实合法）
+ *   riskOfError（这条判断最可能错在哪）
+ * 缺任何一样，前端不渲染。
+ */
+export interface LabelCandidate {
+  id: string;
+  name: string;
+  nameEn: string;
+  condition: string;
+  whenLegitimate: string;
+  riskOfError: string;
+  landsOnCheck: string | null;
+  tradition: string;
+  tag: EpistemicTag;
+  confidence: ConfidenceLevel;
+}
+
+/**
+ * 「这里合法」这一栏。
+ * 清单法最深的缺陷：四个名字里有一个其实是对方做得对的地方时，
+ * 你不改判，因为清单没有「这里合法」这一栏。本应用必须有。
+ */
+export interface LegitimateMove {
+  targetId: string;
+  quote: string;
+  what: string;
+  why: string;
+  tag: EpistemicTag;
+  confidence: ConfidenceLevel;
+}
+
+/* ─────────── 反驳 ─────────── */
+
+export type RefutationStrategy =
+  | 'premise-false'
+  | 'premise-unsupported'
+  | 'missing-premise'
+  | 'counterexample'
+  | 'distinguo'
+  | 'alternative-explanation'
+  | 'scheme-mismatch'
+  | 'burden-shift'
+  /** 只适用于语用辩证：指出程序性规则被违反 */
+  | 'procedure-violation';
+
+export interface Refutation {
+  id: string;
+  targetId: string;
+  checkId: string | null;
+  strategy: RefutationStrategy;
+  claim: string;
+  /** 可直接使用的话术，≤120 字 */
+  script: string;
+  /** 对方最可能的反击。不可省略：没有 steelman 的反驳只是吵架。 */
+  steelman: string;
+  reply: string;
+  evidenceNeeded: string[];
+  burdenAfter: 'proponent' | 'respondent';
+  tag: EpistemicTag;
+  confidence: ConfidenceLevel;
+}
+
+/* ─────────── 各透镜专属负载 ─────────── */
+
+export type SchemeFamily = 'pragmatic' | 'causal' | 'source' | 'comparison' | 'mixed' | 'none';
+
+export interface WaltonLens {
+  kind: 'walton';
+  family: SchemeFamily;
+  familyBasis: string;
+  schemeId: string;
+  schemeName: string;
+  skeleton: string;
+  /** 族若认错，更可能是哪个。族误认是日常批评最常见的失误。 */
+  alternativeFamily: SchemeFamily | null;
+  alternativeNote: string;
+}
+
+export interface PragmaLens {
+  kind: 'pragma';
+  /** 说话人是否以解决分歧为目标。这条为假，整副透镜失效。 */
+  aimedAtResolution: boolean;
+  aimedBasis: string;
+  stageBasis: string;
+  /** 谁妨碍了分歧解决：提议方／回应方／双方／无法判断 */
+  blockedBy: 'proponent' | 'respondent' | 'both' | 'unclear';
+}
+
+export interface ArsLens {
+  kind: 'ars';
+  /** 论证负担的标准：决定「充分」的门槛在哪 */
+  burdenStandard: string;
+  /** 充分性为什么成立或不成立 */
+  sufficiencyNote: string;
+  /** 缺口在哪一类位置 */
+  gapAt: 'premise' | 'link' | 'missing-premise' | 'none';
+}
+
+export type PtaOrder = 'first' | 'second' | 'undetermined';
+export type PtaAxis = 'predicate' | 'subject' | 'undetermined';
+export type PtaStatementType = 'fact' | 'value' | 'policy' | 'undetermined';
+
+export interface PtaLens {
+  kind: 'pta';
+  order: PtaOrder;
+  axis: PtaAxis;
+  premiseType: PtaStatementType;
+  conclusionType: PtaStatementType;
+  /** 三特征相乘后的型，定位不出写 null，但三特征仍要分开给 */
+  ptaType: string | null;
+  ptaName: string | null;
+  /** 对应沃尔顿型式，可空 */
+  waltonId: string | null;
+  featureNotes: { order: string; axis: string; statementType: string };
+}
+
+export interface ToulminLens {
+  kind: 'toulmin';
+  grounds: string[];
+  /** 担保：凭什么从理由走到主张 */
+  warrant: string | null;
+  /** 担保是原文说了，还是我们补的。补的必须标 false。 */
+  warrantStated: boolean;
+  warrantType: 'generalization' | 'causal' | 'definitional' | 'authority' | 'analogy' | 'value' | 'none';
+  backing: string | null;
+  qualifier: string | null;
+  rebuttals: string[];
+  /** 跳跃发生在哪两步之间 */
+  gapBetween: string;
+}
+
+export interface CatalogLens {
+  kind: 'copi';
+  /** 候选条目，最多三条。这是该透镜的全部输出。 */
+  candidates: LabelCandidate[];
+  /** 名录法在此处漏掉了什么 */
+  whatItMisses: string;
+}
+
+export type LensDetail = WaltonLens | PragmaLens | ArsLens | PtaLens | ToulminLens | CatalogLens;
+
+/* ─────────── 自检 ─────────── */
+
+/**
+ * EPI 七项量表（来自《评估的僭越》第 4 节）。
+ * 产品必须对自己的输出执行同一套标准。
+ */
+export interface EPIScore {
+  P1_source: 0 | 1 | 2;
+  P2_context: 0 | 1 | 2;
+  P3_position: 0 | 1 | 2;
+  P4_withdrawal: 0 | 1 | 2;
+  P5_selfApply: 0 | 1 | 2;
+  P6_openness: 0 | 1 | 2;
+  P7_steelman: 0 | 1 | 2;
+  total: number;
+  /** 单项否决：P3=0 且 P4=0 即为标签化裁决 */
+  vetoed: boolean;
+  reading: 'legitimate' | 'overreach' | 'labelling';
+  notes: string[];
+}
+
+export interface SelfCheck {
+  epi: EPIScore;
+  ruleAudit: string[];
+  unknowns: string[];
+  opennessNote: string;
+  /** 可推翻条件：什么情况下这份分析应被撤回 */
+  withdrawIf: string[];
+  /**
+   * 换透镜会怎样。必填。
+   * 不填这一栏，用户就以为眼前这份分析是唯一的答案。
+   */
+  underOtherLens: string;
+}
+
+/* ─────────── 总和 ─────────── */
+
+/**
+ * 四种问法，同一套结构。
+ *
+ * 分成两类，这条分类是后来才长出来的，但它比「四个模式」更能说明问题：
+ *
+ *   【判定类】diagnose / redteam —— 会给 verdict 档位
+ *     diagnose    这段话站得住吗。给位置、给合法的部分、给修补。
+ *     redteam     对手会从哪儿打。只给攻击路线，按杀伤力排序。
+ *
+ *   【描述类】reconstruct / interrogate —— 不给档位，level 恒为 undetermined
+ *     reconstruct 这段话的结构是什么。只画图，不评价。
+ *     interrogate 我该问他什么。只给问题，不下结论。
+ *
+ * 描述类为什么不判定：一旦先决定「这段话坏」，重构就会把最强读法悄悄换成最弱读法；
+ * 提问也同理，判过之后的问题全是诱导性的。这两件事不是理论顾虑，是实测（E）。
+ *
+ * 为什么不是第七副透镜：透镜决定「问什么问题」，模式决定「替谁问、判不判」。
+ * 型式库、CQ、十规则在四种模式下是同一套，混进去会破坏六副透镜的不可通约性。
+ */
+export type AnalysisMode = 'diagnose' | 'redteam' | 'reconstruct' | 'interrogate';
+
+/** 模式的顺序即界面上按钮的顺序。改这里，界面跟着变，不用改两处。 */
+export const ANALYSIS_MODES: readonly AnalysisMode[] = [
+  'diagnose',
+  'redteam',
+  'reconstruct',
+  'interrogate',
+] as const;
+
+export interface ModeMeta {
+  /** 按钮上的字 */
+  label: string;
+  /** 一句话说明这个模式问的是什么 */
+  hint: string;
+  /** 主按钮上的字 */
+  action: string;
+  /** 进度条上「范围」阶段的措辞 */
+  stageScope: string;
+  /** 进度条上「判定」阶段的措辞 */
+  stageVerdict: string;
+  /** 这个模式给不给判定档位。false 表示运行时会把 level 强制成 undetermined。 */
+  givesVerdict: boolean;
+  /** 报告顶部横幅的说明；null 表示不显示横幅。 */
+  banner: string | null;
+}
+
+export const MODE_META: Record<AnalysisMode, ModeMeta> = {
+  diagnose: {
+    label: '诊断',
+    hint: '判断这段话站不站得住。',
+    action: '分析',
+    stageScope: '定位语境',
+    stageVerdict: '判定击败类型与结论档位',
+    givesVerdict: true,
+    banner: null,
+  },
+  redteam: {
+    label: '红队',
+    hint: '同一套型式与问题，换个方向问：他会怎么打你。',
+    action: '找攻击点',
+    stageScope: '找可攻击的位置',
+    stageVerdict: '按杀伤力排序',
+    givesVerdict: true,
+    banner:
+      '红队模式。同一套型式库、同一套关键问题，问的方向反过来：不评价这段话好不好，只找对手最容易打穿的位置。',
+  },
+  reconstruct: {
+    label: '重构',
+    hint: '先别判。把这段话拆成结构图，看清它靠什么撑着。',
+    action: '画结构',
+    stageScope: '拆结构',
+    stageVerdict: '收口：检查 supports 闭合',
+    givesVerdict: false,
+    banner:
+      '重构模式。只画结构，不给判定——档位一律是「未定」，这是设计不是省略。因为一旦先判了它坏，重构就会把最强的读法悄悄换成最弱的读法。',
+  },
+  interrogate: {
+    label: '提问',
+    hint: '不替你下结论，只给你一串可以直接问出口的问题。',
+    action: '准备问题',
+    stageScope: '找可以问的角度',
+    stageVerdict: '按「答不上来的概率 × 答上来的收益」排序',
+    givesVerdict: false,
+    banner:
+      '提问模式。只给问题，不给判定——档位一律是「未定」。判过之后再问，问出来的都是诱导句；先问，才知道对方手里到底有没有东西。',
+  },
+};
+
+/**
+ * 归一化模式。
+ *
+ * 为什么要有这个函数，而不是在各处写 `mode === 'redteam' ? 'redteam' : 'diagnose'`：
+ * 那种写法在只有两个模式时是对的，加到四个模式后，它会对不认识的模式
+ * **静默返回 diagnose**——界面照常出报告，报告顶上写着「诊断」，
+ * 而用户以为自己在重构。这种错不会报错，只会让模式这件事白做。
+ */
+export function normalizeMode(v: unknown): AnalysisMode {
+  return typeof v === 'string' && (ANALYSIS_MODES as readonly string[]).includes(v)
+    ? (v as AnalysisMode)
+    : 'diagnose';
+}
+
+export function isAnalysisMode(v: unknown): v is AnalysisMode {
+  return typeof v === 'string' && (ANALYSIS_MODES as readonly string[]).includes(v);
+}
+
+export interface Diagnosis {
+  version: 2;
+  /**
+   * 报告 id。存档、异议、修订对照三件事都靠它关联。
+   * 没有 id 的报告是一张读一次就作废的纸。
+   */
+  id: string;
+  /**
+   * 这一份是从哪一份修补来的。null 表示原创。
+   * 有它才能回答「改完到底好没好」，那是这个工具唯一能给出的闭环。
+   */
+  parentId: string | null;
+  mode: AnalysisMode;
+  /** 本次分析用的是哪副透镜 */
+  theory: TheoryId;
+  createdAt: number;
+  passage: string;
+
+  context: Context;
+  /** 透镜适用范围自评。applicable=false 时，checks 必须为空。 */
+  scope: Scope;
+
+  conclusion: Conclusion;
+  premises: Claim[];
+  intermediate: Claim[];
+
+  /** 统一检查表。六副透镜的输出在结构上完全一致。 */
+  checks: CheckItem[];
+
+  /** 透镜专属负载 */
+  lens: LensDetail;
+
+  defeat: Defeat;
+  verdict: Verdict;
+  repair: Repair;
+
+  /** 命名候选（名录透镜下是主输出，其他透镜下是末端注释，可空） */
+  labels: LabelCandidate[];
+  legitimateMoves: LegitimateMove[];
+  refutations: Refutation[];
+
+  selfCheck: SelfCheck;
+  diagnostics: Diagnostic[];
+
+  /**
+   * 产出这份报告时用的提示词版本与指纹。
+   *
+   * 没有它，「这份报告和三个月前那一份能不能对照」就无从回答——
+   * 提示词改过之后，两次分析的判定口径可能已经不同，
+   * 而界面上两份报告长得一模一样，用户会以为是同一次尺子量的。
+   * 旧存档没有这个字段（当时还没有版本化），按「未知版本」处理，不回填假值。
+   */
+  prompt?: { version: string; fingerprint: string };
+}
+
+export interface Diagnostic {
+  level: 'info' | 'warn' | 'error';
+  code: string;
+  message: string;
+}
+
+/* ─────────── 知识库类型 ─────────── */
+
+export interface SchemeDefinition {
+  id: string;
+  name: string;
+  nameEn: string;
+  family: SchemeFamily;
+  skeleton: string;
+  cues: string[];
+  criticalQuestions: {
+    id: string;
+    question: string;
+    meta?: boolean;
+    guards: string;
+    /**
+     * 为什么这一问是「合法的攻击点」，而不是随便加的一道题。
+     *
+     * 这一栏存在的理由：CQ 与检查表的差别全在这里。检查表问的是
+     * 「你想到的这些，人家做了吗」；CQ 问的是「这个型式的担保靠什么成立，
+     * 于是哪里必须由提出者负责」。写不出这一问的来源，它就不该出现在库里。
+     */
+    why: string;
+  }[];
+  commonMisuse: { form: string; landsOn: string }[];
+  inapplicableWhen: string[];
+  source: string;
+}
+
+export interface FallacyDefinition {
+  id: string;
+  name: string;
+  nameEn: string;
+  condition: string;
+  definition: string;
+  tradition: string;
+  whenLegitimate: string[];
+  typicalCQ: string | null;
+}
+
+/** 语用辩证十规则。语用辩证透镜的检查项直接由它生成。 */
+export interface PragmaRule {
+  n: number;
+  name: string;
+  rule: string;
+  violates: string;
+  /**
+   * 这条规则守的是辩论的哪一环。
+   *
+   * 与型式 CQ 的 why 同一个用途：写不出「它守什么」，它就只是一条禁令，
+   * 禁令可以无限加，规则不行。十规则的规范力量来自「不守这一条，
+   * 分歧就无法解决」这个论证，不来自 van Eemeren 的署名。
+   */
+  why: string;
+  /**
+   * 本工具把它落在哪。写「落在哪个字段」而不是「应当重视」，
+   * 是因为文档里说得再好，没落到字段就等于没实现。
+   */
+  codify: string;
+}
+
+/* ─────────── IPC 契约 ─────────── */
+
+export interface LlmSettings {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  temperature: number;
+}
+
+export interface ApiResult<T> {
+  ok: boolean;
+  data?: T;
+  error?: { code: string; message: string; detail?: string };
+}
+
+export type AnalysisStage =
+  | 'scope'
+  | 'reconstructing'
+  | 'locating'
+  | 'checking'
+  | 'verdict'
+  | 'refuting'
+  | 'self-check'
+  | 'done';
+
+export interface ProgressEvent {
+  stage: AnalysisStage;
+  label: string;
+  percent: number;
+}
+
+/** 一次分析请求：同一段文本 + 选定透镜 + 问法 */
+export interface AnalysisRequest {
+  passage: string;
+  theory: TheoryId;
+  mode: AnalysisMode;
+  /** 若这一份是修补后重跑的，记下上一份的 id */
+  parentId?: string | null;
+}
+
+/* ─────────── 用户异议 ─────────── */
+
+/**
+ * 用户说不认同的地方。
+ *
+ * 这是第三个维度，和另外两个必须分开：
+ *   不确定 —— 工具的毛病：模型没把握
+ *   有争议 —— 学科的毛病：文献里真没有共识
+ *   我不同意 —— 用户的判断：他读过原文、懂这个语境，认为这一条错了
+ *
+ * 为什么要收：工具承认学科会分歧，却不承认眼前这个人会不同意，
+ * 那它只是把「权威」从教科书换成了模型。收下来才有第二个用处——
+ * 长期统计能暴露这个工具自己的系统性偏差：哪几条判定最常被反对。
+ *
+ * 但只能记录，不能改写结论。允许用户改判，等于把「可检验」换成「可商量」，
+ * 那是另一种谄媚，和这个工具反对的东西同构。
+ */
+export type ObjectionField =
+  /** 判读：档位与那句结论 */
+  | 'verdict'
+  /** 击败类型 */
+  | 'defeat'
+  /** 逐关检查里的某一条 */
+  | 'check'
+  /** 命名候选 */
+  | 'label'
+  /** 此处合法 */
+  | 'legitimate';
+
+export interface Objection {
+  /**
+   * 跨报告的身份：同一副透镜、同一处、同一段话，
+   * 换了 report id 也还是同一条判定。统计要靠它归并。
+   */
+  key: string;
+  /** 在哪一份报告里提的 */
+  diagId: string;
+  at: number;
+  theory: TheoryId;
+  field: ObjectionField;
+  /** 检查项 id / 命名条目 id / C 或 P1 等 */
+  refId: string;
+  /** 给人看的标签，如「CQ2 领域相关性」 */
+  refLabel: string;
+  /** 被反对的那句话，截断保存——报告可能被删，异议要能独立读 */
+  excerpt: string;
+  /** 理由。可以空着：说「不同意」本身就是信息 */
+  reason: string;
+}
+
+/** 按判定归并后的统计。用得着它才知道这个工具常年错在哪。 */
+export interface ObjectionStat {
+  key: string;
+  theory: TheoryId;
+  field: ObjectionField;
+  refId: string;
+  refLabel: string;
+  excerpt: string;
+  count: number;
+  /** 最近一次的时间 */
+  lastAt: number;
+  reasons: string[];
+}
+
+/* ─────────── 报告存档 ─────────── */
+
+/**
+ * 列表用的元数据。全文在磁盘上单独一个文件——
+ * 列表页只需要这几项，把几十份报告全读一遍会明显卡。
+ */
+export interface ReportMeta {
+  id: string;
+  at: number;
+  theory: TheoryId;
+  mode: AnalysisMode;
+  parentId: string | null;
+  chars: number;
+  /** 原文开头，用于在列表里认出这是哪一份 */
+  excerpt: string;
+  level: VerdictLevel;
+  /**
+   * 未答的检查项数量。列表里最有信息量的一个数字——
+   * 它既是「这份报告有多少地方没结论」，也是修订对照要变的那个数。
+   */
+  open: number;
+  cost: number | null;
+  bytes: number;
+}
+
+/* ─────────── 用量与余额 ─────────── */
+
+/**
+ * 一次调用留下的账。
+ *
+ * 三条规矩：
+ *   1. 只追加，不改写。历史是可审计的，不是可编辑的。
+ *   2. estimated=true 的记录，token 数按本地规则估出来的，界面上必须带「估」字。
+ *   3. 单价随记录冻结。改单价只影响以后，不重算过去——
+ *      否则用户昨天按 A 模型花的钱，今天会因为填了 B 模型的价格而变样。
+ *      当时没填单价（priced=false）的，聚合时按现价回填并另做标注。
+ */
+export interface UsageRecord {
+  id: string;
+  at: number;
+  /** 失败也留一条：失败率本身是重要信息 */
+  ok: boolean;
+  theory: TheoryId | null;
+  model: string;
+  /** 供应商主机名。不存路径、不存 Key——这份文件可能被导出。 */
+  host: string;
+  promptTokens: number;
+  completionTokens: number;
+  estimated: boolean;
+  cost: number;
+  /** 记录当时是否填过单价 */
+  priced: boolean;
+  currency: string;
+  priceIn: number;
+  priceOut: number;
+  ms: number;
+  /** 原文长度，用于判断「贵是因为文本长还是因为模型贵」 */
+  chars: number;
+  /**
+   * 这次有多少输入 token 命中了接口的自动前缀缓存。
+   *
+   * 没有这个字段，「缓存有没有生效」就永远只能靠猜：
+   * 改了 system 让它变静态，却看不出省没省下来。
+   * 供应商不返回就是 undefined，不填 0——0 是「确实没命中」，性质不同。
+   */
+  cacheHitTokens?: number;
+}
+
+/** 单价。按「每百万 token」填，和供应商价目表的写法一致。 */
+export interface Pricing {
+  inPerM: number;
+  outPerM: number;
+  currency: string;
+}
+
+/**
+ * 余额锚点：某时刻账户里还剩多少钱。
+ *
+ * 为什么不自动查余额：没有统一接口。DeepSeek 有 /user/balance，
+ * OpenAI 没有，各家格式都不一样，多半还要单独授权。
+ * 与其做一堆只对一家管用的适配，不如让用户记一笔——
+ * 这也是唯一能对上真实账单的办法。
+ */
+export interface BalanceAnchor {
+  at: number;
+  amount: number;
+  note: string;
+}
+
+export interface UsageBucket {
+  count: number;
+  okCount: number;
+  tokens: number;
+  cost: number;
+}
+
+export interface UsageDay {
+  date: string;
+  count: number;
+  tokens: number;
+  cost: number;
+}
+
+export interface UsageSummary {
+  today: UsageBucket;
+  month: UsageBucket;
+  all: UsageBucket;
+  /** 近 14 天，缺的那天补 0 */
+  daily: UsageDay[];
+  /** 最近 30 条，新的在前 */
+  recent: UsageRecord[];
+  pricing: Pricing;
+  hasPricing: boolean;
+  balance: {
+    anchor: BalanceAnchor | null;
+    /** 锚点之后花掉的钱 */
+    spentSince: number;
+    /** 还剩多少。没记锚点时为 null——不是 0。 */
+    remaining: number | null;
+    /** 按最近若干次均价推算还能跑几次 */
+    runsLeft: number | null;
+    avgCostPerRun: number | null;
+    /** 均价是用几条记录算出来的 */
+    avgBasis: number;
+  };
+  /** 成功记录里，token 是估出来的比例（0–1）。1 表示全是估的。 */
+  estimatedShare: number;
+  /** 有没有记录是按现价回填的（当时没填单价） */
+  backfilled: number;
+  /**
+   * 被排除在统计之外的模拟调用条数。
+   *
+   * 冒烟测试起本地假服务器跑通链路，它返回的 token 是编的固定值。
+   * 那些记录留在流水里没有删（账本该可追溯），但不算进任何合计——
+   * 否则「本月 197 次」里混着 115 次根本没发生的调用，账本就不再是账本。
+   */
+  mockExcluded: number;
+  /**
+   * 现在显示的金额是按什么价算出来的。
+   *
+   * user  = 用户自己填的单价（最准，按它显示）
+   * builtin = 用户没填，用内置参考价估的（量级对，具体数以账单为准）
+   * none  = 既没填也没内置价，金额一栏显示「未计价」
+   *
+   * 分开标出来是因为「¥1.2」和「约 ¥1.2（估算）」对读者的意义不同：
+   * 前者是账，后者是估。混在一起就成了假精确。
+   */
+  pricingSource: 'user' | 'builtin' | 'none';
+  /**
+   * 最近若干次成功调用里，输入 token 命中前缀缓存的比例（0–1）。没数据为 null。
+   *
+   * 这个数是提示词工程的体检指标，不是省钱指标：
+   * 它掉到接近 0，说明 system 又在每次请求里不同了——那是个会静默烧钱的回归，
+   * 而除了这个数字，没有任何地方看得出来。
+   */
+  cacheHitShare: number | null;
+}

@@ -1,0 +1,15 @@
+# 依赖
+node_modules/
+
+# 构建产物
+out/                  # electron-vite 的中间产物
+dist/                 # electron-builder 的最终产物（exe / win-unpacked）
+release/              # electron-builder 的旧默认输出目录，已由 dist 取代
+scripts/.out/         # 检查脚本用 vite 打出的临时单文件
+
+# TypeScript 增量构建缓存（删了会重新生成，不进版本控制）
+*.tsbuildinfo
+
+# 系统
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1383 @@
+/*
+ * 工作流层的样式：切分 · 修订对照 · 红队。
+ *
+ * 与报告层分开的理由：这三块都在「拿到结果之前或之后」，回答的是
+ * 「我现在该分析什么」「改完变好没有」「他会怎么打我」，
+ * 而不是「这份报告在说什么」。语气因此不同——报告层要读得懂，
+ * 这一层要让人敢动手。
+ */
+
+/* ─────────── 切分条 ─────────── */
+
+.sg-bar {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+/*
+ * 醒目的那一档只给长文本。理由：短文本切分是「你可以试试」，
+ * 长文本不切则报告基本作废——两者的提示强度不该一样。
+ */
+.sg-bar.sg-loud {
+  border-color: #c8d2dd;
+  background: var(--accent-bg);
+}
+
+.sg-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--ink);
+}
+
+.sg-head:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.sg-scissors {
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1;
+}
+
+.sg-title {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.sg-sub {
+  font-size: 11px;
+  color: var(--ink-3);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sg-spacer {
+  flex: 1;
+}
+
+.sg-toggle {
+  font-size: 11.5px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.sg-list {
+  border-top: 1px solid var(--line);
+  padding: 8px;
+  max-height: 320px;
+  overflow: auto;
+  background: var(--panel);
+}
+
+.sg-note {
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  padding: 2px 4px 8px;
+}
+
+.sg-note b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.sg-item {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--ink);
+}
+
+.sg-item:hover {
+  background: var(--panel-2);
+  border-color: var(--line);
+}
+
+/*
+ * 硬切的段用左侧竖条而不是整块底色：底色会让它看起来像「有问题」，
+ * 而它只是「没有依据」，这是两件事。竖条提示的是「这个切点要你自己核对」。
+ */
+.sg-item.ungrounded {
+  border-left: 2px solid var(--weak);
+  padding-left: 7px;
+}
+
+.sg-n {
+  flex: none;
+  width: 16px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+
+.sg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sg-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sg-kind {
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 3px;
+  line-height: 15px;
+  background: var(--muted-bg);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.sg-kind.k-argument {
+  background: var(--strong-bg);
+  color: var(--strong);
+}
+
+.sg-kind.k-aside {
+  background: transparent;
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+}
+
+.sg-chars {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.sg-warn {
+  font-size: 10px;
+  color: var(--weak);
+  background: var(--weak-bg);
+  padding: 0 4px;
+  border-radius: 3px;
+  line-height: 15px;
+}
+
+.sg-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sg-why {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.sg-foot {
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+  padding: 8px 4px 2px;
+  border-top: 1px dashed var(--line);
+  margin-top: 6px;
+}
+
+.sg-picked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-color: #c8d2dd;
+  background: var(--accent-bg);
+}
+
+.sg-tag {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.sg-restore {
+  font-size: 11px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+/* ─────────── 异议 ─────────── */
+
+/*
+ * 异议用蓝灰，不用红。理由和争议栏一致：红色是「错误」，
+ * 而这里不知道谁对——用户可能对，也可能错。颜色先站队，就是把未知说成已知。
+ */
+
+.obj-btn {
+  display: inline-block;
+  margin-top: 7px;
+  padding: 1px 7px;
+  font-family: inherit;
+  font-size: 10.5px;
+  line-height: 16px;
+  color: var(--ink-3);
+  background: none;
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.obj-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.obj-btn.sm {
+  margin-top: 4px;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.obj-note {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 5px 8px 5px 9px;
+  border-left: 2px solid var(--accent);
+  border-radius: 0 5px 5px 0;
+  background: rgba(60, 79, 99, 0.045);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.obj-note.sm {
+  margin-top: 4px;
+  padding: 3px 6px 3px 7px;
+  font-size: 10.5px;
+}
+
+.obj-flag {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.obj-reason {
+  min-width: 0;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+
+.obj-reason.dim {
+  color: var(--ink-3);
+}
+
+.obj-undo {
+  flex: none;
+  margin-left: auto;
+  padding: 0;
+  font-family: inherit;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.obj-undo:hover {
+  color: var(--accent);
+}
+
+.obj-form {
+  margin-top: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--panel);
+}
+
+.obj-form-h {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+
+.obj-form textarea {
+  width: 100%;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  resize: vertical;
+  outline: none;
+}
+
+.obj-form textarea:focus {
+  border-color: var(--accent);
+  background: var(--panel);
+}
+
+.obj-form-f {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.obj-fine {
+  flex: 1;
+  min-width: 0;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--ink-3);
+}
+
+.obj-cancel,
+.obj-save {
+  flex: none;
+  padding: 3px 10px;
+  font-family: inherit;
+  font-size: 11.5px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.obj-cancel {
+  background: none;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-2);
+}
+
+.obj-save {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+}
+
+/* ─────────── 修订对照 ─────────── */
+
+/*
+ * 对照条用红绿。这是本应用里少数几处可以用评价色的地方，
+ * 理由：它比的是「同一副透镜、同一段话、改前改后」，方向是确定的，
+ * 不是「哪一派更对」那种未知。但文案必须限定在「按这副透镜的刻度」上。
+ */
+
+.rv-bar {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink-3);
+  border-radius: 0 8px 8px 0;
+  background: var(--panel);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.rv-bar.ok {
+  border-left-color: var(--strong);
+}
+.rv-bar.bad {
+  border-left-color: var(--invalid);
+}
+.rv-bar.mixed {
+  border-left-color: var(--weak);
+}
+
+.rv-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--ink);
+}
+
+.rv-head:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.rv-k {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.rv-trend {
+  flex: none;
+  font-size: 10.5px;
+  line-height: 15px;
+  padding: 0 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  background: var(--muted-bg);
+  color: var(--ink-2);
+}
+
+.rv-trend.ok {
+  background: var(--strong-bg);
+  color: var(--strong);
+}
+.rv-trend.bad {
+  background: var(--invalid-bg);
+  color: var(--invalid);
+}
+.rv-trend.mixed {
+  background: var(--weak-bg);
+  color: var(--weak);
+}
+.rv-trend.na {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-3);
+}
+
+.rv-headline {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rv-toggle {
+  flex: none;
+  font-size: 11px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.rv-detail {
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.rv-nums {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 14px;
+  padding: 10px 0;
+}
+
+.rv-num {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rv-num .k {
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.rv-num .v {
+  font-size: 12.5px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.rv-moved-h {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  margin: 8px 0 5px;
+}
+
+.rv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.rv-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: baseline;
+}
+
+.rv-table .id {
+  width: 62px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.rv-table .lb {
+  color: var(--ink-2);
+}
+
+.rv-table .mv {
+  width: 96px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rv-table .kd {
+  width: 68px;
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.rv-table .kd.resolved {
+  color: var(--strong);
+}
+.rv-table .kd.regressed {
+  color: var(--invalid);
+}
+.rv-table .kd.still-open {
+  color: var(--weak);
+}
+.rv-table .kd.shifted {
+  color: var(--ink-2);
+}
+
+.rv-table tr.resolved .mv {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.rv-caveats {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+.rv-caveats li {
+  margin-bottom: 4px;
+}
+
+.rv-caveats.rv-lead {
+  margin: 0;
+  padding: 0 12px 10px 28px;
+  color: var(--weak);
+}
+
+.rv-foot {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+  flex-wrap: wrap;
+}
+
+.rv-link {
+  flex: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rv-fine {
+  flex: 1;
+  min-width: 200px;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--ink-3);
+}
+
+/* ─────────── 模式切换：诊断 / 红队 ─────────── */
+
+/*
+ * 两个模式的按钮不放评价色。诊断和红队没有哪个更好，
+ * 只是问的方向相反——用颜色区分会把「另一种问法」说成「另一种结论」。
+ */
+
+.mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 8px;
+  flex-wrap: wrap;
+}
+
+.mode-chip {
+  padding: 3px 12px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.mode-chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.mode-chip.on {
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+  color: #fff;
+}
+
+.mode-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.mode-note {
+  flex: 1;
+  min-width: 150px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+/* 模式横幅。全部用中性色，不用评价色（红/绿）：
+   模式切换换的是「替谁问、判不判」，不是「这段话好不好」。
+   用警告色去标一个模式，等于把「另一种问法」说成「另一种结论」。 */
+.banner.rt-banner {
+  border-left-color: var(--accent);
+  background: rgba(60, 79, 99, 0.05);
+}
+
+.banner.rt-banner b {
+  color: var(--accent);
+}
+
+/*
+ * 范围门横幅里的「换一副透镜」。
+ *
+ * 用虚线与上面的理由隔开：上面这句是「这把尺子为什么不合适」，
+ * 下面这句是「哪把合适」——两件事，答案也不在同一个地方，混成一段会读成一整句推托。
+ */
+.banner-next {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.14);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.banner-next b {
+  color: var(--accent);
+}
+
+/* 重构：用「强」那一档的绿灰。它说的是「这里不判」，不是「这里很好」。 */.banner.rc-banner {
+  border-left-color: var(--strong);
+  background: var(--strong-bg);
+}
+
+.banner.rc-banner b {
+  color: var(--strong);
+}
+
+/* 提问：用中性灰蓝，比红队更淡一档——它连「谁是主语」都没换，只是不给结论。 */
+.banner.q-banner {
+  border-left-color: var(--ink-3);
+  background: var(--muted-bg);
+}
+
+.banner.q-banner b {
+  color: var(--ink-2);
+}
+
+/*
+ * 模式徽标（历史列表、提示词页）。
+ * 判定类用中性色；描述类要能被认出来——一份没有档位的报告，
+ * 列表里若看不出它是哪个模式的，用户会以为这次分析跑砸了。
+ */
+.pv-mode,
+.hs-mode {
+  font-size: 10px;
+  line-height: 15px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.pv-mode.mode-reconstruct,
+.hs-mode.mode-reconstruct {
+  background: var(--strong-bg);
+  color: var(--strong);
+}
+
+.pv-mode.mode-interrogate,
+.hs-mode.mode-interrogate {
+  background: var(--muted-bg);
+  color: var(--ink-2);
+}
+
+.pv-mode.mode-redteam,
+.hs-mode.mode-redteam {
+  background: var(--invalid-bg);
+  color: var(--invalid);
+}
+
+/*
+ * 提示词版本与指纹。
+ * 这一行存在的理由是「可对照」：用户手上有三份报告，想知道它们是不是同一把尺子量的。
+ * 没有版本号就只能靠读全文比对，而没人会真去读一万字。
+ */
+.pv-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ─────────── 报告脚注：提示词版本 ─────────── */
+
+.prompt-foot {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  padding: 8px 10px;
+  border-top: 1px dashed var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.prompt-foot span {
+  font-family: inherit;
+}
+
+.pv-warn {
+  color: var(--invalid);
+  font-weight: 600;
+}
+
+/* ─────────── 待对照提示 ─────────── */
+
+/*
+ * 这一条用蓝灰。它说的不是「你做错了」，而是「下一次按下去会发生什么」——
+ * 一个预告，不是一个判定。
+ */
+
+.pend-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 2px 0 8px;
+  padding: 6px 9px;
+  border-left: 2px solid var(--accent);
+  border-radius: 0 5px 5px 0;
+  background: rgba(60, 79, 99, 0.05);
+  flex-wrap: wrap;
+}
+
+.pend-k {
+  flex: none;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.pend-note {
+  flex: 1;
+  min-width: 180px;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.pend-x {
+  flex: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pend-x:hover {
+  color: var(--accent);
+}
+
+/* ─────────── 检查跑道：倒在哪一关 / 元问题闸门 ─────────── */
+
+/*
+ * 跑道原来只回答「整体如何」，判读在另一栏说「被削弱」，
+ * 两者之间的因果要读者自己接。而 defeat.checkId 明写着倒在哪一关——
+ * 不画出来，等于让读者去做程序本来能做的一步。
+ */
+
+.strip-item.down {
+  border-color: var(--invalid);
+  background: var(--invalid-bg);
+  box-shadow: 0 0 0 2px rgba(151, 63, 52, 0.09);
+}
+
+.strip-item.down .si-label {
+  color: var(--invalid);
+  font-weight: 500;
+}
+
+/* 元问题：答否则后续免除，所以它是闸门，不是并列的一关 */
+.strip-item.meta {
+  border-left: 3px solid var(--accent);
+  padding-left: 5px;
+}
+
+.si-gate {
+  flex: 0 0 auto;
+  font-size: 9.5px;
+  line-height: 14px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.si-down {
+  flex: 0 0 auto;
+  font-size: 9.5px;
+  line-height: 14px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--invalid);
+  color: #fff;
+}
+
+.strip-dies {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.strip-dies b {
+  margin: 0 3px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--invalid-bg);
+  color: var(--invalid);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+/* ─────────── 专题分析 ─────────── */
+
+/*
+ * 六个专题，命中/未命中都要看得出来。
+ * 命中走强色，未命中压灰——但两者排场一致：这一栏的纪律是「未命中也是结果」，
+ * 排成小字等于暗示它不重要，那正好是假绿的另一种写法。
+ */
+.tp-row {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tp-row.tp-hit {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-bg);
+}
+.tp-row.tp-miss {
+  background: var(--panel-2);
+}
+.tp-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.tp-name {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.tp-flag {
+  font-size: 10px;
+  line-height: 15px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--muted-bg);
+  color: var(--ink-3);
+}
+.tp-flag.on {
+  background: var(--accent);
+  color: var(--panel);
+}
+.tp-claims {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.tp-basis {
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.tp-asks {
+  margin: 0 0 0 18px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+.tp-asks li {
+  margin-bottom: 2px;
+}
+.tp-asked {
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.6;
+}
+
+/* ─────────── 这份分析自身的边界 ─────────── */
+
+/*
+ * 这一栏的排版刻意与专题分析一致（同样的行、同样的留白）。
+ * 边界若排成小字灰底的脚注，就等于说它不重要——而这一栏里最要紧的一条
+ * 「它不回查自己」，恰恰是读者最容易忽略、也最该知道的一条。
+ */
+.lim-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.lim-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.lim-id {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+.lim-text {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+/* 边界栏的主张 id：可点。点了跳到理论库里那一条的出处与反对意见 */
+.lim-id-btn {
+  background: none;
+  border: none;
+  border-bottom: 1px dotted var(--ink-3);
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.7;
+}
+.lim-id-btn:hover {
+  border-bottom-color: var(--accent);
+}
+
+/*
+ * 三组边界。
+ * 组之间留的间距比组内条目的间距大一档——这是唯一的层级手段，
+ * 不加边框、不加底色：三类边界在分量上是并列的，用底色区分会暗示某一类更重要。
+ */
+.lim-group {
+  margin-top: 16px;
+}
+.lim-group:first-child {
+  margin-top: 0;
+}
+.lim-ghead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  padding-left: 1px;
+}
+.lim-gtitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+.lim-ggist {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+/* ─────────── 学术分析 ─────────── */
+
+/*
+ * 这一栏的排版次序按「读者先要知道什么」定，不是按模块整齐度定：
+ * 先说这是什么体裁（它决定后面所有规范的适用方式），
+ * 再说哪些你必须自己核（工具帮不上），然后才是工具查了什么，
+ * 最后才是怎么用这些去反驳。
+ *
+ * 三条「本工具查不了」的条目，字号与位置与其他五条完全一致，只换徽章颜色。
+ * 这是刻意的：排成小字脚注，等于告诉读者它不重要。
+ */
+.ac {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 体裁。左色条表示「这是关于体裁的判断」，不与判定档位混用同一套视觉 */
+.ac-genre {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 7px;
+  background: var(--accent-bg);
+}
+.ac-g-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.ac-g-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ac-g-note {
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.ac-g-basis {
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.ac-g-caveat {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line-strong);
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--ink);
+}
+
+.ac-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ac-sec-t {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--line);
+}
+.ac-sec-n {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.ac-note {
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+/* 待核清单 */
+.ac-traces {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ac-trace {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.ac-kind {
+  flex: 0 0 76px;
+  font-size: 10px;
+  line-height: 1.8;
+  padding: 0 5px;
+  text-align: center;
+  border-radius: 3px;
+  background: var(--muted-bg);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.ac-snip {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink);
+  word-break: break-all;
+}
+.ac-ask {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+/* 规范清单 */
+.ac-norms {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ac-norm {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.ac-norm.on {
+  border-color: var(--legal);
+  background: var(--legal-bg);
+}
+.ac-box {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--legal);
+  font-size: 10px;
+  line-height: 13px;
+  text-align: center;
+  cursor: pointer;
+}
+.ac-box:hover {
+  border-color: var(--accent);
+}
+.ac-norm.on .ac-box {
+  border-color: var(--legal);
+  font-weight: 700;
+}
+.ac-norm-b {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ac-norm-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ac-norm-ask {
+  font-size: 12.5px;
+  line-height: 1.6;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ac-norm.on .ac-norm-ask {
+  color: var(--ink-2);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-strong);
+}
+.ac-by {
+  flex: 0 0 auto;
+  font-size: 10px;
+  line-height: 15px;
+  padding: 0 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.ac-by-yes {
+  background: var(--legal-bg);
+  color: var(--legal);
+}
+.ac-by-partial {
+  background: var(--weak-bg);
+  color: var(--weak);
+}
+/*
+ * 「查不了」不用红色。红在这个界面里是判定语义（--invalid＝论证不成立），
+ * 拿它标一条「工具做不到的检查」，读者会读成「这一条没通过」。
+ * 它要表达的是「这里需要你自己动手」，那是中性提醒，用墨色实线边框把它顶出来。
+ */
+.ac-by-no {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--ink-3);
+  font-weight: 600;
+}
+.ac-why {
+  margin-top: 3px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.ac-meta {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.ac-ids {
+  font-family: var(--mono);
+}
+.ac-sep {
+  color: var(--line-strong);
+}
+.ac-cov {
+  color: var(--ink-3);
+}
+
+/* 反驳顺序 */
+.ac-atk {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ac-atk-i {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.ac-atk-high {
+  border-left: 3px solid var(--accent);
+}
+.ac-atk-low {
+  opacity: 0.82;
+}
+.ac-atk-n {
+  flex: 0 0 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-3);
+  text-align: right;
+}
+.ac-atk-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ac-atk-l {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ac-atk-tag {
+  flex: 0 0 auto;
+  font-size: 10px;
+  line-height: 15px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--muted-bg);
+  color: var(--ink-3);
+}
+.ac-atk-high .ac-atk-tag {
+  background: var(--accent);
+  color: var(--panel);
+}
+.ac-atk-target {
+  margin-top: 3px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  word-break: break-word;
+}
+
+.ac-div {
+  padding-top: 9px;
+  border-top: 1px dashed var(--line-strong);
+  font-size: 11.5px;
+  line-height: 1.75;
+  color: var(--ink-3);
+}
