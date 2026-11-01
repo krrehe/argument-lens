@@ -2,10 +2,14 @@
 node_modules/
 
 # 构建产物
-out/                  # electron-vite 的中间产物
-dist/                 # electron-builder 的最终产物（exe / win-unpacked）
-release/              # electron-builder 的旧默认输出目录，已由 dist 取代
-scripts/.out/         # 检查脚本用 vite 打出的临时单文件
+# 注释必须另起一行：.gitignore 没有行尾注释语法，`out/   # 说明` 会被
+# 整条当成一个文件名，于是 out/ 从来没被忽略过——构建一次就多几万个跟踪文件。
+out/
+dist/
+# electron-builder 的旧默认输出目录，已由 dist 取代
+release/
+# 检查脚本用 vite 打出的临时单文件
+scripts/.out/
 
 # TypeScript 增量构建缓存（删了会重新生成，不进版本控制）
 *.tsbuildinfo
