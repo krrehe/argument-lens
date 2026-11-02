@@ -20,10 +20,11 @@ import { prescriptionsOf } from '@shared/prescriptions';
 import { fallacyHits, mapSentences } from '@shared/fallacy-map';
 import { CheckStrip, StructureMap, VerdictGauge } from './Diagram';
 import { DisputeStrip, focusDispute } from './Disputes';
-import { QuickRead } from './Overview';
+import { QuickRead, jumpTo } from './Overview';
 import { Term, usePlain } from './Term';
 import { ObjectBtn } from './Objection';
 import { ArsGapMap, PtaLocator, ToulminLayout, WaltonFamilyPath } from './LensDiagrams';
+import { VerdictWhy } from './VerdictWhy';
 
 /* ═══════ 通用小件 ═══════ */
 
@@ -1241,16 +1242,36 @@ export function DiagnosisView({
         />
         <div className="verdict-say">{d.verdict.statement}</div>
         <ObjectBtn field="verdict" refId="verdict" refLabel="判读" excerpt={d.verdict.statement} />
+        {/*
+          推导链只给「会给档位」的三个模式。查谬误／重构／提问本来就不判，
+          给它们配一条「为什么在这一格」的链，等于把「不判」渲染成一次判定。
+        */}
+        {MODE_META[d.mode].givesVerdict && (
+          <VerdictWhy
+            d={d}
+            onGotoCheck={(id) => {
+              setSel(`#${id}`);
+              jumpTo('sec-checks');
+            }}
+          />
+        )}
         {d.verdict.qualification && (
           <div className="verdict-qual">
             <b>这个判断在什么条件下成立：</b>
             {d.verdict.qualification}
           </div>
         )}
+        {/*
+          这一句原来是把本透镜这一档的释义再说一遍——可上面三格对照里已经写着同一句，
+          同一屏出现两次会被读成两回事。改为讲它没讲的那件事：跨透镜不可比，
+          用另一副尺子的同名档做对照。
+        */}
         {d.scope.applicable && t.levelMeaning[d.verdict.level as 'withstands' | 'weakened' | 'fails'] && (
           <div className="verdict-qual dim">
-            同一档「{LEVEL_LABEL[d.verdict.level]}」，换一副透镜意思会变。在「{t.name}」这里，它指的是：
-            {t.levelMeaning[d.verdict.level as 'withstands' | 'weakened' | 'fails']}
+            这三格的意思<b>每副透镜都不一样</b>：同样叫「{LEVEL_LABEL[d.verdict.level]}」，「
+            {THEORY_BY_ID.pragma.name}」指的是“
+            {THEORY_BY_ID.pragma.levelMeaning[d.verdict.level as 'withstands' | 'weakened' | 'fails']}”，
+            而「{t.name}」指的是上面那一格。所以档位不能跨透镜比大小，只在同一副尺子内看走向。
           </div>
         )}
       </Block>

@@ -35,6 +35,18 @@ const picked = scripts.filter(
 const rank = (k) => (k === 'typecheck' ? 0 : k === 'prompt:lint' ? 1 : 2);
 const order = picked.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
 
+/*
+ * --list：只打印清单与项数，立刻退出。
+ * 给 check:docs 用——README 里写着「全部静态检查（N 项）」，
+ * 那个 N 必须等于这里实际会跑的条数。两边各算一遍迟早对不上，
+ * 于是只留一处算法，让文档去核对代码。
+ */
+if (process.argv.includes('--list')) {
+  for (const name of order) console.log(name);
+  console.log(`共 ${order.length} 项`);
+  process.exit(0);
+}
+
 const rows = [];
 const startedAll = Date.now();
 

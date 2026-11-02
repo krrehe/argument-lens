@@ -20,6 +20,8 @@ const MOCK_PORT = 8799;
 const shot = resolve(outDir, 'analyzed.png');
 /** SMOKE_RUNNING=1 时「分析进行中」那一屏的截图 */
 const runShot = resolve(outDir, 'running.png');
+/** SMOKE_CANCEL=1 时「按停之后」那一屏的截图 */
+const cancelShot = resolve(outDir, 'canceled.png');
 const trace = `${shot}.log`;
 
 const electronBin = resolve(root, 'node_modules/electron/dist/electron.exe');
@@ -177,6 +179,12 @@ const env = {
    * 否则假模型 200 毫秒就回来，那一屏来不及出现在截图里——来不及出现就等于没验。
    */
   ...(process.env.SMOKE_RUNNING === '1' ? { AL_RUNSHOT: runShot } : {}),
+  /*
+   * SMOKE_CANCEL=1：跑起来之后按「停」。必须配 MOCK_DELAY_MS，
+   * 否则请求在按钮出现之前就回来了——那时 abort 打在空气上，
+   * 界面会老实说「没赶上」，而验收会红。红得对：没跑到就是没验。
+   */
+  ...(process.env.SMOKE_CANCEL === '1' ? { AL_CANCEL: '1', AL_CANCEL_SHOT: cancelShot } : {}),
 };
 delete env.ELECTRON_RUN_AS_NODE; // 宿主注入它会让 Electron 退化成 node
 delete env.AL_FORCE_ONBOARD;
@@ -233,6 +241,69 @@ if (process.env.SMOKE_EMPTY === '1') {
     if (!pass) bad++;
   }
   console.log(bad ? `\n首屏空态验收失败 ${bad} 项` : '\n首屏空态端到端通过。');
+  process.exit(bad ? 1 : 0);
+}
+
+/*
+ * 按下「停」（SMOKE_CANCEL=1，要配 MOCK_DELAY_MS=3000 左右）。
+ *
+ * 这一屏的风险方向和别的都不同：它怕的是「看起来停了」。按钮点了、界面回到可用状态、
+ * 一条提示也没有——而请求还在跑、钱还在花。所以每一条断言都对着一个具体的谎：
+ *   gone/running  请求真的被掐掉了（不是界面假装不等了）
+ *   bad=false     它没被当成故障（红条写着「分析未完成」，用户会去排查配置）
+ *   stopNote      说了「已停」，也说了计费照收（不说，用户会以为省下了钱）
+ *   text>20       原文还在（停了要能改完再跑，不必重新粘一遍）
+ *   btnOff=false  「分析」恢复可点（这是「回到可操作状态」的定义）
+ *   archived=0    历史里没有多出半份报告（停在半路的不是结果）
+ * 最后一条只能从主进程数——存档是主进程写的，界面上看不见它有没有写。
+ */
+if (process.env.SMOKE_CANCEL === '1') {
+  const line = log.split('\n').find((l) => l.includes('CANCEL {')) ?? '';
+  const j = (k, d = '') => {
+    try {
+      return JSON.parse(line.slice(line.indexOf('{')))[k] ?? d;
+    } catch {
+      return d;
+    }
+  };
+  const note = String(j('stopNote'));
+  const cancelChecks = [
+    ['「停」按钮在', j('btn') === true],
+    ['按下去有反应', j('clicked') === true],
+    ['请求真的停下了', j('gone') === true],
+    /*
+     * 时间上界才是「停」的证据。
+     *
+     * 只验「面板没了」会被一种坏法骗过去：abort 没接上，于是界面一直转到模型
+     * 自己回来为止——面板照样消失，用户却白等了三秒，钱也照花。
+     * 假模型这次拖 3 秒，所以 1.5 秒以内消失只可能是被掐掉的。
+     */
+    ['停是立刻生效的（1.5 秒内）', Number(j('stopMs', 99999)) < 1500],
+    ['进行中面板已撤', j('running') === false],
+    ['没有被当成故障（无红条）', j('bad') === false],
+    ['说了「已停」', note.includes('已停')],
+    /*
+     * 文案要对得上账本里真会发生的事。
+     *
+     * 停下来的那次调用会写一条 ok=false 的记录：token 按字数估、金额记 0、
+     * 余额不扣。所以这里断言的是「记 0」与「钱可能已经花了」——
+     * 早一版的文案写的是「账本里不会留下这一条」，那是假的：
+     * 用户按图去账本里翻，会看到那一行，然后不知道该信哪个。
+     */
+    ['交代了账本里会记一条失败', note.includes('失败记录') && note.includes('记 0')],
+    ['说了钱可能已经花了', note.includes('花了')],
+    ['原文还在输入框里', Number(j('text', 0)) > 20],
+    ['「分析」恢复可点', j('btnOff') === false],
+    ['停在半路的没有存成一份报告', j('grid') === false],
+    ['历史里没有多出一份', Number(j('archived', -1)) === 0],
+    ['截图产出', existsSync(cancelShot)],
+  ];
+  let bad = 0;
+  for (const [name, pass] of cancelChecks) {
+    console.log(`${pass ? '通过' : '失败'}  ${name}`);
+    if (!pass) bad++;
+  }
+  console.log(bad ? `\n按停验收失败 ${bad} 项` : '\n按停端到端通过。');
   process.exit(bad ? 1 : 0);
 }
 
@@ -363,6 +434,27 @@ const checks = [
   ],
   // 元问题闸门：数据里有 meta 才出现，所以只断言「类名挂着、不报错」
   ['元问题闸门机制在', resultLine.includes('"stripGate":')],
+  /*
+   * 判读的推导链（「为什么在这一格」）。
+   *
+   * 两件事一起验，因为它们的坏法相反：
+   *   给档位的模式 → 链必须在（≥2 步）、三格对照必须正好 3 格、
+   *                  并且**正好一格**标着「本次」。0 格说明没有一档被认成当前档，
+   *                  2 格说明同时亮两格——后者比不亮更糟，它自相矛盾。
+   *   不判的模式   → 一处都不许有。给「查谬误」配一条「为什么在这一格」，
+   *                  等于把「不判」渲染成一次判定。
+   * 读不到数字时返回 false，不当作通过：那正是静默跳过的样子。
+   */
+  [
+    NO_VERDICT.has(SMOKE_MODE) ? '不判的模式不出推导链' : '推导链在，且只有一格标着本次',
+    (() => {
+      const steps = Number(/"vwhy":(\d+)/.exec(resultLine)?.[1] ?? -1);
+      const cells = Number(/"vlad":(\d+)/.exec(resultLine)?.[1] ?? -1);
+      const now = Number(/"vnow":(\d+)/.exec(resultLine)?.[1] ?? -1);
+      if (NO_VERDICT.has(SMOKE_MODE)) return steps === 0 && cells === 0 && now === 0;
+      return steps >= 2 && cells === 3 && now === 1;
+    })(),
+  ],
   /*
    * 模式横幅与当前选中的模式片，两条一起验。
    *

@@ -1,5 +1,6 @@
 import { app, type BrowserWindow } from 'electron';
 import { appendFileSync, writeFileSync } from 'node:fs';
+import { listReports } from './archive';
 
 /*
  * 打包自检。
@@ -160,7 +161,84 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           add(`RUNSHOT ${runShot}`);
         }
 
-        for (let i = 0; i < 60; i++) {
+        /*
+         * AL_CANCEL=1：跑起来之后按「停」，验它真的停得住。
+         *
+         * 这一条要抓住的坏法都长得像成功：按钮点了、界面回到可用状态、
+         * 什么都不报——而请求还在跑、钱还在花。所以不只验界面，
+         * 还要验三件更硬的事：
+         *   - 主区回到空态（.running 没了），且**没有**红条（停下不是故障）；
+         *   - 输入框里的原文还在（能改完再跑，不必重新粘一遍）；
+         *   - 历史里没有多出一份（停在半路的报告不该被存成一份「结果」）。
+         * 最后一条只能从主进程数：存档由主进程写，界面上看不见它有没有写。
+         *
+         * 要配 MOCK_DELAY_MS 用（两千毫秒以上），否则请求在按下之前就回来了——
+         * 那时 abort 打在空气里，界面会说「没赶上」，而这条断言会红。
+         * 红得对：没跑到就等于没验。
+         */
+        let canceled = false;
+        if (process.env['AL_CANCEL'] === '1') {
+          const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+          let btn = false;
+          for (let i = 0; i < 30; i++) {
+            btn = await wc.executeJavaScript(`!!document.querySelector('.run-stop')`);
+            if (btn) break;
+            await sleep(100);
+          }
+          const clicked = await wc.executeJavaScript(`(() => {
+            const b = document.querySelector('.run-stop');
+            if (!b) return false;
+            b.click();
+            return true;
+          })()`);
+          const t0 = Date.now();
+
+          // 等主进程真的把它掐掉：.running 消失就是落点
+          let gone = false;
+          for (let i = 0; i < 40; i++) {
+            gone = await wc.executeJavaScript(`!document.querySelector('.running')`);
+            if (gone) break;
+            await sleep(100);
+          }
+          /*
+           * 从按下到面板消失用了多久。
+           *
+           * 这个数才是「停」与「等它跑完」的分界线：面板消失这件事，两种结局都会发生——
+           * 真停了，它一百毫秒就消失；没停，它要等模型回来（假模型这里是三秒）。
+           * 所以只数「消失没消失」等于没验，时间上界才是证据。
+           */
+          const stopMs = Date.now() - t0;
+          await sleep(300); // 让提示条渲染完，别在它出现前就取 DOM
+          const after = await wc.executeJavaScript(
+            `JSON.stringify({
+              running: !!document.querySelector('.running'),
+              stopNote: (document.querySelector('[data-stop-note]')?.innerText || '').replace(/\\s+/g, ' '),
+              bad: !!document.querySelector('.banner.bad'),
+              text: (document.querySelector('textarea')?.value || '').length,
+              btnOff: !!document.querySelector('button.primary')?.disabled,
+              stopBtn: !!document.querySelector('.run-stop'),
+              grid: !!document.querySelector('.grid'),
+            })`
+          );
+          add(
+            `CANCEL ${JSON.stringify({
+              btn,
+              clicked,
+              gone,
+              stopMs,
+              ...JSON.parse(after),
+              archived: listReports().length,
+            })}`
+          );
+          canceled = true;
+          const cancelShot = process.env['AL_CANCEL_SHOT'];
+          if (cancelShot) {
+            const img = await wc.capturePage();
+            writeFileSync(cancelShot, img.toPNG());
+          }
+        }
+
+        for (let i = 0; i < 60 && !canceled; i++) {
           await new Promise((r) => setTimeout(r, 500));
           const state = await wc.executeJavaScript(
             `JSON.stringify({
@@ -240,6 +318,18 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               stripDown: document.querySelectorAll('.strip-item.down').length,
               stripGate: document.querySelectorAll('.si-gate').length,
               stripDies: !!document.querySelector('.strip-dies'),
+              /*
+               * 判读的推导链。它坏起来是最彻底的那种——整块不见——但页面上
+               * 刻度尺还在、结论句还在，报告看起来完全正常，只是「为什么在这一格」
+               * 这一层没了。数三样：
+               *   vwhy    链上的步数（给档位的模式至少两步：问了几关、钉住哪一关）
+               *   vladder 三格对照（这个数必须正好 3，少一格就是有一档没写释义）
+               *   vnow    标着「本次」的格，必须正好 1——0 是两个都不亮（读者不知道落在哪），
+               *           2 是同时亮两格（比不亮更糟：它自相矛盾）
+               */
+              vwhy: document.querySelectorAll('.vstep').length,
+              vlad: document.querySelectorAll('.vl-cell').length,
+              vnow: document.querySelectorAll('.vl-cell.now').length,
               failed: /分析未完成/.test(document.body.innerText),
               text: (document.body.innerText || '').replace(/\\s+/g, ' ').slice(0, 240),
             })`
@@ -261,7 +351,7 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
          * 合成一步去验，就等于默认「工具可以替用户花这笔钱」——那正是这里要拦住的事。
          * 顺带也验了「填回去的文本跟原文像不像」：像不像决定了对照条是给结论还是说不可比。
          */
-        if (process.env['AL_REVISE'] === '1' && !process.env['AL_PANEL']) {
+        if (process.env['AL_REVISE'] === '1' && !process.env['AL_PANEL'] && !canceled) {
           const filled = await wc.executeJavaScript(`(() => {
             const b = document.querySelector('.rp-rerun-btn');
             if (!b) return false;

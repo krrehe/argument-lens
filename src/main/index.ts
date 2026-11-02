@@ -51,6 +51,18 @@ function openExternalSafely(url: string): void {
   shell.openExternal(parsed.toString());
 }
 
+/*
+ * 正在进行的那一次分析，按渲染进程分别记。
+ *
+ * 为什么需要这张表：请求在主进程发出去，渲染层手上只有一个 Promise，
+ * 没有任何办法让它停——关窗、切走都只是「不再看它」，请求照样跑到底、
+ * 照样计费。要真的停，abort 必须发生在 fetch 那一侧，而那一侧只有主进程够得着。
+ *
+ * 键用 webContents.id 而不是「全局一个」：两个窗口各跑各的，
+ * 一个窗口按「停」不该顺手掐掉另一个窗口的分析。
+ */
+const running = new Map<number, AbortController>();
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1380,
@@ -81,6 +93,19 @@ function createWindow(): void {
   });
 
   mainWindow.on('ready-to-show', () => mainWindow?.show());
+
+  /*
+   * 关窗就把还在跑的那一次掐掉。
+   *
+   * 不掐的后果：窗口没了，fetch 还在跑，最长跑到 120 秒超时；
+   * 而它跑完之后 saveReport 还会往历史里写一份——一份用户以为自己已经
+   * 关掉的报告，下次打开应用时出现在列表最上面。
+   */
+  const wcId = mainWindow.webContents.id;
+  mainWindow.on('closed', () => {
+    running.get(wcId)?.abort();
+    running.delete(wcId);
+  });
 
   // 外部链接一律交给系统浏览器，不在应用内开窗
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -142,6 +167,8 @@ function registerIpc(): void {
     'analysis:run',
     async (event, passage: string, theory: TheoryId, mode?: AnalysisMode, parentId?: string | null) => {
       const sender = event.sender;
+      const ctl = new AbortController();
+      running.set(sender.id, ctl);
       try {
         const { diagnosis, usage } = await runAnalysis(
           passage,
@@ -151,7 +178,7 @@ function registerIpc(): void {
               sender.send('analysis:progress', { stage, label, percent });
             }
           },
-          { mode, parentId }
+          { mode, parentId, signal: ctl.signal }
         );
         /*
          * 自动存档。放在这里而不是 runAnalysis 里，是因为「跑分析」和「留住结果」
@@ -187,9 +214,28 @@ function registerIpc(): void {
             message: (err as Error)?.message ?? '分析失败，原因不明。',
           },
         };
+      } finally {
+        // 只清自己那一条：万一期间有新的分析顶上来，删掉的是它的控制器，
+        // 那一次就再也停不掉了。
+        if (running.get(sender.id) === ctl) running.delete(sender.id);
       }
     }
   );
+
+  /*
+   * 停。
+   *
+   * 返回 canceled 而不是一个笼统的 ok：调用方必须知道「到底有没有停到东西」。
+   * 常见的尴尬时刻是请求刚好在这 200 毫秒里跑完了——那时 abort 打在一个已经
+   * 结束的控制器上，什么都不会发生。界面若照样显示「已停止」，就是在撒谎：
+   * 用户随后会看到一份报告冒出来，而它明明已经「停了」。
+   */
+  ipcMain.handle('analysis:cancel', (e) => {
+    const ctl = running.get(e.sender.id);
+    if (!ctl) return { ok: true, canceled: false };
+    ctl.abort();
+    return { ok: true, canceled: true };
+  });
 
   ipcMain.handle('settings:test', (_e, patch: Partial<LlmSettings>) => testConnection(patch));
 

@@ -53,6 +53,14 @@ const api = {
       saveError?: string | null;
       error?: { code: string; message: string };
     }> => ipcRenderer.invoke('analysis:run', passage, theory, mode, parentId),
+    /*
+     * 停。
+     *
+     * `canceled` 说的是「真的掐到了一个还在跑的请求」。
+     * 为 false 时不能报成「已停止」——那多半是它刚好跑完了，
+     * 用户下一秒就会看到一份报告浮出来，与刚才那句提示自相矛盾。
+     */
+    cancel: (): Promise<{ ok: boolean; canceled: boolean }> => ipcRenderer.invoke('analysis:cancel'),
     onProgress: (cb: (e: ProgressEvent) => void): (() => void) => {
       const handler = (_e: unknown, payload: ProgressEvent) => cb(payload);
       ipcRenderer.on('analysis:progress', handler);

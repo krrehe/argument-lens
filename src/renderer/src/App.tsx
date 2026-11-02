@@ -66,6 +66,17 @@ export default function App() {
    * 混在一起显示，用户会以为报告是坏的——而报告是好的。
    */
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * 「你按停的那一次」的结果。
+   *
+   * 单独一条，不塞进 notice：notice 的标题是「有一件事没做成」——
+   * 而按停恰恰是做成了。把主动停下的话挂在失败标题下面，用户会以为自己弄坏了什么。
+   * 这条也不进 error：error 意味着「这次没有结果，去改配置」，
+   * 而停下是用户自己选的结局，不该给他一个要排查的红条。
+   */
+  const [stopNote, setStopNote] = useState<string | null>(null);
+  /** 按了停、还在等主进程确认。按钮这时显示「正在停…」并且不可再点。 */
+  const [stopping, setStopping] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [onboard, setOnboard] = useState(false);
   const [hasKey, setHasKey] = useState(true);
@@ -107,6 +118,14 @@ export default function App() {
    */
   const [pendingParent, setPendingParent] = useState<string | null>(null);
   const abortRef = useRef(false);
+  /**
+   * 这一次跑的过程里，用户有没有按过「停」。
+   *
+   * 用来分辨那一瞬间的两种结局：真停住了，还是它刚好在按下的同一刻跑完了。
+   * 后者界面会突然冒出一份报告——那一刻必须有一句话说明「你的停没赶上」，
+   * 否则用户会以为按钮坏了。
+   */
+  const stopRef = useRef(false);
 
   const profile = THEORY_BY_ID[theory];
 
@@ -195,6 +214,9 @@ export default function App() {
         return;
       }
       abortRef.current = false;
+      stopRef.current = false;
+      setStopping(false);
+      setStopNote(null);
       setLoading(true);
       setError(null);
       setNotice(null);
@@ -235,12 +257,23 @@ export default function App() {
        * （没人把 abortRef 置 true），所以顺序错着也看不出来。
        */
       setLoading(false);
+      setStopping(false);
       setProgress(null);
       if (abortRef.current) return;
 
       if (res.ok && res.data) {
         setDiag(res.data);
         setLastUsage(res.usage ?? null);
+        /*
+         * 按了停却照样出了报告：说一句「没赶上」。
+         *
+         * 这两件事可以同时成立——abort 打过去时请求刚好返回，一切都已经算完了。
+         * 不说的话，用户刚才明明看着「正在停…」，一秒后屏幕上多了一份完整报告，
+         * 他会以为那个按钮是装饰。钱也确实照收，这一点不能瞒。
+         */
+        if (stopRef.current) {
+          setStopNote('你按了「停」，但请求在同一刻已经跑完，这一份照常给出——这次的钱也照收。');
+        }
         /*
          * 存档没写进去要明说。
          *
@@ -253,12 +286,65 @@ export default function App() {
             `这一份没能存进历史（${res.saveError ?? '原因不明'}）。报告照常显示，但它不会出现在历史里，也无法作为下一版的对照对象。`
           );
         }
+      } else if (res.error?.code === 'CANCELED') {
+        /*
+         * 停住了。
+         *
+         * 不复用 error 那条红条：红条写着「分析未完成」，还配一个「看余额与用量」的按钮，
+         * 像是出了故障。而这是用户按下的结果，不是故障。
+         *
+         * 账单那半句必须说准：这一次会记成一条**失败**（token 按字数估、金额记 0），
+         * 所以账本里会多一行、余额不会因此扣减。真实花费可能已经发生，
+         * 只是拿不到用量就写不下准确数字——「没记账」和「记了个 0」是两件事，
+         * 说成前者，用户去账本里看到那一行时会以为工具在自相矛盾。
+         *
+         * 秒数取整到「不到 1 秒」：`waited` 每 500 毫秒更新一次，刚开始就按停时它是 0，
+         * 「等了 0 秒」会被读成一个坏掉的计数器，而不是「停得很快」。
+         */
+        const dur = waited >= 1 ? `等了 ${waited} 秒` : '还不到 1 秒';
+        setStopNote(
+          `已停下（${dur}）。文本还在输入框里，可以改完再按一次。账本里会多一条失败记录：token 按字数估、金额记 0——钱可能已经花了，只是拿不到用量，余额不会因此扣减。`
+        );
       } else {
         setError(res.error?.message ?? '分析失败，原因不明。');
       }
     },
-    [passage, theory, mode, loading, hasKey, refreshUsage, pendingParent]
+    [passage, theory, mode, loading, hasKey, refreshUsage, pendingParent, waited]
   );
+
+  /**
+   * 停。
+   *
+   * 为什么不是「界面先停、请求随它去」：那样按钮会立刻变回可用，
+   * 而模型还在生成、钱还在花。停要停到 fetch 上，所以要过主进程。
+   *
+   * `canceled: false` 是一种真会发生的结局：请求在这 200 毫秒里跑完了。
+   * 那种时候不能报「已停止」——下一秒报告就浮出来了，与刚说的话自相矛盾。
+   */
+  const stop = useCallback(() => {
+    if (!loading || stopping) return;
+    setStopping(true);
+    stopRef.current = true;
+    window.api.analysis
+      .cancel()
+      .then((r) => {
+        if (!r.canceled) {
+          setStopping(false);
+          stopRef.current = false;
+          setStopNote('这一刻没有正在跑的请求——它多半刚好跑完了，报告马上出来。');
+        }
+      })
+      .catch((err: Error) => {
+        /*
+         * 停不下来必须说出来。
+         * 静默复位按钮的话，用户会以为自己没点中，再点一次、再等三十秒，
+         * 而真正发生的事是「它还在跑，只是停不了」。
+         */
+        setStopping(false);
+        stopRef.current = false;
+        setStopNote(`没停住：${err?.message ?? '与主进程通信失败'}。这一次还在跑。`);
+      });
+  }, [loading, stopping]);
 
   /** 换透镜不自动重跑：跑一次要花钱和时间，而且旧结果仍有对照价值。 */
   const switchTheory = (id: TheoryId) => setTheory(id);
@@ -348,6 +434,9 @@ export default function App() {
      */
     abortRef.current = true;
     setLoading(false);
+    setStopping(false);
+    /* 这一条说的是「刚才那一次」，而屏幕上马上换成另一份报告，留着会张冠李戴 */
+    setStopNote(null);
     setProgress(null);
     window.api.archive
       .get(id)
@@ -625,6 +714,23 @@ export default function App() {
                 </div>
               )}
 
+              {stopNote && (
+                /*
+                 * data-stop-note 是给端到端冒烟定位用的。
+                 * 不用类名，是因为它不该有自己的样子——它就是一条 info 提示，
+                 * 加一个只为测试存在、没有样式的类，等于给样式表塞一条死规则。
+                 */
+                <div className="banner info" data-stop-note="1">
+                  <div>
+                    <b>停在这里</b>
+                    {stopNote}
+                  </div>
+                  <button className="banner-x" onClick={() => setStopNote(null)} aria-label="知道了">
+                    ✕
+                  </button>
+                </div>
+              )}
+
               {notice && (
                 <div className="banner warn">
                   <div>
@@ -683,7 +789,7 @@ export default function App() {
               {revision && <RevisionBar diff={revision} onOpenParent={() => parent && openReport(parent.id)} />}
 
               {loading ? (
-                <Running progress={progress} elapsed={waited} />
+                <Running progress={progress} elapsed={waited} stopping={stopping} onStop={stop} />
               ) : diag ? (
                 <ObjectionCtx.Provider value={objCtx}>
                   <DiagnosisView

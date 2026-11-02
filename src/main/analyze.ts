@@ -1117,7 +1117,18 @@ export async function runAnalysis(
   passageRaw: string,
   theoryRaw: TheoryId,
   onProgress: Progress,
-  opts: { mode?: AnalysisMode; parentId?: string | null } = {}
+  opts: {
+    mode?: AnalysisMode;
+    parentId?: string | null;
+    /**
+     * 用户按「停」时由主进程 abort。
+     *
+     * 一路穿到 chat 的 fetch 上，不在中间任何一层「先跑完再丢掉」——
+     * 那种做法看起来也能让界面立刻空出来，但请求还在跑、token 还在生成、
+     * 钱还在花，而用户以为自己已经停了。停就要真的停。
+     */
+    signal?: AbortSignal;
+  } = {}
 ): Promise<{ diagnosis: Diagnosis; usage: UsageRecord }> {
   const passage = passageRaw.trim();
   const theory = isTheoryId(theoryRaw) ? theoryRaw : DEFAULT_THEORY;
@@ -1174,6 +1185,7 @@ export async function runAnalysis(
         maxTokens: plan.maxTokens,
         temperature,
         followUps,
+        signal: opts.signal,
       });
     } catch (err) {
       /*

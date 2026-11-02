@@ -139,7 +139,12 @@ export const MOCK: Diagnosis = {
       label: 'CQ2 为何不只是同时发生',
       question: '为何不只是同时发生？',
       meta: false,
-      answer: 'violated',
+      /*
+       * 这里原来是 violated，而同一份数据里三处文案都写着「CQ2 未答」。
+       * 预览页只显示文案，所以这个矛盾一直没露出来；判读的推导链把「事实」
+       * 摆到「说法」旁边之后，它一眼就是错的。假数据也是数据，得对得上。
+       */
+      answer: 'unanswered',
       basis: '文中未给出任何排除第三因素的理由，6 个百分点的变化同时可能来自生源或命题难度',
       guards: '因果方向',
       landsOn: null,

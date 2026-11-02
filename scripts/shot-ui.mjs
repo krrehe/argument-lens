@@ -56,6 +56,13 @@ const chrome = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const height = Number(process.argv[2] ?? 1500);
 const extra = process.argv[4] ? `&${process.argv[4]}` : '';
 const scroll = Number(process.argv[3] ?? 0);
+/*
+ * 宽度可选，第 5 个参数，默认 1500。
+ *
+ * 报告栏的宽度跟着窗口走（不是固定 max-width），所以截某一栏特写时把窗口放宽，
+ * 长句会少换几行，切图也更容易只落在一栏里。
+ */
+const width = Number(process.argv[5] ?? 1500);
 const qs = [scroll ? `scroll=${scroll}` : '', process.argv[4] ?? ''].filter(Boolean).join('&');
 
 try {
@@ -70,7 +77,7 @@ try {
       '--hide-scrollbars',
       '--force-device-scale-factor=1',
       '--allow-file-access-from-files',
-      `--window-size=1500,${height}`,
+      `--window-size=${width},${height}`,
       '--virtual-time-budget=3000',
       `--screenshot=${shot}`,
       `file:///${resolve(outDir, 'mock.html').split('\\').join('/')}${qs ? `?${qs}` : ''}`,

@@ -94,6 +94,18 @@ export async function chat(
   if (opts.json) body.response_format = { type: 'json_object' };
 
   try {
+    /*
+     * 接上监听之前就已经被 abort 了怎么办。
+     *
+     * addEventListener 不会为已经发生过的 abort 补发事件，而这一次调用会照常发出去：
+     * 用户按了停、界面说「已停」，请求却还在跑。真实入口是格式修复的第二次调用——
+     * 两次调用之间那几十毫秒里按停，就正好落进这个缺口。
+     * 判一次成本几乎为零，漏掉的代价是界面说了假话。
+     */
+    if (opts.signal?.aborted) {
+      throw new LlmError('CANCELED', '已停止。请求可能已经发出去，供应商那边可能仍会计费。');
+    }
+
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -132,6 +144,22 @@ export async function chat(
   } catch (err) {
     if (err instanceof LlmError) throw err;
     const e = err as Error;
+    /*
+     * 先判「是不是我们喊停的」，再判超时。
+     *
+     * 两者底层都是 AbortError，唯一的分辨办法是看外部 signal 有没有被 abort。
+     * 而它们对用户的意思完全相反：一个是「你叫停的」，一个是「它太慢了」。
+     * 混成一句，用户按下「停」会读到「请求超时（120 秒）」——一句与他做的事无关的报错。
+     *
+     * 这句话也坦白一件事：停的是等待，不是账单。请求已经到供应商那边，
+     * 那边可能已经开始生成；而用量要等响应回来才读得到，所以这笔账记不进账本。
+     */
+    if (opts.signal?.aborted) {
+      throw new LlmError(
+        'CANCELED',
+        '已停止。请求可能已经发出去，钱可能已经花了；账本里会记一条失败、金额记 0，余额不会因此扣减。'
+      );
+    }
     if (e.name === 'AbortError') {
       throw new LlmError('TIMEOUT', `请求超时（${TIMEOUT_MS / 1000} 秒）。可尝试更短的文本或换用更快的模型。`);
     }

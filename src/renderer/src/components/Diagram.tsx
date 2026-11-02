@@ -474,14 +474,22 @@ export function VerdictGauge({
       </svg>
       <div className="gauge-foot">
         <span className="pill">{scale}</span>
-        {scaleValue && <span className="pill">{scaleValue}</span>}
-        <span className={`pill ${whatIsRefuted === 'argument-only' ? 'ok' : whatIsRefuted === 'conclusion' ? 'bad' : ''}`}>
-          {whatIsRefuted === 'argument-only'
-            ? '只伤到论证，没否定结论'
-            : whatIsRefuted === 'conclusion'
-              ? '伤到了结论本身'
-              : '什么都没否定'}
-        </span>
+        {/*
+          判不了的时候，原生刻度值与「伤到论证还是结论」一律不显示。
+          它们描述的是一个已经被撤销的判定：一边写「判不了」，一边挂着
+          「CQ2 未答，属削弱性击败」，等于同一行里自己跟自己打架。
+          撤掉判定就要把它的话一并撤掉，只留刻度名——那把尺子叫什么，仍然有用。
+        */}
+        {!undetermined && scaleValue && <span className="pill">{scaleValue}</span>}
+        {!undetermined && (
+          <span className={`pill ${whatIsRefuted === 'argument-only' ? 'ok' : whatIsRefuted === 'conclusion' ? 'bad' : ''}`}>
+            {whatIsRefuted === 'argument-only'
+              ? '只伤到论证，没否定结论'
+              : whatIsRefuted === 'conclusion'
+                ? '伤到了结论本身'
+                : '什么都没否定'}
+          </span>
+        )}
       </div>
     </div>
   );

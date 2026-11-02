@@ -38,7 +38,8 @@
     "verify": "node scripts/verify.mjs",
     "sample:fallacy": "node scripts/run-sample-fallacy.mjs",
     "check:export": "node scripts/run-check-export.mjs",
-    "check:robustness": "node scripts/run-check-robustness.mjs"
+    "check:robustness": "node scripts/run-check-robustness.mjs",
+    "check:docs": "node scripts/check-docs.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

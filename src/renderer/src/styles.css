@@ -536,6 +536,48 @@ select {
   border-top: 1px dashed var(--line);
 }
 
+/*
+ * 「停」那一行。
+ *
+ * 按钮不做成主色：这一屏的主行为是「等」，停是退路。
+ * 一个和「分析」同色的按钮会让它在视觉上变成推荐动作——
+ * 而按下去是要花钱的（请求已经发出去了）。
+ */
+.run-act {
+  margin-top: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.run-stop {
+  flex: none;
+  padding: 5px 18px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.run-stop:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+.run-stop:disabled {
+  cursor: default;
+  color: var(--ink-3);
+  opacity: 0.75;
+}
+.run-stop-note {
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+  /* 和按钮的首行文字对齐：按钮有 5px 内边距 + 边框，这里补回来 */
+  padding-top: 6px;
+}
+
 .block {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -1564,6 +1606,281 @@ pre.code {
   background: transparent;
   border-left-color: var(--line);
   color: var(--ink-3);
+}
+
+/* ═══════ 判读的推导链（为什么在这一格） ═══════ */
+
+.vwhy {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.vwhy-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.vh-t {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.vh-s {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.6;
+}
+
+/* 四步连成一条链：竖线负责「这是同一条推理」，编号负责「先后」。
+   四张并排的卡片会被读成四个并列的要点，而它是一条链。 */
+.vtrail {
+  list-style: none;
+  position: relative;
+  padding-left: 2px;
+}
+.vstep {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 6px 0;
+  font-size: 12.5px;
+}
+.vstep + .vstep::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: -8px;
+  height: 14px;
+  width: 1px;
+  background: var(--line-strong);
+}
+.vs-n {
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--ink-3);
+  font-size: 10.5px;
+  line-height: 17px;
+  text-align: center;
+  font-family: var(--mono);
+}
+.vstep.ok .vs-n {
+  border-color: var(--strong);
+  background: var(--strong-bg);
+  color: var(--strong);
+}
+.vstep.warn .vs-n {
+  border-color: var(--weak);
+  background: var(--weak-bg);
+  color: var(--weak);
+}
+.vstep.bad .vs-n {
+  border-color: var(--invalid);
+  background: var(--invalid-bg);
+  color: var(--invalid);
+}
+.vstep.none .vs-n {
+  background: var(--muted-bg);
+}
+.vs-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.vs-head {
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+.vs-body {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+.vstep.ok .vs-body {
+  color: var(--strong);
+}
+.vstep.bad .vs-body {
+  color: var(--invalid);
+}
+.vstep.warn .vs-body {
+  color: var(--weak);
+}
+.vs-go {
+  flex: 0 0 auto;
+  align-self: center;
+  font-size: 11px;
+  color: var(--accent);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.vs-go:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.vwhy-note {
+  position: relative;
+  margin-top: 8px;
+  padding: 7px 10px 7px 32px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  background: var(--panel-2);
+  border-left: 2px solid var(--line-strong);
+  border-radius: 0 5px 5px 0;
+}
+/* 「注」是为了让这条旁白不被读成第三步——它讲的是两步之间的区别，不在链上。 */
+.vwhy-note::before {
+  content: '注';
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+/* 三格对照。当前那格加粗描边，剩下两格不降透明度——
+   它们不是背景，是「同一句话的另外两种下场」。 */
+.vladder {
+  margin-top: 12px;
+}
+.vl-cap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 7px;
+}
+.vl-lead {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+.vl-sub {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-3);
+  padding-left: 24px;
+}
+.vl-cap b {
+  color: var(--ink);
+  margin: 0;
+}
+.vl-n {
+  display: inline-block;
+  width: 17px;
+  height: 17px;
+  line-height: 15px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-align: center;
+  margin-right: 7px;
+  vertical-align: -2px;
+}
+.vl-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.vl-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.vl-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.vl-mean {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+.vl-cell.now.withstands {
+  border-color: var(--strong);
+  background: var(--strong-bg);
+}
+.vl-cell.now.weakened {
+  border-color: var(--weak);
+  background: var(--weak-bg);
+}
+.vl-cell.now.fails {
+  border-color: var(--invalid);
+  background: var(--invalid-bg);
+}
+.vl-cell.now.withstands .vl-name,
+.vl-cell.now.withstands .vl-mean {
+  color: var(--strong);
+}
+.vl-cell.now.weakened .vl-name,
+.vl-cell.now.weakened .vl-mean {
+  color: var(--weak);
+}
+.vl-cell.now.fails .vl-name,
+.vl-cell.now.fails .vl-mean {
+  color: var(--invalid);
+}
+.vl-cell.now .vl-mean {
+  color: var(--ink-2);
+}
+.vl-here {
+  font-style: normal;
+  font-size: 9.5px;
+  font-weight: 400;
+  color: var(--panel);
+  background: var(--ink-2);
+  border-radius: 8px;
+  padding: 0 5px;
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+.vforced {
+  margin-top: 10px;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  background: var(--weak-bg);
+  border-left: 2px solid var(--weak);
+  border-radius: 0 5px 5px 0;
+}
+.vforced b {
+  color: var(--weak);
+  margin-right: 6px;
+}
+.vf-code {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  margin-right: 6px;
+}
+
+@media (max-width: 680px) {
+  .vl-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ═══════ 图：结构图 / 地形图 ═══════ */

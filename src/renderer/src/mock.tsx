@@ -191,6 +191,13 @@ const RUN_STAGES: Record<string, { label: string; percent: number }> = {
 const RUN_KEY = QS.get('running') ?? '';
 const RUN_STAGE = RUN_STAGES[RUN_KEY] ?? null;
 const RUN_WAIT = Number(QS.get('wait') ?? 0);
+/**
+ * `&stopping=1`：按下去之后的那一瞬间。
+ *
+ * 这个状态在真应用里只有几百毫秒，而它正是「按了但没反应」最容易糊弄过去的地方——
+ * 按钮要是没变字，用户分不清「按中了」和「没按中」。留一个能截图核对的入口。
+ */
+const RUN_STOPPING = QS.get('stopping') === '1';
 
 if (QS.get('dlg') === 'settings') {
   const saved = {
@@ -427,6 +434,9 @@ function Preview() {
             <Running
               progress={{ stage: 'checking', label: RUN_STAGE.label, percent: RUN_STAGE.percent }}
               elapsed={RUN_WAIT}
+              stopping={RUN_STOPPING}
+              /* 预览页里的按钮不接主进程：这里只核版式，真链路在端到端冒烟里点 */
+              onStop={() => {}}
             />
           ) : (
             <DiagnosisView
