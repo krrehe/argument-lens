@@ -446,9 +446,12 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               /*
                * 导出按钮。它坏起来比别的更安静：按钮在、点了没反应，用户会以为
                * 是保存框被浏览器拦了，然后去别处找原因。这里只能验它渲染出来，
-               * 保存框弹不出来（无头环境没有对话框）——那一半靠 check:export 的纯函数断言。
+               * 保存框弹不出来（无头环境没有对话框）——那一半靠 check:export / check:argdown 的纯函数断言。
+               *
+               * 数文案而不是只数存在：两个格式并排，少一个也照样「有按钮」，
+               * 而用户会以为这个版本就只支持一种导出。
                */
-              expBtn: !!document.querySelector('.exp-btn'),
+              expBtns: [...document.querySelectorAll('.exp-btn')].map((b) => (b.textContent ?? '').trim()),
               /*
                * 模式横幅与当前选中的模式片。
                * 这两个必须一起验：横幅出现但选中片不对，说明切了模式而报告没跟着走；

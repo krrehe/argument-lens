@@ -266,6 +266,10 @@ API 无状态，每次都得原样重发一遍。
 
 顺带补上一个一直没被显示过的字段：`whatIsRefuted`。「只驳倒了论证」和「驳倒了结论本身」对写作者的意义完全不同——前者说明你没写够，后者说明你写错了。它算出来存了几个月，界面上从没出现过。
 
+**「导出为 Argdown」导的是另一件事：谁支撑谁。** Markdown 带走的是「我该改哪一句」，Argdown 带走的是结构本身——一种纯文本的论证语法，换到任何支持它的编辑器里都能渲染出论证图，而改动会落在文本上，可以进 git diff。它不是第二种判定：档位只写在注释里，且照旧带着「不是判决书」；「接不上」只做注释，不伪造成攻击关系；「此处合法」是独立节点，不连边——连边等于声称它支撑了某一步，而它恰恰是「这一步本来没问题」。
+
+这份导出由 `@argdown/core` 的解析器在 `check:argdown` 里验：**解析器读得进去才算数**。中文正文里出现 `[P1]` 这种引用很正常，直出会把引文切成语法碎片，所以 `[ ] { } # < >` 换成全角，并在文件头写明。没有这一步，「支持 Argdown」就只是一句自我声明。
+
 ---
 
 ## 修补了，然后呢
@@ -347,7 +351,7 @@ npm run typecheck      # 双端类型检查
 npm run icon           # 重新生成图标（build/icon.ico）
 npm run prompts        # 导出三十份完整提示词到 docs/prompts/，并检查交叉污染、必需块、预算
 npm run prompt:lint    # 提示词静态检查 666 项：块、跨模式隔离、禁语登记、指纹稳定、输入隔离、schema 对齐
-npm run verify         # 一条命令跑完下面全部静态检查（17 项，约 15 秒）。清单从 package.json 自动发现，
+npm run verify         # 一条命令跑完下面全部静态检查（18 项，约 16 秒）。清单从 package.json 自动发现，
                        # 新增的 check 会被自动纳入——硬编码的清单会静默漏掉后来加的那些，而它照常打印「全部通过」
 npm run check:docs     # 交接文档自身的防腐烂检查：点名的命令与路径必须存在、verify 跑的每一关必须写到、
                        # README 声明的项数必须等于实际项数。文档比软件自信，比文档缺失更危险
@@ -356,6 +360,7 @@ npm run replay         # 离线重放：读存档里的模型原文，本地重�
                        # 不联网、不花钱、0.8 秒。判据不是零差异，是每处差异都能被解释
 npm run check:replay   # 同一件事，但用仓库里冻结的基准（scripts/fixtures/replay/），进 verify，所以每次改动都跑
 npm run check:samples  # 示例文本库：段数、互不相同、长度、句数，以及第一段与假模型夹具里的 span 下标是否还对得上
+npm run check:argdown  # Argdown 导出：官方解析器读得进去、语句数对得上、supports 画成「谁支撑谁」、正文里的方括号已转义
 npm run smoke          # 端到端：起假模型 → 拉起应用 → 跑分析 → 验收渲染
 SMOKE_MODE=redteam npm run smoke      # 同上，切红队（五种模式各可切：diagnose/redteam/fallacy/reconstruct/interrogate）
 SMOKE_REVISE=1 npm run smoke          # 同上，走完「填回输入框 → 再分析 → 对照」整条链
@@ -501,6 +506,9 @@ scripts/
 型式与批判性问题取自 Walton, Reed & Macagno, *Argumentation Schemes* (2008)，并参武宏志《非形式逻辑导论》附录 A 的族划分与速查卡；谬误判据与「命名门槛」取自该书附录 B 及 SEP *Fallacies*（Hansen）；语用辩证十规则取自 van Eemeren & Grootendorst；型式周期表三特征取自 Wagemans 的 PTA。
 
 外部文献的具体对照与实证数据见 `docs/外部文献校准.md`。
+
+同行的做法——四类同类项目、最接近的三家、以及它们都没做的事——见 `docs/同类项目.md`
+（2026-11-02 检索，只读公开页面，未安装试用）。
 
 ### 每条规则凭什么
 

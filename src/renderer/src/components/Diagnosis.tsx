@@ -1073,22 +1073,28 @@ export function DiagnosisView({
   const topicsHit = topics.filter((t) => t.hit).length;
 
   /**
-   * 导出成 Markdown。
+   * 导出。
+   *
+   * 两种格式，导的是同一份报告：Markdown 给人读、照着改稿；Argdown 是纯文本的
+   * 论证语法，换到任何支持它的编辑器里都能渲染出结构图，改动能进 git diff。
    *
    * 状态里要区分「取消」和「失败」：取消是用户的正常操作，弹一句红字去怪他
    * 只会让人下一次不敢点；而真正的失败（目录不可写、磁盘满）必须说出来，
-   * 否则他会以为文件在某个地方等着他。
+   * 否则他会以为文件在某个地方等着他。fmt 记着是哪一份在忙，否则两个按钮
+   * 会同时显示「正在导出…」，用户分不清点的是哪一个。
    */
-  const [exp, setExp] = useState<{ kind: 'idle' | 'busy' | 'ok' | 'fail'; msg?: string }>({ kind: 'idle' });
-  const exportMd = async () => {
-    setExp({ kind: 'busy' });
+  const [exp, setExp] = useState<{ kind: 'idle' | 'busy' | 'ok' | 'fail'; fmt?: 'md' | 'ad'; msg?: string }>({
+    kind: 'idle',
+  });
+  const doExport = async (fmt: 'md' | 'ad') => {
+    setExp({ kind: 'busy', fmt });
     try {
-      const r = await window.api.report.exportMarkdown(d);
-      if (r.ok && r.path) setExp({ kind: 'ok', msg: r.path });
+      const r = fmt === 'md' ? await window.api.report.exportMarkdown(d) : await window.api.report.exportArgdown(d);
+      if (r.ok && r.path) setExp({ kind: 'ok', fmt, msg: r.path });
       else if (r.canceled) setExp({ kind: 'idle' });
-      else setExp({ kind: 'fail', msg: '没能写成功。换一个目录再试一次。' });
+      else setExp({ kind: 'fail', fmt, msg: '没能写成功。换一个目录再试一次。' });
     } catch (e) {
-      setExp({ kind: 'fail', msg: `导出失败：${(e as Error)?.message ?? '原因不明'}` });
+      setExp({ kind: 'fail', fmt, msg: `导出失败：${(e as Error)?.message ?? '原因不明'}` });
     }
   };
 
@@ -1109,8 +1115,15 @@ export function DiagnosisView({
         放在最前面，意味着不用滚到底也能找到它。
       */}
       <div className="exp-bar">
-        <button className="exp-btn" onClick={exportMd} disabled={exp.kind === 'busy'}>
-          {exp.kind === 'busy' ? '正在导出…' : '导出为 Markdown'}
+        <button className="exp-btn" onClick={() => doExport('md')} disabled={exp.kind === 'busy'}>
+          {exp.kind === 'busy' && exp.fmt === 'md' ? '正在导出…' : '导出为 Markdown'}
+        </button>
+        {/*
+          第二个格式不是「更多格式」的堆砌：Markdown 带走的是「改哪一句」，
+          Argdown 带走的是「谁支撑谁」。后者进了 git，结构的改动才会留下 diff。
+        */}
+        <button className="exp-btn" onClick={() => doExport('ad')} disabled={exp.kind === 'busy'}>
+          {exp.kind === 'busy' && exp.fmt === 'ad' ? '正在导出…' : '导出为 Argdown'}
         </button>
         {exp.kind === 'ok' && (
           <span className="exp-ok" title={exp.msg}>
@@ -1118,7 +1131,9 @@ export function DiagnosisView({
           </span>
         )}
         {exp.kind === 'fail' && <span className="exp-fail">{exp.msg}</span>}
-        {exp.kind === 'idle' && <span className="exp-hint">一份能照着改的清单：判定、原文引文、下一步逐条可勾选</span>}
+        {exp.kind === 'idle' && (
+          <span className="exp-hint">Markdown 给人读；Argdown 是纯文本结构图，可进 git diff</span>
+        )}
       </div>
 
       {!d.scope.applicable && (

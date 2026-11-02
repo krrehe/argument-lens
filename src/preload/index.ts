@@ -88,12 +88,15 @@ const api = {
   /**
    * 报告导出。
    *
-   * 只给一个方向：报告 → 一份 Markdown 文件。没有「从文件导入」——
+   * 只给一个方向：报告 → 一份文件。没有「从文件导入」——
    * 报告是模型输出的解析结果，手写一份 JSON 塞进来，程序无法分辨它是不是真的分析过。
    */
   report: {
     exportMarkdown: (d: Diagnosis): Promise<{ ok: boolean; path?: string; canceled?: boolean }> =>
       ipcRenderer.invoke('report:exportMarkdown', d),
+    /** Argdown：同一份报告的结构，换成可被文本工具渲染的语法。 */
+    exportArgdown: (d: Diagnosis): Promise<{ ok: boolean; path?: string; canceled?: boolean }> =>
+      ipcRenderer.invoke('report:exportArgdown', d),
   },
   /**
    * 异议：用户对某条判定说不认同。

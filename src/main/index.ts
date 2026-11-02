@@ -6,7 +6,7 @@ import { runAnalysis } from './analyze';
 import { testConnection, LlmError } from './llm';
 import { attachSmoke } from './smoke';
 import { archiveDirPath, getReport, listReports, removeReport, saveReport } from './archive';
-import { exportReportMarkdown } from './report-export';
+import { exportReportArgdown, exportReportMarkdown } from './report-export';
 import { clearAnchor, exportUsageCsv, setAnchor, setPricing, summarizeUsage, usageDirPath } from './usage';
 import {
   addObjection,
@@ -261,6 +261,10 @@ function registerIpc(): void {
    */
   ipcMain.handle('report:exportMarkdown', (e, d: Diagnosis) =>
     exportReportMarkdown(BrowserWindow.fromWebContents(e.sender), d)
+  );
+  /* 同一份报告、同一套 supports，换个格式给工具读。判定不在导出里重算。 */
+  ipcMain.handle('report:exportArgdown', (e, d: Diagnosis) =>
+    exportReportArgdown(BrowserWindow.fromWebContents(e.sender), d)
   );
   ipcMain.handle('usage:reveal', () => shell.openPath(usageDirPath()));
 

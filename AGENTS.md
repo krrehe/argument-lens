@@ -63,7 +63,7 @@ npm run verify
 
 ---
 
-## 全部关卡（`npm run verify` 跑的 17 项）
+## 全部关卡（`npm run verify` 跑的 18 项）
 
 | 命令 | 红了说明什么 |
 |---|---|
@@ -81,6 +81,7 @@ npm run verify
 | `check:prescriptions` | 「下一步」给错了：未答的检查项没有处方、处方指向不存在的检查项、出现了「一定能」 |
 | `check:report` | 报告自检不变量不再能被坏报告触发（检查器变成了摆设） |
 | `check:export` | 导出件缺段、或把不适用的判定写进去了、或混进了 info 级诊断 |
+| `check:argdown` | Argdown 导出被官方解析器读不进去、语句数对不上、supports 的关系画错、正文里的方括号没转义 |
 | `check:robustness` | 写失败没抛、设置校验漏了非法值、空 catch 没写理由 |
 | `check:samples` | 示例文本出问题：段数不够、两段重复、长度越界、句数少于毛病数、第一段与假模型夹具的下标对不上 |
 | `check:docs` | **这份文件自己腐烂了**：它点名的命令/路径不存在，或漏掉了某个 check |
@@ -100,6 +101,7 @@ npm run verify
 | 存档 / IPC / 记账 | `check:robustness`、`check:usage` | 写失败路径要真跑一遍，不是读代码判断 |
 | 示例文本 / 输入区 | `check:samples`、`smoke` | 改第一段要同步 `scripts/mock-llm.mjs` 里的 span 下标；改了按钮要重拍首屏截图 |
 | 文档 / 数字 | `check:docs`、`verify` | 改了断言条数，README 里那个数也要改 |
+| 导出格式 | `check:export`、`check:argdown` | 格式是给人读还是给工具读，决定断言该守「段全不全」还是「解析器读不读得进去」 |
 
 ---
 

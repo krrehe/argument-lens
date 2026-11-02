@@ -38,6 +38,7 @@
     "verify": "node scripts/verify.mjs",
     "sample:fallacy": "node scripts/run-sample-fallacy.mjs",
     "check:export": "node scripts/run-check-export.mjs",
+    "check:argdown": "node scripts/run-check-argdown.mjs",
     "check:robustness": "node scripts/run-check-robustness.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "replay": "node scripts/run-replay.mjs",
@@ -45,6 +46,7 @@
     "check:samples": "node scripts/run-check-samples.mjs"
   },
   "devDependencies": {
+    "@argdown/core": "^2.0.1",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
