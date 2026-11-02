@@ -307,6 +307,16 @@ API 无状态，每次都得原样重发一遍。
 
 Windows 10/11 x64。首次启动会引导接入模型。
 
+### 第一次用：示例是六段，按一次换一段
+
+输入框右下角那个按钮会轮换六段不同体裁的话：校园讨论、带货文案、新闻评论、研究摘要、职场管理、养生帖。每段埋的毛病不一样，所以连按三次会看到三份形态不同的报告。
+
+**为什么不是一段。** 以前它只有一段，「再试一次」永远得到同一段：按钮上写着「填入示例」，按下去还是那句话。存档里那一百多份报告，绝大多数就是同一段文字——那不是一百个样本，是同一个样本跑了一百遍。它证明的是软件稳定，不证明判断准。
+
+示例只用来试手。**真正要验的是你自己手里那段话**：广告、领导的通知、群里转的养生帖、论文的摘要。同一段文本反复判，得到的会是同一份报告。
+
+框里已经有你写的字时，这个按钮会先变成「覆盖原文？」，第二下才真的替换——输入框没有撤销，覆盖掉就没了。
+
 ### 接入模型
 
 自然语言的论证拆解没有规则可循，这一步必须靠大模型。除此之外的部分都在本机跑：六套提示词、型式库、谬误判据、原文定位、全部程序裁决。**换一个模型，镜片不变。**
@@ -337,7 +347,7 @@ npm run typecheck      # 双端类型检查
 npm run icon           # 重新生成图标（build/icon.ico）
 npm run prompts        # 导出三十份完整提示词到 docs/prompts/，并检查交叉污染、必需块、预算
 npm run prompt:lint    # 提示词静态检查 666 项：块、跨模式隔离、禁语登记、指纹稳定、输入隔离、schema 对齐
-npm run verify         # 一条命令跑完下面全部静态检查（16 项，约 15 秒）。清单从 package.json 自动发现，
+npm run verify         # 一条命令跑完下面全部静态检查（17 项，约 15 秒）。清单从 package.json 自动发现，
                        # 新增的 check 会被自动纳入——硬编码的清单会静默漏掉后来加的那些，而它照常打印「全部通过」
 npm run check:docs     # 交接文档自身的防腐烂检查：点名的命令与路径必须存在、verify 跑的每一关必须写到、
                        # README 声明的项数必须等于实际项数。文档比软件自信，比文档缺失更危险
@@ -345,6 +355,7 @@ npm run check:contract # 提示词契约 81 项：喂越界输出，断言代码
 npm run replay         # 离线重放：读存档里的模型原文，本地重跑解析 → 十一道裁决 → 自检，与存档逐字段比对。
                        # 不联网、不花钱、0.8 秒。判据不是零差异，是每处差异都能被解释
 npm run check:replay   # 同一件事，但用仓库里冻结的基准（scripts/fixtures/replay/），进 verify，所以每次改动都跑
+npm run check:samples  # 示例文本库：段数、互不相同、长度、句数，以及第一段与假模型夹具里的 span 下标是否还对得上
 npm run smoke          # 端到端：起假模型 → 拉起应用 → 跑分析 → 验收渲染
 SMOKE_MODE=redteam npm run smoke      # 同上，切红队（五种模式各可切：diagnose/redteam/fallacy/reconstruct/interrogate）
 SMOKE_REVISE=1 npm run smoke          # 同上，走完「填回输入框 → 再分析 → 对照」整条链
@@ -381,7 +392,7 @@ npm run dist           # 打包安装版与便携版
 
 ```
 src/
-  shared/          theories.ts（六副透镜元数据）· types.ts（三层数据契约）· tokens.ts（token 估算与计费）· usage-rules.ts（记账规则：谁算模拟调用、取价顺序——纯函数，由 check:usage 断言）· usage-csv.ts（导出的表头与行：形状单独放在这里，才验得了「行和表头一样长」）· theory-notes.ts（每副透镜的「凭什么」卡）· theory-base.ts（102 条主张：它凭什么、有多硬、让本工具做了什么，跨十编，带 20 个细分域作第二根筛选轴）· landing.ts（每条主张的落点：提示词块/透镜片段/函数/界面区块，由 check:landing 逐条校验存在）· topics.ts（专题分析：六类论证的共识问题清单，本地推导）· limits.ts（这份分析自身的边界：本地推导，不调模型）· academic.ts（学术分析：体裁、待核的引用与数据、八条规范、反驳顺序，本地推导）· disputes.ts（11 条理论争议与站位）· segment.ts（长文切分，纯启发式）· compare.ts（修订对照：档位、检查项、争议数的走向）· prescriptions.ts（下一步：每处空着的检查项要填什么形状、怎么算填上，本地推导，由 check:prescriptions 断言）· report-audit.ts（报告自检：结构矛盾与缺项分开报，生产端与评测端共用）· report-markdown.ts（导出：只排版不重算，判了不适用的不出判定段）· labels.ts（界面与导出共用的中文标签：同一枚举两处各写一遍，迟早说两套话）· objection.ts（异议的身份规则）· settings-check.ts（设置校验：挡住 file:// 与越界温度，纯函数，由 check:robustness 断言）· fallacy-map.ts（谬误落点图的计算层：切句与 span 交集命中，纯函数，由 check:contract 断言）· verdict-trail.ts（判读的推导链：问了几关、钉住哪一关、三格释义，纯函数；不新立规则，释义只从 theories.ts 取）· replay.ts（重放的比对内核：把报告摊平成路径→值、逐字段比、把差异分成「真差异 / 新增字段 / 未比对」三类，纯函数、由 check:replay 断言）
+  shared/          theories.ts（六副透镜元数据）· types.ts（三层数据契约）· tokens.ts（token 估算与计费）· usage-rules.ts（记账规则：谁算模拟调用、取价顺序——纯函数，由 check:usage 断言）· usage-csv.ts（导出的表头与行：形状单独放在这里，才验得了「行和表头一样长」）· theory-notes.ts（每副透镜的「凭什么」卡）· theory-base.ts（102 条主张：它凭什么、有多硬、让本工具做了什么，跨十编，带 20 个细分域作第二根筛选轴）· landing.ts（每条主张的落点：提示词块/透镜片段/函数/界面区块，由 check:landing 逐条校验存在）· topics.ts（专题分析：六类论证的共识问题清单，本地推导）· limits.ts（这份分析自身的边界：本地推导，不调模型）· academic.ts（学术分析：体裁、待核的引用与数据、八条规范、反驳顺序，本地推导）· disputes.ts（11 条理论争议与站位）· segment.ts（长文切分，纯启发式）· compare.ts（修订对照：档位、检查项、争议数的走向）· prescriptions.ts（下一步：每处空着的检查项要填什么形状、怎么算填上，本地推导，由 check:prescriptions 断言）· report-audit.ts（报告自检：结构矛盾与缺项分开报，生产端与评测端共用）· report-markdown.ts（导出：只排版不重算，判了不适用的不出判定段）· labels.ts（界面与导出共用的中文标签：同一枚举两处各写一遍，迟早说两套话）· objection.ts（异议的身份规则）· settings-check.ts（设置校验：挡住 file:// 与越界温度，纯函数，由 check:robustness 断言）· fallacy-map.ts（谬误落点图的计算层：切句与 span 交集命中，纯函数，由 check:contract 断言）· verdict-trail.ts（判读的推导链：问了几关、钉住哪一关、三格释义，纯函数；不新立规则，释义只从 theories.ts 取）· replay.ts（重放的比对内核：把报告摊平成路径→值、逐字段比、把差异分成「真差异 / 新增字段 / 未比对」三类，纯函数、由 check:replay 断言）· samples.ts（六段示例文本：不同体裁、各埋不同的毛病。按一次换一段——只有一段时，「再试一次」永远得到同一段，存档里那一百多份同文本报告就是这么来的）
   main/
     index.ts       窗口与 IPC —— 只负责「启动时接上了什么」
     smoke.ts       打包自检：点按钮、数节点、截图（无 AL_SMOKE 时不执行）
@@ -434,6 +445,7 @@ scripts/
   replay.ts       离线重放的命令行：读存档 → 重新解析 → 重跑裁决 → 逐字段比对 → 打印差异（--all 看全，--accept 更新基准）
   replay-lib.ts   上面那件事的编排层：读目录、跳过没有 raw 的存档、回填 id 与时间、算覆盖面目
   check-replay.ts 重放检查：先验比对内核抓得住差异（含「新增字段不算回归」这条边界），再拿基准跑真链路
+  check-samples.ts 示例文本的断言：段数、互不相同、长度、句数少于毛病数，以及假模型夹具里的 span 下标切出来的是不是它自己声明的引文
   fixtures/replay/  冻结的基准六份：三份真实报告 + 两份构造的（fx-g3-overrun、fx-g6-system，用来把这两条裁决钉住）+ 一份查谬误模式（不给档位那条路，G8 只在它身上生效）
   ssr-diagrams.tsx  把整份报告渲染成 HTML 字符串，绕开模型验那几张图
   shot-usage.mjs  截用量面板（有数据 / 首次两种状态）

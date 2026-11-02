@@ -152,6 +152,23 @@ select {
   opacity: 0.45;
   cursor: not-allowed;
 }
+/*
+ * 「示例」按钮的第一下：变成「覆盖原文？」。
+ *
+ * 用和删除报告一样的红：同一个动作（不可撤销的覆盖）在两处长得一样，
+ * 人才会把「红 = 再点一下就没了」记成一条规则，而不是两个例外。
+ * 加 nowrap 是因为这一行只有 367px：标签一旦换行，整条工具栏会变成三行，
+ * 连带把左边的字数挤成两行（这个变形以前真的发生过）。
+ */
+.ghost-btn {
+  white-space: nowrap;
+}
+.ghost-btn.confirm {
+  border-color: var(--invalid);
+  background: var(--invalid-bg);
+  color: var(--invalid);
+  font-weight: 600;
+}
 
 /* ═══════ 透镜条 ═══════ */
 

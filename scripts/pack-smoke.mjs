@@ -2,7 +2,7 @@
  * 打包产物自检：直接跑 dist/win-unpacked 里的 exe，而不是跑源码。
  *
  * 为什么非要有这一步：`electron-vite build` 成功只说明渲染层能打包，
- * 说明不了「装完之后能不能用」。asara 打包后 preload 路径、资源路径、
+ * 说明不了「装完之后能不能用」。asar 打包后 preload 路径、资源路径、
  * userData 位置都可能变；这些错在源码态一次也复现不出来。
  *
  * 而且它验的是**新功能真的进了包**——探针里会找用量面板的节点，
@@ -12,8 +12,8 @@
  * 前置：先 node node_modules/electron-builder/cli.js --win --dir --config electron-builder.yml
  */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -54,46 +54,185 @@ async function ensureMock() {
 }
 
 /*
- * 打包态的 userData 目录。
+ * 隔离目录：这一步跑的是打包后的 exe，它自己会写设置、写存档、写账本。
+ * 这些一律写进临时目录，**不碰用户的 %APPDATA%/argument-lens**。
  *
- * 踩过一次坑：以为按 productName（论证镜）走，写了半天配置，应用根本没读——
- * 它用的是 package.json 的 name（argument-lens），因为 electron-builder 不改这个字段。
- * 现在两个候选都写，谁生效都不会空跑。目录写错的表现是「分析没开始就结束了」，
- * 而脚本如果只看截图是否生成，会把它判成通过。这是最坏的一种假绿。
+ * 第一版不是这样：它把测试设置写进真实目录，只备份还原 settings.json 一个文件。
+ * 三个后果，第三个是事故级的：
+ *   1. 每跑一次就往真实账本里记一笔假账、往真实历史里塞一份假报告；
+ *   2. 用量面板那条断言（14 根柱子）于是依赖「用户账本里恰好有多少条」，
+ *      换台机器就是误报——断言一旦靠用户数据成立，它守的就不是代码；
+ *   3. **跑的中途崩一次，真实 settings.json 里就留着 `apiKeyPlain: "test"`，
+ *      用户真正的那把 Key 被覆盖掉。** 这种错在源码里完全看不出来，
+ *      因为它只发生在脚本分支里，也只在崩的那一次发生。
+ * smoke.mjs 早就为同一件事吃过亏（注释里写着「删的是用户的 settings.json，
+ * API Key 一起没了」），pack-smoke 一直没跟上。
+ *
+ * `--user-data-dir` 是 Chromium 的开关，Electron 拿它当 userData 用。
+ * 但它**不保证**一定被吃下，所以在花任何一次分析之前先跑一次前置探针确认（见下）。
  */
+const userData = join(out, 'pack-userdata');
+rmSync(userData, { recursive: true, force: true });
+mkdirSync(userData, { recursive: true });
+
+/* 注意目录名：是 package.json 的 name（argument-lens），不是 productName（论证镜）
+   ——electron-builder 不改这个字段，应用读的就是 name。 */
 const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf-8'));
-const candidates = [join(process.env.APPDATA ?? '', pkg.name), join(process.env.APPDATA ?? '', '论证镜')].filter((d) =>
+const realDirs = [join(process.env.APPDATA ?? '', pkg.name), join(process.env.APPDATA ?? '', '论证镜')].filter((d) =>
   existsSync(d)
 );
-if (!candidates.length) candidates.push(join(process.env.APPDATA ?? '', pkg.name));
 
-const restores = [];
-for (const dir of candidates) {
-  mkdirSync(dir, { recursive: true });
-  const file = join(dir, 'settings.json');
-  const backup = existsSync(file) ? readFileSync(file, 'utf-8') : null;
-  restores.push(() => {
-    if (backup === null) rmSync(file, { force: true });
-    else writeFileSync(file, backup, 'utf-8');
-  });
-  writeFileSync(
-    file,
-    JSON.stringify(
-      { baseUrl: `http://127.0.0.1:${PORT}/v1`, model: 'mock-argument-lens', temperature: 0.2, apiKeyCipher: '', apiKeyPlain: 'test' },
-      null,
-      2
-    ),
-    'utf-8'
-  );
+/*
+ * 真实目录的指纹：每个文件的相对路径 + 大小 + 修改时间。
+ *
+ * 不读内容（13MB 的 Chromium 缓存没必要读），只回答一个问题：
+ * **这次自检有没有在任何地方动过用户的数据。**
+ * 隔离失效时它会红——这条断言守的是「别再把东西写回用户目录」，
+ * 而不是「这一次恰好没写」。
+ */
+function snapshot(dir) {
+  const rows = [];
+  const walk = (d) => {
+    let items;
+    try {
+      items = readdirSync(d, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const it of items) {
+      const p = join(d, it.name);
+      if (it.isDirectory()) {
+        walk(p);
+        continue;
+      }
+      try {
+        const st = statSync(p);
+        rows.push(`${relative(dir, p)}|${st.size}|${Math.round(st.mtimeMs)}`);
+      } catch {
+        /* 刚被删掉的文件不算变化 */
+      }
+    }
+  };
+  walk(dir);
+  return rows.sort();
 }
+
+const before = realDirs.map((d) => ({ dir: d, rows: snapshot(d) }));
 
 const shot = join(out, 'packshot.png');
 for (const f of [shot, `${shot}.log`]) rmSync(f, { force: true });
 
+const baseEnv = { ...process.env };
+delete baseEnv.ELECTRON_RUN_AS_NODE; // 宿主注入它会让 Electron 退化成 node
+delete baseEnv.AL_FORCE_ONBOARD;
+
+/* 跑一次 exe，等它自己退（或超时被杀）。返回 'exit' | 'timeout'。 */
+async function runExe(env, ms) {
+  const child = spawn(exe, [`--user-data-dir=${userData}`], { env, stdio: 'ignore' });
+  const how = await new Promise((r) => {
+    child.on('exit', () => r('exit'));
+    setTimeout(() => r('timeout'), ms);
+  });
+  try {
+    child.kill();
+  } catch {
+    /* 已经退了 */
+  }
+  return how;
+}
+
+const samePath = (a, b) => resolve(a).toLowerCase() === resolve(b).toLowerCase();
+
 await ensureMock();
 
+/*
+ * 前置探针：在花任何一次分析之前，先问一句「你用哪个 userData」。
+ *
+ * 这一步的意义不是多一条断言，而是**把风险挡在花钱之前**：
+ * 隔离没生效时，后面那次分析会拿真实 Key 去打真模型。
+ * 只靠「跑完再比对真实目录」也能发现，但那时钱已经花了。
+ */
+const whereFile = join(out, 'pack-where.txt');
+rmSync(whereFile, { force: true });
+await runExe({ ...baseEnv, AL_SMOKE: join(out, 'pack-where.log'), AL_WHERE: whereFile }, 40_000);
+const whereRaw = existsSync(whereFile) ? readFileSync(whereFile, 'utf-8') : '';
+const reported = (whereRaw.match(/^USERDATA (.+)$/m)?.[1] ?? '').trim();
+const isolated = Boolean(reported) && samePath(reported, userData);
+if (!isolated) {
+  console.error('前置探针失败：打包后的 exe 没有使用隔离目录，已中止，没有花任何一次分析。');
+  console.error(`  期望：${userData}`);
+  console.error(`  实得：${reported || `（没读到 ${whereFile}）`}`);
+  console.error('  真实目录此刻仍是干净的；请先查清 --user-data-dir 为什么没生效。');
+  mock?.kill();
+  process.exit(1);
+}
+
+writeFileSync(
+  join(userData, 'settings.json'),
+  JSON.stringify(
+    { baseUrl: `http://127.0.0.1:${PORT}/v1`, model: 'mock-argument-lens', temperature: 0.2, apiKeyCipher: '', apiKeyPlain: 'test' },
+    null,
+    2
+  ),
+  'utf-8'
+);
+
+/*
+ * 预置两条账本记录。
+ *
+ * 为什么不能让它空着：空账本时「读不到账本」和「账本本来就是空的」在界面上
+ * 长得一模一样——用量面板一栏字都不显示。原来那条断言（14 根柱子）之所以能过，
+ * 是因为它读的是**用户真实账本**里恰好有数据；隔离之后立刻变成 0 根。
+ * 也就是说，旧断言守着的东西从来不是代码，是那台机器上恰好存在的记录。
+ *
+ * 放两条固定记录进去，「读得到」才有正面证据：读不到时明细行数是 0，一眼就红。
+ * 用今年这个月的文件名，日期落在本月内，避开「近 14 天」跨月那段边界。
+ */
+const usageDir = join(userData, 'usage');
+mkdirSync(usageDir, { recursive: true });
+const now = new Date();
+const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+const day = 24 * 60 * 60 * 1000;
+const seeded = [0, 1].map((back) => ({
+  id: `pack-seed-${back}`,
+  at: now.getTime() - back * day,
+  ok: true,
+  theory: 'walton',
+  /*
+   * 模型名与主机名必须像一次真实调用。
+   * 写成 mock-xxx + 127.0.0.1 会被 isMockCall 判成「模拟调用」并排除统计——
+   * 那条规则是对的（冒烟跑出来的假账不该进账本），这里只是把夹具写对，
+   * 不是绕开它：面板要验的是「读得到账本」，不是「读得到假账」。
+   */
+  model: 'deepseek-chat',
+  host: 'api.deepseek.com',
+  promptTokens: 8000,
+  completionTokens: 2000,
+  estimated: false,
+  cost: 0.008,
+  priced: true,
+  currency: '¥',
+  priceIn: 1,
+  priceOut: 2,
+  ms: 1234,
+  chars: 120,
+}));
+writeFileSync(join(usageDir, `usage-${ym}.jsonl`), seeded.map((r) => JSON.stringify(r)).join('\n') + '\n', 'utf-8');
+
+/* 余额锚点：面板上那条「已花 / 共」的横条只在有锚点时出现，
+   没有锚点它整块不渲染，看着和「坏了」一样。预置一个，让那条路也被走到。 */
+writeFileSync(
+  join(usageDir, 'meta.json'),
+  JSON.stringify(
+    { pricing: { inPerM: 1, outPerM: 2, currency: '¥' }, anchor: { at: now.getTime() - day, amount: 20, note: '自检预置' } },
+    null,
+    2
+  ),
+  'utf-8'
+);
+
 const env = {
-  ...process.env,
+  ...baseEnv,
   AL_SMOKE: shot,
   AL_ACTION: 'analyze',
   AL_PANEL: 'usage',
@@ -104,42 +243,59 @@ const env = {
   AL_SHOT_H: '1000',
   AL_SHOT_W: '1400',
 };
-delete env.ELECTRON_RUN_AS_NODE;
-delete env.AL_FORCE_ONBOARD;
 
-const child = spawn(exe, [], { env, stdio: 'ignore' });
-const done = await new Promise((r) => {
-  child.on('exit', () => r('exit'));
-  setTimeout(() => r('timeout'), 90_000);
-});
-try {
-  child.kill();
-} catch {
-  /* 已经退了 */
-}
+const done = await runExe(env, 90_000);
 mock?.kill();
-
-for (const fn of restores) fn();
 
 const log = existsSync(`${shot}.log`) ? readFileSync(`${shot}.log`, 'utf-8') : '';
 const pick = (tag) => log.split('\n').find((l) => l.includes(tag)) ?? `(没有 ${tag})`;
 
 console.log(`${done}`);
+console.log(`隔离目录：${userData}`);
 console.log(pick('DOM').replace(/^.*DOM /, '首屏探针：'));
 console.log(pick('RESULT').replace(/^.*RESULT /, '分析结果：'));
 console.log(pick('PANELDOM').replace(/^.*PANELDOM /, '用量面板：'));
 console.log(existsSync(shot) ? `截图：${shot}` : '没有产出截图');
 
-/*
- * 四条都必须成立。第一条最容易被忽略，也最要紧：
- * 截图存在、面板渲染出来了，都不等于这次分析真的跑过——
- * 没有接模型时界面照样画得好好的，脚本会开心地判成通过。
- */
+/* 隔离目录里到底有没有这次分析留下的东西——这是「隔离生效」的正面证据，
+   与下面「真实目录没被碰过」那条互为对照：一条证明写对了地方，一条证明没写错地方。 */
+const isoArchive = join(userData, 'archive');
+const isoReports = existsSync(isoArchive)
+  ? readdirSync(isoArchive).filter((f) => f.endsWith('.json') && f !== 'index.json').length
+  : 0;
+
+const after = realDirs.map((d) => ({ dir: d, rows: snapshot(d) }));
+const touched = [];
+for (const b of before) {
+  const a = after.find((x) => x.dir === b.dir);
+  if (!a) continue;
+  const setB = new Set(b.rows);
+  const setA = new Set(a.rows);
+  for (const r of a.rows) if (!setB.has(r)) touched.push(`新增/改动 ${join(b.dir, r.split('|')[0])}`);
+  for (const r of b.rows) if (!setA.has(r)) touched.push(`消失/改动 ${join(b.dir, r.split('|')[0])}`);
+}
+
 const panel = pick('PANELDOM');
 const result = pick('RESULT');
+/* 探针行是「时间戳 PANELDOM {...}」，取第一个左花括号之后的部分。
+   解析不出来时给 null，下面每一条都会红——不会因为「拿不到数」而静默通过。 */
+const panelJson = (() => {
+  const i = panel.indexOf('{');
+  if (i < 0) return null;
+  try {
+    return JSON.parse(panel.slice(i));
+  } catch {
+    return null;
+  }
+})();
 // 两个面板各写一行 PANELDOM，靠探针内容区分，不靠顺序
 const promptPanel = log.split('\n').find((l) => l.includes('PANELDOM') && l.includes('"view"')) ?? '';
 const checks = [
+  /* 隔离三条：正向、反向、以及「跑来跑去到底用哪个目录」。
+     只有正向会被「恰好没写盘」骗过，只有反向会被「根本没跑起来」骗过。 */
+  ['前置探针确认 --user-data-dir 生效', isolated],
+  ['分析写进了隔离目录，不是别处', isoReports >= 1],
+  ['真实用户目录一份文件都没动', touched.length === 0],
   /*
    * locales 只该留下中文与英文两个。
    * Electron 默认带 55 个语言包（约 49MB），界面只有中文时它们一个字节都不会被读到。
@@ -163,7 +319,7 @@ const checks = [
   // 主张库同理，而且更隐蔽：它挂在侧栏最底部，整块没渲染出来时页面完全正常。
   ['侧栏的主张入口在', /"claims":[1-9]/.test(result)],
   ['顶栏「理论」入口在', /"theoryBtn":true/.test(result)],
-  // 本轮四条新功能。它们的共同点是坏了不报错，所以进包之后要逐个数。
+  // 这几条新功能。它们的共同点是坏了不报错，所以进包之后要逐个数。
   ['模式开关五档进了包', /"modeChips":5/.test(result)],
   // 模式横幅：进包后最容易坏的一处是 MODE_META 被摇树摇掉，
   // 表现为报告照常渲染、横幅安静消失——而横幅是「这份为什么没有档位」的唯一解释。
@@ -173,13 +329,27 @@ const checks = [
   ['异议按钮进了包', /"objBtns":[1-9]/.test(result)],
   // 跑道上「倒在哪一关」：加在既有按钮上的类名，坏了页面照样正常
   ['跑道标出倒下的那一关', /"stripDown":[1-9]/.test(result)],
-  ['用量面板进入 DOM', /"kpis":3/.test(panel)],
-  ['面板认得出账本', /"bars":14/.test(panel)],
+  ['用量面板进入 DOM', panelJson?.kpis === 3],
+  // 「读得到账本」要有正面证据：预置了两条，明细里就该读出来。
+  // 读不到时是 0，与「账本本来就空」区分开——这正是上一版断言的漏洞。
+  ['用量面板读得到账本（预置两条）', (panelJson?.rows ?? 0) >= 2],
+  ['用量面板画出 14 天窗口', panelJson?.bars === 14],
+  // 有数据就要有高度。全是 0 高的柱子说明「比例算错了」或「金额一律取 0」，
+  // 而这两种情况下格子数一分不差，只数格子永远看不出来。
+  ['今天那根柱子有高度（数据真的映射成了图形）', (panelJson?.todayH ?? 0) > 0],
+  // 余额条只在有锚点时出现。预置了锚点还看不到，就是那条路断了。
+  ['余额条画得出来（有锚点时）', panelJson?.bar === true],
   ['提示词页进了包', /"view":true/.test(promptPanel) && /"sysLen":(\d{4,})/.test(promptPanel)],
   ['提示词版本号与指纹进了包', /v\d+\.\d+\.\d+/.test(promptPanel) && /[0-9a-f]{8}/.test(promptPanel)],
   ['流程无报错', /\bOK\b/.test(log)],
   ['截图产出', existsSync(shot)],
 ];
+
+if (touched.length) {
+  console.log(`\n真实目录被动过（${touched.length} 处，最多列 5 条）：`);
+  for (const t of touched.slice(0, 5)) console.log(`  ${t}`);
+}
+
 for (const [name, pass] of checks) console.log(`${pass ? '通过' : '失败'}  ${name}`);
 const ok = checks.every(([, p]) => p);
 console.log(ok ? '打包产物自检通过' : '打包产物自检失败');

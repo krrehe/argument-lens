@@ -206,6 +206,16 @@ if (!existsSync(trace)) {
 const log = readFileSync(trace, 'utf-8');
 const resultLine = log.split('\n').find((l) => l.includes('RESULT')) ?? '';
 const domLine = log.split('\n').find((l) => l.includes('DOM')) ?? '';
+/** 示例轮换那一行。写在应用里的一条日志，取第一条即可。 */
+const samplesLine = log.split('\n').find((l) => l.includes('SAMPLES ')) ?? '';
+/** 从日志行里取一个字段。取不到给空串——空串会让相关断言自己失败，而不是抛异常把整趟冒烟打断。 */
+function jOf(line, key) {
+  try {
+    return String(JSON.parse(line.slice(line.indexOf('{')))[key] ?? '');
+  } catch {
+    return '';
+  }
+}
 
 /*
  * 首屏空态跑道（SMOKE_EMPTY=1）。
@@ -330,6 +340,48 @@ const checks = [
   ['应用启动并渲染', domLine.includes('"topbar":true')],
   ['六副透镜就位', domLine.includes('"lensChips":6')],
   ['preload 桥接可用', domLine.includes('"hasApi":true')],
+  /*
+   * 示例轮换（四条）。
+   *
+   * 这一组守的是「同一个样本跑一百遍」那个坑：示例只有一段时，
+   * 按钮照样能按、照样填字，只是永远填同一段——没有任何报错。
+   * 存档里那一百多份报告，就是它一路留在这个状态下的产物。
+   *
+   * 段数不写死在脚本里，从按钮标签读（「示例 1/6」→ 6）；
+   * 抄一份段数进脚本，加第七段时必然漏改，而漏改的表现是断言静默少跑。
+   */
+  ['示例按钮在', /"found":true/.test(samplesLine)],
+  ['示例段数从标签读得出', Number(jOf(samplesLine, 'N')) >= 5],
+  [
+    '连按一圈得到段数那么多段不同的文本',
+    Number(jOf(samplesLine, 'distinct')) === Number(jOf(samplesLine, 'N')),
+  ],
+  ['每段的体裁名互不相同（不是换汤不换药）', Number(jOf(samplesLine, 'genresDistinct')) === Number(jOf(samplesLine, 'N'))],
+  /*
+   * 「回到第一段」单看是一条恒真断言：轮换整个坏掉、永远填第一段时，它天然成立。
+   * 所以必须和「六段确实各不相同」一起看——两个都成立，才说明它是转圈而不是停着不动。
+   */
+  [
+    '绕完一圈回到第一段（是轮换，不是耗完即止）',
+    samplesLine.includes('"backToFirst":true') &&
+      Number(jOf(samplesLine, 'distinct')) === Number(jOf(samplesLine, 'N')),
+  ],
+  /*
+   * 标签要跟着换。只比 label0 与「绕完一圈之后」的标签是不行的：
+   * 绕完一圈本来就该回到「示例 1/6」，两者相同是正确行为，不是证据。
+   * 要的是「点过第一次之后」——那一刻它必须已经指向下一段。
+   */
+  ['按钮标签跟着换（否则用户不知道还有别的）', jOf(samplesLine, 'label0') !== jOf(samplesLine, 'labelAfterFirst')],
+  /*
+   * 框里是自己的字时，第一下只问、第二下才换。
+   * 输入框没有撤销：这一条坏了，用户粘贴的一段话会在手滑一下之后消失，
+   * 而界面不会报错、也不会提示——只会安静地变成一段示例。
+   */
+  ['框里是自己的字时，第一下不覆盖', samplesLine.includes('"mineKept":true')],
+  ['第一下把按钮换成「覆盖原文？」', samplesLine.includes('"askShown":true')],
+  ['第二下才真的替换', samplesLine.includes('"replaced":true')],
+  ['替换完把输入框放回第一段（后面的假模型按它算下标）', samplesLine.includes('"restored":true')],
+  ['「覆盖原文？」那一瞬被拍到了', existsSync(resolve(outDir, 'sample-confirm.png'))],
   ['分析结果落屏', resultLine.includes('"grid":true')],
   ['板块全部渲染', blocks >= 16],
   ['无失败提示', resultLine.includes('"failed":false')],

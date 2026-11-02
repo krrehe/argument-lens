@@ -29,21 +29,43 @@ import { formatMoney, formatTokens } from '@shared/tokens';
 import { disputesIn } from '@shared/disputes';
 import type { Segment } from '@shared/segment';
 import { diffRevision } from '@shared/compare';
+import { SAMPLES } from '@shared/samples';
 
 type Tab = 'analyze' | 'prompt';
 
 /** 一次分析调用的返回形状。推断出来而不是手写，免得 preload 改了这里不跟。 */
 type RunResult = Awaited<ReturnType<typeof window.api.analysis.run>>;
 
-const SAMPLE = `我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。
-王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读书。
-很多家长也支持恢复早读，可见早读肯定有益。
-另外，如果连早读都保证不了，将来上课、自习、考试还能保证什么？`;
+/**
+ * 示例是一组，按一次换一段。
+ *
+ * 详见 `@shared/samples`：原来只有一段，于是「再试一次」永远得到同一段，
+ * 存档里一百多份报告绝大多数是同一段文本——那不是一个样本判了一百次，
+ * 是同一个样本跑了一百遍。它证明软件稳定，不证明判断准。
+ */
+const SAMPLE_LIB = SAMPLES;
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('analyze');
   const [theory, setTheory] = useState<TheoryId>(DEFAULT_THEORY);
   const [passage, setPassage] = useState('');
+  /**
+   * 下一次按「示例」会填第几段。填完就前进一位，填到末尾回第一段。
+   *
+   * 这个游标只在内存里，不落盘：它服务于「这一会儿试了几段」，
+   * 不是用户偏好。重新打开应用回到第一段是正常的——第一段是校园那段，
+   * 也是文档和截图里用的那段，先看到它比较好对得上。
+   */
+  const [sampleAt, setSampleAt] = useState(0);
+  /**
+   * 「框里是用户自己写的，按下去会覆盖掉」的那一次二次确认。
+   *
+   * 为什么需要它：这个按钮以前直接覆盖。用户粘了一整段社论，
+   * 手滑按一下示例，那段就没了，而且没法撤销——输入框里没有历史。
+   * 删除报告那边已经有「删 / 确认？」这一套，这里沿用同一种两下确认，
+   * 不弹系统对话框：覆盖示例这件事不值得打断到一个模拟对话框里。
+   */
+  const [sampleConfirm, setSampleConfirm] = useState(false);
   /**
    * 长文切分。`whole` 是切分前的完整原文——没有它，「恢复全文」就无从恢复。
    * 用户一旦在输入框里手动改动，说明他不想要原来那篇了，快照随即作废。
@@ -198,6 +220,22 @@ export default function App() {
     setWhole(null);
     setPickedIndex(null);
   }, [whole]);
+
+  /** 框里是用户自己的文字（不是空、也不是某一段示例）。覆盖它之前要先问一声。 */
+  const passageIsMine = passage.trim() !== '' && !SAMPLE_LIB.some((s) => s.text === passage);
+
+  const fillSample = useCallback(() => {
+    if (passageIsMine && !sampleConfirm) {
+      setSampleConfirm(true);
+      return;
+    }
+    const s = SAMPLE_LIB[sampleAt % SAMPLE_LIB.length];
+    setPassage(s.text);
+    setWhole(null);
+    setPickedIndex(null);
+    setSampleAt((i) => (i + 1) % SAMPLE_LIB.length);
+    setSampleConfirm(false);
+  }, [passageIsMine, sampleConfirm, sampleAt]);
 
   /**
    * 跑一次分析。
@@ -587,6 +625,8 @@ export default function App() {
                     // 手动改动即放弃切分：留着「恢复全文」反而会覆盖他刚写的东西
                     if (whole) setWhole(null);
                     if (pickedIndex !== null) setPickedIndex(null);
+                    // 一旦开始改，就不再想覆盖：那次确认是给他「按住不放」的，不是给他瞄准的
+                    if (sampleConfirm) setSampleConfirm(false);
                   }}
                   placeholder="粘贴一段真实的话：社论、评论区争论、广告文案、论文段落、面试说辞、公开信……"
                   spellCheck={false}
@@ -645,15 +685,25 @@ export default function App() {
                   <span className="count">{passage.length} 字</span>
                   <div className="spacer" />
                   <button
-                    className="ghost-btn"
-                    onClick={() => {
-                      setPassage(SAMPLE);
-                      setWhole(null);
-                      setPickedIndex(null);
-                    }}
+                    className={`ghost-btn ${sampleConfirm ? 'confirm' : ''}`}
+                    onClick={fillSample}
                     disabled={loading}
+                    data-sample-btn="1"
+                    data-genre={SAMPLE_LIB[sampleAt % SAMPLE_LIB.length].genre}
+                    data-at={sampleAt}
+                    title={
+                      sampleConfirm
+                        ? '再按一次会用示例覆盖框里的文字。框里的内容不会自动备份，想留着就先复制出去。'
+                        : `填入第 ${sampleAt + 1} 段（共 ${SAMPLE_LIB.length} 段）：「${
+                            SAMPLE_LIB[sampleAt % SAMPLE_LIB.length].genre
+                          }」——${SAMPLE_LIB[sampleAt % SAMPLE_LIB.length].hint}。再按一次换下一段。`
+                    }
                   >
-                    填入示例
+                    {sampleConfirm
+                      ? '覆盖原文？'
+                      : passageIsMine
+                        ? '换一段'
+                        : `示例 ${sampleAt + 1}/${SAMPLE_LIB.length}`}
                   </button>
                   <button
                     className="primary"

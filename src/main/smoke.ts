@@ -1,6 +1,10 @@
 import { app, type BrowserWindow } from 'electron';
 import { appendFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { listReports } from './archive';
+
+/** 等一拍。只在自检里用：界面更新不是同步落到 DOM 上的，点完就取会拿到上一帧。 */
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /*
  * 打包自检。
@@ -30,6 +34,31 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
   };
   writeFileSync(trace, '');
   add(`boot pid=${process.pid} electron=${process.versions.electron}`);
+
+  /*
+   * AL_WHERE=<文件>：只回报「这个进程用的是哪个 userData 目录」，报完立刻退出。
+   *
+   * 为什么需要它：`pack:check` 要跑打包后的 exe，而那个 exe 一旦没吃下
+   * `--user-data-dir`，就会读**真实用户目录**里那份设置去打一次真模型——
+   * 花钱、往真实存档里塞报告，而且事前完全看不出来（界面照常跑完）。
+   * 有了这个探针，脚本能在花任何一次分析之前先确认隔离生效，不生效就直接退出。
+   *
+   * 必须放在任何业务动作之前：它唯一的作用就是「什么都还没做的时候问一句」。
+   */
+  const where = process.env['AL_WHERE'];
+  if (where) {
+    try {
+      writeFileSync(
+        where,
+        `USERDATA ${app.getPath('userData')}\nAPPDATA ${process.env['APPDATA'] ?? ''}\n`
+      );
+    } catch {
+      // @allow-silent: 这份回报写不出来时，pack:check 会因为读不到 USERDATA 而判失败并退出，
+      // 不是静默通过。这里不抛只是不想在同一个地方报两次同样的错。
+    }
+    app.exit(0);
+    return;
+  }
 
   const wc = mainWindow.webContents;
   wc.on('console-message', (e) => add(`[renderer:${e.level}] ${e.message}`));
@@ -111,12 +140,130 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           await wc.executeJavaScript(`(() => { document.querySelector(${sel})?.click(); return true; })()`);
           await new Promise((r) => setTimeout(r, 300));
         }
+        /*
+         * 示例按钮的轮换：连按到绕一圈，验三件事。
+         *
+         * 为什么值得单独验：示例只有一段时，「再试一次」永远得到同一段，
+         * 存档里一百多份报告绝大多数是同一段文字——那不是一百个样本，
+         * 是同一个样本跑了一百遍。轮换是这件事的对策，而**它坏了不会有任何报错**：
+         * 按钮照样能按，照样填字，只是永远填同一段。这种坏法只能靠断言抓。
+         *
+         * 次数不写死在这里，从按钮标签（「示例 1/6」）里读出来——
+         * 脚本里抄一份段数，加第七段时必然漏改，而漏改的表现是断言静默少跑几次。
+         *
+         * 每按一次都要等一拍再读：React 的 setState 不是同步落到 DOM 上的，
+         * 同一个 tick 里读完会拿到上一段的值——第一版就是这么写的，
+         * 六次读出来全是 0，而按钮其实好好地换到了第 2 段。
+         *
+         * 绕完一圈之后再多按一次，必须回到第一段：轮换是「转圈」，不是「用完即弃」。
+         * 最后停在第一段，是因为假模型夹具里那两处 span 是照第一段算的。
+         */
+        const readSample = () =>
+          wc.executeJavaScript(`(() => {
+            const b = document.querySelector('[data-sample-btn]');
+            const t = document.querySelector('textarea');
+            if (!b || !t) return { found: false };
+            return {
+              found: true,
+              label: (b.textContent || '').trim(),
+              genre: b.getAttribute('data-genre') || '',
+              value: t.value,
+            };
+          })()`);
+        const clickSample = () =>
+          wc.executeJavaScript(`(() => {
+            const b = document.querySelector('[data-sample-btn]');
+            if (!b) return false;
+            b.click();
+            return true;
+          })()`);
+
+        const first = (await readSample()) as { found: boolean; label?: string };
+        const n = Number(((first.label ?? '').match(/(\d+)\s*\/\s*(\d+)/) ?? [])[2] ?? 0);
+        const seen: string[] = [];
+        const seenGenres: string[] = [];
+        let labelAfterFirst = '';
+        for (let i = 0; i < n; i++) {
+          await clickSample();
+          await sleep(120);
+          const cur = (await readSample()) as { label?: string; genre?: string; value?: string };
+          seen.push(cur.value ?? '');
+          seenGenres.push(cur.genre ?? '');
+          if (i === 0) labelAfterFirst = cur.label ?? '';
+        }
+        await clickSample();
+        await sleep(120);
+        const back = (await readSample()) as { label?: string; value?: string };
+
+        /*
+         * 「框里是自己的字」这一路。
+         *
+         * 输入框没有撤销，覆盖掉就没了——所以第一下只问，第二下才换。
+         * 这条光靠读代码守不住：把判断写反、或者忘了在输入时复位确认态，
+         * 表现都是一个能按的按钮，按下去字没了。只有真的打一段字再按，才验得到。
+         *
+         * 打完字要按原生 setter 派发 input 事件：React 的受控输入框不认 `t.value = x`，
+         * 直接从原型上取 setter 赋值，状态才会跟着变。
+         */
+        const mine = '这是我自己写的一段话，用来验证按示例不会把它直接盖掉。它够长，也像一段能被判的文字。';
         await wc.executeJavaScript(`(() => {
-          const btn = (t) => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === t);
-          btn('填入示例')?.click();
+          const t = document.querySelector('textarea');
+          if (!t) return false;
+          const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+          setter.call(t, ${JSON.stringify(mine)});
+          t.dispatchEvent(new Event('input', { bubbles: true }));
           return true;
         })()`);
-        await new Promise((r) => setTimeout(r, 500));
+        await sleep(150);
+        await clickSample();
+        await sleep(150);
+        const afterFirstClick = (await readSample()) as { label?: string; value?: string };
+        /*
+         * 「覆盖原文？」这个状态只在两次点击之间存在，平时截不到。
+         * 给它留一个入口，理由和「分析进行中」那一屏一样：
+         * 来不及被拍到的屏，等于从没被人看过。
+         */
+        {
+          const img = await wc.capturePage();
+          const p = join(dirname(shot), 'sample-confirm.png');
+          writeFileSync(p, img.toPNG());
+          add(`SAMPLESHOT ${p}`);
+        }
+        await clickSample();
+        await sleep(150);
+        const afterSecondClick = (await readSample()) as { label?: string; value?: string };
+
+        /* 收尾：把输入框放回第一段。轮换是转圈，按满一圈必然回到它，所以上界取 n。 */
+        let restored = false;
+        for (let i = 0; i < n; i++) {
+          if (((await readSample()) as { value?: string }).value === seen[0]) {
+            restored = true;
+            break;
+          }
+          await clickSample();
+          await sleep(120);
+        }
+        if (!restored) {
+          restored = ((await readSample()) as { value?: string }).value === seen[0];
+        }
+
+        add(
+          `SAMPLES ${JSON.stringify({
+            found: first.found,
+            N: n,
+            label0: first.label ?? '',
+            labelAfterFirst,
+            distinct: new Set(seen).size,
+            genresDistinct: new Set(seenGenres).size,
+            backToFirst: back.value === seen[0],
+            chars: seen.map((s) => s.length),
+            mineKept: afterFirstClick.value === mine,
+            askShown: (afterFirstClick.label ?? '').includes('覆盖'),
+            replaced: afterSecondClick.value !== mine && (afterSecondClick.value ?? '').trim() !== '',
+            restored,
+          })}`
+        );
+        await new Promise((r) => setTimeout(r, 200));
         // 注意：页签也叫「分析」，按文本找会点到页签上。这里按提交按钮的类名定位
         await wc.executeJavaScript(`(() => {
           document.querySelector('button.primary')?.click();
@@ -455,6 +602,17 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           rows: document.querySelectorAll('.u-tr').length,
           bars: document.querySelectorAll('.u-day').length,
           bar: !!document.querySelector('.u-bar'),
+          /*
+           * 今天那根柱子的实际像素高度。
+           *
+           * 「14 个格子画出来了」与「数据真的映射成了高度」是两件事：
+           * 比例算错、单位用错、或者 cost 一律取 0 时，格子照样是 14 个，
+           * 只是全部贴底——看起来完全正常。所以要量高度，不数格子。
+           */
+          todayH: (() => {
+            const el = document.querySelector('.u-day.today i');
+            return el ? Math.round(el.getBoundingClientRect().height) : -1;
+          })(),
           text: (document.querySelector('.dialog.usage')?.innerText || '').replace(/\\s+/g, ' ').slice(0, 260),
         })`);
         add(`PANELDOM ${panelProbe}`);

@@ -63,7 +63,7 @@ npm run verify
 
 ---
 
-## 全部关卡（`npm run verify` 跑的 16 项）
+## 全部关卡（`npm run verify` 跑的 17 项）
 
 | 命令 | 红了说明什么 |
 |---|---|
@@ -82,6 +82,7 @@ npm run verify
 | `check:report` | 报告自检不变量不再能被坏报告触发（检查器变成了摆设） |
 | `check:export` | 导出件缺段、或把不适用的判定写进去了、或混进了 info 级诊断 |
 | `check:robustness` | 写失败没抛、设置校验漏了非法值、空 catch 没写理由 |
+| `check:samples` | 示例文本出问题：段数不够、两段重复、长度越界、句数少于毛病数、第一段与假模型夹具的下标对不上 |
 | `check:docs` | **这份文件自己腐烂了**：它点名的命令/路径不存在，或漏掉了某个 check |
 
 `smoke` 与 `pack:check` 不进 verify（要几分钟、要起应用），改到界面或打包时单独跑。
@@ -97,6 +98,7 @@ npm run verify
 | 只改「报告里已经写下的东西」 | `check:replay`、`replay` | 有真存档时 `npm run replay` 比 `check:replay` 覆盖面大**但样本是你的真实文本**，它验的是你手里那些份 |
 | 界面 / 样式 | `check:css`、`check:lens`、`ui:preview` 截图 | 人眼看截图；新的一屏必须有入口拍得到 |
 | 存档 / IPC / 记账 | `check:robustness`、`check:usage` | 写失败路径要真跑一遍，不是读代码判断 |
+| 示例文本 / 输入区 | `check:samples`、`smoke` | 改第一段要同步 `scripts/mock-llm.mjs` 里的 span 下标；改了按钮要重拍首屏截图 |
 | 文档 / 数字 | `check:docs`、`verify` | 改了断言条数，README 里那个数也要改 |
 
 ---

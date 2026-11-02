@@ -41,7 +41,8 @@
     "check:robustness": "node scripts/run-check-robustness.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "replay": "node scripts/run-replay.mjs",
-    "check:replay": "node scripts/run-check-replay.mjs"
+    "check:replay": "node scripts/run-check-replay.mjs",
+    "check:samples": "node scripts/run-check-samples.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
