@@ -419,12 +419,29 @@
 }
 
 /* 估算标记：小、但必须在。上标位置让它不会把列宽撑开 */
+/*
+ * 「估」「回」这类上标标记。
+ *
+ * 8.5px 的汉字不是「小」，是认不出：「回」在这种尺寸下会糊成一个带点的方框，
+ * 看上去像字体缺字。它偏偏又是唯一能说明「这个数不是接口给的那个数」的标记，
+ * 认不出就等于没标。10px 是这套字号里最小的可读档。
+ */
 sup.est {
-  font-size: 8.5px;
+  font-size: 10px;
   color: var(--weak);
-  margin-left: 1px;
+  margin-left: 2px;
   letter-spacing: 0;
-  vertical-align: super;
+  vertical-align: 0.35em;
+  line-height: 1;
+}
+
+/* 「回填」：两字并排，不上标——上标会把两个字挤成一条细线，反而更难认 */
+.est-note {
+  font-size: 10px;
+  color: var(--weak);
+  margin-left: 3px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 /* ─────────── 单价 ─────────── */

@@ -13,6 +13,8 @@
 import { createServer } from 'node:http';
 
 const PORT = Number(process.env.MOCK_PORT ?? 8799);
+/** 见下方 send 处的说明；0 = 立刻回 */
+const DELAY = Number(process.env.MOCK_DELAY_MS ?? 0);
 
 const payload = {
   context: {
@@ -309,16 +311,26 @@ const server = createServer((req, res) => {
     }
 
     const content = isPing ? 'pong' : json;
+    const send = () =>
+      res.end(
+        JSON.stringify({
+          id: 'mock-1',
+          object: 'chat.completion',
+          model: 'mock-argument-lens',
+          choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 3200, completion_tokens: 1800, total_tokens: 5000 },
+        })
+      );
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        id: 'mock-1',
-        object: 'chat.completion',
-        model: 'mock-argument-lens',
-        choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
-        usage: { prompt_tokens: 3200, completion_tokens: 1800, total_tokens: 5000 },
-      })
-    );
+    /*
+     * MOCK_DELAY_MS：把响应拖住一会儿。
+     *
+     * 只为一件事：验证「分析进行中」那一屏。假模型平时 200 毫秒就回，
+     * 那一屏在端到端里根本来不及出现——不出现的东西等于没验过。
+     * 连接测试（ping）不拖，否则设置页的「测试连接」会莫名其妙地卡住。
+     */
+    if (DELAY && !isPing) setTimeout(send, DELAY);
+    else send();
   });
 });
 

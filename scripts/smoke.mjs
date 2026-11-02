@@ -18,6 +18,8 @@ mkdirSync(outDir, { recursive: true });
 
 const MOCK_PORT = 8799;
 const shot = resolve(outDir, 'analyzed.png');
+/** SMOKE_RUNNING=1 时「分析进行中」那一屏的截图 */
+const runShot = resolve(outDir, 'running.png');
 const trace = `${shot}.log`;
 
 const electronBin = resolve(root, 'node_modules/electron/dist/electron.exe');
@@ -170,6 +172,11 @@ const env = {
   ...(process.env.SMOKE_MODE ? { AL_MODE: process.env.SMOKE_MODE } : {}),
   // SMOKE_REVISE=1：跑完再点「拿这一版再判一次」，验修订对照整条链
   ...(process.env.SMOKE_REVISE === '1' ? { AL_REVISE: '1' } : {}),
+  /*
+   * SMOKE_RUNNING=1：验「分析进行中」那一屏。要配 MOCK_DELAY_MS=4000 左右一起用，
+   * 否则假模型 200 毫秒就回来，那一屏来不及出现在截图里——来不及出现就等于没验。
+   */
+  ...(process.env.SMOKE_RUNNING === '1' ? { AL_RUNSHOT: runShot } : {}),
 };
 delete env.ELECTRON_RUN_AS_NODE; // 宿主注入它会让 Electron 退化成 node
 delete env.AL_FORCE_ONBOARD;
@@ -409,6 +416,24 @@ const checks = [
         ['对照写明只按本透镜刻度', openLine().includes('只按这副透镜自己的刻度算')],
       ]
     : []),
+  /*
+   * 「分析进行中」那一屏。三条一起验，因为它们各自会坏在不同的地方：
+   *   面板没出现 → 用户对着「先给一段真话」等一分钟，以为按钮没生效；
+   *   阶段名是空串 → 说明主进程的进度事件没接上，只剩一个光秃秃的百分比；
+   *   「已等」不走 → 计时器没起来，屏幕上是个永远 0 秒的假象。
+   */
+  ...(process.env.SMOKE_RUNNING === '1'
+    ? [
+        [
+          '进行中面板出现且不是空态',
+          runObj().first?.on === true && runObj().first?.empty === false,
+        ],
+        ['阶段名由主进程报来（非占位）', String(runObj().first?.label ?? '').length >= 2],
+        ['百分比已显示', /%/.test(String(runObj().first?.pct ?? ''))],
+        ['「已等」在走', waitedSecs(runObj().second?.wait) > waitedSecs(runObj().first?.wait)],
+        ['进行中截图产出', existsSync(runShot)],
+      ]
+    : []),
 ];
 
 function panelLine() {
@@ -421,6 +446,28 @@ function reviseLine() {
 
 function openLine() {
   return log.split('\n').find((l) => l.includes('REVISEOPEN')) ?? '';
+}
+
+function runLine() {
+  return log.split('\n').find((l) => l.includes('RUNNING ')) ?? '';
+}
+
+/** RUNNING 探针是 {first, second} 两帧快照，用来证明「已等」在动。 */
+function runObj() {
+  try {
+    return JSON.parse(runLine().slice(runLine().indexOf('{')));
+  } catch {
+    return { first: {}, second: {} };
+  }
+}
+
+/** 把「已等 1 分 05 秒」这种文案折成秒；解析不出来返回 -1，让它必然失败。 */
+function waitedSecs(text) {
+  const s = String(text ?? '');
+  const m = /(\d+)\s*分/.exec(s);
+  const sec = /(\d+)\s*秒/.exec(s);
+  if (!m && !sec) return -1;
+  return (m ? Number(m[1]) * 60 : 0) + (sec ? Number(sec[1]) : 0);
 }
 
 /** DOM 探针那行是 JSON，正经解析它——拿正则抠嵌套数组迟早抠出错来。 */

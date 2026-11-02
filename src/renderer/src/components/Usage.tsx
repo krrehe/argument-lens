@@ -508,7 +508,7 @@ function Row({ r, s, cur }: { r: UsageRow; s: UsageSummary; cur: string }) {
   const est = r.estimated;
   /*
    * 费用列：用主进程算好的 effCost，不在这里读 r.cost。
-   * 当时没填单价的记录会被按现价回填，并标一个小圆点——
+   * 当时没填单价的记录会被按现价回填，并标上「回填」——
    * 不标的话，用户改了单价会以为历史被篡改了；不按同一个算法算，
    * 明细加起来就对不上上面的合计，那比贵一块钱更糟。
    */
@@ -531,7 +531,17 @@ function Row({ r, s, cur }: { r: UsageRow; s: UsageSummary; cur: string }) {
           showCost ? (
             <>
               {formatMoney(r.effCost, cur)}
-              {r.backfilled && <sup className="est" title="这条记录当时没填单价，金额是按现价回填的">回</sup>}
+              {/*
+                标记写成两个字，不是「回」。
+                「回」在小字号下就是方框套方框，跟缺字时那个豆腐块长得一模一样——
+                一个用来解释「这个数不是当天的真实花费」的标记，自己被读成乱码，
+                那它还不如不写。
+              */}
+              {r.backfilled && (
+                <span className="est-note" title="这条记录当时没填单价，金额是按现价回填的">
+                  回填
+                </span>
+              )}
             </>
           ) : (
             '—'
@@ -579,7 +589,7 @@ function Honesty({ s, onReveal }: { s: UsageSummary; onReveal: () => void }) {
               ? '按内置参考价估的，量级对、具体数以账单为准。填上你自己的单价，就会改用你的。'
               : '这个模型没有内置参考价，你也还没填单价，所以金额一栏是空的——不是 0。'}
           {s.backfilled > 0
-            ? `有 ${s.backfilled} 条当时还没有单价，按现在的价补算。`
+            ? `有 ${s.backfilled} 条当时还没有单价，按现在的价补算，明细里标着「回填」的就是——那不是当天的真实花费，别拿它去对账单。`
             : '目前没有需要按现价补算的记录。'}
         </li>
         <li>

@@ -10,6 +10,8 @@ import { DisputeDialog } from './components/Disputes';
 import { GlossaryDialog, PlainCtx } from './components/Term';
 import { MOCK, MOCK_BY_THEORY } from './mock-data';
 import { UsagePanel } from './components/Usage';
+import { Settings } from './components/Settings';
+import { Running } from './components/Running';
 import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
 import './styles.css';
 import './styles-usage.css';
@@ -158,6 +160,59 @@ const mockRun = (
   };
 };
 
+/**
+ * 设置页预览（?dlg=settings[&onboard=1][&bad=1]）。
+ *
+ * 这一屏以前没有任何预览入口，从来没有人眼看过：它要读 IPC，静态预览页跑不了；
+ * 真应用里得进设置才看得见。而「留空 = 不动已存的 Key」「要清掉得显式点」
+ * 这两条规矩恰好都落在这里——规矩写在代码里、界面没验过，等于没验。
+ *
+ * ?onboard=1 是首次启动那一版（多一段「为什么必须配」）。
+ * ?bad=1 让保存返回一条校验错误，用来看错误行长什么样：那是这一轮新加的分支，
+ * 只在地址写错时才出现，平时截图永远碰不到。
+ */
+const QS = new URLSearchParams(location.search);
+const SETTINGS_BAD = QS.get('bad') === '1';
+
+/*
+ * 分析进行中（?running=checking&wait=42）。
+ *
+ * 这一屏在真应用里只存在 30–90 秒，而且必须先发一次真请求才看得到；
+ * 没有入口，它的版式就只能靠想象。阶段文案照抄 analyze.ts 里 onProgress 的那几句——
+ * 那边改了，这里要跟着改（预览页只核对版式，不保证措辞最新）。
+ */
+const RUN_STAGES: Record<string, { label: string; percent: number }> = {
+  scope: { label: '按「论证型式与批判性问题」拆解', percent: 10 },
+  reconstructing: { label: '重构论证与隐含前提', percent: 25 },
+  checking: { label: '逐条走检查项', percent: 50 },
+  verdict: { label: '把逐条结果收成一个判读', percent: 80 },
+  'self-check': { label: '自检与回填原文位置', percent: 92 },
+};
+const RUN_KEY = QS.get('running') ?? '';
+const RUN_STAGE = RUN_STAGES[RUN_KEY] ?? null;
+const RUN_WAIT = Number(QS.get('wait') ?? 0);
+
+if (QS.get('dlg') === 'settings') {
+  const saved = {
+    baseUrl: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat',
+    temperature: 0.2,
+    apiKey: '',
+    hasKey: true,
+    keyUnreadable: false,
+  };
+  (window as unknown as { api: unknown }).api = {
+    settings: {
+      get: async () => saved,
+      save: async () =>
+        SETTINGS_BAD
+          ? { ok: false, error: '接口地址要以 http:// 或 https:// 开头（现在填的是 file:///D:/tmp）' }
+          : { ok: true },
+      test: async () => ({ ok: true, message: '连上了：deepseek-chat 回了 4 个字，用时 1.3 秒。' }),
+    },
+  };
+}
+
 const MOCK_USAGE: UsageSummary = {
   today: { count: 6, okCount: 6, tokens: 48_600, cost: 0.068 },
   month: { count: 82, okCount: 82, tokens: 856_709, cost: 1.113 },
@@ -225,6 +280,20 @@ function Preview() {
       const el = document.querySelector('.main');
       if (el) el.scrollTop = y;
     }
+  }, []);
+
+  /*
+   * ?bad=1 时替人按一下「保存」，让校验失败那一行出现在截图里。
+   * 那一行只在保存被拒时才有，静态预览不点按钮就永远拍不到——
+   * 拍不到的分支等于没写过。
+   */
+  useEffect(() => {
+    if (!SETTINGS_BAD) return;
+    const id = window.setTimeout(() => {
+      const btn = document.querySelector<HTMLButtonElement>('.dialog-foot.split .primary');
+      btn?.click();
+    }, 400);
+    return () => window.clearTimeout(id);
   }, []);
 
   /*
@@ -354,14 +423,21 @@ function Preview() {
           />
         </aside>
         <main className="main">
-          <DiagnosisView
-            d={shown}
-            onOpenClaim={(id) => {
-              // 预览里也走真链路：定位到那一条，顺便打开库，截图能核对高亮
-              setFocusClaim(id);
-              setTheoryOpen(true);
-            }}
-          />
+          {RUN_STAGE ? (
+            <Running
+              progress={{ stage: 'checking', label: RUN_STAGE.label, percent: RUN_STAGE.percent }}
+              elapsed={RUN_WAIT}
+            />
+          ) : (
+            <DiagnosisView
+              d={shown}
+              onOpenClaim={(id) => {
+                // 预览里也走真链路：定位到那一条，顺便打开库，截图能核对高亮
+                setFocusClaim(id);
+                setTheoryOpen(true);
+              }}
+            />
+          )}
         </main>
       </div>
       {new URLSearchParams(location.search).get('dlg') === 'glossary' && (
@@ -379,6 +455,13 @@ function Preview() {
       )}
       {new URLSearchParams(location.search).get('dlg') === 'usage' && (
         <UsagePanel onClose={() => {}} onChanged={() => {}} />
+      )}
+      {QS.get('dlg') === 'settings' && (
+        <Settings
+          mode={QS.get('onboard') === '1' ? 'onboard' : 'normal'}
+          onClose={() => {}}
+          onSaved={() => {}}
+        />
       )}
     </div>
     </PlainCtx.Provider>

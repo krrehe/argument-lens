@@ -122,6 +122,44 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           return true;
         })()`);
 
+        /*
+         * AL_RUNSHOT=<路径>：趁分析还没回来，把「进行中」那一屏拍下来。
+         *
+         * 这一屏的存在时间等于模型延迟：假模型平时 200 毫秒就回来，它根本来不及出现，
+         * 所以这个模式要配 MOCK_DELAY_MS 用。要点不是「拍张图」，而是三个断言：
+         *   - 面板真的出现了（.running）；
+         *   - 阶段名是主进程报的那句，不是写死的占位；
+         *   - 「已等」在动（隔一秒取两次，第二次必须更大）——不动就说明计时器没跑，
+         *     用户看到的是一个永远停在 0 秒的假象。
+         * 只截图不断言，等于给一个坏掉的界面留下了一张好看的证据。
+         */
+        const runShot = process.env['AL_RUNSHOT'];
+        if (runShot) {
+          const probeRun = () =>
+            wc.executeJavaScript(
+              `JSON.stringify({
+                on: !!document.querySelector('.running'),
+                label: (document.querySelector('.running .run-label')?.innerText || ''),
+                pct: (document.querySelector('.running .run-pct')?.innerText || ''),
+                wait: (document.querySelector('.running .run-wait')?.innerText || ''),
+                empty: !!document.querySelector('.empty'),
+              })`
+            );
+          let first: Record<string, unknown> = {};
+          for (let i = 0; i < 20; i++) {
+            const raw = await probeRun();
+            first = JSON.parse(raw);
+            if (first.on) break;
+            await new Promise((r) => setTimeout(r, 100));
+          }
+          await new Promise((r) => setTimeout(r, 1100));
+          const second: Record<string, unknown> = JSON.parse(await probeRun());
+          add(`RUNNING ${JSON.stringify({ first, second })}`);
+          const img0 = await wc.capturePage();
+          writeFileSync(runShot, img0.toPNG());
+          add(`RUNSHOT ${runShot}`);
+        }
+
         for (let i = 0; i < 60; i++) {
           await new Promise((r) => setTimeout(r, 500));
           const state = await wc.executeJavaScript(

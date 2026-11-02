@@ -99,9 +99,18 @@ export function Settings({
     const payload = form.apiKey ? form : clearKey ? { ...form, apiKey: '' } : { ...form, apiKey: undefined };
     const r = await window.api.settings.save(payload);
     if (!r.ok) {
-      // 校验不过就停在设置页：写进去了再报错，用户面对的会是一条指向网络的假线索
+      /*
+       * 只写一处：正文里那一行（saveError）。
+       *
+       * 以前这里同时写 saveError 和 test，于是屏幕上出现两遍同一句话——
+       * 一条小字在正文末尾，一条粉条在按钮上方，相隔 40 像素。
+       * 两处都说同一件事，读起来不像强调，像故障。
+       *
+       * 顺带把 test 复位：上一次「连上了」的结果贴着一条「没保存」，
+       * 是自相矛盾的画面——测试过的那份配置，并不是这次要保存的那份。
+       */
       setSaveError(r.error ?? '没保存：这一版设置不合法。');
-      setTest({ kind: 'done', ok: false, message: r.error ?? '没保存。' });
+      setTest({ kind: 'idle' });
       return;
     }
     setSaveError(null);

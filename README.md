@@ -83,6 +83,8 @@
 
 开头还有**四句话**（他要你信什么 / 最薄的一处 / 说明到什么程度 / 怎么补），每句可点，滚到对应栏。点结构图里的 P2，原文与主张卡同步高亮；点检查跑道的 CQ2，表格对应行亮。图与文互为索引，这是「相辅相成」的实际含义。
 
+**等的那一分钟也要交代清楚。** 一次分析 30–90 秒。这段时间主区不是留白，也不是一个一直往前爬的假进度条：它写当前阶段（「逐条走检查项」）、阶段换来的百分比、已经等了多少秒，以及一句代价——**请求已经发出去了，现在关窗供应商照样计费，而这份账本里不会留下这一条**。百分比只在阶段切换时跳，因为主进程只报得出阶段；凭空匀速爬的进度条是在替模型撒谎。
+
 详见 docs/通俗与可视化.md。
 
 ---
@@ -336,9 +338,14 @@ SMOKE_MODE=redteam npm run smoke      # 同上，切红队（五种模式各可�
 SMOKE_REVISE=1 npm run smoke          # 同上，走完「填回输入框 → 再分析 → 对照」整条链
 SMOKE_PANEL=prompt npm run smoke   # 同上，再切提示词页验版本号与指纹
 SMOKE_EMPTY=1 npm run smoke        # 不分析，只验首屏空态：三步引导、报告样例、五种问法的说明
+MOCK_DELAY_MS=4000 SMOKE_RUNNING=1 npm run smoke   # 验「分析进行中」那一屏：面板出现、阶段名来自主进程、
+                       # 「已等」在走（隔一秒取两次比对）。配 MOCK_DELAY_MS 用，否则假模型 200 毫秒就回来，
+                       # 那一屏来不及出现——来不及出现的东西等于没验过
 npm run ui:preview     # 界面截图（不打 Electron）：预览页支持 ?lens=<透镜> 与 ?mode=<模式> 两个开关，
                        # 两个维度各自单独换，改措辞或改图之后能逐模式截一版，不必真跑分析
 node scripts/shot-ui.mjs 11000 0 "mode=fallacy"   # 截到 11000 高，查谬误模式的落点图才在画面里
+node scripts/shot-ui.mjs 900 0 "running=checking&wait=42"   # 「分析进行中」（预览页版，不跑模型）
+node scripts/shot-ui.mjs 1200 0 "dlg=settings&bad=1"        # 设置页的保存被拒状态（校验失败那一行）
 npm run check:compare  # 修订对照的断言测试（不跑应用，直接测比较逻辑）
 npm run check:lens     # 六副透镜的图与走向图：渲染成 HTML 再验它们真的画出来了
 npm run check:css      # 样式覆盖：组件里写下的类名样式表里必须有（历史面板整块裸奔过，防复发）
@@ -383,7 +390,7 @@ src/
     styles-theory.css    主张库的样式（三档不降级：C 档排小了，等于暗示它不重要）
     styles-flow.css      切分、模式、修订对照、异议的样式（流程层的四样东西共用一册）
     styles-history.css   历史面板的样式（曾经整块缺失——面板能开、有数据，只是排版全裸；check:css 因此而生）
-    components/    Diagram（结构图 / 判读刻度 / 检查跑道 / 透镜地形图）· Overview（开头四句话）· Term（术语与术语表）· Usage（用量与余额）· Disputes（争议栏与争议地图）· TheoryBase（主张库与十规则）· LensDiagrams（六副透镜各自的图）· SegmentBar（切分条）· Revision（对照条与走向图）· History（历史与异议统计）· Objection（「不同意」）
+    components/    Diagram（结构图 / 判读刻度 / 检查跑道 / 透镜地形图）· Overview（开头四句话）· Term（术语与术语表）· Usage（用量与余额）· Disputes（争议栏与争议地图）· TheoryBase（主张库与十规则）· LensDiagrams（六副透镜各自的图）· SegmentBar（切分条）· Revision（对照条与走向图）· History（历史与异议统计）· Objection（「不同意」）· Running（分析进行中那一屏）
 docs/
   理论底稿.md      十条操作规则、八步流程、三样不能给的东西
   外部文献校准.md  外部来源对照、十规则全录、实证数据
@@ -397,7 +404,7 @@ docs/
   提示词工程.md    提示词的版本、指纹、块、预算与检查；改一个字要走哪些步骤
   评测报告.md      二十三份真实语料跑出来的失效清单：结构失效、判断失效、边界失效，以及没修的六条
   prompts/         三十份装配后的完整提示词（六副透镜 × 五种模式）
-  screenshots/     界面截图（分析页 / 首屏 / 界面预览）
+  screenshots/     界面截图（分析页 / 首屏 / 进行中 / 设置引导 / 各面板 / 界面预览）
 scripts/
   mock-llm.mjs    本地假模型，用于端到端验证
   smoke.mjs       端到端冒烟（五种模式 / 修订 / 提示词页等路径，SMOKE_MODE 与 SMOKE_REVISE 切换）

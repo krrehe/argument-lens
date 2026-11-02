@@ -22,6 +22,7 @@ import { DisputeDialog } from './components/Disputes';
 import { ObjectionCtx } from './components/Objection';
 import { UsageChip, UsagePanel } from './components/Usage';
 import { SegmentBar } from './components/SegmentBar';
+import { Running } from './components/Running';
 import { RevisionBar } from './components/Revision';
 import { HistoryPanel } from './components/History';
 import { formatMoney, formatTokens } from '@shared/tokens';
@@ -54,6 +55,8 @@ export default function App() {
   const [diag, setDiag] = useState<Diagnosis | null>(null);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<ProgressEvent | null>(null);
+  /** 这次已经等了多少秒。只用来回答「还要不要等」，不参与任何判定。 */
+  const [waited, setWaited] = useState(0);
   const [error, setError] = useState<string | null>(null);
   /**
    * 一条「事情没成，但结果照给你」的提示。
@@ -138,6 +141,22 @@ export default function App() {
       .catch(() => setObjections([]));
     return window.api.analysis.onProgress((e) => setProgress(e));
   }, [refreshUsage]);
+
+  /*
+   * 「已等 42 秒」。
+   *
+   * 每 500 毫秒加一次是为了让 1 秒的跳动不至于晚半拍，但对外只显示整秒——
+   * 数字跳得比现实快，会让人以为快好了。
+   */
+  useEffect(() => {
+    if (!loading) {
+      setWaited(0);
+      return;
+    }
+    const t0 = Date.now();
+    const id = window.setInterval(() => setWaited(Math.floor((Date.now() - t0) / 1000)), 500);
+    return () => window.clearInterval(id);
+  }, [loading]);
 
   const togglePlain = () => {
     setPlain((v) => {
@@ -552,7 +571,14 @@ export default function App() {
                     onClick={() => run()}
                     disabled={loading || !passage.trim()}
                   >
-                    {loading ? progress?.label ?? '分析中…' : MODE_META[mode].action}
+                    {/*
+                      这里只写短词，不写阶段名。
+                      阶段名是一整句（「逐条走型式的一条批判性问题（CQ）」），
+                      塞进这个按钮会把它撑成三行，顺带把左边的「128 字」和「填入示例」
+                      各挤成两行——整条工具栏变形。整句现在有地方去了：主区那块
+                      「分析进行中」写的就是它，还带百分比和已等时间。
+                    */}
+                    {loading ? '分析中…' : MODE_META[mode].action}
                   </button>
                 </div>
                 <p className="hint">
@@ -656,7 +682,9 @@ export default function App() {
               */}
               {revision && <RevisionBar diff={revision} onOpenParent={() => parent && openReport(parent.id)} />}
 
-              {diag ? (
+              {loading ? (
+                <Running progress={progress} elapsed={waited} />
+              ) : diag ? (
                 <ObjectionCtx.Provider value={objCtx}>
                   <DiagnosisView
                     d={diag}
