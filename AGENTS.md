@@ -63,13 +63,14 @@ npm run verify
 
 ---
 
-## 全部关卡（`npm run verify` 跑的 15 项）
+## 全部关卡（`npm run verify` 跑的 16 项）
 
 | 命令 | 红了说明什么 |
 |---|---|
 | `typecheck` | 双端类型对不上（先修它，后面的报错会失真） |
 | `prompt:lint` | 提示词块缺失/多余、跨模式串味、禁语、指纹漂移、输入未隔离、schema 与代码不一致 |
 | `check:contract` | 喂越界模型输出，确定性裁决没抓住——**这是最危险的一类**，界面会显示不该显示的东西 |
+| `check:replay` | 拿冻结的模型原文重跑「解析 → 十一道裁决 → 自检」，产物与基准存档不一致了。**改判定之后最快的一道预警**（0.8 秒，不联网） |
 | `check:compare` | 修订对照把「变好」说成「变坏」（方向说错比不说更糟） |
 | `check:lens` | 六副透镜的图没画出来（服务端渲染，绕开模型） |
 | `check:css` | 组件里写了类名，样式表里没有——面板会整块裸奔 |
@@ -92,7 +93,8 @@ npm run verify
 | 改的东西 | 必跑 | 还要做 |
 |---|---|---|
 | 提示词 / 知识库 | `prompt:lint`、`check:contract`、`prompts` | 有余额时跑 `eval`；比对新旧指纹 |
-| 判定 / 裁决 | `check:contract`、`check:prescriptions`、`check:report`、`smoke` | 反向验证：把规则改坏必须红 |
+| 判定 / 裁决 | `check:contract`、`check:replay`、`check:prescriptions`、`check:report`、`smoke` | 反向验证：把规则改坏必须红 |
+| 只改「报告里已经写下的东西」 | `check:replay`、`replay` | 有真存档时 `npm run replay` 比 `check:replay` 覆盖面大**但样本是你的真实文本**，它验的是你手里那些份 |
 | 界面 / 样式 | `check:css`、`check:lens`、`ui:preview` 截图 | 人眼看截图；新的一屏必须有入口拍得到 |
 | 存档 / IPC / 记账 | `check:robustness`、`check:usage` | 写失败路径要真跑一遍，不是读代码判断 |
 | 文档 / 数字 | `check:docs`、`verify` | 改了断言条数，README 里那个数也要改 |
@@ -111,8 +113,24 @@ src/renderer/src/components/  界面组件，一人一块
 scripts/verify.mjs         唯一的总入口；清单从 package.json 动态发现，不硬编码
 scripts/prompt-contract.ts 越界输入的断言，改裁决必看
 scripts/mock-llm.mjs       假模型；端到端全靠它，改 schema 时它要一起改
+src/shared/replay.ts       重放的比对内核（纯函数）：摊平、逐字段比、差异归类
+scripts/replay-lib.ts      读存档 → 重新解析 → 重跑裁决；不联网、不读设置
+scripts/fixtures/replay/   冻结的模型原文 + 当时的产物。check:replay 拿它当基准
 docs/路线图.md             接下来做什么、明确不做什么
 ```
+
+### 关于重放的两条边界（别把它当评测）
+
+1. **它不跑模型。** 验的是「同一段原文，现在的解析与裁决会不会给出另一份报告」。
+   模型下次会不会换个说法，它管不着——那是 `eval` 的事。
+2. **基准是冻住的模型输出，其中两份是构造的，一份来自假模型。** `fx-g3-overrun` 与 `fx-g6-system`
+   是拿真实原文改了一两个字段做出来的，目的是让 G3、G6 真的被踩到（真实那几份模型很乖，
+   一条裁决都没触发）；`mvyyz0lj` 是假模型跑出来的查谬误模式，用来守住「不给档位」那条路——
+   G8 只在那边生效，删掉它，把 G8 整段拆了也照样绿。它们锁的是**当前行为**，不是「正确行为」——
+   如果哪天发现某条裁决本身判错了，改完要重新 `--accept`，不是让它继续红着。
+
+`npm run replay`（不带 `check:`）跑的是**你自己的存档目录**，一般比基准覆盖面大，
+但那些是你的真实文本；`--accept` 会把当前输出写回去，写之前先逐条看完差异。
 
 `src/shared/` 里的东西**不许 import electron**——一旦引入，检查脚本就跑不了它，
 这些纯函数也就失去了「能在纯 node 里单测」这个唯一的好处。

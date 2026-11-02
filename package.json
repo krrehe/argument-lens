@@ -39,7 +39,9 @@
     "sample:fallacy": "node scripts/run-sample-fallacy.mjs",
     "check:export": "node scripts/run-check-export.mjs",
     "check:robustness": "node scripts/run-check-robustness.mjs",
-    "check:docs": "node scripts/check-docs.mjs"
+    "check:docs": "node scripts/check-docs.mjs",
+    "replay": "node scripts/run-replay.mjs",
+    "check:replay": "node scripts/run-check-replay.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
