@@ -15,8 +15,9 @@
  *
  * 跑法：npm run verify
  */
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import os from 'node:os';
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf-8'));
 const scripts = Object.keys(pkg.scripts ?? {});
@@ -50,21 +51,67 @@ if (process.argv.includes('--list')) {
 const rows = [];
 const startedAll = Date.now();
 
-for (const name of order) {
-  const t0 = Date.now();
-  const r = spawnSync('npm', ['run', '--silent', name], {
-    encoding: 'utf-8',
-    shell: true,
-    env: { ...process.env, FORCE_COLOR: '0' },
+/**
+ * 跑一项，返回 Promise。用 spawn 而不是 spawnSync：同步版会占住事件循环，
+ * 想并发也只能靠开子进程池子绕过去。
+ */
+function runOne(name) {
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    const child = spawn('npm', ['run', '--silent', name], {
+      shell: true,
+      env: { ...process.env, FORCE_COLOR: '0' },
+    });
+    let out = '';
+    child.stdout.on('data', (d) => {
+      out += d;
+    });
+    child.stderr.on('data', (d) => {
+      out += d;
+    });
+    child.on('close', (code) => {
+      const lines = out.split(/\r?\n/).filter((l) => l.trim());
+      const passed = code === 0;
+      /* 摘要把最后一行非空输出当通过数——各脚本的末行都是「✓ … N 项」 */
+      const summary = passed ? (lines[lines.length - 1] ?? '').replace(/^✓\s*/, '').trim() : '';
+      const row = { name, passed, summary, ms: Date.now() - t0, output: out };
+      rows.push(row);
+      process.stdout.write(passed ? `.` : `\n✗ ${name}\n`);
+      resolve(row);
+    });
   });
-  const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  const lines = out.split(/\r?\n/).filter((l) => l.trim());
-  const passed = r.status === 0;
-  /* 摘要把最后一行非空输出当通过数——各脚本的末行都是「✓ … N 项」 */
-  const summary = passed ? (lines[lines.length - 1] ?? '').replace(/^✓\s*/, '').trim() : '';
-  rows.push({ name, passed, summary, ms: Date.now() - t0, output: out });
-  process.stdout.write(passed ? `.` : `\n✗ ${name}\n`);
 }
+
+/*
+ * 先串行跑 typecheck，再并发跑其余的。
+ *
+ * typecheck 单跑有两个理由：它红了，后面那些检查的报错会全被它带偏；
+ * 而且它用的是 tsc 的 composite 模式，会写 tsbuildinfo——和别的 tsc 并发没必要冒险。
+ *
+ * 并发数按核数取，**上限 6**：每一项都是一次 vite 打包，单进程约两百兆，
+ * 全放开的收益早被内存换页吃回去了。本机 32 核，串行 17 秒 → 并发约 4 秒。
+ *
+ * 怀疑并发把某一项搞红了，先 VERIFY_JOBS=1 跑一遍复现：串行也红，就不是并发的事。
+ */
+const head = order.filter((k) => rank(k) === 0);
+const rest = order.filter((k) => rank(k) !== 0);
+
+for (const name of head) await runOne(name);
+
+const JOBS = Math.max(1, Math.min(6, Number(process.env.VERIFY_JOBS) || (os.availableParallelism?.() ?? os.cpus().length) - 1));
+let cursor = 0;
+async function worker() {
+  while (cursor < rest.length) {
+    const name = rest[cursor];
+    cursor += 1;
+    await runOne(name);
+  }
+}
+await Promise.all(Array.from({ length: Math.min(JOBS, rest.length) }, worker));
+
+/* 打印顺序仍是固定顺序，不受谁先跑完影响——否则每次的红绿位置都在跳。 */
+const pos = new Map(order.map((n, i) => [n, i]));
+rows.sort((a, b) => pos.get(a.name) - pos.get(b.name));
 
 const failed = rows.filter((r) => !r.passed);
 const total = ((Date.now() - startedAll) / 1000).toFixed(0);

@@ -376,7 +376,7 @@ npm run typecheck      # 双端类型检查
 npm run icon           # 重新生成图标（build/icon.ico）
 npm run prompts        # 导出三十份完整提示词到 docs/prompts/，并检查交叉污染、必需块、预算
 npm run prompt:lint    # 提示词静态检查 666 项：块、跨模式隔离、禁语登记、指纹稳定、输入隔离、schema 对齐
-npm run verify         # 一条命令跑完下面全部静态检查（21 项，约 16 秒）。清单从 package.json 自动发现，
+npm run verify         # 一条命令跑完下面全部静态检查（21 项，约 8 秒）。清单从 package.json 自动发现，
                        # 新增的 check 会被自动纳入——硬编码的清单会静默漏掉后来加的那些，而它照常打印「全部通过」
 npm run check:docs     # 交接文档自身的防腐烂检查：点名的命令与路径必须存在、verify 跑的每一关必须写到、
                        # README 声明的项数必须等于实际项数。文档比软件自信，比文档缺失更危险

@@ -91,6 +91,9 @@ npm run verify
 
 `smoke` 与 `pack:check` 不进 verify（要几分钟、要起应用），改到界面或打包时单独跑。
 
+verify 现在是并发的：typecheck 先单跑（它红了会把后面的报错全带偏），其余最多 6 路并行。
+**怀疑并发把某一项搞红了，先 `VERIFY_JOBS=1 npm run verify` 复现**——串行也红，就不是并发的事。
+
 ---
 
 ## 改什么要跑什么
