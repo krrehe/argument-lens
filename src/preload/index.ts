@@ -15,6 +15,7 @@ import type {
   UsageSummary,
 } from '@shared/types';
 import type { TheoryId } from '@shared/theories';
+import type { CaptureStatus } from '@shared/capture';
 
 
 /**
@@ -84,6 +85,22 @@ const api = {
     clearAnchor: (): Promise<UsageSummary> => ipcRenderer.invoke('usage:clearAnchor'),
     exportCsv: (): Promise<{ ok: boolean; path?: string }> => ipcRenderer.invoke('usage:export'),
     reveal: (): Promise<string> => ipcRenderer.invoke('usage:reveal'),
+  },
+  /**
+   * 全局快捷键。
+   *
+   * 只有一个方向：主进程把「剪贴板里读到这段」交上来，渲染层自己决定填不填。
+   * 没有 `capture.write()` 这种接口，也不该有——能往剪贴板写，就能悄悄改用户
+   * 复制的东西，而这里没有任何功能需要那么做。
+   */
+  capture: {
+    /** 注册结果。失败是正常事（键被占），所以这是一条查询，不是一个错误。 */
+    status: (): Promise<CaptureStatus> => ipcRenderer.invoke('capture:status'),
+    onOffer: (cb: (p: { text: string }) => void): (() => void) => {
+      const handler = (_e: unknown, payload: { text: string }) => cb(payload);
+      ipcRenderer.on('capture:offer', handler);
+      return () => ipcRenderer.removeListener('capture:offer', handler);
+    },
   },
   /**
    * 报告导出。

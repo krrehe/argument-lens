@@ -7,6 +7,7 @@ import { testConnection, LlmError } from './llm';
 import { attachSmoke } from './smoke';
 import { archiveDirPath, getReport, listReports, removeReport, saveReport } from './archive';
 import { exportReportArgdown, exportReportMarkdown } from './report-export';
+import { captureStatus, registerCapture, unregisterCapture } from './capture';
 import { clearAnchor, exportUsageCsv, setAnchor, setPricing, summarizeUsage, usageDirPath } from './usage';
 import {
   addObjection,
@@ -335,6 +336,16 @@ function registerIpc(): void {
     };
   });
   ipcMain.handle('app:openExternal', (_e, url: string) => openExternalSafely(url));
+
+  /*
+   * 快捷键的注册结果。
+   *
+   * 为什么要有这条通道：注册失败是**正常事**（键被别的程序占着），
+   * 而失败的样子和「这个功能本来就不存在」一模一样——按了没反应。
+   * 界面拿不到结论，就只能装作有这个功能，或者干脆不提；
+   * 两种都比直说「这个键被占了，换一个」更坏。
+   */
+  ipcMain.handle('capture:status', () => captureStatus());
 }
 
 
@@ -343,10 +354,26 @@ app.whenReady().then(() => {
   createWindow();
   if (mainWindow) attachSmoke(mainWindow);
 
+  /*
+   * 快捷键在窗口之后注册：回调需要拿到窗口。
+   *
+   * 失败不拦启动——一个锦上添花的入口不该让整台机器起不来。
+   * 但结论要留下来（`capture:status`），界面会把它写在提示条里。
+   */
+  registerCapture(() => mainWindow);
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+/*
+ * 退出必须注销。
+ *
+ * 不注销的话，这个键在进程结束后仍可能挂在系统里（某些环境下直到登录会话结束），
+ * 表现是「卸载了应用，那个键还是不灵」——而人找不到原因。
+ */
+app.on('will-quit', () => unregisterCapture());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

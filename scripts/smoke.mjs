@@ -175,6 +175,14 @@ const env = {
   // SMOKE_REVISE=1：跑完再点「拿这一版再判一次」，验修订对照整条链
   ...(process.env.SMOKE_REVISE === '1' ? { AL_REVISE: '1' } : {}),
   /*
+   * SMOKE_CAPTURE_OFF=1：不注册全局快捷键。
+   *
+   * 「注册成功」那条路每趟都跑；失败那条不跑，等于只验了一半——
+   * 而失败那一半才是这个功能真正容易坏的地方（键被占用是常态，
+   * 界面这时必须说「没启用」，不能继续教人按一个不响的键）。
+   */
+  ...(process.env.SMOKE_CAPTURE_OFF === '1' ? { AL_CAPTURE_ACCELERATOR: 'off' } : {}),
+  /*
    * SMOKE_RUNNING=1：验「分析进行中」那一屏。要配 MOCK_DELAY_MS=4000 左右一起用，
    * 否则假模型 200 毫秒就回来，那一屏来不及出现在截图里——来不及出现就等于没验。
    */
@@ -336,6 +344,7 @@ const blocks = Number(/"blocks":(\d+)/.exec(resultLine)?.[1] ?? 0);
 const downCount = Number(/"stripDown":(\d+)/.exec(resultLine)?.[1] ?? 0);
 console.log(`  板块 ${blocks} 块｜倒下的关卡 ${downCount} 处` + String.fromCharCode(10));
 
+const cap = capObj();
 const checks = [
   ['应用启动并渲染', domLine.includes('"topbar":true')],
   ['六副透镜就位', domLine.includes('"lensChips":6')],
@@ -476,6 +485,36 @@ const checks = [
   // 几何：新元素不许宽或高为 0（数得出来但点不到），页面不许横向溢出（截图看不出来的那种坏）
   ['新元素都有实际尺寸', sizesOk()],
   ['无横向溢出', domObj().overflowX === 0],
+  /*
+   * 全局快捷键。
+   *
+   * 探针跳过的是「按一下那个键」与「读系统剪贴板」，判定与界面回话都是真代码。
+   * 所以这组断言守的是「填 / 问 / 不填」三条分支，以及「没启用时说的是实话」。
+   *
+   * 第一条两端都要对：注册成功就必须写出那个键（否则功能等于不存在），
+   * 失败就必须写「没启用」。只验一端，另一端会退化成沉默。
+   */
+  [
+    '快捷键提示与注册结果一致',
+    cap.status === 'on'
+      ? /Alt\+A/.test(String(cap.hint))
+      : cap.status === 'off' && /没启用/.test(String(cap.hint)),
+  ],
+  [
+    '空框时剪贴板里的字直接填入，并说明来源',
+    cap.fill === '这是从剪贴板里来的一段话。' && /剪贴板/.test(String(cap.fillNote)),
+  ],
+  ['框里是自己的字：只问，不覆盖', cap.ask === true && cap.askKept === true],
+  ['问话里明写「没有覆盖」', /没有覆盖/.test(String(cap.askNote))],
+  /*
+   * 候选条那一屏只在「框里有你的字 + 按了快捷键」时出现。
+   * 断言截图有内容，是为了让「没人见过它」这件事至少能被机器发现一次。
+   */
+  ['候选条那一屏留下了截图', Number(cap.askShot) > 1000],
+  ['点「不用」后条消失、字一个没动', cap.keepAsk === false && cap.keepText === true],
+  ['点「用它」才真的替换', cap.useText === '另一段来自剪贴板的文字。'],
+  ['空剪贴板不填，但要说一句', cap.emptyText === '' && /没有文字/.test(String(cap.emptyNote))],
+  ['超长不填，也不截断', cap.longLen === 0 && /上限/.test(String(cap.longNote))],
   /*
    * 跑道上的「倒在哪一关」只在有判定的模式里出现。
    *
@@ -630,6 +669,21 @@ function waitedSecs(text) {
 function domObj() {
   try {
     return JSON.parse(domLine.replace(/^.*?DOM /, ''));
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * 全局快捷键探针那行也是 JSON。
+ *
+ * 空对象是「没跑」——每一条用它的断言都会因此失败，而不是静默通过。
+ * 这正是要的：探针崩了必须红，不能表现为「这一栏没问题」。
+ */
+function capObj() {
+  const line = log.split('\n').find((l) => l.includes('CAPTURE ')) ?? '';
+  try {
+    return JSON.parse(line.slice(line.indexOf('{')));
   } catch {
     return {};
   }

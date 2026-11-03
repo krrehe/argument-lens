@@ -2,6 +2,7 @@ import { app, type BrowserWindow } from 'electron';
 import { appendFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { listReports } from './archive';
+import { deliverClipboard } from './capture';
 
 /** 等一拍。只在自检里用：界面更新不是同步落到 DOM 上的，点完就取会拿到上一帧。 */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -821,6 +822,165 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
       const png = img.toPNG();
       writeFileSync(shot, png);
       add(`SHOT ${shot} ${png.length} bytes`);
+
+      /*
+        全局快捷键：把「剪贴板里读到这段」直接投给渲染层，一条条走判定。
+
+        这一步**跳过了「按一下那个键」**——全局键盘事件在自检里造不出来
+        （没有可编程的按键注入，也不该为了测试往系统里装一个）。
+        跳过的是按键与 `clipboard.readText()` 那一行；判定（填 / 问 / 不填）
+        与界面回话，走的都是真实代码。
+
+        放在截图之后：它会改输入框内容，先拍完再动，免得把首屏截图改成测试现场。
+      */
+      {
+        /*
+         * 打包自检跑完会切到提示词页，那时分析页整块不在 DOM 里（连输入框都没有）。
+         * 先切回来——这样打包产物里的快捷键也能被真验一次，而不是输出一行 null。
+         * 切不回来就明写 SKIP：一行全 null 看起来像「全坏了」，比不跑更误导。
+         */
+        const back = await wc.executeJavaScript(`(() => {
+          if (document.querySelector('textarea')) return 'already';
+          const t = [...document.querySelectorAll('.tab')].find((el) => (el.textContent || '').includes('分析'));
+          if (!t) return 'no-tab';
+          t.click();
+          return 'switched';
+        })()`);
+        if (back === 'switched') await sleep(500);
+        const hasTa = await wc.executeJavaScript(`!!document.querySelector('textarea')`);
+        if (!hasTa) {
+          add(`CAPTURE-SKIP 没有输入框（back=${back}），这一组没有跑`);
+        } else {
+        const setText = async (t: string) =>
+          wc.executeJavaScript(`(() => {
+            const ta = document.querySelector('textarea');
+            if (!ta) return false;
+            const set = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+            if (!set) return false;
+            set.call(ta, ${JSON.stringify(t)});
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+            return true;
+          })()`);
+
+        const snap = async (): Promise<{
+          v: string | null;
+          status: string | null;
+          hint: string;
+          note: string;
+          ask: boolean;
+          askText: string;
+        }> =>
+          JSON.parse(
+            await wc.executeJavaScript(`(() => {
+              const ta = document.querySelector('textarea');
+              const st = document.querySelector('[data-cap-status]');
+              const n = document.querySelector('[data-cap-note]');
+              const a = document.querySelector('[data-cap-ask]');
+              return JSON.stringify({
+                v: ta ? ta.value : null,
+                status: st ? st.getAttribute('data-cap-status') : null,
+                hint: (st ? st.innerText : '').replace(/\\s+/g, ' ').slice(0, 140),
+                note: n ? (n.innerText || '').replace(/\\s+/g, ' ') : '',
+                ask: !!a,
+                askText: a ? (a.innerText || '').replace(/\\s+/g, ' ') : '',
+              });
+            })()`)
+          );
+
+        const offer = async (text: string) => {
+          await deliverClipboard(mainWindow, () => text);
+          await sleep(220);
+          return snap();
+        };
+
+        const click = async (sel: string) => {
+          await wc.executeJavaScript(
+            `(() => { const b = document.querySelector(${JSON.stringify(sel)}); if (!b) return false; b.click(); return true; })()`
+          );
+          await sleep(180);
+          return snap();
+        };
+
+        const MINE = '这是我自己写的一段话，不能被悄悄换掉。';
+        const out: Record<string, unknown> = {};
+
+        const s0 = await snap();
+        out.status = s0.status;
+        out.hint = s0.hint;
+
+        // 1) 空框 + 剪贴板有字 → 直接填，并说明它从哪来
+        await setText('');
+        await sleep(120);
+        const s1 = await offer('这是从剪贴板里来的一段话。');
+        out.fill = s1.v;
+        out.fillNote = s1.note;
+
+        // 2) 框里是自己的字 → 只问，不覆盖
+        await setText(MINE);
+        await sleep(120);
+        const s2 = await offer('另一段来自剪贴板的文字。');
+        out.ask = s2.ask;
+        out.askKept = s2.v === MINE;
+        // 候选条里的那句话在 [data-cap-ask] 里，不在 [data-cap-note] 里——
+        // 这是两条不同的条：一条是「回话」，一条是「问话」。
+        out.askNote = s2.askText;
+
+        /*
+         * 这一屏只在「框里有你的字 + 按了快捷键」时出现，正常跑一遍永远看不到。
+         * 不留一张，就等于没人见过它长什么样——而排版的错（按钮挤到换行、
+         * 提示被截断）只有看图才发现。
+         */
+        const askShot = join(dirname(shot), 'capture-ask.png');
+        /*
+         * 只截输入区那一块。
+         *
+         * 整页截图在这个应用里有两万像素高：候选条只有一行，缩到能看全页的尺寸时
+         * 它占不到一个像素，等于没拍。要判排版就得把那一块单独取出来。
+         */
+        const askRect = await wc.executeJavaScript(`(() => {
+          const el = document.querySelector('.composer');
+          if (!el) return null;
+          const b = el.getBoundingClientRect();
+          return {
+            x: Math.round(b.left),
+            y: Math.round(b.top),
+            width: Math.round(b.width),
+            height: Math.min(Math.round(b.height), 520),
+          };
+        })()`);
+        const askPng = (await wc.capturePage(askRect ?? undefined)).toPNG();
+        writeFileSync(askShot, askPng);
+        out.askShot = askPng.length;
+        out.askShotRect = askRect ? `${askRect.width}x${askRect.height}` : 'missing';
+        add(`CAPTURESHOT ${askShot} ${askPng.length} bytes rect=${out.askShotRect}`);
+
+        // 3) 点「不用」→ 条消失，字不动
+        const s3 = await click('.cap-keep');
+        out.keepAsk = s3.ask;
+        out.keepText = s3.v === MINE;
+
+        // 4) 再投一次、点「用它」→ 这时才替换
+        await offer('另一段来自剪贴板的文字。');
+        const s4 = await click('.cap-use');
+        out.useText = s4.v;
+
+        // 5) 剪贴板是白的 → 不填，但要说一句（否则人会以为键坏了）
+        await setText('');
+        await sleep(120);
+        const s5 = await offer('   ');
+        out.emptyNote = s5.note;
+        out.emptyText = s5.v;
+
+        // 6) 超长 → 不填，也不许截断
+        const s6 = await offer('字'.repeat(12001));
+        out.longNote = s6.note.slice(0, 90);
+        out.longText = s6.v;
+        out.longLen = (s6.v ?? '').length;
+
+        add(`CAPTURE ${JSON.stringify(out)}`);
+        }
+      }
+
       add('OK');
     } catch (err) {
       add(`ERR ${(err as Error).message}`);

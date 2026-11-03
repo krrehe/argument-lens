@@ -341,6 +341,26 @@ const checks = [
   ['余额条画得出来（有锚点时）', panelJson?.bar === true],
   ['提示词页进了包', /"view":true/.test(promptPanel) && /"sysLen":(\d{4,})/.test(promptPanel)],
   ['提示词版本号与指纹进了包', /v\d+\.\d+\.\d+/.test(promptPanel) && /[0-9a-f]{8}/.test(promptPanel)],
+  /*
+   * 打包产物里的快捷键提示。
+   *
+   * 源码态绿不代表包里的绿：这条通道过 preload 与 IPC，两处都可能没进 asar。
+   * 探针会先切回分析页再跑；切不回来时它写的是 `CAPTURE-SKIP`，
+   * 这里读不到 `CAPTURE {` 就是 false——**没跑不是通过**。
+   */
+  [
+    '打包产物里的快捷键提示在',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('CAPTURE {')) ?? '';
+      if (!line) return false;
+      try {
+        const c = JSON.parse(line.slice(line.indexOf('{')));
+        return (c.status === 'on' || c.status === 'off') && String(c.hint ?? '').length > 0;
+      } catch {
+        return false;
+      }
+    })(),
+  ],
   ['流程无报错', /\bOK\b/.test(log)],
   ['截图产出', existsSync(shot)],
 ];

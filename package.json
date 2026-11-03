@@ -39,6 +39,7 @@
     "sample:fallacy": "node scripts/run-sample-fallacy.mjs",
     "check:export": "node scripts/run-check-export.mjs",
     "check:argdown": "node scripts/run-check-argdown.mjs",
+    "check:capture": "node scripts/run-check-capture.mjs",
     "check:robustness": "node scripts/run-check-robustness.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "replay": "node scripts/run-replay.mjs",

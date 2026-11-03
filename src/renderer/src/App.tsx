@@ -30,6 +30,7 @@ import { disputesIn } from '@shared/disputes';
 import type { Segment } from '@shared/segment';
 import { diffRevision } from '@shared/compare';
 import { SAMPLES } from '@shared/samples';
+import { decideCapture, type CaptureStatus } from '@shared/capture';
 
 type Tab = 'analyze' | 'prompt';
 
@@ -88,6 +89,22 @@ export default function App() {
    * 混在一起显示，用户会以为报告是坏的——而报告是好的。
    */
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * 全局快捷键从剪贴板读到的那段字——**只是候选**，还没写进框里。
+   *
+   * 为什么要多这一步：框里可能是他写了二十分钟的东西，而剪贴板里那段是
+   * 十分钟前复制的别的什么。一按就换，等于让他回来发现原文没了，
+   * 而输入框没有撤销。所以「框里是自己的字」时，这个功能只负责把它端上来，
+   * 换不换由他点。
+   *
+   * 什么时候不问：框是空的，或者框里是示例——这两种都没有「失去」可言。
+   * 判定不在这个文件里，在 `@shared/capture`，那边有 28 条断言守着。
+   */
+  const [capAsk, setCapAsk] = useState<{ text: string; chars: number; note: string } | null>(null);
+  /** 快捷键相关的一句话（填进来了 / 剪贴板是空的 / 太长了）。和 notice 分开：这都不是失败。 */
+  const [capNote, setCapNote] = useState<string | null>(null);
+  /** 注册结果。null 表示还没问到。 */
+  const [capStatus, setCapStatus] = useState<CaptureStatus | null>(null);
   /**
    * 「你按停的那一次」的结果。
    *
@@ -182,6 +199,76 @@ export default function App() {
       .catch(() => setObjections([]));
     return window.api.analysis.onProgress((e) => setProgress(e));
   }, [refreshUsage]);
+
+  /*
+   * 全局快捷键的接线。
+   *
+   * 两件事，顺序不能反：
+   * 1. 问一次注册结果 —— 没注册上时界面必须说的是实话（「这个键被占了」），
+   *    否则那一行提示会变成「按 Ctrl+Alt+A」，而按了没反应。
+   * 2. 订阅候选 —— 主进程只交上来「剪贴板里读到这段」，填不填在这里判。
+   *
+   * 为什么用 ref 存最新原文：订阅只在挂载时做一次。若把 passage 放进依赖，
+   * 每敲一个字就会重新订阅一次，中间那一小段时间里的按键会掉进空档——
+   * 掉一次没人发现，掉十次就成了「这个键时灵时不灵」。
+   */
+  const passageRef = useRef(passage);
+  useEffect(() => {
+    passageRef.current = passage;
+  }, [passage]);
+
+  useEffect(() => {
+    let alive = true;
+    window.api.capture
+      .status()
+      .then((s) => {
+        if (alive) setCapStatus(s);
+      })
+      .catch(() => {
+        /*
+         * 问不到也要说出来。
+         *
+         * 这里的「静默」特别坏：界面会照常不显示那一行提示，于是用户既不知道
+         * 有这个功能，也不知道它其实坏了——他会一直以为是自己记错了快捷键。
+         */
+        if (alive) {
+          setCapStatus({
+            accelerator: '',
+            human: '',
+            registered: false,
+            reason: '查不到全局快捷键的注册状态（与主进程通信失败）。',
+          });
+        }
+      });
+
+    const off = window.api.capture.onOffer((p) => {
+      const cur = passageRef.current;
+      const dec = decideCapture({
+        current: cur,
+        clip: p.text,
+        currentIsSample: SAMPLE_LIB.some((s) => s.text === cur),
+      });
+      if (dec.kind === 'fill') {
+        setPassage(dec.text);
+        setWhole(null);
+        setPickedIndex(null);
+        setSampleConfirm(false);
+        setCapAsk(null);
+        setCapNote(dec.note);
+      } else if (dec.kind === 'ask') {
+        // 不写进框，只把它端上来。框里那些字一个都不动。
+        setCapAsk({ text: dec.text, chars: dec.chars, note: dec.note });
+        setCapNote(null);
+      } else if (!dec.quiet) {
+        setCapNote(dec.note);
+      }
+    });
+
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
 
   /*
    * 「已等 42 秒」。
@@ -627,6 +714,9 @@ export default function App() {
                     if (pickedIndex !== null) setPickedIndex(null);
                     // 一旦开始改，就不再想覆盖：那次确认是给他「按住不放」的，不是给他瞄准的
                     if (sampleConfirm) setSampleConfirm(false);
+                    // 同理：他已经在写了，「要不要用剪贴板那段替换」这条问话就过时了
+                    if (capAsk) setCapAsk(null);
+                    if (capNote) setCapNote(null);
                   }}
                   placeholder="粘贴一段真实的话：社论、评论区争论、广告文案、论文段落、面试说辞、公开信……"
                   spellCheck={false}
@@ -646,6 +736,69 @@ export default function App() {
                     </button>
                   </div>
                 )}
+                {/*
+                  快捷键提示。
+                  「按哪个键」必须写在界面上——不写，这个功能等于不存在；
+                  而写出来的字必须与主进程注册的那个键同源（@shared/capture 的
+                  CAPTURE_ACCELERATOR 推出来），否则人按的键永远没反应。
+                  注册失败时不允许继续显示那个键：那是在教人按一个不响的按钮。
+                */}
+                {capStatus &&
+                  (capStatus.registered ? (
+                    <div
+                      className="cap-hint"
+                      data-cap-status="on"
+                      title="读的是剪贴板，不是你鼠标选中的那段文字。选中文本需要在别的程序里模拟 Ctrl+C，那会改动剪贴板，也可能触发粘贴副作用，所以这一步没有做。先复制，再按这里写的键。"
+                    >
+                      按 <b>{capStatus.human}</b> 把剪贴板里的字叫进来。
+                      <br />
+                      框里是你写的字时，只问、不覆盖。
+                    </div>
+                  ) : (
+                    <div className="cap-hint off" data-cap-status="off">
+                      全局快捷键没启用：{capStatus.reason}
+                    </div>
+                  ))}
+
+                {/*
+                  「剪贴板里没有文字」「太长了」这类回话。
+                  它们不是失败，所以不挂到 notice（那一条的标题是「有一件事没做成」）。
+                */}
+                {capNote && (
+                  <div className="cap-bar note" data-cap-note="1">
+                    <span className="cap-note">{capNote}</span>
+                    <button className="cap-x" onClick={() => setCapNote(null)}>
+                      知道了
+                    </button>
+                  </div>
+                )}
+
+                {/*
+                  候选条。这一条存在的全部意义就是：框里那段字还在。
+                  「用它」才写，「不用」什么都不发生——没有默认动作。
+                */}
+                {capAsk && (
+                  <div className="cap-bar ask" data-cap-ask="1">
+                    <span className="cap-note">{capAsk.note}</span>
+                    <button
+                      className="cap-use"
+                      onClick={() => {
+                        setPassage(capAsk.text);
+                        setWhole(null);
+                        setPickedIndex(null);
+                        setSampleConfirm(false);
+                        setCapAsk(null);
+                        setCapNote('已用剪贴板里的文字替换。原来那段没有备份，如果你需要它，现在只能从报告历史里找。');
+                      }}
+                    >
+                      用它（{capAsk.chars} 字）
+                    </button>
+                    <button className="cap-keep" onClick={() => setCapAsk(null)}>
+                      不用
+                    </button>
+                  </div>
+                )}
+
                 <SegmentBar
                   text={passage}
                   pickedIndex={pickedIndex}
