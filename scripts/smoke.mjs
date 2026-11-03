@@ -391,6 +391,17 @@ const checks = [
   ['第二下才真的替换', samplesLine.includes('"replaced":true')],
   ['替换完把输入框放回第一段（后面的假模型按它算下标）', samplesLine.includes('"restored":true')],
   ['「覆盖原文？」那一瞬被拍到了', existsSync(resolve(outDir, 'sample-confirm.png'))],
+  /*
+   * 「这段文字跑过没有」。
+   *
+   * 这一组和上面那组是同一个问题的两头：示例那一组防的是「按钮只给一段」，
+   * 这一组防的是「跑了也不说」。分析完这一趟，存档里必然已经有同一段文字至少一份，
+   * 所以那一行必须出现，而且必须说的是「已经跑过」，不是含糊的「有重合」。
+   *
+   * 只验「条在」不够：条渲染成一句空话也照样在。所以数量和句子一起验。
+   */
+  ['跑完之后「这段跑过没有」出现了', Number(jOf(resultLine, 'sameCount')) >= 1],
+  ['那一行说的是「已经跑过」，不是含糊的重合', jOf(resultLine, 'sameText').includes('已经跑过')],
   ['分析结果落屏', resultLine.includes('"grid":true')],
   ['板块全部渲染', blocks >= 16],
   ['无失败提示', resultLine.includes('"failed":false')],

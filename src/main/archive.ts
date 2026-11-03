@@ -2,6 +2,7 @@ import { app } from 'electron';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Diagnosis, ReportMeta, UsageRecord } from '@shared/types';
+import type { PriorPassage } from '@shared/sameness';
 
 /**
  * 报告存档。
@@ -112,6 +113,39 @@ function rebuildIndex(): ReportMeta[] {
 
 export function listReports(): ReportMeta[] {
   return readIndex().sort((a, b) => b.at - a.at);
+}
+
+/**
+ * 所有存档报告的原文，只给「这段跑过没有」用。
+ *
+ * 为什么不走索引：索引里只存了 72 字的摘要，比字面重合度太短了——
+ * 两段 72 字的开头能对上，全文可能差了三分之二。所以这里读全文。
+ *
+ * 要不要缓存：实测 102 份报告、1.8MB，读完解析共 19ms。19ms 不值得为它
+ * 引入一个缓存，而缓存一旦漏了失效时机，就会在用户删掉报告之后继续说
+ * 「跑过 89 次」——一个只在删过报告的人身上出现的假话。宁可每次重读。
+ */
+export function allPassages(): PriorPassage[] {
+  const dir = archiveDir();
+  let files: string[] = [];
+  try {
+    files = readdirSync(dir).filter((f) => f.endsWith('.json') && f !== 'index.json');
+  } catch {
+    return [];
+  }
+  const out: PriorPassage[] = [];
+  for (const f of files) {
+    try {
+      const d = JSON.parse(readFileSync(join(dir, f), 'utf-8')) as Diagnosis;
+      if (!d?.id || typeof d.passage !== 'string' || typeof d.createdAt !== 'number') continue;
+      out.push({ id: d.id, at: d.createdAt, passage: d.passage });
+    } catch {
+      // @allow-silent: 坏文件不参与比较，也不该让整条链路失败。
+      // 它在列表页照样会缺失（rebuildIndex 同样跳过它），两处一起坏、一起可见，
+      // 不会出现「列表里有、比较时没有」这种只有一处坏的情形。
+    }
+  }
+  return out;
 }
 
 export function getReport(id: string): Diagnosis | null {

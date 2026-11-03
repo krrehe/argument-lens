@@ -1526,3 +1526,44 @@
   line-height: 1.75;
   color: var(--ink-3);
 }
+
+/*
+ * 「跑过 N 次」那一行。
+ *
+ * 用虚线左边界，和「待对照」「候选条」同一套视觉语言：虚线是**还没发生的事**
+ * （你正要再跑一次），实线是已经发生的事。这里说的是过去跑过，但它要影响的是
+ * 你接下来按不按那一下，所以留在虚线这一边。
+ *
+ * 颜色不用红：重复跑不是错误，是合法的用法（同一段跑两遍能看出模型换不换说法）。
+ * 红会把它变成一个警告，而警告的意思是「你做错了」。
+ */
+.same-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 6px 0 2px;
+  padding: 6px 9px;
+  border-left: 2px dashed var(--line-strong);
+  border-radius: 0 5px 5px 0;
+  background: rgba(60, 79, 99, 0.04);
+  flex-wrap: wrap;
+}
+
+.same-bar .sb-v {
+  flex: 1;
+  min-width: 200px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+/* 第二句是「所以呢」，比陈述轻一档，免得这行变成劝告。
+   给它可收缩的弹性：flex:none 的长子项在 flex-wrap 里不会断行，会直接溢出容器。 */
+.same-bar .sb-why {
+  flex: 1 1 auto;
+  min-width: 160px;
+  font-size: 10.5px;
+  font-style: normal;
+  line-height: 1.6;
+  color: var(--ink-3);
+}

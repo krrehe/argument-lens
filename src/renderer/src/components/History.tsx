@@ -29,7 +29,11 @@ interface Props {
 
 type Tab = 'reports' | 'objections';
 
-function when(at: number): string {
+/**
+ * 时间说成人话。导出给 App 用——「这段跑过没有」那一行要跟历史面板说同一个时间，
+ * 两处各写一份格式化，迟早会出现同一天两种写法。
+ */
+export function when(at: number): string {
   const d = new Date(at);
   const now = new Date();
   const sameDay = d.toDateString() === now.toDateString();

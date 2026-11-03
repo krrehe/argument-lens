@@ -24,10 +24,11 @@ import { UsageChip, UsagePanel } from './components/Usage';
 import { SegmentBar } from './components/SegmentBar';
 import { Running } from './components/Running';
 import { RevisionBar } from './components/Revision';
-import { HistoryPanel } from './components/History';
+import { HistoryPanel, when } from './components/History';
 import { formatMoney, formatTokens } from '@shared/tokens';
 import { disputesIn } from '@shared/disputes';
 import type { Segment } from '@shared/segment';
+import { samenessLine, type Sameness } from '@shared/sameness';
 import { diffRevision } from '@shared/compare';
 import { SAMPLES } from '@shared/samples';
 import { decideCapture, type CaptureStatus } from '@shared/capture';
@@ -116,6 +117,15 @@ export default function App() {
   const [stopNote, setStopNote] = useState<string | null>(null);
   /** 按了停、还在等主进程确认。按钮这时显示「正在停…」并且不可再点。 */
   const [stopping, setStopping] = useState(false);
+  /**
+   * 「这段文字跑过没有」。
+   *
+   * 这一条的存在理由不是功能，是证据：102 份存档里 98 份落在同一段早读上。
+   * 软件当时一句话都没说，于是「试过多少种文本」全靠人记，而人记不住。
+   * 它只陈述位置（跑过 N 次、最像哪一份），不拦、不劝——重跑是合法用法：
+   * 同一段文字跑两遍，差多少正是模型稳不稳的证据。
+   */
+  const [same, setSame] = useState<Sameness | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [onboard, setOnboard] = useState(false);
   const [hasKey, setHasKey] = useState(true);
@@ -199,6 +209,42 @@ export default function App() {
       .catch(() => setObjections([]));
     return window.api.analysis.onProgress((e) => setProgress(e));
   }, [refreshUsage]);
+
+  /*
+   * 输入框里这段文字，存档里跑过没有。
+   *
+   * 时机：停手 400ms 之后才问。每敲一个字问一次，等于一边打字一边读一百个文件，
+   * 而答案在打字过程中几乎不变——人改的是句子中间，开头那几十个字早就定了。
+   *
+   * 结果乱序：两次请求可能先后返回。token 对不上就丢掉，否则会出现
+   * 「文字已经换成新的，屏幕上的次数还是旧的」——一个看起来完全正常的错。
+   *
+   * 门槛 8 字：比这短的话，相似度本来就不可靠（见 @shared/sameness 里
+   * 关于短文本的说明），而这个栏目要的是「你真的试过一段文本」，不是「你打了两个字」。
+   */
+  useEffect(() => {
+    const text = passage.trim();
+    if (text.length < 8) {
+      setSame(null);
+      return;
+    }
+    let alive = true;
+    const timer = setTimeout(() => {
+      window.api.archive
+        .same(text)
+        .then((s) => {
+          if (alive) setSame(s);
+        })
+        .catch(() => {
+          // 读不到就什么都不说。这一栏是补充信息，不能因为它而让输入区报错。
+          if (alive) setSame(null);
+        });
+    }, 400);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [passage, diag?.id]);
 
   /*
    * 全局快捷键的接线。
@@ -873,6 +919,23 @@ export default function App() {
                     {loading ? '分析中…' : MODE_META[mode].action}
                   </button>
                 </div>
+                {/*
+                  「这段跑过没有」。
+                  单独一行，不塞进上面那排按钮里——那一排已经有字数、示例、主按钮，
+                  再加一句会各挤成两行（候选条那次就是这么把「替换」断在词中间的）。
+                  位置放在按钮正下方：这句话的意义是「按下去之前想一下」，
+                  放得离按钮越近越有用；放得远，它就只是装饰。
+                */}
+                {same && samenessLine(same, when) && (
+                  <p className="same-bar" data-same={same.exact} data-same-near={same.near}>
+                    <span className="sb-v">{samenessLine(same, when)}</span>
+                    {same.exact > 0 && (
+                      <em className="sb-why">
+                        重跑一次能看出模型会不会换说法；要看新的东西，得换一段文字。
+                      </em>
+                    )}
+                  </p>
+                )}
                 <p className="hint">
                   {/* 模式条下面那行 mode-note 已经显示过 MODE_META[mode].hint，
                       这里再重复一遍，同一句话会在 50px 内出现两次。这里只说透镜立场。 */}

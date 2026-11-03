@@ -63,7 +63,7 @@ npm run verify
 
 ---
 
-## 全部关卡（`npm run verify` 跑的 19 项）
+## 全部关卡（`npm run verify` 跑的 20 项）
 
 | 命令 | 红了说明什么 |
 |---|---|
@@ -83,6 +83,7 @@ npm run verify
 | `check:export` | 导出件缺段、或把不适用的判定写进去了、或混进了 info 级诊断 |
 | `check:argdown` | Argdown 导出被官方解析器读不进去、语句数对不上、supports 的关系画错、正文里的方括号没转义 |
 | `check:capture` | 全局快捷键的判定退回危险状态：剪贴板为空/超长时不再说话、框里是用户自己写的字却被直接覆盖、超长被悄悄截断 |
+| `check:sameness` | 「这段跑过没有」说错话：改稿没被算进次数、并列时取了错那份（日期会错）、短文本报出虚高相似度、提示语里出现劝告 |
 | `check:robustness` | 写失败没抛、设置校验漏了非法值、空 catch 没写理由 |
 | `check:samples` | 示例文本出问题：段数不够、两段重复、长度越界、句数少于毛病数、第一段与假模型夹具的下标对不上 |
 | `check:docs` | **这份文件自己腐烂了**：它点名的命令/路径不存在，或漏掉了某个 check |
@@ -104,6 +105,7 @@ npm run verify
 | 文档 / 数字 | `check:docs`、`verify` | 改了断言条数，README 里那个数也要改 |
 | 导出格式 | `check:export`、`check:argdown` | 格式是给人读还是给工具读，决定断言该守「段全不全」还是「解析器读不读得进去」 |
 | 全局快捷键 / 剪贴板 | `check:capture`、`smoke` | 判定在 `@shared/capture`（纯函数）；主进程只注册与读剪贴板。要验注册失败路径，用 `AL_CAPTURE_ACCELERATOR=off` 或写个非法键跑一遍——**「按了没反应」和「功能不存在」必须长得不一样** |
+| 「这段跑过没有」 | `check:sameness`、`smoke` | 判定在 `@shared/sameness`（纯函数），原文只在主进程（`allPassages`）。阈值是按真实存档实测出来的（128 字加两句 = 0.897），不是估的；改阈值必须重跑 `check:sameness`，它有一条直接量这个行为 |
 
 ---
 

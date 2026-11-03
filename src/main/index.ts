@@ -5,7 +5,7 @@ import { readSettings, writeSettings, hasApiKey, keyUnreadable } from './store';
 import { runAnalysis } from './analyze';
 import { testConnection, LlmError } from './llm';
 import { attachSmoke } from './smoke';
-import { archiveDirPath, getReport, listReports, removeReport, saveReport } from './archive';
+import { allPassages, archiveDirPath, getReport, listReports, removeReport, saveReport } from './archive';
 import { exportReportArgdown, exportReportMarkdown } from './report-export';
 import { captureStatus, registerCapture, unregisterCapture } from './capture';
 import { clearAnchor, exportUsageCsv, setAnchor, setPricing, summarizeUsage, usageDirPath } from './usage';
@@ -25,6 +25,7 @@ import { PRAGMA_RULES } from './kb/pragma';
 import { normalizeMode, type AnalysisMode, type LlmSettings, type Pricing } from '@shared/types';
 import { describeProblems, validateSettingsPatch } from '@shared/settings-check';
 import { DEFAULT_THEORY, THEORIES, isTheoryId, type TheoryId } from '@shared/theories';
+import { samenessOf } from '@shared/sameness';
 import { buildPrompt, renderPrompt, SAMPLING, BUDGET } from './prompt';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -307,6 +308,16 @@ function registerIpc(): void {
   ipcMain.handle('archive:get', (_e, id: string) => getReport(id));
   ipcMain.handle('archive:remove', (_e, id: string) => removeReport(id));
   ipcMain.handle('archive:reveal', () => shell.openPath(archiveDirPath()));
+  /*
+   * 「这段文字跑过没有」。
+   *
+   * 放在主进程是因为原文只在这里——渲染层手里只有摘要。
+   * 它不写盘、不改账本、不调模型，是纯读：这样它出错时最坏也只是这一行字不出现，
+   * 不会影响分析与记账。
+   */
+  ipcMain.handle('archive:sameness', (_e, text: string) =>
+    samenessOf(typeof text === 'string' ? text : '', allPassages())
+  );
 
   // 提示词可读，是这个产品必须满足的一条：用户有权看到自己被什么标准在衡量
   ipcMain.handle('prompt:get', (_e, theory: TheoryId, mode?: AnalysisMode) => {

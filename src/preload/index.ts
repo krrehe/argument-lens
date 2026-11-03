@@ -16,6 +16,7 @@ import type {
 } from '@shared/types';
 import type { TheoryId } from '@shared/theories';
 import type { CaptureStatus } from '@shared/capture';
+import type { Sameness } from '@shared/sameness';
 
 
 /**
@@ -149,6 +150,13 @@ const api = {
     get: (id: string): Promise<Diagnosis | null> => ipcRenderer.invoke('archive:get', id),
     remove: (id: string): Promise<ReportMeta[]> => ipcRenderer.invoke('archive:remove', id),
     reveal: (): Promise<string> => ipcRenderer.invoke('archive:reveal'),
+    /**
+     * 这段文字在存档里跑过几次、最像哪一份。
+     *
+     * 只读。它回答的是「你有没有试过别的文本」，不是「这份报告对不对」——
+     * 两个问题常被混成一个：跑同一段一百遍，报告堆得很高，样本仍然只有一个。
+     */
+    same: (text: string): Promise<Sameness> => ipcRenderer.invoke('archive:sameness', text),
   },
   prompt: {
     get: (

@@ -386,6 +386,16 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           }
         }
 
+        /*
+         * 报告出来之后要再多取一次的标记。
+         *
+         * 「跑过 N 次」那一行在报告出现之后才渲染：它要等 400ms 的输入停顿，
+         * 再去问主进程存档里有没有这段。而下面的循环一看到 .grid 就 break，
+         * 那一刻这一行还没生成——照原来的写法取 DOM，会稳定地读到「没有」，
+         * 于是「把这一行整个删掉」和「它正常渲染」得到同一个结果。
+         */
+        let tookSame = false;
+
         for (let i = 0; i < 60 && !canceled; i++) {
           await new Promise((r) => setTimeout(r, 500));
           const state = await wc.executeJavaScript(
@@ -482,15 +492,59 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               vlad: document.querySelectorAll('.vl-cell').length,
               vnow: document.querySelectorAll('.vl-cell.now').length,
               failed: /分析未完成/.test(document.body.innerText),
+              /*
+               * 「这段文字跑过没有」那一行。
+               * sameCount 读的是 data-same（逐字相同的份数），sameText 读那句话本身。
+               * 两样都要：只验条在，等于允许它渲染成一句空话；只验文字不验数目，
+               * 验不出「数错了」——而数错了才最危险（说 89 次，实际 97 份）。
+               */
+              sameCount: document.querySelector('.same-bar')?.getAttribute('data-same') ?? '',
+              sameText: (document.querySelector('.same-bar .sb-v')?.textContent ?? '').slice(0, 80),
               text: (document.body.innerText || '').replace(/\\s+/g, ' ').slice(0, 240),
             })`
           );
           const st = JSON.parse(state);
           if (st.grid || st.failed) {
+            /*
+             * 看见报告后再等一次，专门为了那一行「跑过 N 次」。
+             * 只多取一次（tookSame 挡住第二次），不是每轮都多等半秒。
+             */
+            if (st.grid && !tookSame && !canceled) {
+              tookSame = true;
+              await new Promise((r) => setTimeout(r, 900));
+              continue;
+            }
             add(`RESULT ${state}`);
             break;
           }
         }
+
+        /*
+         * 「跑过 N 次」那一行的样子。
+         *
+         * 和候选条同一个理由：整页两万像素高，一行提示缩到全页尺寸占不到一个像素。
+         * 这里连 `.composer` 都不够——它有一千多像素高，那一行是里面最窄的一条。
+         * 所以按 `.same-bar` 自己的矩形裁，四周各留 10px，看它有没有溢出、有没有被压成两行。
+         */
+        const sameRect = await wc.executeJavaScript(`(() => {
+          const el = document.querySelector('.same-bar');
+          if (!el) return null;
+          const b = el.getBoundingClientRect();
+          return {
+            x: Math.max(0, Math.round(b.left) - 10),
+            y: Math.max(0, Math.round(b.top) - 10),
+            width: Math.min(Math.round(b.width) + 20, 1200),
+            height: Math.round(b.height) + 20,
+          };
+        })()`);
+        const samePng = (await wc.capturePage(sameRect ?? undefined)).toPNG();
+        const sameShot = join(dirname(shot), 'same-bar.png');
+        writeFileSync(sameShot, samePng);
+        add(
+          `SAMESHOT ${sameShot} ${samePng.length} bytes rect=${
+            sameRect ? `${sameRect.width}x${sameRect.height}` : 'missing'
+          }`
+        );
 
         /*
          * AL_REVISE=1：走一遍修订对照的完整链路。

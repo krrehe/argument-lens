@@ -361,6 +361,27 @@ const checks = [
       }
     })(),
   ],
+  /*
+   * 打包产物里的「这段跑过没有」。
+   *
+   * 和快捷键那条同一个理由，而且更隐蔽：这条通道是「渲染层 → preload → IPC → 主进程读存档」。
+   * 少任何一环，渲染层的 catch 都会把它咽掉，于是**那一行不出现**——
+   * 页面完全正常、分析照常出报告，没有任何报错。源码态跑得通，包里漏注册照样一声不响。
+   * 所以这里读的是包内真实输出，不是代码。
+   */
+  [
+    '打包产物里「这段跑过没有」说得出来',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('RESULT {')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        return Number(r.sameCount) >= 1 && String(r.sameText ?? '').includes('已经跑过');
+      } catch {
+        return false;
+      }
+    })(),
+  ],
   ['流程无报错', /\bOK\b/.test(log)],
   ['截图产出', existsSync(shot)],
 ];
