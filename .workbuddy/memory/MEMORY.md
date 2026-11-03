@@ -38,6 +38,12 @@
 ## 反复踩过的坑
 
 - 用视觉模型估版式会错（估「右偏 115px」，像素扫描实测居中）→ **先量 bbox 再判断**。
+- **本会话环境预设了 `ELECTRON_RUN_AS_NODE=1`**。`npx electron foo.cjs` 会被当成 node 跑，
+  `require('electron')` 只返回一个路径字符串，报错是 `Cannot read properties of undefined (reading 'whenReady')`。
+  真要跑 Electron：`unset ELECTRON_RUN_AS_NODE` 后直接调 `./node_modules/electron/dist/electron.exe`。
+- **建快捷方式不能用 WScript.Shell**（COM 实例化被本机安全策略挡，报「Command blocked for security」）。
+  用 Electron 的 `shell.writeShortcutLink` 写、`shell.readShortcutLink` 回读核对。
+- `verify` 现在并发（typecheck 先跑，其余最多 6 路）。怀疑并发搞红了，先 `VERIFY_JOBS=1` 复现串行。
 - `build` 与 `smoke` 不能并发（out/ 写一半就起应用）；先 build 再 smoke。
 - 多模式冒烟前先 `rm -rf scripts/.out/smoke-userdata`，否则读到上一轮的存档。
 - 同时改坏两处会让反证互相抵消（README 项数被多余脚本补齐），**一次只破一处**。
