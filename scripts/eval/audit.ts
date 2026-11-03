@@ -1,5 +1,5 @@
 /**
- * 审计：把十二条分析结果逐条过机器能判的东西。
+ * 审计：把每条分析结果逐条过机器能判的东西。
  *
  * 分两层，分开报，因为它们的含义完全不同：
  *
@@ -13,6 +13,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CASES, type EvalCase } from './cases';
+import { KINDS, KINDS_BY_CASE } from './kinds';
 import type { Diagnosis } from '@shared/types';
 import { auditReport, PLACEHOLDER_CONCLUSION } from '@shared/report-audit';
 
@@ -211,9 +212,10 @@ if (pt) {
   );
 }
 
-L.push('', '## 五、语料清单', '', '| 样本 | 体裁 | 透镜/模式 | 文本里埋了什么 |', '|---|---|---|---|');
+L.push('', '## 五、语料清单', '', '| 样本 | 体裁 | 透镜/模式 | 毛病类型 | 文本里埋了什么 |', '|---|---|---|---|---|');
 for (const c of CASES) {
-  L.push(`| ${c.id} | ${c.genre} | ${c.theory} / ${c.mode} | ${c.traps[0]} |`);
+  const kinds = (KINDS_BY_CASE[c.id] ?? []).map((k) => KINDS[k].name).join('、');
+  L.push(`| ${c.id} | ${c.genre} | ${c.theory} / ${c.mode} | ${kinds} | ${c.traps[0]} |`);
 }
 
 if (errors.length) {

@@ -63,7 +63,7 @@ npm run verify
 
 ---
 
-## 全部关卡（`npm run verify` 跑的 20 项）
+## 全部关卡（`npm run verify` 跑的 21 项）
 
 | 命令 | 红了说明什么 |
 |---|---|
@@ -84,6 +84,7 @@ npm run verify
 | `check:argdown` | Argdown 导出被官方解析器读不进去、语句数对不上、supports 的关系画错、正文里的方括号没转义 |
 | `check:capture` | 全局快捷键的判定退回危险状态：剪贴板为空/超长时不再说话、框里是用户自己写的字却被直接覆盖、超长被悄悄截断 |
 | `check:sameness` | 「这段跑过没有」说错话：改稿没被算进次数、并列时取了错那份（日期会错）、短文本报出虚高相似度、提示语里出现劝告 |
+| `check:corpus` | 评测语料的覆盖破了：某类毛病只剩一段样本、同一类的两段体裁相同、两段其实是改稿（dice ≥0.25）、标注表漏了某条语料或多出不存在的一条、一条语料标了四类、类型名拼错 |
 | `check:robustness` | 写失败没抛、设置校验漏了非法值、空 catch 没写理由 |
 | `check:samples` | 示例文本出问题：段数不够、两段重复、长度越界、句数少于毛病数、第一段与假模型夹具的下标对不上 |
 | `check:docs` | **这份文件自己腐烂了**：它点名的命令/路径不存在，或漏掉了某个 check |
@@ -106,6 +107,7 @@ npm run verify
 | 导出格式 | `check:export`、`check:argdown` | 格式是给人读还是给工具读，决定断言该守「段全不全」还是「解析器读不读得进去」 |
 | 全局快捷键 / 剪贴板 | `check:capture`、`smoke` | 判定在 `@shared/capture`（纯函数）；主进程只注册与读剪贴板。要验注册失败路径，用 `AL_CAPTURE_ACCELERATOR=off` 或写个非法键跑一遍——**「按了没反应」和「功能不存在」必须长得不一样** |
 | 「这段跑过没有」 | `check:sameness`、`smoke` | 判定在 `@shared/sameness`（纯函数），原文只在主进程（`allPassages`）。阈值是按真实存档实测出来的（128 字加两句 = 0.897），不是估的；改阈值必须重跑 `check:sameness`，它有一条直接量这个行为 |
+| 评测语料 / 毛病标注 | `check:corpus`、`eval:audit` | 标注是**人写的判断**，机器只验形状（类别数、体裁、字面重合）。加一段语料要同时在 `kinds.ts` 里标注，漏了会红；同一类毛病的两段必须换体裁，而「换体裁」这件事没法机器判真假，只能靠人写 |
 
 ---
 
@@ -121,6 +123,8 @@ src/renderer/src/components/  界面组件，一人一块
 scripts/verify.mjs         唯一的总入口；清单从 package.json 动态发现，不硬编码
 scripts/prompt-contract.ts 越界输入的断言，改裁决必看
 scripts/mock-llm.mjs       假模型；端到端全靠它，改 schema 时它要一起改
+scripts/eval/cases.ts      评测语料（样本，不是单元测试）；每条埋了什么写在 traps 里
+scripts/eval/kinds.ts      18 类毛病与逐条标注；「每类两段」由 check:corpus 守
 src/shared/replay.ts       重放的比对内核（纯函数）：摊平、逐字段比、差异归类
 scripts/replay-lib.ts      读存档 → 重新解析 → 重跑裁决；不联网、不读设置
 scripts/fixtures/replay/   冻结的模型原文 + 当时的产物。check:replay 拿它当基准
