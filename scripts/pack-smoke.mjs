@@ -239,6 +239,8 @@ const env = {
   AL_REREAD: '1',
   // 包内也填一次词换尺度：验的是 @shared/rescale 与输入框重算链路都进了 asar
   AL_RESCALE: '1',
+  // 包内也写一次成立条件：@shared/conditions 是这轮新加的，最容易漏进 asar
+  AL_CONDITIONS: '1',
   AL_PANEL: 'usage',
   // 提示词页顺带验。它要验的不是「提示词显示出来了」，而是**版本号与指纹显示出来了**——
   // 提示词一改判定口径就可能变，那行小字是判断两份报告能不能对照的唯一凭据，
@@ -436,6 +438,34 @@ const checks = [
           typeof r.changed === 'string' &&
           r.changed.includes('午休') &&
           r.changed !== r.original
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
+   * 打包产物里的「自己列成立条件」：这一轮新加的 @shared/conditions 若没进 asar，
+   * 表现不是报错，是按钮点了没反应或导出文本里没有用户刚写的字。
+   */
+  [
+    '打包产物里「自己列成立条件」写进去的字真的被重算了',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('CONDITIONSRESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        return (
+          r.opened === true &&
+          r.filled === true &&
+          r.screen === true &&
+          r.blocks === 0 &&
+          typeof r.passage === 'string' &&
+          r.passage === String(r.submitted ?? '').trim() &&
+          typeof r.quote === 'string' &&
+          r.quote.length > 20 &&
+          String(r.take ?? '').includes('得先排除别的原因吗') &&
+          String(r.stat ?? '').includes('写了 2 条')
         );
       } catch {
         return false;

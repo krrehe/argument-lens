@@ -178,6 +178,8 @@ const env = {
   ...(process.env.SMOKE_REREAD === '1' ? { AL_REREAD: '1' } : {}),
   // SMOKE_RESCALE=1：跑完再点开「换个尺度读」，由探针往输入框填词，验本地重算
   ...(process.env.SMOKE_RESCALE === '1' ? { AL_RESCALE: '1' } : {}),
+  // SMOKE_CONDITIONS=1：跑完再点开「自己列成立条件」，由探针写条件、点三态、挂原文句子
+  ...(process.env.SMOKE_CONDITIONS === '1' ? { AL_CONDITIONS: '1' } : {}),
   /*
    * SMOKE_CAPTURE_OFF=1：不注册全局快捷键。
    *
@@ -818,6 +820,95 @@ if (process.env.SMOKE_RESCALE === '1') {
     [
       '换尺度：截图真的裁到了这一屏',
       /\d+x\d+/.test(rsRectLine) && existsSync(rsShotPath) && statSync(rsShotPath).size > 1000,
+    ],
+  );
+}
+
+/*
+ * SMOKE_CONDITIONS=1：这一屏验的是「人写的字真的被本地重算进对位与导出文本」。
+ *
+ * 空对象是「探针没跑」：下面每一条都会因此失败，而不是静默通过。
+ * 三条容易写歪的地方都单独钉住：
+ *   - 只截图不断言，等于给一个点不动的界面留了张好看的证据；
+ *   - 「原文还在」不比较内容，trim 过也照样绿；
+ *   - 「填了条件」不看导出文本，事件没接到 React 上也照样绿。
+ */
+if (process.env.SMOKE_CONDITIONS === '1') {
+  const cd = jOfLine('CONDITIONSRESULT');
+  const cdEmpty = jOfLine('CONDITIONSEMPTY');
+  const cdBack = jOfLine('CONDITIONSBACK');
+  const cdShotPath = resolve(outDir, 'conditions-e2e.png');
+  const cdRectLine = log.split('\n').find((l) => l.includes('CONDITIONSRECT')) ?? '';
+  const cdUnasked = Number(cd.unasked);
+  const cdEmptyUnasked = Number(cdEmpty.unasked);
+  checks.push(
+    ['成立条件：报告顶部有入口', cd.entry === true],
+    [
+      '成立条件：点开后换了一整屏，报告板块全让位',
+      cd.opened === true && cd.screen === true && cd.blocks === 0 && cd.blocksBefore > 0,
+    ],
+    [
+      '成立条件：主区没有混进报告里的条目卡',
+      cd.screen === true && cd.refs === 0,
+    ],
+    [
+      '成立条件：填之前是空清单，没有引文、也没有用户还没写的字',
+      cdEmpty.screen === true &&
+        cdEmpty.items >= 2 &&
+        cdEmpty.quotes === 0 &&
+        String(cdEmpty.stat ?? '').includes('写了 0 条') &&
+        !String(cdEmpty.take ?? '').includes('得先排除别的原因吗'),
+    ],
+    ['成立条件：探针真的往界面里写条件、点三态、挂了原文句子', cd.filled === true],
+    [
+      '成立条件：写了两条之后统计条跟着变了',
+      String(cd.stat ?? '').includes('写了 2 条') && String(cd.stat ?? '').includes('1 条挂到了原文'),
+    ],
+    [
+      '成立条件：挂上去的引文逐字就是原文第一句',
+      typeof cd.quote === 'string' && cd.quote.length > 20 && String(cd.passage ?? '').startsWith(cd.quote) && cd.quotes === 1,
+    ],
+    [
+      '成立条件：屏幕上的原文与提交的原文逐字相同',
+      typeof cd.passage === 'string' && cd.passage === String(cd.submitted ?? '').trim() && cd.sentences >= 2,
+    ],
+    [
+      '成立条件：三态是用户点的，不是软件判的（第一行亮的是刚点的那个）',
+      Array.isArray(cd.markOns) &&
+        cd.markOns.length === 3 &&
+        cd.markOns[0] === 'yes' &&
+        cd.markOns[1] === 'unknown' &&
+        String(cd.take ?? '').includes('[原文给了]'),
+      JSON.stringify(cd.markOns),
+    ],
+    [
+      '成立条件：带走的那段文本里，用户写的条件与挂的原句都在',
+      String(cd.take ?? '').includes('得先排除别的原因吗') &&
+        String(cd.take ?? '').includes('两年数据够不够') &&
+        typeof cd.quote === 'string' &&
+        String(cd.take ?? '').includes(cd.quote),
+    ],
+    [
+      '成立条件：挂了一句之后，没被问到的句子真的少了一句',
+      cdEmptyUnasked >= 2 && cdUnasked === cdEmptyUnasked - 1,
+      `填前 ${cdEmptyUnasked} / 填后 ${cdUnasked}`,
+    ],
+    [
+      '成立条件：没被问到的句子有单独一处逐句列出',
+      String(cd.unaskedList ?? '').includes(`还有 ${cdUnasked} 句没被问到`),
+    ],
+    [
+      '成立条件：三态按钮没有被挤成两行',
+      Array.isArray(cd.markHeights) && cd.markHeights.length >= 9 && cd.markHeights.every((h) => h > 0 && h <= 34),
+      JSON.stringify(cd.markHeights),
+    ],
+    [
+      '成立条件：点回报告后回到原来那份报告',
+      cd.screen === true && cdBack.screen === false && cdBack.blocks === cd.blocksBefore && cd.blocksBefore > 0,
+    ],
+    [
+      '成立条件：截图真的裁到了这一屏',
+      /\d+x\d+/.test(cdRectLine) && existsSync(cdShotPath) && statSync(cdShotPath).size > 1000,
     ],
   );
 }

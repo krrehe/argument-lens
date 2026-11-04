@@ -706,6 +706,115 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           }
 
           /*
+           * AL_CONDITIONS=1：真应用里点开「自己列成立条件」，并且由探针自己写条件、
+           * 自己点三态、自己把条件挂到原文某一句。
+           *
+           * 这一屏验的东西和前两屏不同：不是「渲染出来了」，而是「填进去的字本地真的
+           * 被重算进对位与导出文本」。静态检查只能验纯函数，验不到 textarea / select
+           * 的事件有没有接到 React 上——那正是最容易「看着有、其实不动」的地方。
+           *
+           * 另外验一条只有这一屏才有的：**主区不出现报告里的任何一句话**。
+           * 报告板块 .block 全让位还不够，条目文字也可能被顺手带进来。
+           */
+          if (process.env['AL_CONDITIONS'] === '1' && !canceled) {
+            const cBefore = await wc.executeJavaScript(`JSON.stringify({
+              entry: !!document.querySelector('[data-conditions-open]'),
+              blocksBefore: document.querySelectorAll('.block').length,
+            })`);
+            const cOpened = await wc.executeJavaScript(`(() => {
+              const b = document.querySelector('[data-conditions-open]');
+              if (!b) return false;
+              b.click();
+              return true;
+            })()`);
+            await sleep(320);
+            await wc.executeJavaScript(`(() => { window.scrollTo(0, 0); return true; })()`);
+
+            /* 填之前：三行空条件，一条引文都不该有，导出文本里也不该有用户还没写的字。 */
+            const cEmpty = await wc.executeJavaScript(`JSON.stringify({
+              screen: !!document.querySelector('[data-conditions]'),
+              items: document.querySelectorAll('[data-conditions-item]').length,
+              quotes: document.querySelectorAll('[data-conditions-quote]').length,
+              stat: (document.querySelector('[data-conditions-stat]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+              take: document.querySelector('[data-conditions-take]')?.value ?? '',
+              passage: [...document.querySelectorAll('[data-conditions-sentence] .rr-text')].map((e) => e.textContent ?? '').join(''),
+              unasked: document.querySelectorAll('[data-conditions-unasked]').length,
+            })`);
+
+            /* textarea 用原型 setter 绕开 React 的 value tracker，与换尺度那屏同一套做法。
+               select 同时派发 input 与 change：不同 React 版本对哪一个生效不一样，两个都发。 */
+            const cFilled = await wc.executeJavaScript(`(() => {
+              const ta = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+              const sl = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+              const areas = [...document.querySelectorAll('[data-conditions-textarea]')];
+              const picks = [...document.querySelectorAll('[data-conditions-pick]')];
+              if (areas.length < 2 || picks.length < 2 || !ta || !sl) return false;
+              ta.call(areas[0], '得先排除别的原因吗');
+              areas[0].dispatchEvent(new Event('input', { bubbles: true }));
+              ta.call(areas[1], '两年数据够不够');
+              areas[1].dispatchEvent(new Event('input', { bubbles: true }));
+              sl.call(picks[0], '0');
+              picks[0].dispatchEvent(new Event('input', { bubbles: true }));
+              picks[0].dispatchEvent(new Event('change', { bubbles: true }));
+              const marks = [...document.querySelectorAll('[data-conditions-item]')][0]
+                ?.querySelectorAll('[data-conditions-mark]') ?? [];
+              marks[1]?.click();
+              return true;
+            })()`);
+            await sleep(380);
+
+            const cState = await wc.executeJavaScript(`JSON.stringify({
+              screen: !!document.querySelector('[data-conditions]'),
+              blocks: document.querySelectorAll('.block').length,
+              items: document.querySelectorAll('[data-conditions-item]').length,
+              quotes: document.querySelectorAll('[data-conditions-quote]').length,
+              quote: (document.querySelector('[data-conditions-quote] .cl-quote-text')?.textContent ?? ''),
+              sentences: document.querySelectorAll('[data-conditions-sentence]').length,
+              passage: [...document.querySelectorAll('[data-conditions-sentence] .rr-text')].map((e) => e.textContent ?? '').join(''),
+              submitted: document.querySelector('textarea')?.value ?? '',
+              stat: (document.querySelector('[data-conditions-stat]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+              unasked: document.querySelectorAll('[data-conditions-unasked]').length,
+              unaskedList: (document.querySelector('[data-conditions-unasked-list]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+              take: document.querySelector('[data-conditions-take]')?.value ?? '',
+              marked: document.querySelectorAll('.cl-mark-on').length,
+              /* 每行默认亮「还没想好」，数高亮个数验不出「点得动」；要看亮的是哪一个。 */
+              markOns: [...document.querySelectorAll('.cl-mark-on')].map((e) => e.getAttribute('data-conditions-mark')),
+              /* 这一屏不渲染报告里的条目：报告板块让位之外，也不许把条目卡顺手带进来。 */
+              refs: document.querySelectorAll('[data-conditions] .rr-ref').length,
+              /* 三态按钮不许折行：nowrap 失效时高度会明显超过一行。 */
+              markHeights: [...document.querySelectorAll('[data-conditions-mark]')].map((e) => Math.round(e.getBoundingClientRect().height)),
+            })`);
+            const c = JSON.parse(cState);
+            add(`CONDITIONSEMPTY ${cEmpty}`);
+            add(`CONDITIONSRESULT ${JSON.stringify({ ...c, ...JSON.parse(cBefore), opened: cOpened, filled: cFilled })}`);
+
+            const cRect = await wc.executeJavaScript(`(() => {
+              const el = document.querySelector('[data-conditions]');
+              if (!el) return null;
+              const b = el.getBoundingClientRect();
+              return {
+                x: Math.max(0, Math.round(b.left)),
+                y: Math.max(0, Math.round(b.top)),
+                width: Math.min(Math.round(b.width), 1200),
+                height: Math.min(Math.round(b.height), 1100),
+              };
+            })()`);
+            const cPng = (await wc.capturePage(cRect ?? undefined)).toPNG();
+            const cShot = join(dirname(shot), 'conditions-e2e.png');
+            writeFileSync(cShot, cPng);
+            add(`CONDITIONSSHOT ${cShot} ${cPng.length} bytes rect=${cRect ? `${cRect.width}x${cRect.height}` : 'missing'}`);
+            add(`CONDITIONSRECT ${cRect ? `${cRect.width}x${cRect.height}` : 'missing'}`);
+
+            await wc.executeJavaScript(`(() => { document.querySelector('[data-conditions-back]')?.click(); return true; })()`);
+            await sleep(280);
+            const cBack = await wc.executeJavaScript(`JSON.stringify({
+              screen: !!document.querySelector('[data-conditions]'),
+              blocks: document.querySelectorAll('.block').length,
+            })`);
+            add(`CONDITIONSBACK ${cBack}`);
+          }
+
+          /*
            * AL_REVISE=1：走一遍修订对照的完整链路。
          *
          * 修补建议 → 填回输入框 → 重新分析 → 存档 → 按 parentId 取回上一版 → 算对照 → 渲染对照条。

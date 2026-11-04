@@ -453,6 +453,17 @@ function Preview() {
                     ]
                   : undefined
               }
+              /* ?conditions=1：同上。预填的三条只为拍版式，真应用里全是空的。 */
+              initialConditions={QS.get('conditions') === '1'}
+              initialItems={
+                QS.get('conditions') === '1'
+                  ? [
+                      { id: 'p1', text: '得先排除别的原因吗', mark: 'no' as const, sentence: 0 },
+                      { id: 'p2', text: '去年和今年只差早读这一件事吗', mark: 'unknown' as const, sentence: 1 },
+                      { id: 'p3', text: '两年数据够不够下这个结论', mark: 'unknown' as const, sentence: null },
+                    ]
+                  : undefined
+              }
               onOpenClaim={(id) => {
                 // 预览里也走真链路：定位到那一条，顺便打开库，截图能核对高亮
                 setFocusClaim(id);

@@ -2015,3 +2015,210 @@
   line-height: 1.8;
   color: var(--ink-3);
 }
+
+/* ─────────── 自己列成立条件 ─────────── */
+
+/*
+ * 这一屏里唯一「可编辑」的是人写的条件，所以它要比原文先出现、也要看起来能写。
+ * 原文沿用 .rr-s 那套（15px、pre-wrap），两屏并排时读的是同一份字，不另造一种排版。
+ */
+.cl-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 22px;
+}
+
+.cl-item {
+  padding: 10px 12px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: 0 6px 6px 0;
+  background: var(--panel-2);
+}
+
+.cl-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.cl-num {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.cl-del {
+  padding: 2px 8px;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.cl-del:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cl-write {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.cl-write::placeholder {
+  color: var(--ink-3);
+}
+
+/* 三态 + 选句本来想放一行，窄屏会把「原文没给」断成两截。让它各自成组、允许换行。 */
+.cl-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 8px;
+}
+
+.cl-marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.cl-mark {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 11.5px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cl-mark-on {
+  border-color: var(--line-strong);
+  background: var(--accent-bg);
+  color: var(--ink);
+}
+
+.cl-pick {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  max-width: 100%;
+}
+
+.cl-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 9px;
+  padding: 7px 9px;
+  border-left: 2px solid var(--line-strong);
+  background: rgba(60, 79, 99, 0.04);
+}
+
+.cl-quote-text {
+  font-size: 12px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  color: var(--ink-2);
+}
+
+.cl-problem {
+  margin-top: 8px;
+  padding-left: 8px;
+  border-left: 2px solid var(--line-strong);
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.cl-add {
+  align-self: flex-start;
+  padding: 5px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 5px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cl-sect {
+  margin: 22px 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.cl-s-asked {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.cl-unasked {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+  padding: 9px 11px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 5px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.cl-take {
+  margin-top: 22px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+
+.cl-take-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.cl-take-head b {
+  color: var(--ink-2);
+}
+
+.cl-text {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 170px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.7;
+  white-space: pre;
+  resize: vertical;
+}
