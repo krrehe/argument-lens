@@ -176,6 +176,8 @@ const env = {
   ...(process.env.SMOKE_REVISE === '1' ? { AL_REVISE: '1' } : {}),
   // SMOKE_REREAD=1：跑完再点开「回到原文重读」，验原文逐字没改、报告让位、回得去
   ...(process.env.SMOKE_REREAD === '1' ? { AL_REREAD: '1' } : {}),
+  // SMOKE_RESCALE=1：跑完再点开「换个尺度读」，由探针往输入框填词，验本地重算
+  ...(process.env.SMOKE_RESCALE === '1' ? { AL_RESCALE: '1' } : {}),
   /*
    * SMOKE_CAPTURE_OFF=1：不注册全局快捷键。
    *
@@ -716,21 +718,22 @@ function sizesOk() {
 }
 
 /*
- * SMOKE_REREAD=1 的附加断言。
+ * SMOKE_REREAD=1 / SMOKE_RESCALE=1 的附加断言。
  *
  * 空对象是「探针没跑」：下面每一条都会因此失败，而不是静默通过。
  * 这一屏最容易被写坏的方式恰恰是「看起来做了」——按钮在、点上没反应，
  * 或在报告末尾又添一段而不换屏，静态检查与纯函数断言都看不见。
  */
+const jOfLine = (tag) => {
+  const line = log.split('\n').find((l) => l.includes(tag)) ?? '';
+  try {
+    return JSON.parse(line.slice(line.indexOf('{')));
+  } catch {
+    return {};
+  }
+};
+
 if (process.env.SMOKE_REREAD === '1') {
-  const jOfLine = (tag) => {
-    const line = log.split('\n').find((l) => l.includes(tag)) ?? '';
-    try {
-      return JSON.parse(line.slice(line.indexOf('{')));
-    } catch {
-      return {};
-    }
-  };
   const rr = jOfLine('REREADRESULT');
   const back = jOfLine('REREADBACK');
   const rrShot = resolve(outDir, 'reread.png');
@@ -759,6 +762,62 @@ if (process.env.SMOKE_REREAD === '1') {
     [
       '回到原文：截图真的裁到了这一屏',
       /\d+x\d+/.test(shotLine) && existsSync(rrShot) && statSync(rrShot).size > 1000,
+    ],
+  );
+}
+
+/*
+ * SMOKE_RESCALE=1：这一屏的关键不是「渲染出来了」，而是**填了词之后本地真的重算了**。
+ * 所以探针先采一次空屏，再由探针往输入框里填词，两次都得对得上。
+ */
+if (process.env.SMOKE_RESCALE === '1') {
+  const rs = jOfLine('RESCALERESULT');
+  const empty = jOfLine('RESCALEEMPTY');
+  const rsBack = jOfLine('RESCALEBACK');
+  const rsShotPath = resolve(outDir, 'rescale.png');
+  const rsRectLine = log.split('\n').find((l) => l.includes('RESCALERECT')) ?? '';
+  checks.push(
+    ['换尺度：报告顶部有入口', rs.entry === true],
+    [
+      '换尺度：点开后换了一整屏，报告板块全让位',
+      rs.opened === true && rs.screen === true && rs.blocks === 0 && rs.blocksBefore > 0,
+    ],
+    [
+      '换尺度：填词之前没有「换过」那一栏',
+      empty.screen === true && empty.changed === '' && String(empty.stat ?? '').includes('还没填词'),
+    ],
+    ['换尺度：两组词由用户填进输入框', rs.filled === true && rs.inputs >= 2],
+    [
+      '换尺度：填词后本地重算了，两栏不再相同',
+      typeof rs.changed === 'string' && rs.changed.length > 20 && rs.changed !== rs.original && rs.changed !== empty.changed,
+    ],
+    [
+      '换尺度：原文那一栏与提交的原文逐字相同',
+      typeof rs.original === 'string' && rs.original === String(rs.passage ?? '').trim() && rs.original.length > 20,
+    ],
+    [
+      '换尺度：该换的换了，没被点名的字还在',
+      typeof rs.changed === 'string' &&
+        rs.changed.includes('午休') &&
+        rs.changed.includes('及格率') &&
+        !rs.changed.includes('早读') &&
+        !rs.changed.includes('一本率') &&
+        rs.changed.includes('6 个百分点'),
+    ],
+    [
+      '换尺度：统计条报出替换处数与句子数',
+      /替换 \d+ 处/.test(String(rs.stat ?? '')) &&
+        String(rs.stat ?? '').includes(`共 ${rs.sentences} 句`) &&
+        rs.sentences >= 2,
+    ],
+    ['换尺度：报告条目仍按句挂在旁边', rs.refs > 0],
+    [
+      '换尺度：点回报告后回到原来那份报告',
+      rs.screen === true && rsBack.screen === false && rsBack.blocks === rs.blocksBefore && rs.blocksBefore > 0,
+    ],
+    [
+      '换尺度：截图真的裁到了这一屏',
+      /\d+x\d+/.test(rsRectLine) && existsSync(rsShotPath) && statSync(rsShotPath).size > 1000,
     ],
   );
 }

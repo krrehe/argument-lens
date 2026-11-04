@@ -121,8 +121,12 @@ function byQuote(kind: RereadKind, id: string, text: string, raw: string | undef
   return { kind, id, text, quote, span: { start: first, end: first + q.length }, reason: null };
 }
 
-/** 句子边界：复用 mapSentences 的 end，但 start 一律接上一句的 end。 */
-function sentenceBounds(passage: string): { start: number; end: number; text: string; index: number }[] {
+/**
+ * 句子边界：复用 mapSentences 的 end，但 start 一律接上一句的 end。
+ * 导出给「换尺度重读」共用——两套切法迟早会在某个标点上给出不同的句子，
+ * 那时并排的两栏就会错位，而错位看起来只是「排版有点怪」。
+ */
+export function sentenceBounds(passage: string): { start: number; end: number; text: string; index: number }[] {
   const ends = mapSentences(passage).map((s) => s.end);
   /*
    * mapSentences 会把空句（连续换行）直接丢掉，也不收尾部空白。

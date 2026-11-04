@@ -43,6 +43,7 @@
     "check:sameness": "node scripts/run-check-sameness.mjs",
     "check:corpus": "node scripts/run-check-corpus.mjs",
     "check:reread": "node scripts/run-check-reread.mjs",
+    "check:rescale": "node scripts/run-check-rescale.mjs",
     "check:robustness": "node scripts/run-check-robustness.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "replay": "node scripts/run-replay.mjs",

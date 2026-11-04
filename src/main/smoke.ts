@@ -619,6 +619,93 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           }
 
           /*
+           * AL_RESCALE=1：真应用里点开「换个尺度读」，并且**由探针往输入框里填词**。
+           *
+           * 这里刻意不用预填数据：这一屏的全部意义是「用户发起的一次操作」，
+           * 若靠初始词对截图，验到的只是渲染，验不到「填了词 → 本地重算」。
+           * 纯函数层已经验过可逆与逐字还原，DOM 层只问四件它答不了的事：
+           * 点得开、报告让位、填词后两栏真的变了、原文那一栏仍是提交时的原文。
+           */
+          if (process.env['AL_RESCALE'] === '1' && !canceled) {
+            const rsBefore = await wc.executeJavaScript(`JSON.stringify({
+              entry: !!document.querySelector('[data-rescale-open]'),
+              blocksBefore: document.querySelectorAll('.block').length,
+            })`);
+            const rsOpened = await wc.executeJavaScript(`(() => {
+              const b = document.querySelector('[data-rescale-open]');
+              if (!b) return false;
+              b.click();
+              return true;
+            })()`);
+            await sleep(320);
+            await wc.executeJavaScript(`(() => { window.scrollTo(0, 0); return true; })()`);
+
+            /* 填词之前：不该有「换过」那一栏。拿空屏截图冒充填过是最容易混过去的一处。 */
+            const rsEmpty = await wc.executeJavaScript(`JSON.stringify({
+              screen: !!document.querySelector('[data-rescale]'),
+              changed: [...document.querySelectorAll('[data-rescale-changed]')].map((e) => e.textContent ?? '').join(''),
+              stat: (document.querySelector('[data-rescale-stat]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+            })`);
+
+            const rsFilled = await wc.executeJavaScript(`(() => {
+              const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+              const froms = [...document.querySelectorAll('[data-rescale-from]')];
+              const tos = [...document.querySelectorAll('[data-rescale-to]')];
+              const vals = [['早读', '午休'], ['一本率', '及格率']];
+              if (froms.length < 2 || tos.length < 2 || !setter) return false;
+              for (let i = 0; i < 2; i++) {
+                setter.call(froms[i], vals[i][0]);
+                froms[i].dispatchEvent(new Event('input', { bubbles: true }));
+                setter.call(tos[i], vals[i][1]);
+                tos[i].dispatchEvent(new Event('input', { bubbles: true }));
+              }
+              return true;
+            })()`);
+            await sleep(360);
+
+            const rsState = await wc.executeJavaScript(`JSON.stringify({
+              screen: !!document.querySelector('[data-rescale]'),
+              blocks: document.querySelectorAll('.block').length,
+              sentences: document.querySelectorAll('[data-rescale-sentence]').length,
+              original: [...document.querySelectorAll('[data-rescale-original]')].map((e) => e.textContent ?? '').join(''),
+              changed: [...document.querySelectorAll('[data-rescale-changed]')].map((e) => e.textContent ?? '').join(''),
+              passage: document.querySelector('textarea')?.value ?? '',
+              stat: (document.querySelector('[data-rescale-stat]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+              refs: document.querySelectorAll('[data-rescale-ref]').length,
+              conflicts: document.querySelectorAll('[data-rescale-conflicts]').length,
+              inputs: document.querySelectorAll('[data-rescale-from]').length,
+            })`);
+            const rs = JSON.parse(rsState);
+            add(`RESCALEEMPTY ${rsEmpty}`);
+            add(`RESCALERESULT ${JSON.stringify({ ...rs, ...JSON.parse(rsBefore), opened: rsOpened, filled: rsFilled })}`);
+
+            const rsRect = await wc.executeJavaScript(`(() => {
+              const el = document.querySelector('[data-rescale]');
+              if (!el) return null;
+              const b = el.getBoundingClientRect();
+              return {
+                x: Math.max(0, Math.round(b.left)),
+                y: Math.max(0, Math.round(b.top)),
+                width: Math.min(Math.round(b.width), 1200),
+                height: Math.min(Math.round(b.height), 1100),
+              };
+            })()`);
+            const rsPng = (await wc.capturePage(rsRect ?? undefined)).toPNG();
+            const rsShot = join(dirname(shot), 'rescale.png');
+            writeFileSync(rsShot, rsPng);
+            add(`RESCALESHOT ${rsShot} ${rsPng.length} bytes rect=${rsRect ? `${rsRect.width}x${rsRect.height}` : 'missing'}`);
+            add(`RESCALERECT ${rsRect ? `${rsRect.width}x${rsRect.height}` : 'missing'}`);
+
+            await wc.executeJavaScript(`(() => { document.querySelector('[data-rescale-back]')?.click(); return true; })()`);
+            await sleep(280);
+            const rsBack = await wc.executeJavaScript(`JSON.stringify({
+              screen: !!document.querySelector('[data-rescale]'),
+              blocks: document.querySelectorAll('.block').length,
+            })`);
+            add(`RESCALEBACK ${rsBack}`);
+          }
+
+          /*
            * AL_REVISE=1：走一遍修订对照的完整链路。
          *
          * 修补建议 → 填回输入框 → 重新分析 → 存档 → 按 parentId 取回上一版 → 算对照 → 渲染对照条。

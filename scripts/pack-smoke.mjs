@@ -237,6 +237,8 @@ const env = {
   AL_ACTION: 'analyze',
   // 包内也点一次「回到原文重读」：渲染层与 @shared/reread 有没有一起进 asar，看探针输出
   AL_REREAD: '1',
+  // 包内也填一次词换尺度：验的是 @shared/rescale 与输入框重算链路都进了 asar
+  AL_RESCALE: '1',
   AL_PANEL: 'usage',
   // 提示词页顺带验。它要验的不是「提示词显示出来了」，而是**版本号与指纹显示出来了**——
   // 提示词一改判定口径就可能变，那行小字是判断两份报告能不能对照的唯一凭据，
@@ -406,6 +408,34 @@ const checks = [
           typeof r.text === 'string' &&
           r.text === String(r.passage ?? '').trim() &&
           r.text.length > 20
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
+   * 打包产物里的「换个尺度读」：内核在 @shared/rescale、渲染在 Diagnosis.tsx，
+   * 两个都得进 asar。这里不问「按钮在不在」，问的是**填词后有没有真的重算**——
+   * 包里若只带了一半代码，最常见的表现是按钮能点、两栏却一模一样。
+   */
+  [
+    '打包产物里「换个尺度读」填词后真的重算了',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('RESCALERESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        return (
+          r.opened === true &&
+          r.filled === true &&
+          r.screen === true &&
+          r.blocks === 0 &&
+          typeof r.original === 'string' &&
+          r.original === String(r.passage ?? '').trim() &&
+          typeof r.changed === 'string' &&
+          r.changed.includes('午休') &&
+          r.changed !== r.original
         );
       } catch {
         return false;

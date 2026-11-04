@@ -443,6 +443,16 @@ function Preview() {
               d={shown}
               /* ?reread=1：只在特定时刻出现的那一屏，必须留一个能拍到它的入口。 */
               initialReread={QS.get('reread') === '1'}
+              /* ?rescale=1：同上。预填的两组词只供截图看版式，真应用里由用户自己填。 */
+              initialRescale={QS.get('rescale') === '1'}
+              initialPairs={
+                QS.get('rescale') === '1'
+                  ? [
+                      { from: '早读', to: '午休' },
+                      { from: '一本率', to: '及格率' },
+                    ]
+                  : undefined
+              }
               onOpenClaim={(id) => {
                 // 预览里也走真链路：定位到那一条，顺便打开库，截图能核对高亮
                 setFocusClaim(id);
