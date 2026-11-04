@@ -45,6 +45,7 @@
     "check:reread": "node scripts/run-check-reread.mjs",
     "check:rescale": "node scripts/run-check-rescale.mjs",
     "check:conditions": "node scripts/run-check-conditions.mjs",
+    "check:portfolio": "node scripts/run-check-portfolio.mjs",
     "check:robustness": "node scripts/run-check-robustness.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "replay": "node scripts/run-replay.mjs",

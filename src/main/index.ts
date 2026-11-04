@@ -5,7 +5,7 @@ import { readSettings, writeSettings, hasApiKey, keyUnreadable } from './store';
 import { runAnalysis } from './analyze';
 import { testConnection, LlmError } from './llm';
 import { attachSmoke } from './smoke';
-import { allPassages, archiveDirPath, getReport, listReports, removeReport, saveReport } from './archive';
+import { allPassages, archiveDirPath, getReport, listReports, passageScan, removeReport, saveReport } from './archive';
 import { exportReportArgdown, exportReportMarkdown } from './report-export';
 import { captureStatus, registerCapture, unregisterCapture } from './capture';
 import { clearAnchor, exportUsageCsv, setAnchor, setPricing, summarizeUsage, usageDirPath } from './usage';
@@ -26,6 +26,7 @@ import { normalizeMode, type AnalysisMode, type LlmSettings, type Pricing } from
 import { describeProblems, validateSettingsPatch } from '@shared/settings-check';
 import { DEFAULT_THEORY, THEORIES, isTheoryId, type TheoryId } from '@shared/theories';
 import { samenessOf } from '@shared/sameness';
+import { portfolioOf } from '@shared/portfolio';
 import { buildPrompt, renderPrompt, SAMPLING, BUDGET } from './prompt';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -318,6 +319,17 @@ function registerIpc(): void {
   ipcMain.handle('archive:sameness', (_e, text: string) =>
     samenessOf(typeof text === 'string' ? text : '', allPassages())
   );
+  /*
+   * 样本账：这台机器上跑过几种不同的文字。
+   *
+   * 与 sameness 同属「纯读」，但多一样东西：读不出来的文件数要一起回去。
+   * 少读一个文件不会报错，只会让「本机 103 份报告」这句听起来完整——
+   * 而它不完整。这类错没有别的症状，所以只能把计数显式带上。
+   */
+  ipcMain.handle('archive:portfolio', () => {
+    const scan = passageScan();
+    return { view: portfolioOf(scan.items, scan.badFiles), dirError: scan.dirError };
+  });
 
   // 提示词可读，是这个产品必须满足的一条：用户有权看到自己被什么标准在衡量
   ipcMain.handle('prompt:get', (_e, theory: TheoryId, mode?: AnalysisMode) => {

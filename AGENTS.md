@@ -66,7 +66,7 @@ npm run verify
 
 ---
 
-## 全部关卡（`npm run verify` 跑的 24 项）
+## 全部关卡（`npm run verify` 跑的 25 项）
 
 | 命令 | 红了说明什么 |
 |---|---|
@@ -91,6 +91,7 @@ npm run verify
 | `check:reread` | 「回到原文重读」破了：原文没被逐字还原、条目挂到了没有交集的句子上、quality=failed 的落点被拿来钉句子、同一句上「命名」与「此处合法」被合并、**屏幕上出现了报告里没有的判断文字** |
 | `check:rescale` | 「换个尺度读」破了：原文没被逐字还原、编辑记录不能逆变换、替换结果被二次替换（连锁）、未命中/重叠/跨句被静默吞掉、两屏句子边界不一致、内核里冒出一句本地判断 |
 | `check:conditions` | 「自己列成立条件」破了：原文没被逐字还原、引文坐标切不出原句、同一句被合并、行被重排、越界或点了却不写被静默丢掉、**内核写了一句判断或悄悄算了个总分**、没被问到的句子消失 |
+| `check:portfolio` | 「样本账」破了：输入顺序打乱后账变了（代表句不再是最近那份）、改稿没归组、短文本被几个二元组并成一组、空原文或读不出来的文件被静默吞掉、摘录不是原文前缀、**导出里冒出一句本地写的劝告或总结** |
 | `check:robustness` | 写失败没抛、设置校验漏了非法值、空 catch 没写理由 |
 | `check:samples` | 示例文本出问题：段数不够、两段重复、长度越界、句数少于毛病数、第一段与假模型夹具的下标对不上 |
 | `check:docs` | **这份文件自己腐烂了**：它点名的命令/路径不存在，或漏掉了某个 check |
@@ -120,6 +121,7 @@ verify 现在是并发的：typecheck 先单跑（它红了会把后面的报错
 | 回到原文重读 | `check:reread`、`SMOKE_REREAD=1 npm run smoke`、`ui:preview` 截图 | 判定在 `@shared/reread`（纯函数）；**这一屏不写判断**：句子是原文原样切片，条目文字逐字引自报告，位置由 span / 唯一引文算。`?reread=1` 是预览页的截图入口。改了 `src/` 记得重打包 |
 | 换个尺度读 | `check:rescale`、`SMOKE_RESCALE=1 npm run smoke`、`pack:check` | 判定在 `@shared/rescale`（纯函数）：**词由用户填**，本地按不重叠区间做字面替换，留下可复算的 edits；不做语义扩展、不替换替换结果、不写判断文字。与 `reread` 共用 `sentenceBounds`，改切句会同时影响两屏并排。`?rescale=1` 是预览页入口（会预填演示词对，只为截图）。改了 `src/` 记得重打包 |
 | 自己列成立条件 | `check:conditions`、`SMOKE_CONDITIONS=1 npm run smoke`、`ui:preview` 截图、`pack:check` | 判定在 `@shared/conditions`（纯函数）：**条件、原文依据、三态标记全由用户填**，本地只切句、按坐标对位、把没被问到的句子摆出来、导出纯文本。这一屏**不显示报告里的一个字**，内核不 import `types`、不写判断、不算总分、不落盘（要留就自己复制）。与另两屏共用 `sentenceBounds`。`?conditions=1` 是预览页入口（预填演示条件，只为截图）。改了 `src/` 记得重打包 |
+| 样本账 | `check:portfolio`、`SMOKE_PORTFOLIO=1 npm run smoke`、`ui:preview` 截图、`pack:check` | 判定在 `@shared/portfolio`（纯函数）：**只读本地存档**，按 `@shared/sameness` 的口径把原文分堆，只数「几份报告、几组文字、最大一组几份」，不劝、不打分、不排优先级。先按 (时间降序, id) 固定排序再贪心分组，否则目录顺序会决定「最近一次是哪天」。空原文与读不出来的文件都要单独数出来。原文只在主进程（`passageScan`）；`?portfolio=1` 是预览页入口。改了 `src/` 记得重打包 |
 
 ---
 
@@ -141,6 +143,7 @@ src/shared/replay.ts       重放的比对内核（纯函数）：摊平、逐�
 src/shared/reread.ts       回到原文重读（纯函数）：切句复用 fallacy-map、按 span 聚拢已有条目、未定位的明说
 src/shared/rescale.ts      换个尺度重读（纯函数）：用户给词 → 不重叠区间替换 → 可逆的编辑记录；切句复用 reread
 src/shared/conditions.ts   自己列成立条件（纯函数）：用户写条件 + 点原文句子 → 坐标对位、未问句子可见、纯文本导出；不读报告
+src/shared/portfolio.ts    样本账（纯函数）：本地存档 → 固定排序 → 按字面重合分堆 → 只数事实；读不出来的文件不许静默
 scripts/replay-lib.ts      读存档 → 重新解析 → 重跑裁决；不联网、不读设置
 scripts/fixtures/replay/   冻结的模型原文 + 当时的产物。check:replay 拿它当基准
 docs/路线图.md             接下来做什么、明确不做什么

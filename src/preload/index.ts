@@ -17,6 +17,7 @@ import type {
 import type { TheoryId } from '@shared/theories';
 import type { CaptureStatus } from '@shared/capture';
 import type { Sameness } from '@shared/sameness';
+import type { PortfolioView } from '@shared/portfolio';
 
 
 /**
@@ -157,6 +158,14 @@ const api = {
      * 两个问题常被混成一个：跑同一段一百遍，报告堆得很高，样本仍然只有一个。
      */
     same: (text: string): Promise<Sameness> => ipcRenderer.invoke('archive:sameness', text),
+    /**
+     * 样本账：本机存档里几份报告、落在几组不同的文字上。
+     *
+     * dirError 非空时 view 里的数字不完整，界面必须说读不出来，
+     * 不能拿它当「还没有报告」。纯读，不写盘、不调模型。
+     */
+    portfolio: (): Promise<{ view: PortfolioView; dirError: string | null }> =>
+      ipcRenderer.invoke('archive:portfolio'),
   },
   prompt: {
     get: (

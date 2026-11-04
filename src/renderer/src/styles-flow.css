@@ -1568,6 +1568,105 @@
   color: var(--ink-3);
 }
 
+/* ─────────── 样本账 ─────────── */
+
+/*
+ * 与「这段跑过没有」同一档视觉：都是按下去之前摆在输入框旁边的一句事实。
+ * 明细默认收起，展开后整块留在侧栏宽度内：长摘录必须能断行，
+ * 否则 28 个字会把 composer 撑破——「替换」被断在词中间是同一类错。
+ * 按钮不许折行，最小字号 10.5px（8.5px 的汉字已经不是小，是认不出）。
+ */
+.pf-bar {
+  margin: 6px 0 2px;
+  padding: 6px 9px;
+  border-left: 2px dashed var(--line-strong);
+  border-radius: 0 5px 5px 0;
+  background: rgba(60, 79, 99, 0.04);
+}
+
+/*
+ * 文字独占一整行、按钮另起一行靠右。
+ * 原来是 flex 同行：可用宽度被按钮吃掉约 85px，句子正好断在「最多的那组 4 / 份」——
+ * 数字与量词被拆开，读起来像「4」是上一句的、「份」是下一句的。
+ * 这类错字数算得下、截图缩放后也看不出，只有按原尺寸裁出来才认得出来。
+ */
+.pf-head {
+  display: block;
+}
+
+.pf-line {
+  margin: 0 0 5px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.pf-toggle {
+  display: block;
+  margin-left: auto;
+  white-space: nowrap;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--accent);
+  font-size: 10.5px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.pf-toggle:hover {
+  border-color: var(--line-strong);
+}
+
+.pf-detail {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.pf-why {
+  margin: 0 0 6px;
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.pf-list {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.pf-list li {
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.pf-text {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.pf-err {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #9b4030;
+}
+
 /* ─────────── 回到原文重读 ─────────── */
 
 /*

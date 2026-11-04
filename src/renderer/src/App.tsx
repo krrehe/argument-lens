@@ -29,6 +29,8 @@ import { formatMoney, formatTokens } from '@shared/tokens';
 import { disputesIn } from '@shared/disputes';
 import type { Segment } from '@shared/segment';
 import { samenessLine, type Sameness } from '@shared/sameness';
+import type { PortfolioView } from '@shared/portfolio';
+import { PortfolioBar } from './components/PortfolioBar';
 import { diffRevision } from '@shared/compare';
 import { SAMPLES } from '@shared/samples';
 import { decideCapture, type CaptureStatus } from '@shared/capture';
@@ -126,6 +128,8 @@ export default function App() {
    * 同一段文字跑两遍，差多少正是模型稳不稳的证据。
    */
   const [same, setSame] = useState<Sameness | null>(null);
+  /** 样本账。null 表示还没读到，首帧不闪一个「0 组」。 */
+  const [folio, setFolio] = useState<{ view: PortfolioView | null; dirError: string | null } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [onboard, setOnboard] = useState(false);
   const [hasKey, setHasKey] = useState(true);
@@ -245,6 +249,23 @@ export default function App() {
       clearTimeout(timer);
     };
   }, [passage, diag?.id]);
+
+  /*
+   * 样本账：出了新报告、或开关历史面板（删报告就在那里面）时重数一遍。
+   *
+   * 不缓存的理由与「这段跑过没有」一样：缓存一旦漏了失效时机，
+   * 就会在删过报告的人身上继续显示旧数目——一个看起来完全正常的错。
+   * 取数失败不静默：dirError 原样显示在那一栏，而不是让整块悄悄消失。
+   */
+  const refreshPortfolio = useCallback(() => {
+    window.api.archive
+      .portfolio()
+      .then(setFolio)
+      .catch((err: Error) => setFolio({ view: null, dirError: err?.message ?? '原因不明' }));
+  }, []);
+  useEffect(() => {
+    refreshPortfolio();
+  }, [refreshPortfolio, diag?.id, histOpen]);
 
   /*
    * 全局快捷键的接线。
@@ -936,6 +957,12 @@ export default function App() {
                     )}
                   </p>
                 )}
+                {/*
+                  样本账放在按钮正下方：这句话的意义是「按下去之前，先看一眼自己
+                  试过几种文字」。放远了就只是装饰。它是唯一一处文字全部来自本地
+                  存档、一个字都不来自模型的地方。
+                */}
+                <PortfolioBar view={folio?.view ?? null} dirError={folio?.dirError ?? null} fmt={when} />
                 <p className="hint">
                   {/* 模式条下面那行 mode-note 已经显示过 MODE_META[mode].hint，
                       这里再重复一遍，同一句话会在 50px 内出现两次。这里只说透镜立场。 */}

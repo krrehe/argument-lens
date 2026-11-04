@@ -180,6 +180,8 @@ const env = {
   ...(process.env.SMOKE_RESCALE === '1' ? { AL_RESCALE: '1' } : {}),
   // SMOKE_CONDITIONS=1：跑完再点开「自己列成立条件」，由探针写条件、点三态、挂原文句子
   ...(process.env.SMOKE_CONDITIONS === '1' ? { AL_CONDITIONS: '1' } : {}),
+  // SMOKE_PORTFOLIO=1：点开样本账，拿 archive:list 当独立真值核界面上的数目
+  ...(process.env.SMOKE_PORTFOLIO === '1' ? { AL_PORTFOLIO: '1' } : {}),
   /*
    * SMOKE_CAPTURE_OFF=1：不注册全局快捷键。
    *
@@ -909,6 +911,66 @@ if (process.env.SMOKE_CONDITIONS === '1') {
     [
       '成立条件：截图真的裁到了这一屏',
       /\d+x\d+/.test(cdRectLine) && existsSync(cdShotPath) && statSync(cdShotPath).size > 1000,
+    ],
+  );
+}
+
+/*
+ * SMOKE_PORTFOLIO=1：核的是「这一栏的数字真的来自本地存档」。
+ *
+ * 数字写死在组件里，界面照样是一句通顺完整的话——所以必须另找一条独立真值：
+ * archive:list 读索引，样本账扫文件，两条 IPC 的实现不同，对不上就说明数目是编的。
+ * 空对象是「探针没跑」：下面每一条都会因此失败，不会静默通过。
+ */
+if (process.env.SMOKE_PORTFOLIO === '1') {
+  const pf = jOfLine('PORTFOLIORESULT');
+  const pfLine = String(pf.line ?? '');
+  const m = pfLine.match(/本机 (\d+) 份报告，落在 (\d+) 组不同的文字上/);
+  const reportN = m ? Number(m[1]) : -1;
+  const groupN = m ? Number(m[2]) : -1;
+  const rows = Array.isArray(pf.rows) ? pf.rows : [];
+  const text = String(pf.text ?? '');
+  checks.push(
+    ['样本账：输入框下方有这一栏', pf.bar === true],
+    [
+      '样本账：点开前明细确实收起（不是一直展开着）',
+      pf.detailBefore === false && pf.labelBefore === '看明细',
+    ],
+    [
+      '样本账：按钮点得动，点开后明细出现',
+      pf.opened === true && pf.detail === true && pf.labelAfter === '收起明细',
+    ],
+    [
+      '样本账：主句里数字与量词连着写，没有被挤断',
+      /最多的那组 \d+ 份/.test(pfLine) && /只跑过一次的有 \d+ 组/.test(pfLine),
+    ],
+    [
+      '样本账：报告数与另一条 IPC 独立读到的存档数一致（不是写死的）',
+      reportN > 0 && Number.isFinite(pf.listLen) && reportN === Number(pf.listLen),
+      `界面 ${reportN} / 存档索引 ${pf.listLen}`,
+    ],
+    [
+      '样本账：data 属性、明细行数、主句里的组数三者一致',
+      Number(pf.groupsAttr) === groupN && rows.length === groupN && groupN > 0,
+      `attr=${pf.groupsAttr} rows=${rows.length} groups=${groupN}`,
+    ],
+    ['样本账：导出的纯文本以界面上那一行开头', pfLine.length > 0 && text.startsWith(pfLine)],
+    [
+      '样本账：明细每一行都逐字出现在可复制的文本里',
+      rows.length > 0 && rows.every((r) => typeof r === 'string' && r.length > 10 && text.includes(r)),
+    ],
+    [
+      '样本账：导出里没有多出一组界面上没有的明细',
+      !text.includes(`第 ${groupN + 1} 组`),
+    ],
+    [
+      '样本账：没有把存档读失败静默成「一切正常」',
+      pf.error === '' && pf.detail === true,
+    ],
+    [
+      '样本账：信息条没有被按钮挤成四行以上',
+      Number(pf.lineHeight) > 0 && Number(pf.lineHeight) <= 72,
+      String(pf.lineHeight),
     ],
   );
 }

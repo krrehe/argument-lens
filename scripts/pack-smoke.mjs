@@ -241,6 +241,9 @@ const env = {
   AL_RESCALE: '1',
   // 包内也写一次成立条件：@shared/conditions 是这轮新加的，最容易漏进 asar
   AL_CONDITIONS: '1',
+  // 包内也点一次样本账：@shared/portfolio 与 passageScan 没进 asar 时，
+  // 表现不是报错，是那一栏干脆不出现或数字对不上
+  AL_PORTFOLIO: '1',
   AL_PANEL: 'usage',
   // 提示词页顺带验。它要验的不是「提示词显示出来了」，而是**版本号与指纹显示出来了**——
   // 提示词一改判定口径就可能变，那行小字是判断两份报告能不能对照的唯一凭据，
@@ -466,6 +469,35 @@ const checks = [
           r.quote.length > 20 &&
           String(r.take ?? '').includes('得先排除别的原因吗') &&
           String(r.stat ?? '').includes('写了 2 条')
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
+   * 打包产物里的样本账：@shared/portfolio 或 passageScan 没进 asar 时，
+   * 应用照常能跑，只是那一栏不出现、或数字是旧的。这里拿包内自己的
+   * archive:list 当独立真值，不靠一个「看起来通顺」的数字。
+   */
+  [
+    '打包产物里样本账的数目来自本地存档，不是写死的',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('PORTFOLIORESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        const m = String(r.line ?? '').match(/本机 (\d+) 份报告，落在 (\d+) 组不同的文字上/);
+        return (
+          r.opened === true &&
+          r.detail === true &&
+          r.detailBefore === false &&
+          !!m &&
+          Number(m[1]) > 0 &&
+          Number(m[1]) === Number(r.listLen) &&
+          Array.isArray(r.rows) &&
+          r.rows.length === Number(m[2]) &&
+          String(r.text ?? '').startsWith(String(r.line ?? ''))
         );
       } catch {
         return false;

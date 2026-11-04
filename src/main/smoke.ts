@@ -815,6 +815,43 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           }
 
           /*
+           * AL_PORTFOLIO=1：真应用里点开样本账，核数目与可复制的纯文本。
+           *
+           * 这一栏最容易「看着对」：把数字写死在组件里，界面照样是一句完整的话。
+           * 所以这里取一个独立真值——archive:list 是另一条 IPC、读的是索引，
+           * 而样本账走 passageScan 扫文件；两者对不上就说明数目不是从存档来的。
+           *
+           * 点之前先记下「明细确实收起」，否则「点开后明细出现」是一条恒真断言。
+           */
+          if (process.env['AL_PORTFOLIO'] === '1' && !canceled) {
+            const pBefore = await wc.executeJavaScript(`JSON.stringify({
+              bar: !!document.querySelector('[data-portfolio-bar]'),
+              detailBefore: !!document.querySelector('[data-portfolio-detail]'),
+              labelBefore: (document.querySelector('[data-portfolio-open]')?.textContent ?? '').trim(),
+            })`);
+            const pOpened = await wc.executeJavaScript(`(() => {
+              const b = document.querySelector('[data-portfolio-open]');
+              if (!b) return false;
+              b.click();
+              return true;
+            })()`);
+            await sleep(300);
+            const pListLen = await wc.executeJavaScript(`window.api.archive.list().then((a) => a.length)`);
+            const pState = await wc.executeJavaScript(`JSON.stringify({
+              bar: !!document.querySelector('[data-portfolio-bar]'),
+              detail: !!document.querySelector('[data-portfolio-detail]'),
+              line: (document.querySelector('[data-portfolio-line]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+              groupsAttr: document.querySelector('[data-portfolio-bar]')?.getAttribute('data-portfolio-groups') ?? '',
+              rows: [...document.querySelectorAll('[data-portfolio-group]')].map((e) => (e.textContent ?? '').replace(/\\s+/g, ' ').trim()),
+              text: document.querySelector('[data-portfolio-text]')?.value ?? '',
+              labelAfter: (document.querySelector('[data-portfolio-open]')?.textContent ?? '').trim(),
+              error: (document.querySelector('[data-portfolio-error]')?.textContent ?? '').trim(),
+              lineHeight: Math.round(document.querySelector('[data-portfolio-line]')?.getBoundingClientRect().height ?? 0),
+            })`);
+            add(`PORTFOLIORESULT ${JSON.stringify({ ...JSON.parse(pState), ...JSON.parse(pBefore), opened: pOpened, listLen: pListLen })}`);
+          }
+
+          /*
            * AL_REVISE=1：走一遍修订对照的完整链路。
          *
          * 修补建议 → 填回输入框 → 重新分析 → 存档 → 按 parentId 取回上一版 → 算对照 → 渲染对照条。

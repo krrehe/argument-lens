@@ -116,7 +116,7 @@ export function listReports(): ReportMeta[] {
 }
 
 /**
- * 所有存档报告的原文，只给「这段跑过没有」用。
+ * 所有存档报告的原文。「这段跑过没有」与「样本账」共用这一次扫描。
  *
  * 为什么不走索引：索引里只存了 72 字的摘要，比字面重合度太短了——
  * 两段 72 字的开头能对上，全文可能差了三分之二。所以这里读全文。
@@ -124,28 +124,46 @@ export function listReports(): ReportMeta[] {
  * 要不要缓存：实测 102 份报告、1.8MB，读完解析共 19ms。19ms 不值得为它
  * 引入一个缓存，而缓存一旦漏了失效时机，就会在用户删掉报告之后继续说
  * 「跑过 89 次」——一个只在删过报告的人身上出现的假话。宁可每次重读。
+ *
+ * 读不出来的文件**要数出来**：以前这里直接跳过，比较时少几份没人知道；
+ * 样本账要说的正是「本机一共几份」，跳过任何一个都会让那句话听起来完整，
+ * 而它不完整。`badFiles` 沿 IPC 回界面，`dirError` 表示连目录都打不开——
+ * 这时数目根本不可信，界面必须说读不出来，而不是显示「还没有报告」。
  */
-export function allPassages(): PriorPassage[] {
+export interface PassageScan {
+  items: PriorPassage[];
+  badFiles: number;
+  /** 目录打不开时的原因；null 表示读到了目录。 */
+  dirError: string | null;
+}
+
+export function passageScan(): PassageScan {
   const dir = archiveDir();
   let files: string[] = [];
   try {
     files = readdirSync(dir).filter((f) => f.endsWith('.json') && f !== 'index.json');
-  } catch {
-    return [];
+  } catch (err) {
+    return { items: [], badFiles: 0, dirError: (err as Error)?.message ?? '原因不明' };
   }
-  const out: PriorPassage[] = [];
+  const items: PriorPassage[] = [];
+  let badFiles = 0;
   for (const f of files) {
     try {
       const d = JSON.parse(readFileSync(join(dir, f), 'utf-8')) as Diagnosis;
-      if (!d?.id || typeof d.passage !== 'string' || typeof d.createdAt !== 'number') continue;
-      out.push({ id: d.id, at: d.createdAt, passage: d.passage });
+      if (!d?.id || typeof d.passage !== 'string' || typeof d.createdAt !== 'number') {
+        badFiles += 1;
+        continue;
+      }
+      items.push({ id: d.id, at: d.createdAt, passage: d.passage });
     } catch {
-      // @allow-silent: 坏文件不参与比较，也不该让整条链路失败。
-      // 它在列表页照样会缺失（rebuildIndex 同样跳过它），两处一起坏、一起可见，
-      // 不会出现「列表里有、比较时没有」这种只有一处坏的情形。
+      badFiles += 1;
     }
   }
-  return out;
+  return { items, badFiles, dirError: null };
+}
+
+export function allPassages(): PriorPassage[] {
+  return passageScan().items;
 }
 
 export function getReport(id: string): Diagnosis | null {

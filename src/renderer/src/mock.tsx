@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { THEORIES, THEORY_BY_ID } from '@shared/theories';
 import { disputesIn } from '@shared/disputes';
 import { DiagnosisView } from './components/Diagnosis';
-import { HistoryPanel } from './components/History';
+import { HistoryPanel, when } from './components/History';
 import { TheoryBrief } from './components/TheoryBrief';
 import { TheoryBaseDialog } from './components/TheoryBase';
 import { DisputeDialog } from './components/Disputes';
@@ -12,6 +12,8 @@ import { MOCK, MOCK_BY_THEORY } from './mock-data';
 import { UsagePanel } from './components/Usage';
 import { Settings } from './components/Settings';
 import { Running } from './components/Running';
+import { PortfolioBar } from './components/PortfolioBar';
+import { portfolioOf } from '@shared/portfolio';
 import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
 import './styles.css';
 import './styles-usage.css';
@@ -31,6 +33,26 @@ const LENS = new URLSearchParams(location.search).get('lens') ?? MOCK.theory;
 const D = MOCK_BY_THEORY[LENS] ?? MOCK;
 const t = THEORY_BY_ID[D.theory];
 const MOCK_DISPUTES = disputesIn(D);
+
+/*
+ * 样本账的预览数据。用 portfolioOf 现算而不是写死一串数字：
+ * 预览页里的数目必须和真应用同一套口径，否则截图会替一个不存在的算法作证。
+ * 时间戳全是固定值，预览页每次刷新都是同一份账。
+ */
+const MOCK_FOLIO = portfolioOf([
+  { id: 'f1', at: Date.UTC(2026, 10, 4, 10, 12), passage: D.passage },
+  { id: 'f2', at: Date.UTC(2026, 10, 3, 9, 3), passage: D.passage },
+  { id: 'f3', at: Date.UTC(2026, 10, 2, 16, 40), passage: D.passage },
+  { id: 'f4', at: Date.UTC(2026, 10, 1, 8, 15), passage: `${D.passage}另外，隔壁两个县情况类似。` },
+  {
+    id: 'f5',
+    at: Date.UTC(2026, 9, 28, 14, 20),
+    passage:
+      '这款护肝片把排毒两个字印在包装正面，包装上却没写排的是什么、拿什么量。' +
+      '客服说很多人吃了精神好，这跟肝有没有变好是两件事。',
+  },
+  { id: 'f6', at: Date.UTC(2026, 9, 20, 11, 5), passage: '你行你上' },
+]);
 
 /*
  * 历史面板预览（?dlg=history）。
@@ -422,6 +444,8 @@ function Preview() {
             <p className="hint">
               按「{t.name}」分析。换一副透镜，同一处地方会被判成不同的东西——这不是错误，是这个工具的立场。
             </p>
+            {/* ?portfolio=1：这一栏默认收起，留个入口把展开后的明细也拍下来。 */}
+            <PortfolioBar view={MOCK_FOLIO} dirError={null} fmt={when} initialOpen={QS.get('portfolio') === '1'} />
           </div>
           <TheoryBrief
             theory={D.theory}
