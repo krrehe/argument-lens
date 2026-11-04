@@ -1567,3 +1567,246 @@
   line-height: 1.6;
   color: var(--ink-3);
 }
+
+/* ─────────── 回到原文重读 ─────────── */
+
+/*
+ * 入口用虚线边界，和「这段跑过没有」同一档视觉：它是一件**还没发生**的事，
+ * 不是报告里的一个结论。按钮与说明分行，别让 1200px 以下的宽度把「重读」两个字折断。
+ */
+.rr-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 10px 0 14px;
+  padding: 8px 10px;
+  border-left: 2px dashed var(--line-strong);
+  border-radius: 0 5px 5px 0;
+  background: rgba(60, 79, 99, 0.04);
+}
+
+.rr-open {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--panel-2);
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rr-open:hover {
+  background: var(--accent-bg);
+}
+
+.rr-bar-why {
+  flex: 1 1 240px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.rr-screen {
+  padding: 4px 2px 28px;
+}
+
+.rr-head {
+  padding: 14px 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.rr-back {
+  padding: 5px 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rr-back:hover {
+  color: var(--ink);
+}
+
+.rr-head h2 {
+  margin: 8px 0 6px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.rr-lead {
+  margin: 0 0 4px;
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--ink-2);
+}
+
+.rr-lead2 {
+  margin: 0;
+  max-width: 760px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.rr-stat {
+  margin: 14px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel-2);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.rr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/*
+ * 每句一块。**原文要比条目大、要排在条目前面**——这一屏是让读者重读原文，
+ * 不是让他再读一遍报告的摘要。pre-wrap 保留原样的换行与空白，一个字不改。
+ */
+.rr-s {
+  padding: 10px 12px 12px;
+  border-left: 3px solid var(--line-strong);
+  border-radius: 0 6px 6px 0;
+  background: rgba(60, 79, 99, 0.03);
+}
+
+.rr-s-quiet {
+  border-left-style: dashed;
+  border-left-color: var(--line);
+  background: none;
+}
+
+.rr-s-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.rr-n {
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.rr-none {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-style: normal;
+}
+
+.rr-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--ink);
+}
+
+.rr-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+/*
+ * 一条引用一张小卡。三种身份各一条左边框，但**不合并**：
+ * 同一句上「命名」与「此处合法」并排摆着，正是这一屏要让人看见的东西。
+ */
+.rr-ref {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 7px;
+  align-items: baseline;
+  flex: 1 1 280px;
+  max-width: 480px;
+  padding: 7px 9px;
+  border-left: 3px solid var(--line-strong);
+  border-radius: 0 4px 4px 0;
+  background: var(--panel-2);
+}
+
+.rr-ref-claim {
+  border-left-color: var(--accent);
+}
+
+.rr-ref-label {
+  border-left-color: var(--weak);
+}
+
+.rr-ref-legit {
+  border-left-color: var(--legal);
+}
+
+.rr-kind {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--ink-2);
+}
+
+.rr-id {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.rr-body {
+  flex: 1 1 100%;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.rr-quote {
+  flex: 1 1 100%;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+/* 没位置的条目逐条留着。静默丢掉会让这一屏显得比报告更确定。 */
+.rr-unplaced {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 18px 0 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 5px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.rr-unplaced ul {
+  flex: 1 1 100%;
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--ink-3);
+}
+
+.rr-unplaced li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  line-height: 1.8;
+}
+
+.rr-back-bottom {
+  margin-top: 18px;
+  padding: 7px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--panel-2);
+}

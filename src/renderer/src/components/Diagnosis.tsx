@@ -18,6 +18,7 @@ import { academicOf, BY_TOOL_LABEL, type AcademicView, type ByTool } from '@shar
 import { limitsOf } from '@shared/limits';
 import { prescriptionsOf } from '@shared/prescriptions';
 import { fallacyHits, mapSentences } from '@shared/fallacy-map';
+import { REREAD_KIND_LABEL, UNPLACED_LABEL, rereadOf, type RereadView } from '@shared/reread';
 import { CheckStrip, StructureMap, VerdictGauge } from './Diagram';
 import { DisputeStrip, focusDispute } from './Disputes';
 import { QuickRead, jumpTo } from './Overview';
@@ -1014,6 +1015,7 @@ export function DiagnosisView({
   d,
   onLoadRepair,
   onOpenClaim,
+  initialReread,
 }: {
   d: Diagnosis;
   /**
@@ -1029,10 +1031,18 @@ export function DiagnosisView({
    * 出处与反对意见。点不动的话，那行 id 就是装饰。
    */
   onOpenClaim?: (claimId: string) => void;
+  /** 预览页专用：直接落在「回到原文」那一屏，好让这一屏有截图入口。真应用只能靠用户点开。 */
+  initialReread?: boolean;
 }) {
   const [sel, setSel] = useState<string | null>(null);
   /** 落点图选中的命名。和结构图的 sel 分开：一个选主张，一个选谬误，别共用。 */
   const [labelSel, setLabelSel] = useState<string | null>(null);
+  /**
+   * 「回到原文重读」是**用户发起的一次操作**，不是报告里多出来的一个板块。
+   * 默认关着：把原文摆到每个人面前，等于替他决定该先读什么。
+   */
+  const [reread, setReread] = useState(!!initialReread);
+  const view = useMemo(() => rereadOf(d), [d]);
   const t = THEORY_BY_ID[d.theory];
 
   const allClaims: Claim[] = [d.conclusion, ...d.premises, ...d.intermediate];
@@ -1098,6 +1108,12 @@ export function DiagnosisView({
     }
   };
 
+  /*
+   * 点开之后是**换一屏**，不是在报告末尾再添一段。
+   * 报告本身一个字没动，回来时它还在原处。
+   */
+  if (reread) return <RereadScreen view={view} onBack={() => setReread(false)} />;
+
   return (
     <>
       {MODE_META[mode].banner && (
@@ -1134,6 +1150,19 @@ export function DiagnosisView({
         {exp.kind === 'idle' && (
           <span className="exp-hint">Markdown 给人读；Argdown 是纯文本结构图，可进 git diff</span>
         )}
+      </div>
+
+      {/*
+        「回到原文重读」的入口放在报告最前，但**默认不展开**。
+        它是一次用户发起的操作：把原文摆到每个人面前，等于替他决定该先读什么。
+        为什么值得单独一个按钮：报告是按栏目组织的，读完之后「这句在原文里是哪句」
+        得靠人自己翻回去；这一屏把顺序倒过来，原文在前、条目在后。
+      */}
+      <div className="rr-bar">
+        <button className="rr-open" data-reread-open onClick={() => setReread(true)}>
+          回到原文重读
+        </button>
+        <span className="rr-bar-why">原文一个字不改。把报告里指着它的条目，按句子重新摆一遍。</span>
       </div>
 
       {!d.scope.applicable && (
@@ -1715,6 +1744,86 @@ export function DiagnosisView({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * 「回到原文重读」是一整屏，不是报告末尾又添的一个板块。
+ *
+ * 这一屏不写判断：句子是 passage 的原样切片，条目文字逐字引自报告，
+ * 位置由 span / 唯一引文算出来（内核在 @shared/reread，有断言守着）。
+ * 变化只发生在读者身上——原来按栏目分开读的东西，现在按句子聚到一起：
+ * 同一句上「被点了名」和「此处合法」挨着摆，某一句谁都没提，也明说出来。
+ */
+function RereadScreen({ view, onBack }: { view: RereadView; onBack: () => void }) {
+  const mapped = view.sentences.length - view.quietCount;
+  return (
+    <div className="rr-screen" data-reread>
+      <div className="rr-head">
+        <button className="rr-back" data-reread-back onClick={onBack}>
+          ← 回报告
+        </button>
+        <h2>回到原文</h2>
+        <p className="rr-lead">原文没有变化。这里只把报告里已经写下的、指着某一句的条目，搬回那一句旁边。</p>
+        <p className="rr-lead2">
+          同一句上若同时挂着「命名」和「此处合法」，两条都留着——报告里本来就有这两句话，
+          只是分开摆着时看不出来。
+        </p>
+      </div>
+
+      <div className="rr-stat" data-reread-stat>
+        共 {view.sentences.length} 句 · {mapped} 句有条目指着 · {view.quietCount} 句没人提
+        {view.unplaced.length > 0 && ` · 另有 ${view.unplaced.length} 条没能指回位置`}
+      </div>
+
+      <div className="rr-list">
+        {view.sentences.map((s) => (
+          <div className={`rr-s${s.quiet ? ' rr-s-quiet' : ''}`} data-reread-sentence key={s.index}>
+            <div className="rr-s-head">
+              <span className="rr-n">第 {s.index + 1} 句</span>
+              {s.quiet && (
+                <span className="rr-none" data-reread-quiet>
+                  这一句，报告里没有哪一条指到它
+                </span>
+              )}
+            </div>
+            <div className="rr-text">{s.text}</div>
+            {s.refs.length > 0 && (
+              <div className="rr-refs">
+                {s.refs.map((r, i) => (
+                  <div className={`rr-ref rr-ref-${r.kind}`} data-reread-ref key={`${r.kind}-${r.id}-${i}`}>
+                    <span className="rr-kind">{REREAD_KIND_LABEL[r.kind]}</span>
+                    <span className="rr-id">{r.id}</span>
+                    <span className="rr-body">{r.text}</span>
+                    {r.quote && <span className="rr-quote">原文：{r.quote}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {view.unplaced.length > 0 && (
+        <div className="rr-unplaced" data-reread-unplaced>
+          <b>另有 {view.unplaced.length} 条没能指回原文位置</b>
+          <span>没位置不等于没有发现；逐条留在这里，不替它们猜一句。</span>
+          <ul>
+            {view.unplaced.map((u, i) => (
+              <li key={i}>
+                <span className="rr-kind">{REREAD_KIND_LABEL[u.kind]}</span>
+                <span className="rr-id">{u.id}</span>
+                <span>{UNPLACED_LABEL[u.reason]}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <button className="rr-back rr-back-bottom" data-reread-back onClick={onBack}>
+        读完了，回报告
+      </button>
+    </div>
   );
 }
 

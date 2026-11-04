@@ -540,14 +540,86 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         const samePng = (await wc.capturePage(sameRect ?? undefined)).toPNG();
         const sameShot = join(dirname(shot), 'same-bar.png');
         writeFileSync(sameShot, samePng);
-        add(
-          `SAMESHOT ${sameShot} ${samePng.length} bytes rect=${
-            sameRect ? `${sameRect.width}x${sameRect.height}` : 'missing'
-          }`
-        );
+          add(
+            `SAMESHOT ${sameShot} ${samePng.length} bytes rect=${
+              sameRect ? `${sameRect.width}x${sameRect.height}` : 'missing'
+            }`
+          );
 
-        /*
-         * AL_REVISE=1：走一遍修订对照的完整链路。
+          /*
+           * AL_REREAD=1：真应用里点开「回到原文重读」。
+           *
+           * 静态检查已经在纯函数层验过「逐句拼回 === 原文」，但那一层碰不到真界面：
+           * 按钮点不动、整屏没换、句子被 React 悄悄 trim 过，纯函数全都不会知道。
+           * 所以这里验四件只有 DOM 能回答的事：点得开、报告真的让位了、屏幕上那些句子
+           * 与输入框里的原文逐字相同、点「回报告」还回得去。
+           *
+           * 输入框的值在提交时会 trim 掉首尾空白（App.tsx 的既有行为），
+           * 所以比对用 trim 后的原文；纯函数那一层不 trim，两边各守各的边界。
+           */
+          if (process.env['AL_REREAD'] === '1' && !canceled) {
+            /* 点之前先记下报告板块数：回来时必须是同一份，不是随便一块东西。 */
+            const before = await wc.executeJavaScript(`JSON.stringify({
+              entry: !!document.querySelector('[data-reread-open]'),
+              blocksBefore: document.querySelectorAll('.block').length,
+            })`);
+            const opened = await wc.executeJavaScript(`(() => {
+              const b = document.querySelector('[data-reread-open]');
+              if (!b) return false;
+              b.click();
+              return true;
+            })()`);
+            await sleep(320);
+            await wc.executeJavaScript(`(() => { window.scrollTo(0, 0); return true; })()`);
+            const rrState = await wc.executeJavaScript(`JSON.stringify({
+              screen: !!document.querySelector('[data-reread]'),
+              blocks: document.querySelectorAll('.block').length,
+              sentences: document.querySelectorAll('[data-reread-sentence]').length,
+              text: [...document.querySelectorAll('.rr-text')].map((e) => e.textContent ?? '').join(''),
+              passage: document.querySelector('textarea')?.value ?? '',
+              refs: document.querySelectorAll('[data-reread-ref]').length,
+              legal: document.querySelectorAll('.rr-ref-legit').length,
+              quiet: document.querySelectorAll('[data-reread-quiet]').length,
+              stat: (document.querySelector('[data-reread-stat]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+              unplaced: document.querySelectorAll('[data-reread-unplaced]').length,
+            })`);
+            const rr = JSON.parse(rrState);
+            add(`REREADRESULT ${JSON.stringify({ ...rr, ...JSON.parse(before), opened })}`);
+
+            /* 整页两万像素高，这一屏单独裁出来才看得清句子与条目的层次。 */
+            const rrRect = await wc.executeJavaScript(`(() => {
+              const el = document.querySelector('[data-reread]');
+              if (!el) return null;
+              const b = el.getBoundingClientRect();
+              return {
+                x: Math.max(0, Math.round(b.left)),
+                y: Math.max(0, Math.round(b.top)),
+                width: Math.min(Math.round(b.width), 1200),
+                height: Math.min(Math.round(b.height), 1100),
+              };
+            })()`);
+            const rrPng = (await wc.capturePage(rrRect ?? undefined)).toPNG();
+            const rrShot = join(dirname(shot), 'reread.png');
+            writeFileSync(rrShot, rrPng);
+            add(
+              `REREADSHOT ${rrShot} ${rrPng.length} bytes rect=${
+                rrRect ? `${rrRect.width}x${rrRect.height}` : 'missing'
+              }`
+            );
+            /* 截图必须真的裁到了那一屏；拿全窗口顶替会让「有截图」变成恒真。 */
+            add(`REREADRECT ${rrRect ? `${rrRect.width}x${rrRect.height}` : 'missing'}`);
+
+            await wc.executeJavaScript(`(() => { document.querySelector('[data-reread-back]')?.click(); return true; })()`);
+            await sleep(280);
+            const backState = await wc.executeJavaScript(`JSON.stringify({
+              screen: !!document.querySelector('[data-reread]'),
+              blocks: document.querySelectorAll('.block').length,
+            })`);
+            add(`REREADBACK ${backState}`);
+          }
+
+          /*
+           * AL_REVISE=1：走一遍修订对照的完整链路。
          *
          * 修补建议 → 填回输入框 → 重新分析 → 存档 → 按 parentId 取回上一版 → 算对照 → 渲染对照条。
          * 环环相扣，任何一环断掉界面都会「安静地不显示」，不报错。

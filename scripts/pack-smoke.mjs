@@ -235,6 +235,8 @@ const env = {
   ...baseEnv,
   AL_SMOKE: shot,
   AL_ACTION: 'analyze',
+  // 包内也点一次「回到原文重读」：渲染层与 @shared/reread 有没有一起进 asar，看探针输出
+  AL_REREAD: '1',
   AL_PANEL: 'usage',
   // 提示词页顺带验。它要验的不是「提示词显示出来了」，而是**版本号与指纹显示出来了**——
   // 提示词一改判定口径就可能变，那行小字是判断两份报告能不能对照的唯一凭据，
@@ -377,6 +379,34 @@ const checks = [
       try {
         const r = JSON.parse(line.slice(line.indexOf('{')));
         return Number(r.sameCount) >= 1 && String(r.sameText ?? '').includes('已经跑过');
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
+   * 打包产物里的「回到原文重读」。
+   *
+   * 这一屏的判定在 @shared/reread，渲染在 Diagnosis.tsx，两者都得进 asar 才算数。
+   * 源码态的端到端已经把整屏验过了，这里验的是**包里那份真的点得开**：
+   * 读包内探针的输出，不读代码；读不到 REREADRESULT 就是没跑，判失败而不是跳过。
+   */
+  [
+    '打包产物里「回到原文重读」点得开且原文逐字没改',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('REREADRESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        return (
+          r.opened === true &&
+          r.screen === true &&
+          r.blocks === 0 &&
+          r.refs > 0 &&
+          typeof r.text === 'string' &&
+          r.text === String(r.passage ?? '').trim() &&
+          r.text.length > 20
+        );
       } catch {
         return false;
       }

@@ -58,12 +58,15 @@ npm run verify
   比不写更糟：它让绿色的总数骗人。做法是故意改坏一处代码，确认它红，再改回来。
 - **碰了 `src/` 就必须重打 `dist/`。** 否则 `dist/` 里的 exe 与源码不符，
   而它运行起来完全正常——这种不一致只能靠纪律，没有检查能替你发现。
+  打包命令走本机已解压的 Electron 目录（`-c.electronDist=node_modules/electron/dist`），
+  不去 GitHub 下载发行包：2026-11-04 那次连 GitHub `ETIMEDOUT`，`dist` 真退出 1 而 exe 还是旧的。
+  **打完核对 `dist/*.exe` 的时间戳**，别只看退出码（有过 exit=0 但产物没更新的时候）。
 - **只在特定时刻出现的屏，必须留一个能拍到它的入口。** 预览页的 `?running=` / `?dlg=`
   与端到端 `SMOKE_*` 开关就是为此存在的。没人见过的界面等于没做。
 
 ---
 
-## 全部关卡（`npm run verify` 跑的 21 项）
+## 全部关卡（`npm run verify` 跑的 22 项）
 
 | 命令 | 红了说明什么 |
 |---|---|
@@ -85,6 +88,7 @@ npm run verify
 | `check:capture` | 全局快捷键的判定退回危险状态：剪贴板为空/超长时不再说话、框里是用户自己写的字却被直接覆盖、超长被悄悄截断 |
 | `check:sameness` | 「这段跑过没有」说错话：改稿没被算进次数、并列时取了错那份（日期会错）、短文本报出虚高相似度、提示语里出现劝告 |
 | `check:corpus` | 评测语料的覆盖破了：某类毛病只剩一段样本、同一类的两段体裁相同、两段其实是改稿（dice ≥0.25）、标注表漏了某条语料或多出不存在的一条、一条语料标了四类、类型名拼错 |
+| `check:reread` | 「回到原文重读」破了：原文没被逐字还原、条目挂到了没有交集的句子上、quality=failed 的落点被拿来钉句子、同一句上「命名」与「此处合法」被合并、**屏幕上出现了报告里没有的判断文字** |
 | `check:robustness` | 写失败没抛、设置校验漏了非法值、空 catch 没写理由 |
 | `check:samples` | 示例文本出问题：段数不够、两段重复、长度越界、句数少于毛病数、第一段与假模型夹具的下标对不上 |
 | `check:docs` | **这份文件自己腐烂了**：它点名的命令/路径不存在，或漏掉了某个 check |
@@ -111,6 +115,7 @@ verify 现在是并发的：typecheck 先单跑（它红了会把后面的报错
 | 全局快捷键 / 剪贴板 | `check:capture`、`smoke` | 判定在 `@shared/capture`（纯函数）；主进程只注册与读剪贴板。要验注册失败路径，用 `AL_CAPTURE_ACCELERATOR=off` 或写个非法键跑一遍——**「按了没反应」和「功能不存在」必须长得不一样** |
 | 「这段跑过没有」 | `check:sameness`、`smoke` | 判定在 `@shared/sameness`（纯函数），原文只在主进程（`allPassages`）。阈值是按真实存档实测出来的（128 字加两句 = 0.897），不是估的；改阈值必须重跑 `check:sameness`，它有一条直接量这个行为 |
 | 评测语料 / 毛病标注 | `check:corpus`、`eval:audit` | 标注是**人写的判断**，机器只验形状（类别数、体裁、字面重合）。加一段语料要同时在 `kinds.ts` 里标注，漏了会红；同一类毛病的两段必须换体裁，而「换体裁」这件事没法机器判真假，只能靠人写 |
+| 回到原文重读 | `check:reread`、`SMOKE_REREAD=1 npm run smoke`、`ui:preview` 截图 | 判定在 `@shared/reread`（纯函数）；**这一屏不写判断**：句子是原文原样切片，条目文字逐字引自报告，位置由 span / 唯一引文算。`?reread=1` 是预览页的截图入口。改了 `src/` 记得重打包 |
 
 ---
 
@@ -129,6 +134,7 @@ scripts/mock-llm.mjs       假模型；端到端全靠它，改 schema 时它要
 scripts/eval/cases.ts      评测语料（样本，不是单元测试）；每条埋了什么写在 traps 里
 scripts/eval/kinds.ts      18 类毛病与逐条标注；「每类两段」由 check:corpus 守
 src/shared/replay.ts       重放的比对内核（纯函数）：摊平、逐字段比、差异归类
+src/shared/reread.ts       回到原文重读（纯函数）：切句复用 fallacy-map、按 span 聚拢已有条目、未定位的明说
 scripts/replay-lib.ts      读存档 → 重新解析 → 重跑裁决；不联网、不读设置
 scripts/fixtures/replay/   冻结的模型原文 + 当时的产物。check:replay 拿它当基准
 docs/路线图.md             接下来做什么、明确不做什么

@@ -174,6 +174,8 @@ const env = {
   ...(process.env.SMOKE_MODE ? { AL_MODE: process.env.SMOKE_MODE } : {}),
   // SMOKE_REVISE=1：跑完再点「拿这一版再判一次」，验修订对照整条链
   ...(process.env.SMOKE_REVISE === '1' ? { AL_REVISE: '1' } : {}),
+  // SMOKE_REREAD=1：跑完再点开「回到原文重读」，验原文逐字没改、报告让位、回得去
+  ...(process.env.SMOKE_REREAD === '1' ? { AL_REREAD: '1' } : {}),
   /*
    * SMOKE_CAPTURE_OFF=1：不注册全局快捷键。
    *
@@ -711,6 +713,54 @@ function sizesOk() {
   if (!Array.isArray(arr) || arr.length < 4) return false;
   // [选择器, 宽, 高]。元素不存在时是 [-1,-1]。
   return arr.every(([, w, h]) => w > 0 && h > 0);
+}
+
+/*
+ * SMOKE_REREAD=1 的附加断言。
+ *
+ * 空对象是「探针没跑」：下面每一条都会因此失败，而不是静默通过。
+ * 这一屏最容易被写坏的方式恰恰是「看起来做了」——按钮在、点上没反应，
+ * 或在报告末尾又添一段而不换屏，静态检查与纯函数断言都看不见。
+ */
+if (process.env.SMOKE_REREAD === '1') {
+  const jOfLine = (tag) => {
+    const line = log.split('\n').find((l) => l.includes(tag)) ?? '';
+    try {
+      return JSON.parse(line.slice(line.indexOf('{')));
+    } catch {
+      return {};
+    }
+  };
+  const rr = jOfLine('REREADRESULT');
+  const back = jOfLine('REREADBACK');
+  const rrShot = resolve(outDir, 'reread.png');
+  const shotLine = log.split('\n').find((l) => l.includes('REREADRECT')) ?? '';
+  checks.push(
+    ['回到原文：报告顶部有入口', rr.entry === true],
+    [
+      '回到原文：点开后换了一整屏，报告板块全让位',
+      rr.opened === true && rr.screen === true && rr.blocks === 0 && rr.blocksBefore > 0,
+    ],
+    [
+      '回到原文：屏幕上的句子与提交的原文逐字相同',
+      typeof rr.text === 'string' && rr.text === String(rr.passage ?? '').trim() && rr.text.length > 20,
+    ],
+    [
+      '回到原文：句子数与统计条相符',
+      rr.sentences >= 2 && String(rr.stat ?? '').includes(`共 ${rr.sentences} 句`),
+    ],
+    ['回到原文：条目确实挂到了句子旁边', rr.refs > 0],
+    ['回到原文：此处合法没有被过滤掉', rr.legal > 0],
+    ['回到原文：没人提的句数与统计条相符', String(rr.stat ?? '').includes(`${rr.quiet} 句没人提`)],
+    [
+      '回到原文：点回报告后回到原来那份报告',
+      rr.screen === true && back.screen === false && back.blocks === rr.blocksBefore && rr.blocksBefore > 0,
+    ],
+    [
+      '回到原文：截图真的裁到了这一屏',
+      /\d+x\d+/.test(shotLine) && existsSync(rrShot) && statSync(rrShot).size > 1000,
+    ],
+  );
 }
 
 let allOk = true;
