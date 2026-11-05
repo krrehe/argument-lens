@@ -75,14 +75,22 @@ const mockReport = (over: Record<string, unknown> = {}): Record<string, unknown>
   labels: [{ id: 'hasty', name: '轻率概括', landsOnCheck: 'c1' }],
   ...over,
 });
-const MOCK_G1 = mockReport();
-const MOCK_G3 = mockReport({ labels: [{ id: 'hasty', name: '轻率概括', landsOnCheck: 'c2' }] });
+/*
+ * 「谁跑的」这一栏也要能拍到：第一组同一模型、两个温度（演示「温度换过」），
+ * 第二组换了模型。旧存档那种「没记模型」的状态由 g6 体现——它没有指纹，
+ * 本来就不进比对；不另外造假数据，因为预览页只该展示真会出现的样子。
+ */
+const MOCK_G1 = mockReport({ engine: { model: 'deepseek-chat', host: 'api.deepseek.com', temperature: 0.2 } });
+const MOCK_G3 = mockReport({
+  labels: [{ id: 'hasty', name: '轻率概括', landsOnCheck: 'c2' }],
+  engine: { model: 'deepseek-chat', host: 'api.deepseek.com', temperature: 0.7 },
+});
 const MOCK_AGREE = agreementOf([
   { id: 'g1', at: Date.UTC(2026, 10, 4, 10, 12), mode: 'diagnose', theory: 'walton', version: '2.5.0', fingerprint: 'cadbec610c06', passage: D.passage, report: MOCK_G1 },
   { id: 'g2', at: Date.UTC(2026, 10, 3, 9, 3), mode: 'diagnose', theory: 'walton', version: '2.5.0', fingerprint: 'cadbec610c06', passage: D.passage, report: MOCK_G1 },
   { id: 'g3', at: Date.UTC(2026, 10, 2, 16, 40), mode: 'diagnose', theory: 'walton', version: '2.5.0', fingerprint: 'cadbec610c06', passage: D.passage, report: MOCK_G3 },
-  { id: 'g4', at: Date.UTC(2026, 9, 28, 14, 20), mode: 'diagnose', theory: 'walton', version: '2.4.0', fingerprint: 'c532993045d9', passage: '这款护肝片把排毒两个字印在包装正面，包装上却没写排的是什么、拿什么量。' + '客服说很多人吃了精神好，这跟肝有没有变好是两件事。', report: mockReport() },
-  { id: 'g5', at: Date.UTC(2026, 9, 27, 11, 5), mode: 'diagnose', theory: 'walton', version: '2.4.0', fingerprint: 'c532993045d9', passage: '这款护肝片把排毒两个字印在包装正面，包装上却没写排的是什么、拿什么量。' + '客服说很多人吃了精神好，这跟肝有没有变好是两件事。', report: mockReport() },
+  { id: 'g4', at: Date.UTC(2026, 9, 28, 14, 20), mode: 'diagnose', theory: 'walton', version: '2.4.0', fingerprint: 'c532993045d9', passage: '这款护肝片把排毒两个字印在包装正面，包装上却没写排的是什么、拿什么量。' + '客服说很多人吃了精神好，这跟肝有没有变好是两件事。', report: mockReport({ engine: { model: 'gpt-4o-mini', host: 'api.openai.com', temperature: 0.2 } }) },
+  { id: 'g5', at: Date.UTC(2026, 9, 27, 11, 5), mode: 'diagnose', theory: 'walton', version: '2.4.0', fingerprint: 'c532993045d9', passage: '这款护肝片把排毒两个字印在包装正面，包装上却没写排的是什么、拿什么量。' + '客服说很多人吃了精神好，这跟肝有没有变好是两件事。', report: mockReport({ engine: { model: 'gpt-4o-mini', host: 'api.openai.com', temperature: 0.2 } }) },
   { id: 'g6', at: Date.UTC(2026, 9, 20, 11, 5), mode: 'diagnose', theory: 'walton', version: null, fingerprint: null, passage: '你行你上', report: mockReport() },
 ]);
 

@@ -1642,7 +1642,14 @@
   font-size: 10.5px;
   line-height: 1.7;
   color: var(--ink-2);
-  overflow-wrap: anywhere;
+  /*
+   * break-word 而不是 anywhere。
+   *
+   * anywhere 允许在任意字符处断行，于是模型名 gpt-4o-mini 被断成「g」/「4o-mini」——
+   * 和上一轮那个「替换」断在中间是同一类错：数字与单位、名字与名字被拆开读。
+   * break-word 只在整段放不下时才硬断，平时按正常断行点走（连字符、空格、汉字之间）。
+   */
+  overflow-wrap: break-word;
 }
 
 .pf-text {
@@ -1665,6 +1672,16 @@
   font-size: 11px;
   line-height: 1.6;
   color: #9b4030;
+}
+
+/* 一组两行：头部（第几组 / 几份 / 版本 / 模式 / 字段）与后半截（谁跑的 / 时间 / 原文）。 */
+.ag-head,
+.ag-rest {
+  display: block;
+}
+
+.ag-rest {
+  color: var(--ink-3);
 }
 
 /* 同题复跑的差异明细：缩进一层，与「第几组」那一行分开，否则路径会被读成组名。 */

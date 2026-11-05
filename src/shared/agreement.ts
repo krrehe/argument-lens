@@ -24,9 +24,11 @@
  *
  * 只数事实：多少个字段每次都一样、多少个变过、每种取值出现几次。
  * 不算百分比、不评「稳定 / 不可靠」、不排「最该修的那一组」。
- * 也不解释差异从哪来——存档只记了提示词版本与指纹，没记模型名和温度，
- * 所以「模型每次说得不一样」与「当时换了设置」在这里分不开。这句话要出现在界面上，
- * 否则那一栏数字会被读成它证明不了的东西。
+ *
+ * 差异从哪来？这条边界在 2026-11-05 之后变了一半：新报告会记下跑它的模型、
+ * 供应商主机与生效温度（`Diagnosis.engine`），所以「这一组里换过模型」现在看得出来；
+ * 早期存档没有那一栏，那几组仍然分不开「模型每次说得不一样」与「当时换了模型或设置」。
+ * 两种情形都必须写在界面上——否则那几个数字会被读成它证明不了的东西。
  */
 import { flatten } from './replay';
 import { normalizePassage } from './sameness';
@@ -47,7 +49,25 @@ export const MAX_VALUE = 110;
  * raw 是模型原文（flatten 已经跳过），它比报告长十倍，比它等于把模型换个说法
  * 与报告真的变了混在一起。
  */
-const INPUT_KEYS = new Set(['id', 'createdAt', 'parentId', 'passage', 'mode', 'theory', 'prompt', 'version', 'raw']);
+const INPUT_KEYS = new Set([
+  'id',
+  'createdAt',
+  'parentId',
+  'passage',
+  'mode',
+  'theory',
+  'prompt',
+  'version',
+  'raw',
+  /* engine 是「谁跑的」：模型、供应商、生效温度。它不进字段计数，
+     因为它不是判断的一部分；换了模型之后报告变没变，正是这里要量的差异本身。
+     它单独成组报出来（见 EngineTally），否则「8 份里 279 个字段不同」会缺一个最可能的解释。
+
+     这一条是**第二道网**：`flatten` 自己就跳过了 engine（见 replay 的 INPUT_FIELDS）。
+     两道留在这里，是因为「引擎不算判断」这个取舍不该只由重放那个文件替这一栏记住——
+     哪天重放改了取舍，这一栏会静默跟着变，而它看起来完全正常。`check:engine` 守着这一句。 */
+  'engine',
+]);
 
 export interface AgreementItem {
   id: string;
@@ -78,6 +98,24 @@ export interface FieldSpread {
   values: SpreadValue[];
 }
 
+/**
+ * 一组里那几份报告，分别是「谁」跑出来的。
+ *
+ * 为什么单独数：同一段字、同一版提示词、同一个模式，两次报告不一样——可能是模型
+ * 这次说得不一样（抖动），也可能是这两次根本不是同一个模型或温度（换了输入环境）。
+ * 这一栏把后者从前者里分出来。分不出来的部分（旧存档没记）单列成 missing，不许猜。
+ */
+export interface EngineTally {
+  /** 模型名 → 份数，按份数降序、并列按名字。顺序固定，不随目录顺序变。 */
+  models: { model: string; count: number }[];
+  /** 供应商主机 → 份数。 */
+  hosts: { host: string; count: number }[];
+  /** 温度 → 份数，按温度升序。 */
+  temps: { temperature: number; count: number }[];
+  /** 没记的份数：旧存档没有 engine 这一栏，或模型名为空。 */
+  missing: number;
+}
+
 export interface AgreementCell {
   /** 第几组，1 起。按份数降序；并列按最近时间降序，再按指纹定序。 */
   index: number;
@@ -96,6 +134,8 @@ export interface AgreementCell {
   chars: number;
   excerpt: string;
   truncated: boolean;
+  /** 这一组是「谁」跑出来的。旧存档整组 missing，不许补一个假模型名。 */
+  engine: EngineTally;
   /** 最近一份的时间。 */
   at: number;
   /** 组内每一份的 id，按时间降序。 */
@@ -126,6 +166,12 @@ export interface AgreementView {
    * 说「每次都一样」是一句没被检验过的话——和恒真的断言同一类错。
    */
   uncomparable: number;
+  /** 记了「谁跑的」的份数（新存档才有这一栏）。 */
+  modelKnown: number;
+  /** 没记的份数。这一栏不进 `identical`，但也不能被吞掉：它决定了那些「一样」能读到多远。 */
+  modelMissing: number;
+  /** repeat 里有几组不止一个模型名——那些组里的差异不能都算作「同一模型重复自己」。 */
+  modelSwitched: number;
   /** 最大一组的份数；没有可比组时为 0。 */
   maxReports: number;
 }
@@ -152,6 +198,51 @@ function clip(v: unknown): { text: string; len?: number } {
   if (v === undefined) return { text: '（无此字段）' };
   const s = typeof v === 'string' ? v : JSON.stringify(v) ?? String(v);
   return s.length <= MAX_VALUE ? { text: s } : { text: s.slice(0, MAX_VALUE), len: s.length };
+}
+
+/**
+ * 从一份报告里取出「谁跑的」。三项缺一项就当没记。
+ *
+ * 缺一项就整条不认，理由和 `normalizeEngine` 一样：半条记录会让读的人
+ * 以为这一组是同一个模型、同一个温度，而温度其实是空的。
+ */
+function engineOf(it: AgreementItem): { model: string; host: string; temperature: number } | null {
+  const e = (it.report as { engine?: unknown } | undefined)?.engine as
+    | { model?: unknown; host?: unknown; temperature?: unknown }
+    | undefined;
+  const model = typeof e?.model === 'string' ? e.model.trim() : '';
+  const host = typeof e?.host === 'string' ? e.host.trim() : '';
+  const t = typeof e?.temperature === 'number' ? e.temperature : NaN;
+  if (!model || !host || !Number.isFinite(t)) return null;
+  return { model, host, temperature: t };
+}
+
+function tallyEngine(items: AgreementItem[]): EngineTally {
+  const models = new Map<string, number>();
+  const hosts = new Map<string, number>();
+  const temps = new Map<number, number>();
+  let missing = 0;
+  for (const it of items) {
+    const e = engineOf(it);
+    if (!e) {
+      missing += 1;
+      continue;
+    }
+    models.set(e.model, (models.get(e.model) ?? 0) + 1);
+    hosts.set(e.host, (hosts.get(e.host) ?? 0) + 1);
+    temps.set(e.temperature, (temps.get(e.temperature) ?? 0) + 1);
+  }
+  return {
+    /* 并列时按名字定序：否则同名份数相同时，顺序会随目录顺序变。 */
+    models: [...models.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([model, count]) => ({ model, count })),
+    hosts: [...hosts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([host, count]) => ({ host, count })),
+    temps: [...temps.entries()].sort((a, b) => a[0] - b[0]).map(([temperature, count]) => ({ temperature, count })),
+    missing,
+  };
 }
 
 function compareCells(a: AgreementCell, b: AgreementCell): number {
@@ -250,6 +341,7 @@ export function agreementOf(items: AgreementItem[], badFiles = 0): AgreementView
       chars: b.passage.length,
       excerpt: b.passage.slice(0, EXCERPT_LEN),
       truncated: b.passage.length > EXCERPT_LEN,
+      engine: tallyEngine(b.items),
       at: rep.at,
       ids: b.items.map((x) => x.id),
     });
@@ -261,6 +353,14 @@ export function agreementOf(items: AgreementItem[], badFiles = 0): AgreementView
     c.index = i + 1;
   });
 
+  /* 「谁跑的」按份数数，不按组数数：一句话「76 份没记模型」比「9 组都没记」更接近事实。 */
+  let modelKnown = 0;
+  let modelMissing = 0;
+  for (const it of usable) {
+    if (engineOf(it)) modelKnown += 1;
+    else modelMissing += 1;
+  }
+
   return {
     reports: usable.length,
     blanks,
@@ -271,6 +371,9 @@ export function agreementOf(items: AgreementItem[], badFiles = 0): AgreementView
     identical: repeat.filter((c) => c.spreads.length === 0 && c.fields > 0).length,
     spread: repeat.filter((c) => c.spreads.length > 0).length,
     uncomparable: repeat.filter((c) => c.fields === 0).length,
+    modelKnown,
+    modelMissing,
+    modelSwitched: repeat.filter((c) => c.engine.models.length > 1).length,
     maxReports: repeat.length ? repeat[0].reports : 0,
   };
 }
@@ -321,19 +424,70 @@ function withSideNotes(line: string, v: AgreementView): string {
   if (v.blanks > 0) notes.push(`${v.blanks} 份原文是空的`);
   if (v.badFiles > 0) notes.push(`${v.badFiles} 个报告文件读不出来，没有计入`);
   if (v.uncomparable > 0) notes.push(`${v.uncomparable} 组里没有可比的字段`);
+  /*
+   * 「谁跑的」两句话必须出现在总述里，因为收起状态下只有这一行可见。
+   * 少了它们，读者会把「3 组每次报告完全一样」读成「这个模型是确定的」——
+   * 而它可能只是在同一个模型上重复；也可能连跑的是什么模型都不知道。
+   */
+  if (v.modelMissing > 0) {
+    notes.push(
+      /* 说「本机」：这个数按份数数全机，包含没参与比对的那几份。
+         不加这两个字，读者会以为它是「比过的 75 份里没记的」——同一个数字，
+         一个说的是全局，一个说的是对照组，差得很远。 */
+      v.modelKnown === 0
+        ? `本机 ${v.modelMissing} 份报告没记模型（旧存档没有这一栏）`
+        : `${v.modelMissing} 份没记模型`,
+    );
+  }
+  if (v.modelSwitched > 0) {
+    notes.push(`${v.modelSwitched} 组里不止一个模型，那些差异不能都算作「同一个模型重复自己」`);
+  }
   return notes.length ? `${line}另：${notes.join('，')}。` : line;
 }
 
-/** 一组的明细行。只由模板、数字与原文摘录拼成。 */
-export function cellLine(c: AgreementCell, fmt: (at: number) => string): string {
+/**
+ * 「谁跑的」那一段。整组都没记时也说话——沉默会被读成「知道了」。
+ *
+ * 只报事实：几个模型、几个温度、几个供应商、几份没记。
+ * 不评「该不该换模型」，也不猜「差异是不是它造成的」——那要另一份数据才答得了。
+ */
+export function engineNote(t: EngineTally): string {
+  if (t.models.length === 0) return t.missing > 0 ? '没记模型' : '';
+  const names = t.models.map((m) => m.model);
+  let out =
+    names.length === 1
+      ? `模型 ${names[0]}${t.missing > 0 ? `，另有 ${t.missing} 份没记` : ''}`
+      : `模型 ${names.join(' / ')}（换过）`;
+  if (t.temps.length > 1) out += `，温度 ${t.temps.map((x) => x.temperature).join(' / ')}`;
+  if (t.hosts.length > 1) out += `，供应商 ${t.hosts.map((x) => x.host).join(' / ')}`;
+  return out;
+}
+
+/** 一组的开头：第几组、几份、哪版、哪个模式、字段情况。 */
+export function cellHead(c: AgreementCell): string {
   const ver = c.version === null ? '版本未知' : `v${c.version}`;
   const spread =
     c.spreads.length === 0
       ? `${c.fields} 个字段每次都一样`
       : `${c.fields} 个字段里有 ${c.same} 个每次都一样，${c.spreads.length} 个变过`;
-  return `第 ${c.index} 组 · ${c.reports} 份 · ${ver} · 模式 ${c.mode} · ${spread} · 最近一次 ${fmt(c.at)} · ${c.excerpt}${
-    c.truncated ? '…' : ''
-  }`;
+  return `第 ${c.index} 组 · ${c.reports} 份 · ${ver} · 模式 ${c.mode} · ${spread}`;
+}
+
+/**
+ * 一组的后半截：「谁跑的」+ 时间 + 原文摘录。
+ *
+ * 为什么和 `cellHead` 分开：界面把这两段摆成两行（`.ag-head` / `.ag-rest`），
+ * 模型名就从行首开始，不会在中间被断成「gpt-」/「4o-mini」。
+ * 导出仍然把两段用「 · 」拼成一行——同一个事实，两种排版，不是两套说法。
+ */
+export function cellRest(c: AgreementCell, fmt: (at: number) => string): string {
+  const engine = engineNote(c.engine);
+  return `${engine ? `${engine} · ` : ''}最近一次 ${fmt(c.at)} · ${c.excerpt}${c.truncated ? '…' : ''}`;
+}
+
+/** 一组的明细行（导出与纯文本用）。只由模板、数字与原文摘录拼成。 */
+export function cellLine(c: AgreementCell, fmt: (at: number) => string): string {
+  return `${cellHead(c)} · ${cellRest(c, fmt)}`;
 }
 
 /** 一处差异：路径 + 每种取值出现几次。值逐字来自报告。 */
@@ -345,9 +499,9 @@ export function spreadLine(s: FieldSpread): string {
 /**
  * 可复制的纯文本。第一行就是界面那一行，然后每组一行、每处差异一行。
  *
- * 末尾那两句不是评价，是**这份数据解释不了什么**：存档没记模型名与温度，
- * 所以分不开「模型每次说得不一样」与「当时换了设置」。这句话不写在数据旁边，
- * 那些数字会被当成它证明不了的结论。
+ * 末尾那两句不是评价，是**这份数据能读到多远**：新报告记了跑它的模型、供应商与生效温度，
+ * 早期存档没有这一栏；而记了也只是记了模型名——同一个名字背后是不是同一版权重，
+ * 这份存档不知道。这两句不写在数据旁边，那些数字会被当成它证明不了的结论。
  */
 export function agreementText(v: AgreementView, fmt: (at: number) => string): string {
   const line = agreementLine(v);
@@ -358,7 +512,9 @@ export function agreementText(v: AgreementView, fmt: (at: number) => string): st
     for (const s of c.spreads) out.push(`  ${spreadLine(s)}`);
   }
   if (v.singles > 0) out.push(`另有 ${v.singles} 组只跑过一次，没有列出来：跑一遍看不出会不会一样。`);
-  out.push('存档只记了提示词版本与指纹，没记模型名和温度（只在温度被裁时留一条痕）。');
-  out.push('这里的差别分不开「模型每次说得不一样」与「当时换了模型或设置」。');
+  out.push('报告里记了跑它的模型、供应商主机与生效温度的是新存档；早期存档没有这一栏，明细里写「没记模型」。');
+  out.push(
+    '同一个模型名不等于同一个版本，供应商什么时候换权重，这份存档不知道；没记模型的组，差别分不开「模型每次说得不一样」与「当时换了模型或设置」。',
+  );
   return out.join('\n');
 }

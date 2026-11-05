@@ -121,9 +121,13 @@ writeFileSync(
     {
       baseUrl: `http://127.0.0.1:${MOCK_PORT}/v1`,
       model: 'mock-argument-lens',
-      temperature: 0.2,
+      /* 故意高于诊断模式的上限 0.2：这样「记的是生效温度还是设置页填的数字」
+         在端到端里才是两件事。填 0.2 的话 min(0.2, 0.2) 两种实现都对，断言会白绿。 */
+      temperature: 0.9,
       apiKeyCipher: '',
-      apiKeyPlain: 'test',
+      /* 冒烟专用假 Key，故意挑一个不会在别处出现的串：下面「报告里搜不到 Key」那条
+         拿它当 canary，用 'test' 这种常见词会偶发误红。 */
+      apiKeyPlain: 'sk-canary-7c1f9e2b-do-not-leak',
     },
     null,
     2
@@ -936,6 +940,53 @@ if (process.env.SMOKE_AGREEMENT === '1') {
   const runs = m ? Number(m[1]) : -1;
   const agCells = Array.isArray(ag.cells) ? ag.cells : [];
   const agText = String(ag.text ?? '');
+  /*
+   * 「谁跑的」：报告自述的三项，拿主进程读到的设置当独立真值。
+   *
+   * 这几条与静态断言不重复：静态那些验的是 normalizeDiagnosis 收什么写什么，
+   * 这里验的是**真发了一次请求**之后，落盘的那份报告写的是不是这次真的用的模型与温度。
+   * 少了它，「engine 从来没有被接上」这种坏法可以一路绿到底。
+   */
+  const eng = jOfLine('ENGINERESULT');
+  const engTemp = typeof eng.temperature === 'number' ? eng.temperature : null;
+  checks.push(
+    [
+      '谁跑的：新报告里记下了模型（不是空着）',
+      eng.present === true && typeof eng.model === 'string' && eng.model.length > 0,
+      String(eng.model),
+    ],
+    ['谁跑的：模型名与设置里的一致（不是写死的一串）', eng.model === eng.cfgModel, `${eng.model} / ${eng.cfgModel}`],
+    [
+      '谁跑的：主机与设置里的一致，且不含协议与路径',
+      eng.host === eng.cfgHost && !String(eng.host).includes('/'),
+      `${eng.host} / ${eng.cfgHost}`,
+    ],
+    [
+      '谁跑的：温度是「设置与模式上限里更低那个」（不是设置页填的那个）',
+      engTemp !== null && typeof eng.ceiling === 'number' && engTemp === Math.min(eng.cfgTemp, eng.ceiling),
+      `${engTemp} vs min(${eng.cfgTemp}, ${eng.ceiling})`,
+    ],
+    [
+      '谁跑的：整份报告里搜不到 Key（这份文件会被导出）',
+      Number(eng.keyLen) > 0 && eng.keyLeak === false,
+      `Key 长度 ${eng.keyLen}`,
+    ],
+    /*
+     * 报告自己的脚注也要说出来：读一份报告的人未必会去展开「同题复跑」，
+     * 而「这份是谁跑的」在核对两份能不能对照时是第一句话。
+     */
+    [
+      '谁跑的：报告脚注写着模型与生效温度',
+      /由 mock-argument-lens 跑出（温度 0\.2，127\.0\.0\.1:/.test(String(ag.foot ?? '')),
+      String(ag.foot ?? ''),
+    ],
+    [
+      '同题复跑明细：这一组写着模型名（界面真的读到了这一栏）',
+      agCells.some((c) => /模型 /.test(c)),
+      String(agCells[0] ?? ''),
+    ],
+  );
+
   checks.push(
     ['同题复跑：输入框下方有这一栏', ag.bar === true],
     ['同题复跑：第二遍真的跑完了（不是没跑到就断言）', ag.run === 'ok', String(ag.run)],
@@ -960,7 +1011,11 @@ if (process.env.SMOKE_AGREEMENT === '1') {
       `界面 ${runs} / 存档索引 ${ag.listLen}`,
     ],
     ['同题复跑：导出的纯文本以界面上那一行开头', agLine.length > 0 && agText.startsWith(agLine)],
-    ['同题复跑：界面写明分不开「模型」与「设置」', /没记模型名和温度/.test(String(ag.caveat ?? ''))],
+    [
+      '同题复跑：界面写明这一栏能读到多远（旧存档没记 + 模型名不等于版本）',
+      /早期存档没有这一栏/.test(String(ag.caveat ?? '')) && /不等于同一个版本/.test(String(ag.caveat ?? '')),
+      String(ag.caveat ?? ''),
+    ],
     ['同题复跑：总述不劝、不评价', !/建议|应该|稳定|可靠/.test(agLine), agLine],
     ['同题复跑：这一栏没有报错', String(ag.error ?? '') === ''],
   );

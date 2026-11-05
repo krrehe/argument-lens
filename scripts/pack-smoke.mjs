@@ -538,6 +538,34 @@ const checks = [
     })(),
   ],
   /*
+   * 打包产物里的「谁跑的」：包内跑一次分析之后，报告里那一栏得在。
+   *
+   * 这一条与包外那条不完全重复：`Diagnosis.engine` 只有一个类型、逻辑全在 analyze.ts，
+   * 但「类型改了、接线没进包」是最难看出来的一种坏法——外面全绿，用户拿到的那份 exe
+   * 永远显示「没记模型」，下一轮看到 279 处差异时又只能猜。
+   */
+  [
+    '打包产物里的报告记下了跑它的模型与生效温度',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('ENGINERESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        return (
+          r.present === true &&
+          typeof r.model === 'string' &&
+          r.model === r.cfgModel &&
+          typeof r.temperature === 'number' &&
+          typeof r.ceiling === 'number' &&
+          r.temperature === Math.min(r.cfgTemp, r.ceiling) &&
+          r.keyLeak === false
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
    * 打包产物里的「下一句」：探针写的那句话得逐字回得来，账上的数目也得跟着动。
    *
    * 包内最可能坏的样子是「模块进了 asar、但主进程那条写盘路径没进」——

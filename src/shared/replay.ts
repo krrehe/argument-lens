@@ -18,15 +18,26 @@ import type { Diagnosis } from './types';
  * 又是拿「没比对」冒充「没差异」。所以单独一栏，写明为什么没比。
  */
 
-/** 只存输入，不属于「重算出来的产物」。 */
-const INPUT_FIELDS = new Set(['raw']);
+/**
+ * 只存输入与环境，不属于「重算出来的产物」。
+ *
+ *   - raw：模型原文（比报告长十倍）
+ *   - engine：跑这份报告时用的模型、供应商主机与生效温度。重放不重新发请求，
+ *     于是也读不到一个「当时的模型名」——它进比对的话，每一份带 engine 的新报告
+ *     都会亮一处永远解释不清的红（存档有、重算没有）。它是**环境**，不是判断。
+ *     反过来说，engine 不同也不该被读成「判断变了」：换了模型之后报告一样不一样，
+ *     是同题复跑要回答的问题，不是重放要回答的。
+ */
+const INPUT_FIELDS = new Set(['raw', 'engine']);
 
 /**
  * 重放时无法复原的诊断码。
  *
- * 三条都取决于「那次运行的环境」，而环境没有随报告落盘：
- *   - JSON_REPAIRED：模型调用了几次（raw.attempts 记着，但重放不重新调用，也就没有重试这件事）
- *   - TEMPERATURE_CLAMPED：当时的设置温度是多少
+ * 三条都取决于「那次运行的环境」。环境里有两样现在会随报告落盘（raw.attempts、
+ * engine 的模型与温度），但重放本身只重跑解析与裁决、**不重新发请求**，
+ * 所以这三件事在重放里根本不会发生，也就无从比对：
+ *   - JSON_REPAIRED：重放不调用模型，没有重试这回事
+ *   - TEMPERATURE_CLAMPED：不重新发请求，也就没有「这次温度被裁了」
  *   - PROMPT_OVER_BUDGET：当时那次 buildPrompt 的字符数（提示词改过就不同）
  *
  * 不猜、不补：列为「未参与比对」，并说清原因。
@@ -201,7 +212,7 @@ export function diffReports(archived: Partial<Diagnosis>, replayed: Partial<Diag
         x.code === 'JSON_REPAIRED'
           ? '取决于那次调用了几次，重放不重新调用模型'
           : x.code === 'TEMPERATURE_CLAMPED'
-            ? '取决于当时的设置温度，设置没有随报告存档'
+            ? '取决于当时设置的温度；重放不重新发请求，没有裁剪这一步'
             : '取决于当时的提示词长度，提示词改过就不可复现',
     });
   }

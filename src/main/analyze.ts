@@ -499,6 +499,22 @@ export function newReportId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/**
+ * 「谁跑的」三项齐全才写，否则整条不写。
+ *
+ * 为什么不是逐项兜底（缺温度就只写模型名）：同题复跑要把这一栏当身份读，
+ * 半条记录会让读的人以为「这三份是同一个模型、同一个温度」，而温度其实是空的。
+ * 空着并说「没记」是诚实的；补一半是最坏的那种诚实——它看起来完整。
+ */
+function normalizeEngine(raw: Diagnosis['engine']): Diagnosis['engine'] {
+  if (!raw) return undefined;
+  const model = typeof raw.model === 'string' ? raw.model.trim() : '';
+  const host = typeof raw.host === 'string' ? raw.host.trim() : '';
+  const t = typeof raw.temperature === 'number' ? raw.temperature : NaN;
+  if (!model || !host || !Number.isFinite(t) || t < 0 || t > 2) return undefined;
+  return { model, host, temperature: t };
+}
+
 export function normalizeDiagnosis(
   raw: any,
   passage: string,
@@ -509,6 +525,14 @@ export function normalizeDiagnosis(
     id?: string;
     createdAt?: number;
     prompt?: { version: string; fingerprint: string };
+    /**
+     * 跑出这份报告的模型、供应商主机与生效温度。
+     *
+     * 由调用方给，不在这里从设置里读：`normalizeDiagnosis` 是纯解析（重放也用它，
+     * 而重放不重新发请求，那时读到的设置与当初那次毫无关系）。
+     * 谁真的发了请求，谁才对「是谁跑的」有答案。
+     */
+    engine?: Diagnosis['engine'];
   } = {}
 ): Diagnosis {
   const diagnostics: Diagnostic[] = [];
@@ -1023,8 +1047,7 @@ export function normalizeDiagnosis(
 
   const report: Diagnosis = {
     version: 2,
-    id: opts.id ?? newReportId(),
-    parentId: opts.parentId ?? null,
+    id: opts.id ?? newReportId(),    parentId: opts.parentId ?? null,
     /*
      * 存归一化后的 mode，不是 opts.mode。
      *
@@ -1053,6 +1076,7 @@ export function normalizeDiagnosis(
     selfCheck,
     diagnostics,
     prompt: opts.prompt,
+    engine: normalizeEngine(opts.engine),
   };
 
   /*
@@ -1279,10 +1303,19 @@ export async function runAnalysis(
   onProgress('verdict', meta.stageVerdict, 80);
 
   onProgress('self-check', '自检与回填原文位置', 92);
+  /*
+   * 记下这份报告是「谁」跑出来的。
+   *
+   * 只有这里知道答案：模型名与供应商来自当时的设置，温度是裁剪之后真正发出去的那个。
+   * 存 host 而不是 baseUrl——报告会被导出，路径与 Key 都不该跟着走。
+   * 模型名为空（用户清空了设置）时整条不写，由 normalizeEngine 兜住。
+   */
+  const engine = { model: cfg.model, host: hostOf(cfg.baseUrl), temperature };
   const diagnosis = normalizeDiagnosis(parsed, passage, theory, {
     mode,
     parentId: opts.parentId ?? null,
     prompt: { version: build.version, fingerprint: build.fingerprint },
+    engine,
   });
 
   /*

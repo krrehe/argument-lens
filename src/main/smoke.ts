@@ -3,6 +3,8 @@ import { appendFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { listReports } from './archive';
 import { deliverClipboard } from './capture';
+import { SAMPLING } from './prompt';
+import { readSettings } from './store';
 
 /** 等一拍。只在自检里用：界面更新不是同步落到 DOM 上的，点完就取会拿到上一帧。 */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -1091,6 +1093,49 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           })()`);
           await new Promise((r) => setTimeout(r, 300));
           const aListLen = await wc.executeJavaScript(`window.api.archive.list().then((a) => a.length)`);
+          /*
+           * 「谁跑的」真的落盘了吗：把最新那份带 engine 的报告读回来，拿主进程读到的设置当独立真值。
+           *
+           * 三件事，缺一不可：
+           *   1. 模型名与设置一致——写死一个字符串也能让界面通顺，只有跟设置对上才算数；
+           *   2. 温度等于「设置与模式上限里更低那个」——记成设置页里填的数字，
+           *      在被上限压过的模式上就是一条假证据；
+           *   3. 整份报告里搜不到 Key——这份报告会被导出，凭据漏进去是最坏的一种「顺手」。
+           *      冒烟用的 Key 是专门挑的假串（见 scripts/smoke.mjs），
+           *      用 'test' 这种常见词当 canary 会让这条断言偶发误红。
+           */
+          const ids = await wc.executeJavaScript(`window.api.archive.list().then((a) => a.map((x) => x.id))`);
+          let newest: { engine?: { model?: string; host?: string; temperature?: number }; mode?: string } | null = null;
+          for (const id of ids) {
+            const got = await wc.executeJavaScript(`window.api.archive.get(${JSON.stringify(id)})`);
+            if (got && got.engine) {
+              newest = got;
+              break;
+            }
+          }
+          const cfg = readSettings();
+          const ceiling = newest?.mode ? SAMPLING[newest.mode as keyof typeof SAMPLING]?.temperature : undefined;
+          add(
+            `ENGINERESULT ${JSON.stringify({
+              present: !!newest?.engine,
+              model: newest?.engine?.model ?? null,
+              host: newest?.engine?.host ?? null,
+              temperature: newest?.engine?.temperature ?? null,
+              mode: newest?.mode ?? null,
+              cfgModel: cfg.model,
+              cfgTemp: cfg.temperature,
+              cfgHost: (() => {
+                try {
+                  return new URL(cfg.baseUrl).host;
+                } catch {
+                  return null;
+                }
+              })(),
+              ceiling: ceiling ?? null,
+              keyLeak: !!cfg.apiKey && JSON.stringify(newest ?? {}).includes(cfg.apiKey),
+              keyLen: cfg.apiKey.length,
+            })}`,
+          );
           const aState = await wc.executeJavaScript(`JSON.stringify({
             bar: !!document.querySelector('[data-agreement-bar]'),
             repeatAttr: document.querySelector('[data-agreement-bar]')?.getAttribute('data-agreement-repeat') ?? '',
@@ -1099,6 +1144,7 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             cells: [...document.querySelectorAll('[data-agreement-cell]')].map((e) => (e.textContent ?? '').replace(/\\s+/g, ' ').trim()),
             caveat: (document.querySelector('[data-agreement-caveat]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
             text: document.querySelector('[data-agreement-text]')?.value ?? '',
+            foot: (document.querySelector('[data-engine-foot]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
             labelAfter: (document.querySelector('[data-agreement-open]')?.textContent ?? '').trim(),
             error: (document.querySelector('[data-agreement-error]')?.textContent ?? '').trim(),
           })`);

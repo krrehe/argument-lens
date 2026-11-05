@@ -1782,6 +1782,13 @@ export function DiagnosisView({
       {d.prompt && (
         <div className="prompt-foot">
           本次提示词 v{d.prompt.version} · 指纹 {d.prompt.fingerprint.slice(0, 8)}
+          {/* 「谁跑的」与「哪把尺子」是同一类追溯信息：都只在核对「这两份能不能对照」时才需要。
+              旧报告没有这一栏，写「没记」而不是留空——留空会被读成「没模型」或者「都一样」。 */}
+          <span data-engine-foot>
+            {d.engine
+              ? `由 ${d.engine.model} 跑出（温度 ${d.engine.temperature}，${d.engine.host}）`
+              : '没记模型与温度（那一栏是后加的）'}
+          </span>
           <span>提示词版本不同的两份报告不能直接对照——判定口径可能已经变了。</span>
         </div>
       )}

@@ -254,7 +254,10 @@ ok(
 ok(V.repeat.every((c) => TXT.includes(cellLine(c, FMT))), '每一组在导出里逐字出现');
 ok(V.repeat.every((c) => c.spreads.every((s) => TXT.includes(spreadLine(s)))), '每一处差异在导出里逐字出现');
 ok(TXT.includes('另有 2 组只跑过一次，没有列出来：跑一遍看不出会不会一样。'), '只跑一次的组在导出里有一句交代');
-ok(TXT.includes('没记模型名和温度'), '导出写明存档没记模型名与温度：不写明，数字会被读成它证明不了的结论');
+ok(
+  TXT.includes('早期存档没有这一栏') && TXT.includes('同一个模型名不等于同一个版本'),
+  '导出写明这一栏能读到多远（旧存档没记 + 模型名不等于版本）：不写明，数字会被读成它证明不了的结论',
+);
 ok(!/建议|应该|稳定|可靠|结论|证明|因此|所以/.test(TXT), '导出里没有一句本地新写的判断');
 
 /** 扣掉原文、模板与每一行由数据拼出来的文字，剩下不该再有一个汉字。 */
@@ -266,8 +269,18 @@ for (const w of [
   '组：',
   '另有',
   '组只跑过一次，没有列出来：跑一遍看不出会不会一样。',
-  '存档只记了提示词版本与指纹，没记模型名和温度（只在温度被裁时留一条痕）。',
-  '这里的差别分不开「模型每次说得不一样」与「当时换了模型或设置」。',
+  '报告里记了跑它的模型、供应商主机与生效温度的是新存档；早期存档没有这一栏，明细里写「没记模型」。',
+  '同一个模型名不等于同一个版本，供应商什么时候换权重，这份存档不知道；没记模型的组，差别分不开「模型每次说得不一样」与「当时换了模型或设置」。',
+  '本机 ',
+  '份报告没记模型（旧存档没有这一栏）',
+  '组里不止一个模型，那些差异不能都算作「同一个模型重复自己」',
+  '没记模型',
+  '模型 ',
+  '，另有 ',
+  ' 份没记',
+  '（换过）',
+  '，温度 ',
+  '，供应商 ',
   '组每次报告完全一样',
   '组变过',
   '；',
@@ -347,7 +360,10 @@ const BAR = readFileSync(resolve('src/renderer/src/components/AgreementBar.tsx')
 ok(/=\s*agreementLine\(view\)/.test(BAR), '界面用的是内核那一行，不是自己拼一段说法');
 ok(/value=\{agreementText\(view,\s*fmt\)\}/.test(BAR), '复制的纯文本也来自内核');
 ok(/另 有|另有 \{c\.spreads\.length - SHOW_SPREADS\} 处变过/.test(BAR), '界面上截断差异时明说还有几处（不静默丢）');
-ok(/data-agreement-caveat/.test(BAR) && /没记模型名和温度/.test(BAR), '界面把「分不开模型与设置」这句话说出来');
+ok(
+  /data-agreement-caveat/.test(BAR) && /早期存档没有这一栏/.test(BAR) && /不等于同一个版本/.test(BAR),
+  '界面把这一栏能读到多远说出来（旧存档没记 + 模型名不等于版本）',
+);
 
 const APP = readFileSync(resolve('src/renderer/src/App.tsx'), 'utf-8');
 const atFolio = APP.indexOf('<PortfolioBar');

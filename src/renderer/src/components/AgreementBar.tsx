@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { agreementLine, agreementText, cellLine, spreadLine, type AgreementView } from '@shared/agreement';
+import {
+  agreementLine,
+  agreementText,
+  cellHead,
+  cellRest,
+  spreadLine,
+  type AgreementView,
+} from '@shared/agreement';
 
 /** 明细里每组最多直接列几处差异。多出来的在纯文本里全都有，界面上明说还有几处。 */
 const SHOW_SPREADS = 6;
@@ -12,8 +19,8 @@ const SHOW_SPREADS = 6;
  *
  * 三条不许越界：
  *   1. 不评「稳定 / 不可靠」，不算百分比。只数多少次一样、多少次不一样。
- *   2. 不猜差异从哪来。存档没记模型名与温度，界面上必须把这句话说出来，
- *      否则那几个数字会被读成它证明不了的东西。
+ *   2. 不猜差异从哪来。新报告记了跑它的模型、供应商与生效温度，旧报告没有——
+ *      两种情形都必须在界面上说出来，否则那几个数字会被读成它证明不了的东西。
  *   3. 默认收起。它是按下去之前的一眼事实，不是报告的一部分。
  */
 export function AgreementBar({
@@ -61,7 +68,10 @@ export function AgreementBar({
           <ol className="pf-list" data-agreement-cells>
             {view.repeat.map((c) => (
               <li key={c.index} data-agreement-cell data-agreement-spreads={c.spreads.length}>
-                {cellLine(c, fmt)}
+                {/* 两段而不是一段：模型名从行首开始，不会被断成「gpt-」/「4o-mini」。
+                    导出仍是一行（cellLine 把两段拼起来）。 */}
+                <span className="ag-head">{cellHead(c)}</span>
+                <span className="ag-rest">{cellRest(c, fmt)}</span>
                 {c.spreads.length > 0 && (
                   <ul className="ag-spreads">
                     {c.spreads.slice(0, SHOW_SPREADS).map((s) => (
@@ -83,8 +93,9 @@ export function AgreementBar({
             </p>
           )}
           <p className="pf-why" data-agreement-caveat>
-            存档只记了提示词版本与指纹，没记模型名和温度（只在温度被裁时留一条痕）。
-            所以这里的差别分不开「模型每次说得不一样」与「当时换了模型或设置」。
+            新报告里记了跑它的模型、供应商主机与生效温度；早期存档没有这一栏，明细里写「没记模型」。
+            记了也只到这里：同一个模型名不等于同一个版本，供应商什么时候换权重，这份存档不知道；
+            没记模型的组，差别分不开「模型每次说得不一样」与「当时换了模型或设置」。
           </p>
           <textarea
             className="pf-text"
