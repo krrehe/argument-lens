@@ -372,7 +372,9 @@ export function StructureMap({
 export function Legend({
   items,
 }: {
-  items: { kind: 'line' | 'dash' | 'cut' | 'dot'; label: string; color?: string }[];
+  /** ring = 空心圆。图里出现「实心 / 空心」两种填充时，图例必须跟着有两种形状，
+      拿虚线段去解释方块，读的人对不上号。 */
+  items: { kind: 'line' | 'dash' | 'cut' | 'dot' | 'ring'; label: string; color?: string }[];
 }) {
   return (
     <div className="legend">
@@ -380,6 +382,8 @@ export function Legend({
         <span key={i} className="legend-item">
           {it.kind === 'dot' ? (
             <i className="l-dot" style={{ background: it.color ?? C.ink3 }} />
+          ) : it.kind === 'ring' ? (
+            <i className="l-ring" style={{ borderColor: it.color ?? C.ink3 }} />
           ) : it.kind === 'cut' ? (
             <i className="l-cut">×</i>
           ) : (

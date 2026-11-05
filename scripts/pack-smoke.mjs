@@ -247,6 +247,9 @@ const env = {
   // 包内也让同一段字再跑一遍：@shared/agreement 没进 asar 时，
   // 那一栏不出现，或遍数与索引对不上
   AL_AGREEMENT: '1',
+  // 包内也挑一次图：@shared/views 或 DiagramMore 没进 asar 时，
+  // 那一栏不出现，或清单在、图不动
+  AL_VIEWS: '1',
   // 包内也写一句「下一句」：@shared/nextline 与 nextlines.jsonl 的落盘通道
   // 没进 asar 时，表现不是报错，是「点了记下、账上没动」
   AL_NEXTLINE: '1',
@@ -559,6 +562,36 @@ const checks = [
           typeof r.ceiling === 'number' &&
           r.temperature === Math.min(r.cfgTemp, r.ceiling) &&
           r.keyLeak === false
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
+   * 打包产物里的挑图：清单得在，勾掉之后图得真的消失，全显示时两张新图得画出来。
+   *
+   * 这一条与包外那条不重复：`@shared/views` 是纯函数，两张新图在另一个组件文件里——
+   * 它们没进 asar 的典型表现不是报错，是那一栏干脆不出现，或者清单在、图永远不动。
+   */
+  [
+    '打包产物里挑图真的能挑，两张新图也能画出来',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('VIEWSRESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        const before = r.before ?? {};
+        const off = r.off ?? {};
+        const all = r.all ?? {};
+        return (
+          before.bar === true &&
+          Number(before.count) === 3 &&
+          off.structSvg === false &&
+          Array.isArray(off.offNotes) &&
+          off.offNotes.includes('structure') &&
+          all.refuteSvg === true &&
+          all.repairSvg === true
         );
       } catch {
         return false;

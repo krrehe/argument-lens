@@ -17,6 +17,7 @@ import { AgreementBar } from './components/AgreementBar';
 import { NextLineBar } from './components/NextLine';
 import { portfolioOf } from '@shared/portfolio';
 import { agreementOf } from '@shared/agreement';
+import type { ViewId } from '@shared/views';
 import { nextLinesOf } from '@shared/nextline';
 import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
 import './styles.css';
@@ -554,6 +555,13 @@ function Preview() {
               }
               /* ?conditions=1：同上。预填的三条只为拍版式，真应用里全是空的。 */
               initialConditions={QS.get('conditions') === '1'}
+              /* ?views=1：把挑图面板展开；?show=refute,repair 直接打开新增的两张图。 */
+              initialViews={QS.get('views') === '1'}
+              initialPicked={
+                QS.get('show')
+                  ? (QS.get('show')!.split(',').filter((x) => /^(structure|checks|verdict|refute|repair)$/.test(x)) as ViewId[])
+                  : undefined
+              }
               initialItems={
                 QS.get('conditions') === '1'
                   ? [

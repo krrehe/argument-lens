@@ -2565,3 +2565,237 @@
   line-height: 1.75;
   resize: vertical;
 }
+
+/* ─────────── 挑图（这次看哪几张） ─────────── */
+
+.vw-bar {
+  margin: 14px 0 4px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+
+.vw-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.vw-line {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  overflow-wrap: break-word;
+}
+
+.vw-toggle {
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.vw-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.vw-panel {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.vw-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * 每一项不排成表格：说明那一列在不同宽度下换行位置差别很大。
+ * 用 flex + wrap，说明给一个最小宽度，剩下的让浏览器断。
+ */
+.vw-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 9px;
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--line);
+}
+
+.vw-item:last-child {
+  border-bottom: 0;
+}
+
+.vw-item.is-blocked .vw-name {
+  color: var(--ink-3);
+}
+
+.vw-box {
+  flex: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 15px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.vw-item.is-on .vw-box {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.vw-item.is-blocked .vw-box {
+  border-style: dashed;
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.vw-name {
+  flex: none;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+/* 关掉的那几行名字稍淡：开关状态要能一眼扫出来。
+   但不能淡成「不可用」——关掉是用户自己按的，图随时能打开。 */
+.vw-item:not(.is-on):not(.is-blocked) .vw-name {
+  color: var(--ink-2);
+}
+
+.vw-what {
+  flex: 1 1 250px;
+  min-width: 160px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-3);
+  overflow-wrap: break-word;
+}
+
+.vw-state {
+  flex: none;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.vw-item.is-on .vw-state {
+  color: var(--accent);
+}
+
+.vw-why {
+  flex: 1 1 100%;
+  padding-left: 25px;
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: var(--weak);
+  overflow-wrap: break-word;
+}
+
+.vw-go {
+  flex: none;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-3);
+  font-family: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.vw-go:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.vw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 9px;
+}
+
+.vw-act {
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.vw-act:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.vw-saved {
+  flex: 1 1 240px;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+/* 图被关掉时占的那一行：与「画不出」的提示共用 .hint，只多一个就地打开的按钮。 */
+.vw-off {
+  margin: 2px 0 10px;
+}
+
+
+.vw-off-open {
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.vw-off-open:hover {
+  border-color: var(--accent);
+}
+
+/* 修补对照下面那段「补完的写法」：图里放不下长句，文字放在图外。 */
+.repair-form {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--accent);
+  border-radius: 0 4px 4px 0;
+  background: var(--accent-bg);
+}
+
+.repair-form .k {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.repair-form .v {
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--ink);
+  overflow-wrap: break-word;
+}

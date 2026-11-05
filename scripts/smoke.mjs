@@ -190,6 +190,8 @@ const env = {
   ...(process.env.SMOKE_NEXTLINE === '1' ? { AL_NEXTLINE: '1' } : {}),
   // SMOKE_AGREEMENT=1：让同一段字再跑一遍，验「同题复跑」那一栏真的在数
   ...(process.env.SMOKE_AGREEMENT === '1' ? { AL_AGREEMENT: '1' } : {}),
+  // SMOKE_VIEWS=1：挑图——勾掉一张图、全显示、只留默认三张，验图真的跟着变
+  ...(process.env.SMOKE_VIEWS === '1' ? { AL_VIEWS: '1' } : {}),
   /*
    * SMOKE_CAPTURE_OFF=1：不注册全局快捷键。
    *
@@ -919,6 +921,90 @@ if (process.env.SMOKE_CONDITIONS === '1') {
     [
       '成立条件：截图真的裁到了这一屏',
       /\d+x\d+/.test(cdRectLine) && existsSync(cdShotPath) && statSync(cdShotPath).size > 1000,
+    ],
+  );
+}
+
+/*
+ * SMOKE_VIEWS=1：核的是「图真的能挑」。
+ *
+ * 三条分开验，因为它们是三种不同的坏法：
+ *   1. 勾了但图还在（界面说谎）；
+ *   2. 图没了但本机没记住（下次还得重关）；
+ *   3. 全显示时新增的两张图没画出来（「更多可视化」只停在清单上）。
+ *
+ * 独立真值不靠界面自己的 data 属性：本机存储那一栏直接读 localStorage 原文，
+ * 比的是「写进去的几个 id」与「界面上亮着的几行」是否一致。
+ */
+if (process.env.SMOKE_VIEWS === '1') {
+  const v = jOfLine('VIEWSRESULT');
+  const b = v.before ?? {};
+  const o = v.opened ?? {};
+  const off = v.off ?? {};
+  const all = v.all ?? {};
+  const def = v.def ?? {};
+  const clicks = v.clicks ?? {};
+  const parseStored = (raw) => {
+    try {
+      const a = JSON.parse(String(raw ?? ''));
+      return Array.isArray(a) ? a : null;
+    } catch {
+      return null;
+    }
+  };
+  const storedOff = parseStored(off.stored);
+  const storedAll = parseStored(all.stored);
+  const storedDef = parseStored(def.stored);
+
+  checks.push(
+    ['挑图：报告里有这一条', b.bar === true],
+    ['挑图：默认三张，与旧版一致', Number(b.count) === 3 && /^图 3\/5/.test(String(b.line ?? '')), String(b.line ?? '')],
+    ['挑图：默认收起（不是一进来就摆一屏选项）', b.panel === false],
+    [
+      '挑图：五张图都列出来，一张不少',
+      Number(o.items) === 5 && Array.isArray(o.on) && o.on.length === 3,
+      `${o.items} 项 / 亮 ${Array.isArray(o.on) ? o.on.length : '?'}`,
+    ],
+    [
+      '挑图：点得开，点开后明细出现',
+      o.panel === true && clicks.off === true && clicks.all === true && clicks.def === true,
+    ],
+    [
+      '挑图：关掉结构图之后，图真的从正文里消失',
+      off.structSvg === false && Array.isArray(off.offNotes) && off.offNotes.includes('structure'),
+      `svg=${off.structSvg} 占位=${JSON.stringify(off.offNotes)}`,
+    ],
+    [
+      '挑图：消失的位置有一句话和一个能就地打开的按钮（不是整栏凭空没了）',
+      /你关掉了/.test(String(off.offText ?? '')) && /打开/.test(String(off.offText ?? '')),
+      String(off.offText ?? ''),
+    ],
+    ['挑图：关掉一张后计数行跟着变', /^图 2\/5/.test(String(off.line ?? '')), String(off.line ?? '')],
+    [
+      '挑图：选择写进了本机（独立真值：直接读存储原文）',
+      Array.isArray(storedOff) && !storedOff.includes('structure') && storedOff.includes('checks') && storedOff.includes('verdict'),
+      JSON.stringify(storedOff),
+    ],
+    [
+      '挑图：全显示之后，新增的两张图真的画出来了',
+      all.refuteSvg === true && all.repairSvg === true && all.structSvg === true,
+      `反驳=${all.refuteSvg} 修补=${all.repairSvg}`,
+    ],
+    ['挑图：全显示后计数行是 5/5', /^图 5\/5/.test(String(all.line ?? '')), String(all.line ?? '')],
+    [
+      '挑图：全显示写回本机的是五个 id（不是只改了界面）',
+      Array.isArray(storedAll) && storedAll.length === 5,
+      JSON.stringify(storedAll),
+    ],
+    [
+      '挑图：只留默认三张之后，两张新图收起',
+      def.refuteSvg === false && def.repairSvg === false && Number(def.count) === 3,
+      `反驳=${def.refuteSvg} 修补=${def.repairSvg} count=${def.count}`,
+    ],
+    [
+      '挑图：只留默认三张也写回本机',
+      Array.isArray(storedDef) && storedDef.join(',') === 'structure,checks,verdict',
+      JSON.stringify(storedDef),
     ],
   );
 }

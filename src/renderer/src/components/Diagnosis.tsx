@@ -35,6 +35,9 @@ import {
   type ConditionMark,
 } from '@shared/conditions';
 import { CheckStrip, StructureMap, VerdictGauge } from './Diagram';
+import { RefuteMap, RepairMap } from './DiagramMore';
+import { ViewBar, readStoredViews, writeStoredViews } from './ViewBar';
+import { VIEW_ORDER, normalizeViews, sanitizeViews, viewsOf, type ViewId, type ViewSpec } from '@shared/views';
 import { DisputeStrip, focusDispute } from './Disputes';
 import { QuickRead, jumpTo } from './Overview';
 import { Term, usePlain } from './Term';
@@ -83,6 +86,49 @@ function Block({
       {p && plain && <div className="block-plain">{plain}</div>}
       <div className="block-body">{children}</div>
     </section>
+  );
+}
+
+/**
+ * 图被用户关掉时占的那一行。
+ *
+ * 为什么不让整个栏目消失：目录里的「结构图」入口还指着它，跳过来会落到空处；
+ * 而且「关掉了」与「这份报告画不出」是两件事，前者是用户自己做的，后者是数据没有。
+ * 这一行把前者说出来，并给一个就地打开的按钮——不要求他去顶部再找一遍。
+ */
+/**
+ * 图的选择闸门。
+ *
+ * 三种状态要分开：**画得出且开着**（渲染图）、**画得出但关着**（一行提示 + 打开）、
+ * **压根画不出**（把 children 放出去，让图自己说为什么画不出）。
+ * 第三种如果也显示「你关掉了」，读者会去找一个他从来没关过的东西。
+ */
+function Gated({
+  id,
+  views,
+  picked,
+  onOpen,
+  children,
+}: {
+  id: ViewId;
+  views: ViewSpec[];
+  picked: ViewId[];
+  onOpen: () => void;
+  children: ReactNode;
+}) {
+  const spec = views.find((v) => v.id === id);
+  if (!spec || spec.blocked !== null) return <>{children}</>;
+  return picked.includes(id) ? <>{children}</> : <ViewOff id={id} onOpen={onOpen} />;
+}
+
+function ViewOff({ id, onOpen }: { id: ViewId; onOpen: () => void }) {
+  return (
+    <p className="hint vw-off" data-view-off={id}>
+      这张图你关掉了。
+      <button className="vw-off-open" data-view-off-open={id} onClick={onOpen}>
+        打开
+      </button>
+    </p>
   );
 }
 
@@ -1035,6 +1081,8 @@ export function DiagnosisView({
   initialPairs,
   initialConditions,
   initialItems,
+  initialViews,
+  initialPicked,
 }: {
   d: Diagnosis;
   /**
@@ -1058,8 +1106,33 @@ export function DiagnosisView({
   /** 预览页专用：直接落在「自己列成立条件」那一屏，并预填演示条件。真应用里全由用户自己填。 */
   initialConditions?: boolean;
   initialItems?: ConditionInput[];
+  /** 预览页专用：把「挑图」面板先展开，好让这个面板有截图入口。 */
+  initialViews?: boolean;
+  /**
+   * 预览页专用：直接指定这次显示哪几张。
+   *
+   * 为什么需要：新增的两张图默认关着，光有面板入口拍不到图本身。
+   * 而「默认关」这个取舍不该为了截图而改——真应用里它仍然是关的。
+   */
+  initialPicked?: ViewId[];
 }) {
   const [sel, setSel] = useState<string | null>(null);
+  /**
+   * 这次看哪几张图。
+   *
+   * `wanted` 存的是**意图**（本机记忆），`picked` 才是这次实际显示的：
+   * 意图里可能有一张这份报告画不出（没有反驳），它不该在显示时占位，
+   * 但也不该从记忆里删掉——下一份有反驳的报告应当恢复它。
+   */
+  const [wanted, setWanted] = useState<ViewId[]>(() => initialPicked ?? sanitizeViews(readStoredViews()));
+  const views = useMemo(() => viewsOf(d), [d]);
+  const picked = useMemo(() => normalizeViews(wanted, views), [wanted, views]);
+  /** 就地把一张图打开（那一栏底下那个按钮用）。顺序按 VIEW_ORDER，与挑图面板一致。 */
+  const turnOn = (id: ViewId) => {
+    const next = VIEW_ORDER.filter((x) => x === id || wanted.includes(x));
+    setWanted(next);
+    writeStoredViews(next);
+  };
   /** 落点图选中的命名。和结构图的 sel 分开：一个选主张，一个选谬误，别共用。 */
   const [labelSel, setLabelSel] = useState<string | null>(null);
   /**
@@ -1240,6 +1313,12 @@ export function DiagnosisView({
 
       <QuickRead d={d} />
 
+      {/*
+        挑图放在目录之后、正文之前：读者刚看完四句话，正决定「要深看哪一层」。
+        再往后放，他已经在读正文了，选择条就成了事后才发现的开关。
+      */}
+      <ViewBar views={views} picked={picked} onPick={setWanted} initialOpen={!!initialViews} />
+
       <Block title="原文" sub="点黄色处 → 图上和下面那一条一起亮" plain="他自己写的话。黄色是被拆出来的句子，点一下就知道它在结构图里是哪一格。">
         <Passage
           text={d.passage}
@@ -1256,7 +1335,9 @@ export function DiagnosisView({
         disputes={at('sec-structure')}
         plain="把这段话画成一张图。左边是他摆出的依据，右边是他要你信的那句，中间的线就是「凭什么」。线断了，就是说这一步接不上。"
       >
-        <StructureMap d={d} sel={sel} onPick={setSel} />
+        <Gated id="structure" views={views} picked={picked} onOpen={() => turnOn('structure')}>
+          <StructureMap d={d} sel={sel} onPick={setSel} />
+        </Gated>
       </Block>
 
       <Block
@@ -1268,7 +1349,9 @@ export function DiagnosisView({
       >
         {d.scope.applicable ? (
           <>
-            <CheckStrip checks={d.checks} sel={sel} onPick={setSel} defeatId={d.defeat.checkId} />
+            <Gated id="checks" views={views} picked={picked} onOpen={() => turnOn('checks')}>
+              <CheckStrip checks={d.checks} sel={sel} onPick={setSel} defeatId={d.defeat.checkId} />
+            </Gated>
             <CheckTable checks={d.checks} sel={sel} />
           </>
         ) : (
@@ -1320,12 +1403,14 @@ export function DiagnosisView({
         disputes={at('sec-verdict')}
         plain={SEC.verdictPlain}
       >
-        <VerdictGauge
-          level={d.verdict.level}
-          scaleValue={d.verdict.scaleValue}
-          scale={d.verdict.scale}
-          whatIsRefuted={d.verdict.whatIsRefuted}
-        />
+        <Gated id="verdict" views={views} picked={picked} onOpen={() => turnOn('verdict')}>
+          <VerdictGauge
+            level={d.verdict.level}
+            scaleValue={d.verdict.scaleValue}
+            scale={d.verdict.scale}
+            whatIsRefuted={d.verdict.whatIsRefuted}
+          />
+        </Gated>
         <div className="verdict-say">{d.verdict.statement}</div>
         <ObjectBtn field="verdict" refId="verdict" refLabel="判读" excerpt={d.verdict.statement} />
         {/*
@@ -1588,7 +1673,13 @@ export function DiagnosisView({
           plain={SEC.refPlain}
         >
           {d.refutations.length ? (
-            d.refutations.map((r) => <RefItem key={r.id} r={r} mode={mode} />)
+            <>
+              {/* 图在上、逐条在下：图说「火力怎么分布」，逐条说「每一条怎么打」。 */}
+              <Gated id="refute" views={views} picked={picked} onOpen={() => turnOn('refute')}>
+                <RefuteMap d={d} />
+              </Gated>
+              {d.refutations.map((r) => <RefItem key={r.id} r={r} mode={mode} />)}
+            </>
           ) : (
             <p className="hint">{SEC.refEmpty}</p>
           )}
@@ -1601,6 +1692,9 @@ export function DiagnosisView({
         sub={SEC.repairSub}
         plain={SEC.repairPlain}
       >
+        <Gated id="repair" views={views} picked={picked} onOpen={() => turnOn('repair')}>
+          <RepairMap d={d} />
+        </Gated>
         <div className="kv">
           <span className="k">缺的前提</span>
           <span className="v">{d.repair.missingPremise ?? '—'}</span>

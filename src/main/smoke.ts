@@ -1151,6 +1151,85 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           add(`AGREEMENTRESULT ${JSON.stringify({ ...JSON.parse(aState), ...JSON.parse(aBefore), run: aRun, opened: aOpened, listLen: aListLen })}`);
         }
       }
+
+      /*
+       * AL_VIEWS=1：挑图——这次看哪几张图，用户真的能选，而且选了就算数。
+       *
+       * 这一块最坏的坏法有三种，每一种都不会报错：
+       *   1. 面板打得开但点不动（勾选是装饰）；
+       *   2. 点得动但只改了勾，图还在原处（界面说了谎）；
+       *   3. 改了当时，刷新或换一份报告就回到默认（用户每次都要重关）。
+       *
+       * 第 3 种在这条端到端里只能验一半：这里核的是「写进本机的值对不对」
+       * （独立真值，直接读 localStorage 原文），
+       * 「重启后读回来」靠初始化那行源码守着（check:views 有一条断言）。
+       * 剩下的写进 README 的已知限制，不装作验过。
+       */
+      if (process.env['AL_VIEWS'] === '1') {
+        const snap = async (): Promise<Record<string, unknown>> =>
+          JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify({
+              bar: !!document.querySelector('[data-view-bar]'),
+              count: Number(document.querySelector('[data-view-bar]')?.getAttribute('data-view-count') ?? -1),
+              line: (document.querySelector('[data-view-line]')?.textContent ?? '').trim(),
+              panel: !!document.querySelector('[data-view-panel]'),
+              items: document.querySelectorAll('[data-view-item]').length,
+              on: [...document.querySelectorAll('[data-view-item]')]
+                .filter((e) => e.getAttribute('data-view-on') === '1')
+                .map((e) => e.getAttribute('data-view-id')),
+              blocked: [...document.querySelectorAll('[data-view-item]')]
+                .filter((e) => e.getAttribute('data-view-blocked') === '1')
+                .map((e) => e.getAttribute('data-view-id')),
+              structSvg: !!document.querySelector('#sec-structure svg'),
+              refuteSvg: !!document.querySelector('#sec-refute [aria-label="反驳落点"]'),
+              repairSvg: !!document.querySelector('#sec-repair [aria-label="修补对照"]'),
+              offNotes: [...document.querySelectorAll('[data-view-off]')].map((e) => e.getAttribute('data-view-off')),
+              stored: (() => {
+                try { return localStorage.getItem('al:views'); } catch { return 'x'; }
+              })(),
+              offText: (document.querySelector('[data-view-off]')?.textContent ?? '').trim(),
+            })`),
+          );
+
+        const click = async (sel: string): Promise<boolean> =>
+          wc.executeJavaScript(`(() => {
+            const el = document.querySelector(${JSON.stringify(sel)});
+            if (!el) return false;
+            el.click();
+            return true;
+          })()`);
+
+        const vBefore = await snap();
+        await click('[data-view-open]');
+        await new Promise((r) => setTimeout(r, 200));
+        const vOpened = await snap();
+
+        /* 关掉结构图：图必须真的从正文里消失，而不是只把勾去掉。 */
+        const vClickOff = await click('[data-view-toggle="structure"]');
+        await new Promise((r) => setTimeout(r, 200));
+        const vOff = await snap();
+
+        /* 全显示：新增的两张图要真的画出来——这是「更多可视化」这一半的证据。 */
+        const vClickAll = await click('[data-view-all]');
+        await new Promise((r) => setTimeout(r, 250));
+        const vAll = await snap();
+
+        /* 只留默认三张：回到旧版的样子，且选择要写回本机。 */
+        const vClickDef = await click('[data-view-default]');
+        await new Promise((r) => setTimeout(r, 200));
+        const vDef = await snap();
+
+        add(
+          `VIEWSRESULT ${JSON.stringify({
+            before: vBefore,
+            opened: vOpened,
+            off: vOff,
+            all: vAll,
+            def: vDef,
+            clicks: { off: vClickOff, all: vClickAll, def: vClickDef },
+          })}`,
+        );
+      }
       const probe = await wc.executeJavaScript(`(() => {
         const q = (s) => !!document.querySelector(s);
         return JSON.stringify({

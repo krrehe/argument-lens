@@ -48,6 +48,7 @@
     "check:portfolio": "node scripts/run-check-portfolio.mjs",
     "check:agreement": "node scripts/run-check-agreement.mjs",
     "check:engine": "node scripts/run-check-engine.mjs",
+    "check:views": "node scripts/run-check-views.mjs",
     "check:nextline": "node scripts/run-check-nextline.mjs",
     "check:robustness": "node scripts/run-check-robustness.mjs",
     "check:docs": "node scripts/check-docs.mjs",
