@@ -5,7 +5,16 @@ import { readSettings, writeSettings, hasApiKey, keyUnreadable } from './store';
 import { runAnalysis } from './analyze';
 import { testConnection, LlmError } from './llm';
 import { attachSmoke } from './smoke';
-import { allPassages, archiveDirPath, getReport, listReports, passageScan, removeReport, saveReport } from './archive';
+import {
+  allPassages,
+  archiveDirPath,
+  getReport,
+  listReports,
+  passageScan,
+  removeReport,
+  reportScan,
+  saveReport,
+} from './archive';
 import { exportReportArgdown, exportReportMarkdown } from './report-export';
 import { captureStatus, registerCapture, unregisterCapture } from './capture';
 import { clearAnchor, exportUsageCsv, setAnchor, setPricing, summarizeUsage, usageDirPath } from './usage';
@@ -28,6 +37,7 @@ import { describeProblems, validateSettingsPatch } from '@shared/settings-check'
 import { DEFAULT_THEORY, THEORIES, isTheoryId, type TheoryId } from '@shared/theories';
 import { samenessOf } from '@shared/sameness';
 import { portfolioOf } from '@shared/portfolio';
+import { agreementOf } from '@shared/agreement';
 import { buildPrompt, renderPrompt, SAMPLING, BUDGET } from './prompt';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -330,6 +340,18 @@ function registerIpc(): void {
   ipcMain.handle('archive:portfolio', () => {
     const scan = passageScan();
     return { view: portfolioOf(scan.items, scan.badFiles), dirError: scan.dirError };
+  });
+
+  /*
+   * 同题复跑：同一版提示词、同一段字、同一个模式跑过多遍时，报告每次一样吗。
+   *
+   * 与样本账同一次目录扫描口径（坏文件计数也共用），但要看整份报告，
+   * 所以走 reportScan。这里只回算好的视图：103 份报告约 1.2MB，
+   * 没必要把全文丢进渲染层再算一遍，而且那样渲染层就得知道报告 schema。
+   */
+  ipcMain.handle('archive:agreement', () => {
+    const scan = reportScan();
+    return { view: agreementOf(scan.items, scan.badFiles), dirError: scan.dirError };
   });
 
   /*

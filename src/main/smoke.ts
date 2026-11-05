@@ -1050,6 +1050,60 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             }
           }
         }
+
+        /*
+         * AL_AGREEMENT=1：真应用里让同一段字再跑一遍，然后看「同题复跑」那一栏。
+         *
+         * 为什么非要跑第二遍：这一栏的全部意义是「同一段字跑过不止一次时，报告一样吗」。
+         * 只有一份报告时它只会说「看不出」——那句话是真的，但证明不了它在数。
+         * 第二遍是假模型跑的（同一提示词指纹、同一模式、同一段原文），所以两份报告
+         * 在比对的字段上应当逐字相同，界面必须说「1 组每次报告完全一样」。
+         *
+         * 第二遍之后要点一下历史：那一栏的刷新跟着 diag.id 与历史开关走，
+         * 直接调 IPC 不会改 React 的 state——不点这一下，界面会一直显示跑一遍时的账，
+         * 而「显示旧账」恰恰是这一栏最坏的坏法：它看起来完全正常。
+         *
+         * 独立真值：archive:list 是另一条 IPC（读索引），界面上的「跑了 N 遍」
+         * 必须等于它的长度。写死一个 2 也能让界面通顺。
+         */
+        if (process.env['AL_AGREEMENT'] === '1' && !canceled) {
+          const aBefore = await wc.executeJavaScript(`JSON.stringify({
+            bar: !!document.querySelector('[data-agreement-bar]'),
+            detailBefore: !!document.querySelector('[data-agreement-detail]'),
+            labelBefore: (document.querySelector('[data-agreement-open]')?.textContent ?? '').trim(),
+          })`);
+          const aRun = await wc.executeJavaScript(`(async () => {
+            const list = await window.api.archive.list();
+            if (!list.length) return 'no-report';
+            const rep = await window.api.archive.get(list[0].id);
+            if (!rep) return 'no-body';
+            const r = await window.api.analysis.run(rep.passage, rep.theory, rep.mode);
+            return r && r.ok ? 'ok' : 'fail:' + (r && r.error ? r.error.code : '?');
+          })()`);
+          await new Promise((r) => setTimeout(r, 300));
+          await wc.executeJavaScript(`(() => { document.querySelector('[data-panel="history"]')?.click(); return true; })()`);
+          await new Promise((r) => setTimeout(r, 500));
+          const aOpened = await wc.executeJavaScript(`(() => {
+            const b = document.querySelector('[data-agreement-open]');
+            if (!b) return false;
+            b.click();
+            return true;
+          })()`);
+          await new Promise((r) => setTimeout(r, 300));
+          const aListLen = await wc.executeJavaScript(`window.api.archive.list().then((a) => a.length)`);
+          const aState = await wc.executeJavaScript(`JSON.stringify({
+            bar: !!document.querySelector('[data-agreement-bar]'),
+            repeatAttr: document.querySelector('[data-agreement-bar]')?.getAttribute('data-agreement-repeat') ?? '',
+            detail: !!document.querySelector('[data-agreement-detail]'),
+            line: (document.querySelector('[data-agreement-line]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+            cells: [...document.querySelectorAll('[data-agreement-cell]')].map((e) => (e.textContent ?? '').replace(/\\s+/g, ' ').trim()),
+            caveat: (document.querySelector('[data-agreement-caveat]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+            text: document.querySelector('[data-agreement-text]')?.value ?? '',
+            labelAfter: (document.querySelector('[data-agreement-open]')?.textContent ?? '').trim(),
+            error: (document.querySelector('[data-agreement-error]')?.textContent ?? '').trim(),
+          })`);
+          add(`AGREEMENTRESULT ${JSON.stringify({ ...JSON.parse(aState), ...JSON.parse(aBefore), run: aRun, opened: aOpened, listLen: aListLen })}`);
+        }
       }
       const probe = await wc.executeJavaScript(`(() => {
         const q = (s) => !!document.querySelector(s);

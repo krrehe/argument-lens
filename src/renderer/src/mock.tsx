@@ -13,8 +13,10 @@ import { UsagePanel } from './components/Usage';
 import { Settings } from './components/Settings';
 import { Running } from './components/Running';
 import { PortfolioBar } from './components/PortfolioBar';
+import { AgreementBar } from './components/AgreementBar';
 import { NextLineBar } from './components/NextLine';
 import { portfolioOf } from '@shared/portfolio';
+import { agreementOf } from '@shared/agreement';
 import { nextLinesOf } from '@shared/nextline';
 import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
 import './styles.css';
@@ -54,6 +56,34 @@ const MOCK_FOLIO = portfolioOf([
       '客服说很多人吃了精神好，这跟肝有没有变好是两件事。',
   },
   { id: 'f6', at: Date.UTC(2026, 9, 20, 11, 5), passage: '你行你上' },
+]);
+
+/*
+ * 同题复跑的预览数据。同样用真内核现算：预览页要拍的正是「有相同、有一处不同」这两种组，
+ * 写死一串数字的话，截图会替一个不存在的算法作证。
+ *
+ * 假报告的字段形状照着真报告取（verdict / context / checks / labels），
+ * 这样差异路径读起来和真存档里的一样。
+ */
+const mockReport = (over: Record<string, unknown> = {}): Record<string, unknown> => ({
+  verdict: { level: 'weakened', whatIsRefuted: '取消早读导致一本率下降' },
+  context: { issue: '该不该恢复早读', dialogueType: 'persuasion' },
+  checks: [
+    { id: 'c1', answer: 'answered' },
+    { id: 'c2', answer: 'answered' },
+  ],
+  labels: [{ id: 'hasty', name: '轻率概括', landsOnCheck: 'c1' }],
+  ...over,
+});
+const MOCK_G1 = mockReport();
+const MOCK_G3 = mockReport({ labels: [{ id: 'hasty', name: '轻率概括', landsOnCheck: 'c2' }] });
+const MOCK_AGREE = agreementOf([
+  { id: 'g1', at: Date.UTC(2026, 10, 4, 10, 12), mode: 'diagnose', theory: 'walton', version: '2.5.0', fingerprint: 'cadbec610c06', passage: D.passage, report: MOCK_G1 },
+  { id: 'g2', at: Date.UTC(2026, 10, 3, 9, 3), mode: 'diagnose', theory: 'walton', version: '2.5.0', fingerprint: 'cadbec610c06', passage: D.passage, report: MOCK_G1 },
+  { id: 'g3', at: Date.UTC(2026, 10, 2, 16, 40), mode: 'diagnose', theory: 'walton', version: '2.5.0', fingerprint: 'cadbec610c06', passage: D.passage, report: MOCK_G3 },
+  { id: 'g4', at: Date.UTC(2026, 9, 28, 14, 20), mode: 'diagnose', theory: 'walton', version: '2.4.0', fingerprint: 'c532993045d9', passage: '这款护肝片把排毒两个字印在包装正面，包装上却没写排的是什么、拿什么量。' + '客服说很多人吃了精神好，这跟肝有没有变好是两件事。', report: mockReport() },
+  { id: 'g5', at: Date.UTC(2026, 9, 27, 11, 5), mode: 'diagnose', theory: 'walton', version: '2.4.0', fingerprint: 'c532993045d9', passage: '这款护肝片把排毒两个字印在包装正面，包装上却没写排的是什么、拿什么量。' + '客服说很多人吃了精神好，这跟肝有没有变好是两件事。', report: mockReport() },
+  { id: 'g6', at: Date.UTC(2026, 9, 20, 11, 5), mode: 'diagnose', theory: 'walton', version: null, fingerprint: null, passage: '你行你上', report: mockReport() },
 ]);
 
 /*
@@ -480,6 +510,8 @@ function Preview() {
             </p>
             {/* ?portfolio=1：这一栏默认收起，留个入口把展开后的明细也拍下来。 */}
             <PortfolioBar view={MOCK_FOLIO} dirError={null} fmt={when} initialOpen={QS.get('portfolio') === '1'} />
+            {/* ?agreement=1：同样默认收起，留个入口把展开后的差异明细也拍下来。 */}
+            <AgreementBar view={MOCK_AGREE} dirError={null} fmt={when} initialOpen={QS.get('agreement') === '1'} />
           </div>
           <TheoryBrief
             theory={D.theory}

@@ -30,7 +30,9 @@ import { disputesIn } from '@shared/disputes';
 import type { Segment } from '@shared/segment';
 import { samenessLine, type Sameness } from '@shared/sameness';
 import type { PortfolioView } from '@shared/portfolio';
+import type { AgreementView } from '@shared/agreement';
 import { PortfolioBar } from './components/PortfolioBar';
+import { AgreementBar } from './components/AgreementBar';
 import { NextLineBar } from './components/NextLine';
 import type { NextLineView } from '@shared/nextline';
 import { diffRevision } from '@shared/compare';
@@ -132,6 +134,11 @@ export default function App() {
   const [same, setSame] = useState<Sameness | null>(null);
   /** 样本账。null 表示还没读到，首帧不闪一个「0 组」。 */
   const [folio, setFolio] = useState<{ view: PortfolioView | null; dirError: string | null } | null>(null);
+  /**
+   * 同题复跑。样本账说了「几组文字」，它说下一层：同一组里的报告彼此一样吗。
+   * 与 folio 同一次刷新、同样不缓存，理由相同——删过报告的人不该继续看到旧数字。
+   */
+  const [agree, setAgree] = useState<{ view: AgreementView | null; dirError: string | null } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [onboard, setOnboard] = useState(false);
   const [hasKey, setHasKey] = useState(true);
@@ -288,6 +295,10 @@ export default function App() {
       .portfolio()
       .then(setFolio)
       .catch((err: Error) => setFolio({ view: null, dirError: err?.message ?? '原因不明' }));
+    window.api.archive
+      .agreement()
+      .then(setAgree)
+      .catch((err: Error) => setAgree({ view: null, dirError: err?.message ?? '原因不明' }));
   }, []);
   useEffect(() => {
     refreshPortfolio();
@@ -989,6 +1000,12 @@ export default function App() {
                   存档、一个字都不来自模型的地方。
                 */}
                 <PortfolioBar view={folio?.view ?? null} dirError={folio?.dirError ?? null} fmt={when} />
+                {/*
+                  紧接着样本账：样本账说「落在 6 组文字上」，这一栏说「同一组里的报告彼此一样吗」。
+                  两句话合起来才说清一件裸提示词永远不知道的事——你重复跑的是同一个输入，
+                  而重复跑出来的东西是不是同一份。
+                */}
+                <AgreementBar view={agree?.view ?? null} dirError={agree?.dirError ?? null} fmt={when} />
                 <p className="hint">
                   {/* 模式条下面那行 mode-note 已经显示过 MODE_META[mode].hint，
                       这里再重复一遍，同一句话会在 50px 内出现两次。这里只说透镜立场。 */}

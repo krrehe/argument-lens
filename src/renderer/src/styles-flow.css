@@ -1667,6 +1667,21 @@
   color: #9b4030;
 }
 
+/* 同题复跑的差异明细：缩进一层，与「第几组」那一行分开，否则路径会被读成组名。 */
+.ag-spreads {
+  margin: 3px 0 0;
+  padding-left: 14px;
+  list-style: disc;
+}
+
+.ag-spreads li {
+  margin-bottom: 2px;
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
 /* ─────────── 回到原文重读 ─────────── */
 
 /*

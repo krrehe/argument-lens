@@ -18,6 +18,7 @@ import type { TheoryId } from '@shared/theories';
 import type { CaptureStatus } from '@shared/capture';
 import type { Sameness } from '@shared/sameness';
 import type { PortfolioView } from '@shared/portfolio';
+import type { AgreementView } from '@shared/agreement';
 import type { NextLineView } from '@shared/nextline';
 
 
@@ -185,6 +186,13 @@ const api = {
      */
     portfolio: (): Promise<{ view: PortfolioView; dirError: string | null }> =>
       ipcRenderer.invoke('archive:portfolio'),
+    /**
+     * 同题复跑：同一版提示词、同一段字、同一个模式跑过多遍时，报告每次一样吗。
+     *
+     * 与样本账同样是纯读。dirError 非空时 view 不完整，界面要说读不出来。
+     */
+    agreement: (): Promise<{ view: AgreementView; dirError: string | null }> =>
+      ipcRenderer.invoke('archive:agreement'),
   },
   prompt: {
     get: (

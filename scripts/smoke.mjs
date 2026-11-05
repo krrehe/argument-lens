@@ -184,6 +184,8 @@ const env = {
   ...(process.env.SMOKE_PORTFOLIO === '1' ? { AL_PORTFOLIO: '1' } : {}),
   // SMOKE_NEXTLINE=1：报告末尾写一句、记下、再记一遍、删掉，验原话逐字存回去
   ...(process.env.SMOKE_NEXTLINE === '1' ? { AL_NEXTLINE: '1' } : {}),
+  // SMOKE_AGREEMENT=1：让同一段字再跑一遍，验「同题复跑」那一栏真的在数
+  ...(process.env.SMOKE_AGREEMENT === '1' ? { AL_AGREEMENT: '1' } : {}),
   /*
    * SMOKE_CAPTURE_OFF=1：不注册全局快捷键。
    *
@@ -914,6 +916,53 @@ if (process.env.SMOKE_CONDITIONS === '1') {
       '成立条件：截图真的裁到了这一屏',
       /\d+x\d+/.test(cdRectLine) && existsSync(cdShotPath) && statSync(cdShotPath).size > 1000,
     ],
+  );
+}
+
+/*
+ * SMOKE_AGREEMENT=1：核的是「同一段字跑两遍，界面真的把两份摆到一起比了」。
+ *
+ * 这一栏最坏的坏法是「显示旧账」：跑完第二遍，界面还是跑一遍时那句话，
+ * 读起来完全正常。所以探针跑完之后点了一下历史（那是它的刷新时机之一），
+ * 下面的断言取的是点过之后的状态。
+ *
+ * 独立真值：遍数必须等于 archive:list 的长度——那是另一条 IPC，读的是索引。
+ * 写死一个 2 也能让这句话通顺，只有跟索引对上才说明它真的扫了文件。
+ */
+if (process.env.SMOKE_AGREEMENT === '1') {
+  const ag = jOfLine('AGREEMENTRESULT');
+  const agLine = String(ag.line ?? '');
+  const m = agLine.match(/最多的一组跑了 (\d+) 遍/);
+  const runs = m ? Number(m[1]) : -1;
+  const agCells = Array.isArray(ag.cells) ? ag.cells : [];
+  const agText = String(ag.text ?? '');
+  checks.push(
+    ['同题复跑：输入框下方有这一栏', ag.bar === true],
+    ['同题复跑：第二遍真的跑完了（不是没跑到就断言）', ag.run === 'ok', String(ag.run)],
+    [
+      '同题复跑：点开前明细确实收起（不是一直展开着）',
+      ag.detailBefore === false && ag.labelBefore === '看明细',
+    ],
+    ['同题复跑：按钮点得动，点开后明细出现', ag.opened === true && ag.detail === true && ag.labelAfter === '收起明细'],
+    [
+      '同题复跑：同一段字跑两遍被算成一组',
+      /跑过不止一次的有 1 组/.test(agLine) && Number(ag.repeatAttr) === 1,
+      agLine,
+    ],
+    [
+      '同题复跑：假模型两次给出同一份报告，界面说「完全一样」',
+      /1 组每次报告完全一样/.test(agLine) && agCells.length === 1 && /个字段每次都一样/.test(agCells[0] ?? ''),
+      String(agCells[0] ?? ''),
+    ],
+    [
+      '同题复跑：遍数与另一条 IPC 读到的存档数一致（不是写死的）',
+      runs > 0 && Number(ag.listLen) === runs,
+      `界面 ${runs} / 存档索引 ${ag.listLen}`,
+    ],
+    ['同题复跑：导出的纯文本以界面上那一行开头', agLine.length > 0 && agText.startsWith(agLine)],
+    ['同题复跑：界面写明分不开「模型」与「设置」', /没记模型名和温度/.test(String(ag.caveat ?? ''))],
+    ['同题复跑：总述不劝、不评价', !/建议|应该|稳定|可靠/.test(agLine), agLine],
+    ['同题复跑：这一栏没有报错', String(ag.error ?? '') === ''],
   );
 }
 

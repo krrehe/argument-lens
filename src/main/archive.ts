@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSyn
 import { join } from 'node:path';
 import type { Diagnosis, ReportMeta, UsageRecord } from '@shared/types';
 import type { PriorPassage } from '@shared/sameness';
+import type { AgreementItem } from '@shared/agreement';
 
 /**
  * 报告存档。
@@ -137,15 +138,28 @@ export interface PassageScan {
   dirError: string | null;
 }
 
-export function passageScan(): PassageScan {
+interface DirScan {
+  diagnoses: Diagnosis[];
+  badFiles: number;
+  dirError: string | null;
+}
+
+/**
+ * 扫一遍存档目录，把读得出来的报告都解出来。
+ *
+ * 三个调用者要的东西不同（样本账要原文、同题复跑要整份报告、历史列表读索引），
+ * 但「哪些文件读不出来」必须只有一个答案——分开写三份循环，迟早有一份忘了计数，
+ * 于是同一台机器上两处说出的份数不一样，而两处看起来都完全正常。
+ */
+function scanDir(): DirScan {
   const dir = archiveDir();
   let files: string[] = [];
   try {
     files = readdirSync(dir).filter((f) => f.endsWith('.json') && f !== 'index.json');
   } catch (err) {
-    return { items: [], badFiles: 0, dirError: (err as Error)?.message ?? '原因不明' };
+    return { diagnoses: [], badFiles: 0, dirError: (err as Error)?.message ?? '原因不明' };
   }
-  const items: PriorPassage[] = [];
+  const diagnoses: Diagnosis[] = [];
   let badFiles = 0;
   for (const f of files) {
     try {
@@ -154,12 +168,56 @@ export function passageScan(): PassageScan {
         badFiles += 1;
         continue;
       }
-      items.push({ id: d.id, at: d.createdAt, passage: d.passage });
+      diagnoses.push(d);
     } catch {
       badFiles += 1;
     }
   }
-  return { items, badFiles, dirError: null };
+  return { diagnoses, badFiles, dirError: null };
+}
+
+export function passageScan(): PassageScan {
+  const scan = scanDir();
+  if (scan.dirError) return { items: [], badFiles: 0, dirError: scan.dirError };
+  return {
+    items: scan.diagnoses.map((d) => ({ id: d.id, at: d.createdAt, passage: d.passage })),
+    badFiles: scan.badFiles,
+    dirError: null,
+  };
+}
+
+export interface ReportScan {
+  items: AgreementItem[];
+  badFiles: number;
+  dirError: string | null;
+}
+
+/**
+ * 同题复跑要整份报告。与样本账共用同一次目录扫描与同一套坏文件计数。
+ *
+ * 版本与指纹缺失时给 null，不给空串：界面要能说「版本未知」，
+ * 而空串会被拼成「v」，读起来像一个真的版本号。
+ */
+export function reportScan(): ReportScan {
+  const scan = scanDir();
+  if (scan.dirError) return { items: [], badFiles: 0, dirError: scan.dirError };
+  const items: AgreementItem[] = scan.diagnoses.map((d) => {
+    /* 模型原文不进比对：它比报告长十倍，比它等于把「模型换个说法」与「报告真的变了」
+       混成一件事（flatten 也会跳过它，这里先摘掉少传几 MB）。 */
+    const report: Record<string, unknown> = { ...d };
+    delete report.raw;
+    return {
+      id: d.id,
+      at: d.createdAt,
+      mode: d.mode ?? '',
+      theory: d.theory ?? '',
+      version: d.prompt?.version ?? null,
+      fingerprint: d.prompt?.fingerprint ?? null,
+      passage: d.passage,
+      report,
+    };
+  });
+  return { items, badFiles: scan.badFiles, dirError: null };
 }
 
 export function allPassages(): PriorPassage[] {

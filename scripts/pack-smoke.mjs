@@ -244,6 +244,9 @@ const env = {
   // 包内也点一次样本账：@shared/portfolio 与 passageScan 没进 asar 时，
   // 表现不是报错，是那一栏干脆不出现或数字对不上
   AL_PORTFOLIO: '1',
+  // 包内也让同一段字再跑一遍：@shared/agreement 没进 asar 时，
+  // 那一栏不出现，或遍数与索引对不上
+  AL_AGREEMENT: '1',
   // 包内也写一句「下一句」：@shared/nextline 与 nextlines.jsonl 的落盘通道
   // 没进 asar 时，表现不是报错，是「点了记下、账上没动」
   AL_NEXTLINE: '1',
@@ -500,6 +503,33 @@ const checks = [
           Number(m[1]) === Number(r.listLen) &&
           Array.isArray(r.rows) &&
           r.rows.length === Number(m[2]) &&
+          String(r.text ?? '').startsWith(String(r.line ?? ''))
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
+   * 打包产物里的同题复跑：@shared/agreement 没进 asar 时，那一栏干脆不出现。
+   * 遍数拿包内自己的 archive:list 当独立真值。
+   */
+  [
+    '打包产物里同题复跑把两份报告摆到一起，遍数与存档索引一致',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('AGREEMENTRESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        const m = String(r.line ?? '').match(/最多的一组跑了 (\d+) 遍/);
+        return (
+          r.run === 'ok' &&
+          r.opened === true &&
+          r.detail === true &&
+          r.detailBefore === false &&
+          !!m &&
+          Number(m[1]) === Number(r.listLen) &&
+          /跑过不止一次的有 1 组/.test(String(r.line ?? '')) &&
           String(r.text ?? '').startsWith(String(r.line ?? ''))
         );
       } catch {
