@@ -454,10 +454,10 @@ function withSideNotes(line: string, v: AgreementView): string {
 export function engineNote(t: EngineTally): string {
   if (t.models.length === 0) return t.missing > 0 ? '没记模型' : '';
   const names = t.models.map((m) => m.model);
-  let out =
-    names.length === 1
-      ? `模型 ${names[0]}${t.missing > 0 ? `，另有 ${t.missing} 份没记` : ''}`
-      : `模型 ${names.join(' / ')}（换过）`;
+  /* 没记的份数在「一个模型」与「多个模型」两种情形下都要说出来：
+     两个模型 + 两份没记时只写「A / B（换过）」，读的人会以为这一组已经全部对上号了。 */
+  let out = names.length === 1 ? `模型 ${names[0]}` : `模型 ${names.join(' / ')}（换过）`;
+  if (t.missing > 0) out += `，另有 ${t.missing} 份没记`;
   if (t.temps.length > 1) out += `，温度 ${t.temps.map((x) => x.temperature).join(' / ')}`;
   if (t.hosts.length > 1) out += `，供应商 ${t.hosts.map((x) => x.host).join(' / ')}`;
   return out;

@@ -200,6 +200,14 @@ ok(mixed.repeat[0].engine.missing === 1, '没记的份数单独数出来');
 ok(engineNote(mixed.repeat[0].engine).includes('另有 1 份没记'), '混着时说清还有几份没记', engineNote(mixed.repeat[0].engine));
 ok(mixed.modelKnown === 1 && mixed.modelMissing === 1, '视图层分别数「记了」与「没记」', `${mixed.modelKnown}/${mixed.modelMissing}`);
 
+/* 两个模型 + 有没记的：两句都要出现，否则读的人会以为这一组已经全部对上号。 */
+const twoPlusMissing = agreementOf([item('z1', 10, ENG('aaa')), item('z2', 9, ENG('bbb')), item('z3', 8, R0)]);
+ok(
+  engineNote(twoPlusMissing.repeat[0].engine).includes('另有 1 份没记'),
+  '换过模型且有没记的份数时，两件事都说',
+  engineNote(twoPlusMissing.repeat[0].engine),
+);
+
 /* 整组都没记：也得说话。沉默会被读成「知道了」。 */
 const none = agreementOf([item('n1', 10, R0), item('n2', 9, R0)]);
 ok(engineNote(none.repeat[0].engine) === '没记模型', '整组都没记时说「没记模型」，不沉默');
