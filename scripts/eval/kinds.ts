@@ -143,4 +143,25 @@ export const KINDS_BY_CASE: Record<string, KindId[]> = {
   'retro-conflict': ['reversal', 'selection'],
   'review-irrelevant': ['irrelevant', 'sample'],
   'growth-multimetric': ['multiple', 'overclaim'],
+
+  /*
+   * 第四批（2026-11-05）：28 → 40 段。九类刚好卡在两段的各补一段；
+   * 另外三段的用处不是「加段数」而是「加模式」——见 cases.ts 里那一段注释。
+   *
+   * 这三条标了两类，都是文本里真的埋着两处，不是为了凑矩阵：
+   *   incident-report 的结论靠一条从未写出的隐含前提（相似现象 ⇒ 相似机理）撑着；
+   *   user-interviews 从「4 人说需要」跳到「应当优先排期」，中间那条规范前提没有出现。
+   */
+  'metric-definition': ['concept'],
+  'incident-report': ['analogy', 'warrant'],
+  'reading-notes': ['attribution'],
+  'mediation-record': ['dialogue'],
+  'store-monthly': ['denominator'],
+  'internal-notice': ['ambiguity'],
+  'training-handout': ['reversal'],
+  'tender-review': ['irrelevant'],
+  'qc-sampling': ['multiple'],
+  'product-manual': ['scope'],
+  'user-interviews': ['sample', 'normative'],
+  'hoa-letter': ['overdiagnosis'],
 };
