@@ -182,6 +182,8 @@ const env = {
   ...(process.env.SMOKE_CONDITIONS === '1' ? { AL_CONDITIONS: '1' } : {}),
   // SMOKE_PORTFOLIO=1：点开样本账，拿 archive:list 当独立真值核界面上的数目
   ...(process.env.SMOKE_PORTFOLIO === '1' ? { AL_PORTFOLIO: '1' } : {}),
+  // SMOKE_NEXTLINE=1：报告末尾写一句、记下、再记一遍、删掉，验原话逐字存回去
+  ...(process.env.SMOKE_NEXTLINE === '1' ? { AL_NEXTLINE: '1' } : {}),
   /*
    * SMOKE_CAPTURE_OFF=1：不注册全局快捷键。
    *
@@ -971,6 +973,77 @@ if (process.env.SMOKE_PORTFOLIO === '1') {
       '样本账：信息条没有被按钮挤成四行以上',
       Number(pf.lineHeight) > 0 && Number(pf.lineHeight) <= 72,
       String(pf.lineHeight),
+    ],
+  );
+}
+
+/*
+ * SMOKE_NEXTLINE=1：核的是「写进去的那句话真的原样存回去了」。
+ *
+ * 这一栏最坏的样子不是报错，是「看起来记上了」：句子被截断、被规范化、
+ * 或者根本没写进文件而界面照样多了一行。所以断言逐字比对原话，并且要求
+ * 删完之后数目回到写之前——「随时可删」不能只是界面上的一句话。
+ *
+ * 空对象是「探针没跑」：下面每一条都会因此失败，不会静默通过。
+ */
+if (process.env.SMOKE_NEXTLINE === '1') {
+  const nl = jOfLine('NEXTLINERESULT');
+  const TEXT = '这句话我确实想再问一句：那第二个数据是怎么来的';
+  const before = Number(nl.total ?? -1);
+  const s1 = nl.s1 ?? {};
+  const s2 = nl.s2 ?? {};
+  const said = Array.isArray(nl.said) ? nl.said : [];
+  const items = Number(nl.items ?? -1);
+  const exported = String(nl.text ?? '');
+  checks.push(
+    ['下一句：报告末尾有这一块，且有输入框', nl.bar === true && nl.input === true],
+    [
+      '下一句：明细默认收起（不是一上来就摊开）',
+      nl.listBefore === false && nl.opened === true && nl.detail === true,
+    ],
+    [
+      '下一句：这一块在报告最后一个板块之下，不在上面',
+      nl.belowReport === true,
+    ],
+    [
+      '下一句：填完字点「记下」，账上真的多了一句',
+      nl.typed === true && nl.saved === true && Number(s1.total) === before + 1,
+      `记之前 ${before} / 记之后 ${s1.total}`,
+    ],
+    [
+      '下一句：写完就清空输入框，并说清「记下了」',
+      String(s1.input ?? '') === '' && String(s1.ok ?? '').includes('记下了'),
+    ],
+    [
+      '下一句：存回去的是原话，逐字不差（截断或规范化都会在这里露出来）',
+      said.length > 0 && said[0] === TEXT,
+      JSON.stringify(said[0]),
+    ],
+    [
+      '下一句：同一句记两遍，账上出现「逐字相同」与「2 次」',
+      Number(s2.total) === before + 2 &&
+        String(s2.line ?? '').includes('逐字相同') &&
+        String(s2.line ?? '').includes('有 2 次'),
+      String(s2.line ?? ''),
+    ],
+    [
+      '下一句：明细一条不少，条数与账上的句子数一致',
+      items === Number(s2.total),
+      `明细 ${items} / 账上 ${s2.total}`,
+    ],
+    [
+      '下一句：再读一次盘，句子还在（不是只往内存里加了一份）',
+      Number(nl.disk) === Number(s2.total) && Number(nl.disk) === before + 2,
+      `读盘 ${nl.disk} / 账上 ${s2.total}`,
+    ],
+    [
+      '下一句：可复制的纯文本里原话逐字出现，且带上编号',
+      exported.includes(TEXT) && exported.includes(`1. `),
+    ],
+    [
+      '下一句：删掉一句，账回到只多一句；再删一句，回到写之前',
+      nl.deleted === true && Number(nl.afterDel1) === before + 1 && Number(nl.afterDel2) === before,
+      `${nl.afterDel1} / ${nl.afterDel2}`,
     ],
   );
 }

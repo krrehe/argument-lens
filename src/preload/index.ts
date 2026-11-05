@@ -18,6 +18,7 @@ import type { TheoryId } from '@shared/theories';
 import type { CaptureStatus } from '@shared/capture';
 import type { Sameness } from '@shared/sameness';
 import type { PortfolioView } from '@shared/portfolio';
+import type { NextLineView } from '@shared/nextline';
 
 
 /**
@@ -142,6 +143,24 @@ const api = {
       ipcRenderer.invoke('objections:remove', diagId, key),
     stats: (): Promise<ObjectionStat[]> => ipcRenderer.invoke('objections:stats'),
     reveal: (): Promise<string> => ipcRenderer.invoke('objections:reveal'),
+  },
+  /**
+   * 「看完报告之后，你下一句想说什么」。
+   *
+   * 只有三个动作：读、记、删。没有「分析这句话」的接口，也不该有——
+   * 这句话的用途是让人以后自己回头看，不是让软件再判它一次。
+   */
+  nextlines: {
+    list: (): Promise<NextLineView> => ipcRenderer.invoke('nextlines:list'),
+    add: (input: {
+      text: string;
+      diagId: string;
+      passageHead: string;
+      theory: string;
+    }): Promise<{ ok: boolean; view: NextLineView; error?: string }> =>
+      ipcRenderer.invoke('nextlines:add', input),
+    remove: (id: string): Promise<{ ok: boolean; view: NextLineView; error?: string }> =>
+      ipcRenderer.invoke('nextlines:remove', id),
   },
   /**
    * 报告存档。列表给元数据，取全文要单独要——几十份报告一次读完会明显卡。

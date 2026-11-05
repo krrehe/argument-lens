@@ -62,13 +62,21 @@ export function appendJsonl(path: string, record: unknown): void {
 
 /** 整份重写。先写 .tmp 再改名，避免半截文件。 */
 export function rewriteJsonl(path: string, records: unknown[]): void {
+  rewriteJsonlRaw(path, records.map((r) => JSON.stringify(r)));
+}
+
+/**
+ * 按原样的行重写。删除一条记录时用它，而不是 `rewriteJsonl`：
+ *
+ * 后者把所有行重新 JSON.stringify 一遍，读不出来的行在那一步就消失了。
+ * 「删掉我写的这一句」不该顺手把文件里读不出来的部分一起扔掉——
+ * 用户点的是删除，不是清理。坏行留着，下次读还会被数出来，
+ * 那份记录坏到什么程度始终是可见的。
+ */
+export function rewriteJsonlRaw(path: string, lines: string[]): void {
   const tmp = `${path}.tmp`;
   try {
-    writeFileSync(
-      tmp,
-      records.map((r) => JSON.stringify(r)).join('\n') + (records.length ? '\n' : ''),
-      'utf-8'
-    );
+    writeFileSync(tmp, lines.length ? `${lines.join('\n')}\n` : '', 'utf-8');
     renameSync(tmp, path);
   } catch (err) {
     throw new Error(`写不进 ${path}：${(err as Error)?.message ?? '原因不明'}`);

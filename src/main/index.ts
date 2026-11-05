@@ -18,6 +18,7 @@ import {
   removeObjection,
   type ObjectionInput,
 } from './objections';
+import { addNextLine, listNextLines, removeNextLine, type NextLineInput } from './nextlines';
 import { SCHEMES } from './kb/schemes';
 import type { Diagnosis } from '@shared/types';
 import { FALLACIES } from './kb/fallacies';
@@ -329,6 +330,31 @@ function registerIpc(): void {
   ipcMain.handle('archive:portfolio', () => {
     const scan = passageScan();
     return { view: portfolioOf(scan.items, scan.badFiles), dirError: scan.dirError };
+  });
+
+  /*
+   * 「看完报告之后，你下一句想说什么」。
+   *
+   * 三件事都返回整份账，界面拿返回值直接替换状态——不另取一次，
+   * 避免出现「刚记上、显示的还是一分钟前的数目」。
+   *
+   * 写失败一律翻成 ok:false + 原因：这一句要是没写进去，用户必须当场知道。
+   * 它不像报告，丢了还能重跑——这句话只在那一刻存在。
+   */
+  ipcMain.handle('nextlines:list', () => listNextLines());
+  ipcMain.handle('nextlines:add', (_e, input: NextLineInput) => {
+    try {
+      return { ok: true, view: addNextLine(input) };
+    } catch (err) {
+      return { ok: false, view: listNextLines(), error: (err as Error)?.message ?? '这句话没能写进文件。' };
+    }
+  });
+  ipcMain.handle('nextlines:remove', (_e, id: string) => {
+    try {
+      return { ok: true, view: removeNextLine(String(id ?? '')) };
+    } catch (err) {
+      return { ok: false, view: listNextLines(), error: (err as Error)?.message ?? '这句话没能从文件里删掉。' };
+    }
   });
 
   // 提示词可读，是这个产品必须满足的一条：用户有权看到自己被什么标准在衡量

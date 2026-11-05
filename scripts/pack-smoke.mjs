@@ -244,6 +244,9 @@ const env = {
   // 包内也点一次样本账：@shared/portfolio 与 passageScan 没进 asar 时，
   // 表现不是报错，是那一栏干脆不出现或数字对不上
   AL_PORTFOLIO: '1',
+  // 包内也写一句「下一句」：@shared/nextline 与 nextlines.jsonl 的落盘通道
+  // 没进 asar 时，表现不是报错，是「点了记下、账上没动」
+  AL_NEXTLINE: '1',
   AL_PANEL: 'usage',
   // 提示词页顺带验。它要验的不是「提示词显示出来了」，而是**版本号与指纹显示出来了**——
   // 提示词一改判定口径就可能变，那行小字是判断两份报告能不能对照的唯一凭据，
@@ -498,6 +501,45 @@ const checks = [
           Array.isArray(r.rows) &&
           r.rows.length === Number(m[2]) &&
           String(r.text ?? '').startsWith(String(r.line ?? ''))
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
+   * 打包产物里的「下一句」：探针写的那句话得逐字回得来，账上的数目也得跟着动。
+   *
+   * 包内最可能坏的样子是「模块进了 asar、但主进程那条写盘路径没进」——
+   * 界面照样显示「记下了」，文件里什么都没有。所以要求 disk 这一项也对得上。
+   */
+  [
+    '打包产物里写下的「下一句」逐字存回去了',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('NEXTLINERESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        const TEXT = '这句话我确实想再问一句：那第二个数据是怎么来的';
+        const before = Number(r.total);
+        const s1 = r.s1 ?? {};
+        const s2 = r.s2 ?? {};
+        return (
+          r.bar === true &&
+          r.input === true &&
+          r.belowReport === true &&
+          r.typed === true &&
+          r.saved === true &&
+          Number(s1.total) === before + 1 &&
+          String(s1.input ?? '') === '' &&
+          Array.isArray(r.said) &&
+          r.said[0] === TEXT &&
+          Number(s2.total) === before + 2 &&
+          String(s2.line ?? '').includes('逐字相同') &&
+          Number(r.disk) === before + 2 &&
+          String(r.text ?? '').includes(TEXT) &&
+          r.deleted === true &&
+          Number(r.afterDel2) === before
         );
       } catch {
         return false;

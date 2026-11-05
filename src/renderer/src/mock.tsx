@@ -13,7 +13,9 @@ import { UsagePanel } from './components/Usage';
 import { Settings } from './components/Settings';
 import { Running } from './components/Running';
 import { PortfolioBar } from './components/PortfolioBar';
+import { NextLineBar } from './components/NextLine';
 import { portfolioOf } from '@shared/portfolio';
+import { nextLinesOf } from '@shared/nextline';
 import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
 import './styles.css';
 import './styles-usage.css';
@@ -52,6 +54,38 @@ const MOCK_FOLIO = portfolioOf([
       '客服说很多人吃了精神好，这跟肝有没有变好是两件事。',
   },
   { id: 'f6', at: Date.UTC(2026, 9, 20, 11, 5), passage: '你行你上' },
+]);
+
+/*
+ * 「下一句」的预览数据。同样用真内核现算，不写死一串数目——
+ * 截图要是替一个不存在的算法作证，它就只是好看，不能当证据。
+ * 四句里两句逐字相同，正好看得出「只数逐字相同」长在界面上是什么样。
+ */
+const MOCK_NEXTLINE = nextLinesOf([
+  {
+    id: 'q1',
+    at: Date.UTC(2026, 10, 4, 10, 21),
+    text: '所以呢',
+    diagId: 'r3',
+    passageHead: D.passage.slice(0, 32),
+    theory: D.theory,
+  },
+  {
+    id: 'q2',
+    at: Date.UTC(2026, 10, 3, 9, 12),
+    text: '这跟我上次那篇稿子里的毛病是一样的',
+    diagId: 'r2',
+    passageHead: D.passage.slice(0, 32),
+    theory: D.theory,
+  },
+  {
+    id: 'q3',
+    at: Date.UTC(2026, 10, 2, 16, 55),
+    text: '所以呢',
+    diagId: 'r1',
+    passageHead: D.passage.slice(0, 32),
+    theory: D.theory,
+  },
 ]);
 
 /*
@@ -463,6 +497,7 @@ function Preview() {
               onStop={() => {}}
             />
           ) : (
+            <>
             <DiagnosisView
               d={shown}
               /* ?reread=1：只在特定时刻出现的那一屏，必须留一个能拍到它的入口。 */
@@ -494,6 +529,19 @@ function Preview() {
                 setTheoryOpen(true);
               }}
             />
+            {/* ?nextline=1：这一块的明细默认收起，留个入口把展开后的样子也拍下来。 */}
+            <NextLineBar
+              view={MOCK_NEXTLINE}
+              diagId={D.id}
+              passageHead={D.passage.slice(0, 32)}
+              theory={D.theory}
+              fmt={when}
+              initialOpen={QS.get('nextline') === '1'}
+              /* 预览页不写盘：这两个回调只为让版式可点，真链路在端到端冒烟里走。 */
+              onSave={async () => ({ ok: false, error: '预览页不写盘。' })}
+              onRemove={async () => ({ ok: false, error: '预览页不写盘。' })}
+            />
+            </>
           )}
         </main>
       </div>

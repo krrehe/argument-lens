@@ -852,6 +852,142 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           }
 
           /*
+           * AL_NEXTLINE=1：真应用里在报告末尾写一句、记下、再记一遍、删掉。
+           *
+           * 这一条要验的都不是「渲染出来了」：
+           *   1. 写进去的字**逐字**存回去（trim 之外一个字符都不许变）——截断、规范化都会在这里露出来；
+           *   2. 同一句记两遍，账上出现「逐字相同」与「2 次」——说明数的真是逐字，不是近似；
+           *   3. 删得掉，删完数目回到原处——「随时可删」这句话得能兑现；
+           *   4. 这一块长在报告**下面**（比最后一个报告板块更靠下）。挪到开头就等于
+           *      在人还没读的时候先要一句评价，那一条数据就废了。
+           *
+           * 打字与点按钮必须分成两步、中间 sleep：React 的 onChange 是同步派发的，
+           * 但重渲染不是——同一个 tick 里填完就点，「记下」读到的还是空字符串。
+           */
+          if (process.env['AL_NEXTLINE'] === '1' && !canceled) {
+            const NL_TEXT = '这句话我确实想再问一句：那第二个数据是怎么来的';
+
+            const nlBefore = JSON.parse(
+              await wc.executeJavaScript(`JSON.stringify({
+                bar: !!document.querySelector('[data-nextline]'),
+                input: !!document.querySelector('[data-nextline-input]'),
+                listBefore: !!document.querySelector('[data-nextline-list]'),
+                total: Number(document.querySelector('[data-nextline-total]')?.getAttribute('data-nextline-total') ?? -1),
+                lineBefore: (document.querySelector('[data-nextline-line]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+                /* 这一块必须在报告最后一个板块之下，不是之上。 */
+                belowReport: (() => {
+                  const el = document.querySelector('[data-nextline]');
+                  const blocks = document.querySelectorAll('.block');
+                  const last = blocks[blocks.length - 1];
+                  if (!el || !last) return false;
+                  return el.getBoundingClientRect().top >= last.getBoundingClientRect().top;
+                })(),
+              })`)
+            );
+
+            const nlType = async (t: string): Promise<boolean> =>
+              wc.executeJavaScript(`(() => {
+                const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+                const ta = document.querySelector('[data-nextline-input]');
+                if (!set || !ta) return false;
+                set.call(ta, ${JSON.stringify(t)});
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+                return true;
+              })()`);
+            const nlSave = async (): Promise<boolean> =>
+              wc.executeJavaScript(`(() => {
+                const b = document.querySelector('[data-nextline-save]');
+                if (!b) return false;
+                b.click();
+                return true;
+              })()`);
+            const nlRead = async (): Promise<Record<string, unknown>> =>
+              JSON.parse(
+                await wc.executeJavaScript(`JSON.stringify({
+                  total: Number(document.querySelector('[data-nextline-total]')?.getAttribute('data-nextline-total') ?? -1),
+                  line: (document.querySelector('[data-nextline-line]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+                  input: document.querySelector('[data-nextline-input]')?.value ?? '',
+                  ok: (document.querySelector('[data-nextline-ok]')?.textContent ?? '').trim(),
+                  error: (document.querySelector('[data-nextline-error]')?.textContent ?? '').trim(),
+                })`)
+              );
+            const nlDelOne = async (): Promise<boolean> => {
+              const a = await wc.executeJavaScript(`(() => {
+                const b = document.querySelector('[data-nextline-del]');
+                if (!b) return false;
+                b.click();
+                return true;
+              })()`);
+              await sleep(140);
+              const b = await wc.executeJavaScript(`(() => {
+                const b = document.querySelector('[data-nextline-del-yes]');
+                if (!b) return false;
+                b.click();
+                return true;
+              })()`);
+              await sleep(340);
+              return a && b;
+            };
+
+            const t1 = await nlType(NL_TEXT);
+            await sleep(160);
+            const s1Click = await nlSave();
+            await sleep(420);
+            const s1 = await nlRead();
+
+            /* 第二遍故意写同一句：账上应当出现「逐字相同」与「2 次」。 */
+            const t2 = await nlType(NL_TEXT);
+            await sleep(160);
+            const s2Click = await nlSave();
+            await sleep(420);
+            const s2 = await nlRead();
+
+            /*
+             * 独立真值：再读一次盘（走的是 list 的读路径，不是写的时候顺手返回的那份）。
+             * 少了这一条，「界面上的数目变了」与「真的写进文件了」就分不开——
+             * 一个只往内存里加、根本没落盘的实现，前面每一条都会绿。
+             */
+            const nlDisk = await wc.executeJavaScript(`window.api.nextlines.list().then((v) => v.usable)`);
+
+            const nlOpened = await wc.executeJavaScript(`(() => {
+              const b = document.querySelector('[data-nextline-open]');
+              if (!b) return false;
+              b.click();
+              return true;
+            })()`);
+            await sleep(300);
+            const nlDetail = JSON.parse(
+              await wc.executeJavaScript(`JSON.stringify({
+                detail: !!document.querySelector('[data-nextline-detail]'),
+                items: document.querySelectorAll('[data-nextline-item]').length,
+                said: [...document.querySelectorAll('[data-nextline-said]')].map((e) => e.textContent ?? ''),
+                text: document.querySelector('[data-nextline-text]')?.value ?? '',
+              })`)
+            );
+
+            const d1 = await nlDelOne();
+            const afterDel1 = await nlRead();
+            const d2 = await nlDelOne();
+            const afterDel2 = await nlRead();
+
+            add(
+              `NEXTLINERESULT ${JSON.stringify({
+                ...nlBefore,
+                typed: t1 && t2,
+                saved: s1Click && s2Click,
+                s1,
+                s2,
+                opened: nlOpened,
+                disk: nlDisk,
+                ...nlDetail,
+                deleted: d1 && d2,
+                afterDel1: afterDel1.total,
+                afterDel2: afterDel2.total,
+              })}`
+            );
+          }
+
+          /*
            * AL_REVISE=1：走一遍修订对照的完整链路。
          *
          * 修补建议 → 填回输入框 → 重新分析 → 存档 → 按 parentId 取回上一版 → 算对照 → 渲染对照条。

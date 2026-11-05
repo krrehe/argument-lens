@@ -31,6 +31,8 @@ import type { Segment } from '@shared/segment';
 import { samenessLine, type Sameness } from '@shared/sameness';
 import type { PortfolioView } from '@shared/portfolio';
 import { PortfolioBar } from './components/PortfolioBar';
+import { NextLineBar } from './components/NextLine';
+import type { NextLineView } from '@shared/nextline';
 import { diffRevision } from '@shared/compare';
 import { SAMPLES } from '@shared/samples';
 import { decideCapture, type CaptureStatus } from '@shared/capture';
@@ -157,6 +159,15 @@ export default function App() {
    * 量级是几十条，分两次取反而容易旧。
    */
   const [objections, setObjections] = useState<Objection[]>([]);
+  /**
+   * 「下一句」的账。null 表示还没读到。
+   *
+   * 这是整份路线图里唯一一条只能由人填的输入：看完报告之后那句话。
+   * 软件只负责把它原样存下、原样数出来——不分析、不归类、不给选项。
+   */
+  const [nextLines, setNextLines] = useState<NextLineView | null>(null);
+  /** 读不出本机记录时的原因。有它就不摆输入框，见 NextLineBar 的说明。 */
+  const [nextLinesErr, setNextLinesErr] = useState<string | null>(null);
   /** 历史面板。这里同时放异议统计——两者都是「跨会话才看得出的东西」。 */
   const [histOpen, setHistOpen] = useState(false);
   /**
@@ -211,6 +222,21 @@ export default function App() {
       .list()
       .then(setObjections)
       .catch(() => setObjections([]));
+    /*
+     * 「下一句」的账：只读一次（挂载时）。写与删都由 IPC 返回整份账直接替换状态，
+     * 不另取一次，避免「刚记上、显示的还是一分钟前的数目」。
+     *
+     * 读失败**不静默**：这里跟异议不一样。异议列表读不出来，界面上只是没有异议标记，
+     * 用户不知道有东西坏了也不会有损失；而这一栏要是悄悄消失，用户会以为「这软件没有这个功能」，
+     * 于是那条本来该留下的反应根本没有机会留下。
+     */
+    window.api.nextlines
+      .list()
+      .then((v) => {
+        setNextLines(v);
+        setNextLinesErr(null);
+      })
+      .catch((err: Error) => setNextLinesErr(err?.message ?? '原因不明'));
     return window.api.analysis.onProgress((e) => setProgress(e));
   }, [refreshUsage]);
 
@@ -1093,6 +1119,32 @@ export default function App() {
                       // 「点开能看到出处与反对意见」这句话要是点不动，文档就比软件自信了。
                       setFocusClaim(id);
                       setTheoryOpen(true);
+                    }}
+                  />
+                  {/*
+                    放在报告的最后，不是开头。
+                    它问的是「读完之后的下一句」，放在开头等于在人还没读的时候先要一句评价——
+                    那样收上来的字，回答的就不是路线图想知道的那个问题了。
+                  */}
+                  <NextLineBar
+                    view={nextLines}
+                    readError={nextLinesErr}
+                    diagId={diag.id}
+                    /* 报告删了也还认得出来这是哪一次之后说的；只留开头，逐字取自原文。 */
+                    passageHead={(diag.passage ?? '').replace(/\s+/g, ' ').trim().slice(0, 32)}
+                    theory={diag.theory}
+                    fmt={when}
+                    onSave={async (input) => {
+                      const r = await window.api.nextlines.add(input);
+                      setNextLines(r.view);
+                      setNextLinesErr(null);
+                      return r;
+                    }}
+                    onRemove={async (id) => {
+                      const r = await window.api.nextlines.remove(id);
+                      setNextLines(r.view);
+                      setNextLinesErr(null);
+                      return r;
                     }}
                   />
                 </ObjectionCtx.Provider>
