@@ -14,9 +14,11 @@ import { Settings } from './components/Settings';
 import { Running } from './components/Running';
 import { PortfolioBar } from './components/PortfolioBar';
 import { AgreementBar } from './components/AgreementBar';
+import { SideBySide } from './components/SideBySide';
 import { NextLineBar } from './components/NextLine';
 import { portfolioOf } from '@shared/portfolio';
 import { agreementOf } from '@shared/agreement';
+import type { Diagnosis } from '@shared/types';
 import type { ViewId } from '@shared/views';
 import { nextLinesOf } from '@shared/nextline';
 import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
@@ -26,6 +28,7 @@ import './styles-disputes.css';
 import './styles-theory.css';
 import './styles-flow.css';
 import './styles-history.css';
+import './styles-sideby.css';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。
@@ -94,6 +97,35 @@ const MOCK_AGREE = agreementOf([
   { id: 'g5', at: Date.UTC(2026, 9, 27, 11, 5), mode: 'diagnose', theory: 'walton', version: '2.4.0', fingerprint: 'c532993045d9', passage: '这款护肝片把排毒两个字印在包装正面，包装上却没写排的是什么、拿什么量。' + '客服说很多人吃了精神好，这跟肝有没有变好是两件事。', report: mockReport({ engine: { model: 'gpt-4o-mini', host: 'api.openai.com', temperature: 0.2 } }) },
   { id: 'g6', at: Date.UTC(2026, 9, 20, 11, 5), mode: 'diagnose', theory: 'walton', version: null, fingerprint: null, passage: '你行你上', report: mockReport() },
 ]);
+
+/*
+ * 「两份对照」的预览数据。
+ *
+ * 拿真报告当甲，把它改三处当乙：一条检查项改了答案与依据、评级降了一档、
+ * 修补那一栏的缺失前提被抹掉。三种情形（两边都有的值不同 / 整段降档 / 只有甲有）都在，
+ * 这样截图能同时说明「差异长什么样」和「缺失长什么样」。
+ *
+ * 不用 `mockReport()` 那种两三个字段的假报告：那一屏正是要给人看
+ * 「一份完整报告有几处会动」，字段太少的话，截图会替一个过于整齐的世界作证。
+ */
+const SIDEBY_A: Diagnosis = {
+  ...D,
+  id: 'sb-a',
+  createdAt: Date.UTC(2026, 10, 4, 10, 12),
+  prompt: { version: '2.5.0', fingerprint: 'cadbec610c06' },
+  engine: { model: 'deepseek-chat', host: 'api.deepseek.com', temperature: 0.2 },
+};
+const SIDEBY_B: Diagnosis = {
+  ...SIDEBY_A,
+  id: 'sb-b',
+  createdAt: Date.UTC(2026, 10, 3, 9, 3),
+  verdict: { ...SIDEBY_A.verdict, level: 'fails' },
+  checks: (SIDEBY_A.checks ?? []).map((c, i) =>
+    i === 1 ? { ...c, answer: 'violated' as const, basis: '这一关没答上：给的是同比，不是因果证据。' } : c,
+  ),
+  refutations: (SIDEBY_A.refutations ?? []).slice(0, 2),
+  repair: { ...SIDEBY_A.repair, missingPremise: null },
+};
 
 /*
  * 「下一句」的预览数据。同样用真内核现算，不写死一串数目——
@@ -603,6 +635,8 @@ function Preview() {
         />
       )}
       {dispOpen && <DisputeDialog hits={MOCK_DISPUTES} onClose={() => setDispOpen(false)} />}
+      {/* ?sideby=1：两份对照。这一屏只在有人挑了两份之后出现，所以必须留个入口拍它。 */}
+      {QS.get('sideby') === '1' && <SideBySide pair={{ a: SIDEBY_A, b: SIDEBY_B }} fmt={when} onClose={() => {}} />}
       {new URLSearchParams(location.search).get('dlg') === 'history' && (
         <HistoryPanel onOpen={() => {}} onClose={() => {}} />
       )}

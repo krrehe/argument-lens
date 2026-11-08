@@ -7,6 +7,7 @@ import './styles-disputes.css';
 import './styles-theory.css';
 import './styles-flow.css';
 import './styles-history.css';
+import './styles-sideby.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

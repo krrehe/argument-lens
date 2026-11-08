@@ -28,13 +28,34 @@ export function AgreementBar({
   dirError,
   fmt,
   initialOpen = false,
+  onCompare,
 }: {
   view: AgreementView | null;
   dirError?: string | null;
   fmt: (at: number) => string;
   initialOpen?: boolean;
+  /**
+   * 选中两份之后交给上层去读全文。传 null 时不显示选择器——
+   * 预览页没有存档可读，给它一排勾选框只会让人以为点得动。
+   */
+  onCompare?: (a: string, b: string) => void;
 }) {
   const [open, setOpen] = useState(initialOpen);
+  /*
+   * 每组各选各的两份，但**同时只服务一组**：换一组就清空。
+   * 跨组选两份是没有意义的（不同段字、不同透镜的报告摆在一起，
+   * 那张表量的就不是「跑两遍」而是「换了输入」），所以干脆不让选。
+   */
+  const [sel, setSel] = useState<{ cell: number; ids: string[] }>({ cell: -1, ids: [] });
+
+  const toggle = (cell: number, id: string): void => {
+    setSel((cur) => {
+      if (cur.cell !== cell) return { cell, ids: [id] };
+      if (cur.ids.includes(id)) return { cell, ids: cur.ids.filter((x) => x !== id) };
+      /* 最多两份：再点第三份时挤掉最早那份，不让选择无声失效 */
+      return { cell, ids: [...cur.ids, id].slice(-2) };
+    });
+  };
 
   if (dirError) {
     return (
@@ -64,6 +85,7 @@ export function AgreementBar({
           <p className="pf-why">
             只有「同一版提示词、同一段字、同一个模式」的报告才放在一起比。改了提示词、换了透镜或模式、
             原文差一个字，都会分成另外一组——那些不是「模型这次说得不一样」。
+            号码越小越新（1 是最近一份）；勾两份就能把它们摆在一起逐处看。
           </p>
           <ol className="pf-list" data-agreement-cells>
             {view.repeat.map((c) => (
@@ -83,6 +105,31 @@ export function AgreementBar({
                       <li data-agreement-more>另有 {c.spreads.length - SHOW_SPREADS} 处变过，见下面的纯文本。</li>
                     )}
                   </ul>
+                )}
+                {onCompare && c.ids.length >= 2 && (
+                  <div className="ag-pick" data-agreement-pick>
+                    <span className="ag-pick-h">勾两份摆在一起看：</span>
+                    {c.ids.map((id, i) => (
+                      <button
+                        key={id}
+                        className={`ag-pick-btn ${sel.cell === c.index && sel.ids.includes(id) ? 'on' : ''}`}
+                        data-agreement-pickbtn
+                        data-agreement-picked={sel.cell === c.index && sel.ids.includes(id) ? '1' : '0'}
+                        onClick={() => toggle(c.index, id)}
+                        title={i === 0 ? '最近的一份' : `往前第 ${i + 1} 份`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button
+                      className="ag-cmp"
+                      data-agreement-compare
+                      disabled={sel.cell !== c.index || sel.ids.length !== 2}
+                      onClick={() => onCompare(sel.ids[0], sel.ids[1])}
+                    >
+                      对照这两份
+                    </button>
+                  </div>
                 )}
               </li>
             ))}

@@ -55,7 +55,8 @@
     "replay": "node scripts/run-replay.mjs",
     "check:replay": "node scripts/run-check-replay.mjs",
     "check:samples": "node scripts/run-check-samples.mjs",
-    "check:prg": "node scripts/run-check-prg.mjs"
+    "check:prg": "node scripts/run-check-prg.mjs",
+    "check:sideby": "node scripts/run-check-sideby.mjs"
   },
   "devDependencies": {
     "@argdown/core": "^2.0.1",

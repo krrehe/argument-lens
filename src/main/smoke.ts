@@ -1149,6 +1149,73 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             error: (document.querySelector('[data-agreement-error]')?.textContent ?? '').trim(),
           })`);
           add(`AGREEMENTRESULT ${JSON.stringify({ ...JSON.parse(aState), ...JSON.parse(aBefore), run: aRun, opened: aOpened, listLen: aListLen })}`);
+
+          /*
+           * 挑两份摆在一起。
+           *
+           * 这一块验的是**接线**：入口在不在、没选够两份时按钮是不是真的不能点、
+           * 点完之后面板开没开、面板上的数是不是与「同题复跑」那一栏同源。
+           *
+           * 为什么只验到「0 处」：假模型两次输出逐字相同，真报告在这一栏里就是 0 处。
+           * 「有几处不同」那一档端到端造不出来——要造就得往存档里写两份不一样的真报告，
+           * 那等于拿假数据替这一屏作证。那一档由 `check:sideby` 的样本与预览页截图负责。
+           * 这条边界写在这里，免得下次有人以为端到端把两种情况都验了。
+           */
+          const pick = await wc.executeJavaScript(`JSON.stringify({
+            btns: document.querySelectorAll('[data-agreement-pickbtn]').length,
+            cmpDisabledBefore: (() => {
+              const c = document.querySelector('[data-agreement-compare]');
+              return c ? !!c.disabled : null;
+            })(),
+          })`);
+          /*
+           * 点号码与读结果必须分成两次执行。
+           *
+           * 第一版写在一个同步 IIFE 里：点完两个号码立刻数 `[data-agreement-picked="1"]`，
+           * 读到 0——React 还没重渲染。**那不是界面坏了，是探针抢跑。**
+           * 而这种失败看起来和「按钮点不动」一模一样（按钮确实还是灰的）。
+           */
+          await wc.executeJavaScript(`(() => {
+            [...document.querySelectorAll('[data-agreement-pickbtn]')].slice(0, 2).forEach((b) => b.click());
+            return true;
+          })()`);
+          await new Promise((r) => setTimeout(r, 250));
+          const cmpAfter = await wc.executeJavaScript(`(() => {
+            const picked = document.querySelectorAll('[data-agreement-picked="1"]').length;
+            const c = document.querySelector('[data-agreement-compare]');
+            const disabled = c ? !!c.disabled : null;
+            if (c && !c.disabled) c.click();
+            return JSON.stringify({ picked, disabledAfter: disabled });
+          })()`);
+          await new Promise((r) => setTimeout(r, 400));
+          const panel = await wc.executeJavaScript(`JSON.stringify({
+            open: !!document.querySelector('[data-sideby]'),
+            rows: Number(document.querySelector('[data-sideby]')?.getAttribute('data-sideby-rows') ?? -1),
+            line: (document.querySelector('[data-sideby-line]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+            flags: [...document.querySelectorAll('[data-sideby-flag]')].map((e) => e.getAttribute('data-sideby-flag')),
+            cards: [...document.querySelectorAll('[data-sideby-card]')].map((e) => (e.textContent ?? '').replace(/\\s+/g, ' ').trim()),
+            sections: document.querySelectorAll('[data-sideby-section]').length,
+            text: (document.querySelector('[data-sideby-text]')?.value ?? ''),
+          })`);
+          /* 同一条抢跑的坑：点完关闭要等一拍再读，否则读到的是「面板还在」 */
+          await wc.executeJavaScript(`(() => {
+            const x = document.querySelector('[data-sideby-close]');
+            if (x) x.click();
+            return true;
+          })()`);
+          await new Promise((r) => setTimeout(r, 250));
+          const closed = await wc.executeJavaScript(`JSON.stringify({
+            closed: !document.querySelector('[data-sideby]'),
+            barStill: !!document.querySelector('[data-agreement-bar]'),
+          })`);
+          add(
+            `SIDEBYRESULT ${JSON.stringify({
+              ...JSON.parse(pick),
+              ...JSON.parse(cmpAfter),
+              ...JSON.parse(panel),
+              ...JSON.parse(closed),
+            })}`,
+          );
         }
       }
 

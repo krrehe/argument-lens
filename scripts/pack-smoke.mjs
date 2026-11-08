@@ -541,6 +541,37 @@ const checks = [
     })(),
   ],
   /*
+   * 打包产物里的两份对照。
+   *
+   * `@shared/sideby` 与那个面板没进 asar 时，按钮点下去什么也不会开——而
+   * 纯函数层的断言全在源码里跑，包坏不坏它都不知道。所以这里只问一句：
+   * 点完之后面板开没开、处数与「同题复跑」那一栏是不是同一个数。
+   */
+  [
+    '打包产物里两份对照打得开，处数与同题复跑同源',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('SIDEBYRESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        return (
+          Number(r.btns) >= 2 &&
+          r.cmpDisabledBefore === true &&
+          Number(r.picked) === 2 &&
+          r.disabledAfter === false &&
+          r.open === true &&
+          Number(r.rows) === 0 &&
+          /逐字相同/.test(String(r.line ?? '')) &&
+          Array.isArray(r.flags) &&
+          r.flags.length === 4 &&
+          r.closed === true
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
    * 打包产物里的「谁跑的」：包内跑一次分析之后，报告里那一栏得在。
    *
    * 这一条与包外那条不完全重复：`Diagnosis.engine` 只有一个类型、逻辑全在 analyze.ts，

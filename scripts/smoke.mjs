@@ -498,14 +498,22 @@ const checks = [
    * 推导函数一抛异常被 catch 掉，容器照样渲染，只是里面什么都没有。
    */
   ['下一步栏给出了处方', /"rxGroups":([1-9]\d*)/.test(resultLine) && /"rxItems":([1-9]\d*)/.test(resultLine)],
-  ['两个导出按钮（Markdown / Argdown）', (() => {
+  /*
+   * 三个出口，逐个点名。
+   *
+   * 这一条原来写的是 `length === 2`，加上「导出为画布工程」之后它就红了——
+   * 而那一轮只跑了 `pack:check`，没人跑冒烟，于是它红着躺了一整轮。
+   * 现在的写法对「加了一个出口」这件事是**会红的**（`every` 要求每个都在名单里），
+   * 加出口的人必须来改这里；但不再靠一个总数去猜。
+   */
+  ['三个导出按钮（Markdown / Argdown / 画布工程）', (() => {
     try {
       const btns = JSON.parse(resultLine.slice(resultLine.indexOf('{')))?.expBtns;
+      const want = ['Markdown', 'Argdown', '画布工程'];
       return (
         Array.isArray(btns) &&
-        btns.length === 2 &&
-        btns.some((t) => String(t).includes('Markdown')) &&
-        btns.some((t) => String(t).includes('Argdown'))
+        btns.length === want.length &&
+        want.every((w) => btns.some((t) => String(t).includes(w)))
       );
     } catch {
       return false;
@@ -1104,6 +1112,60 @@ if (process.env.SMOKE_AGREEMENT === '1') {
     ],
     ['同题复跑：总述不劝、不评价', !/建议|应该|稳定|可靠/.test(agLine), agLine],
     ['同题复跑：这一栏没有报错', String(ag.error ?? '') === ''],
+  );
+}
+
+/*
+ * 两份对照（跟在 SMOKE_AGREEMENT 后面跑）。
+ *
+ * 这一条验的是**接线**，不是算法：号码点得动、没选够两份时按钮不许亮、点完面板开、
+ * 面板上的数跟「同题复跑」同源、关掉之后底下那份报告还在。
+ *
+ * 为什么这里只出现「0 处」：假模型两次输出逐字相同，真报告就是 0 处。
+ * 「有几处不同」那一档端到端造不出来——造它就得往存档里塞两份不一样的真报告，
+ * 那等于拿假数据给这一屏作证。那一档归 `check:sideby` 的样本与预览页截图。
+ * 这条边界写在注释里，免得后来的人以为端到端把两种情况都验过了。
+ */
+if (process.env.SMOKE_AGREEMENT === '1') {
+  const sb = jOfLine('SIDEBYRESULT');
+  const sbLine = String(sb.line ?? '');
+  const sbCards = Array.isArray(sb.cards) ? sb.cards : [];
+  const sbFlags = Array.isArray(sb.flags) ? sb.flags : [];
+  const sbText = String(sb.text ?? '');
+  checks.push(
+    ['两份对照：同题复跑的每一组里都有可点的号码', Number(sb.btns) >= 2, String(sb.btns)],
+    [
+      '两份对照：没选够两份时按钮点不动（不是永远亮着的摆设）',
+      sb.cmpDisabledBefore === true,
+      String(sb.cmpDisabledBefore),
+    ],
+    [
+      '两份对照：点了两个号码才放行',
+      Number(sb.picked) === 2 && sb.disabledAfter === false,
+      `选中 ${sb.picked} 个 / 按钮禁用 ${sb.disabledAfter}`,
+    ],
+    ['两份对照：面板真的开了', sb.open === true],
+    [
+      '两份对照：两张名片各写各的（不是同一份复印两遍）',
+      sbCards.length === 2 && sbCards[0] !== sbCards[1],
+      sbCards.join(' || ').slice(0, 120),
+    ],
+    [
+      '两份对照：同一段字跑两遍、假模型逐字相同 → 0 处差异',
+      Number(sb.rows) === 0 && /逐字相同/.test(sbLine),
+      `${sb.rows} 处 / ${sbLine}`,
+    ],
+    [
+      '两份对照：四项相同与否各自给了标记（原文/透镜/模式/提示词）',
+      sbFlags.length === 4 && sbFlags.every((f) => f === 'same'),
+      sbFlags.join(','),
+    ],
+    [
+      '两份对照：导出里带着「只列不一样的」与「不说哪一份更对」两句边界',
+      /只列不一样的/.test(sbText) && /不说哪一份更对/.test(sbText),
+      sbText.slice(0, 80),
+    ],
+    ['两份对照：关得掉，关掉之后底下那一栏还在', sb.closed === true && sb.barStill === true],
   );
 }
 

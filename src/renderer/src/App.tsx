@@ -33,6 +33,7 @@ import type { PortfolioView } from '@shared/portfolio';
 import type { AgreementView } from '@shared/agreement';
 import { PortfolioBar } from './components/PortfolioBar';
 import { AgreementBar } from './components/AgreementBar';
+import { SideBySide } from './components/SideBySide';
 import { NextLineBar } from './components/NextLine';
 import type { NextLineView } from '@shared/nextline';
 import { diffRevision } from '@shared/compare';
@@ -177,6 +178,11 @@ export default function App() {
   const [nextLinesErr, setNextLinesErr] = useState<string | null>(null);
   /** 历史面板。这里同时放异议统计——两者都是「跨会话才看得出的东西」。 */
   const [histOpen, setHistOpen] = useState(false);
+  /*
+   * 正在对照的两份报告。null 表示没开。
+   * 存的是**全文**而不是 id：读盘只该发生一次，之后翻来覆去看的是同一份数据。
+   */
+  const [pair, setPair] = useState<{ a: Diagnosis; b: Diagnosis } | null>(null);
   /**
    * 上一版报告。只有当前这份带 parentId 时才去取一次。
    * 存在这里而不是算出来，是因为取它是异步的，而对照条要等它到了才出现。
@@ -690,6 +696,27 @@ export default function App() {
   }, []);
 
   /**
+   * 同题复跑里挑中的两份，读出来摆在一起。
+   *
+   * 与 openReport 的差别：它**不换**屏幕上的报告、不换原文、不碰任何状态。
+   * 这一屏是旁证，不是一次新的分析——用户看完关掉，原来那份报告还在原处。
+   *
+   * 读不出来必须说出来。两份里只要有一份是坏的，就不给一张空表：
+   * 0 行的表会被读成「两份完全一样」，那是这一屏能给出的最误导人的结论。
+   */
+  const openPair = useCallback((aId: string, bId: string) => {
+    Promise.all([window.api.archive.get(aId), window.api.archive.get(bId)])
+      .then(([a, b]) => {
+        if (!a || !b) {
+          setNotice('这两份里有一份读不出来（文件可能被手动删掉或写坏了一半），所以没有可对照的内容。');
+          return;
+        }
+        setPair({ a, b });
+      })
+      .catch(() => setNotice('这两份读不出来，存档目录可能暂时不可用。'));
+  }, []);
+
+  /**
    * 把修补版填回输入框。
    *
    * 填的是「原文 + 补上的那句前提」，不是修补后那一栏——后者是「P1… P2… ∴ C」
@@ -1005,7 +1032,7 @@ export default function App() {
                   两句话合起来才说清一件裸提示词永远不知道的事——你重复跑的是同一个输入，
                   而重复跑出来的东西是不是同一份。
                 */}
-                <AgreementBar view={agree?.view ?? null} dirError={agree?.dirError ?? null} fmt={when} />
+                <AgreementBar view={agree?.view ?? null} dirError={agree?.dirError ?? null} fmt={when} onCompare={openPair} />
                 <p className="hint">
                   {/* 模式条下面那行 mode-note 已经显示过 MODE_META[mode].hint，
                       这里再重复一遍，同一句话会在 50px 内出现两次。这里只说透镜立场。 */}
@@ -1242,6 +1269,7 @@ export default function App() {
         {dispOpen && <DisputeDialog hits={disputes} onClose={() => setDispOpen(false)} />}
 
         {histOpen && <HistoryPanel onOpen={openReport} onClose={() => setHistOpen(false)} />}
+        {pair && <SideBySide pair={pair} fmt={when} onClose={() => setPair(null)} />}
 
         {usageOpen && (
           <UsagePanel
