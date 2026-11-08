@@ -572,6 +572,34 @@ const checks = [
     })(),
   ],
   /*
+   * 打包产物里的「结论的口气」。
+   *
+   * `@shared/modal` 没进 asar 时，界面这一块整块消失——而纯函数层的 61 条全在源码里跑，
+   * 包坏不坏它不知道。所以这里只问一句：包里这一块出现了，两句逐字是报告里的那两句，
+   * 本地读到的那一处也对得上。
+   */
+  [
+    '打包产物里的结论口气按原文逐字核了一遍',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('TONERESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        return (
+          r.has === true &&
+          r.source === '这说明取消早读是错的' &&
+          r.claim === '取消早读是错的，应当恢复早读' &&
+          Array.isArray(r.diffs) &&
+          r.diffs.length === 1 &&
+          r.diffs[0] === 'causal-dropped' &&
+          /报告说越界/.test(String(r.cross ?? ''))
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
    * 打包产物里的「谁跑的」：包内跑一次分析之后，报告里那一栏得在。
    *
    * 这一条与包外那条不完全重复：`Diagnosis.engine` 只有一个类型、逻辑全在 analyze.ts，

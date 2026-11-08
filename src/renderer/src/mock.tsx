@@ -29,6 +29,7 @@ import './styles-theory.css';
 import './styles-flow.css';
 import './styles-history.css';
 import './styles-sideby.css';
+import './styles-tone.css';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。
@@ -302,6 +303,22 @@ const QS = new URLSearchParams(location.search);
 const SETTINGS_BAD = QS.get('bad') === '1';
 
 /*
+ * ?tone=1：把页面滚到「结论的口气」那一块。
+ *
+ * 它长在「重构」这一段里，离首屏很远；不滚的话截图只能拍到头两屏，
+ * 而「只在特定时刻出现的屏没人见过」这个坑，这一块同样适用——
+ * 它只在有结论时出现，且三种 verdict 长得不一样。
+ */
+function ToneAnchor(): null {
+  useEffect(() => {
+    if (QS.get('tone') !== '1') return;
+    const el = document.querySelector('[data-tone]');
+    if (el) el.scrollIntoView({ block: 'center' });
+  }, []);
+  return null;
+}
+
+/*
  * 分析进行中（?running=checking&wait=42）。
  *
  * 这一屏在真应用里只存在 30–90 秒，而且必须先发一次真请求才看得到；
@@ -561,6 +578,7 @@ function Preview() {
           />
         </aside>
         <main className="main">
+          <ToneAnchor />
           {RUN_STAGE ? (
             <Running
               progress={{ stage: 'checking', label: RUN_STAGE.label, percent: RUN_STAGE.percent }}

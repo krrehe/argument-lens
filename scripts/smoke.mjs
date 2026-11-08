@@ -1116,6 +1116,50 @@ if (process.env.SMOKE_AGREEMENT === '1') {
 }
 
 /*
+ * 结论的口气（无条件跑：报告一出现它就在，所以每条冒烟路径都会顺带核一次）。
+ *
+ * 核的是**接线**，不是算法：界面上那两句必须逐字等于报告里的 quote 与 text，
+ * 差别条数必须等于本地那一档。「本地算得对不对」归 `check:modal` 的 61 条与八组反证。
+ *
+ * 下面两条字面量来自 `scripts/mock-llm.mjs` 的 conclusion —— 改那份夹具要一起改这里，
+ * 和「改第一段示例要同步 span 下标」是同一件事。
+ */
+{
+  const tone = jOfLine('TONERESULT');
+  const diffs = Array.isArray(tone.diffs) ? tone.diffs : [];
+  checks.push(
+    ['结论的口气：这一块真的出现在报告里', tone.has === true],
+    [
+      '结论的口气：「原文」那行逐字是报告里的 quote',
+      tone.source === '这说明取消早读是错的',
+      String(tone.source),
+    ],
+    [
+      '结论的口气：「报告」那行逐字是报告里的 text',
+      tone.claim === '取消早读是错的，应当恢复早读',
+      String(tone.claim),
+    ],
+    [
+      '结论的口气：本地读到的那一处是「推论被写成断言」',
+      diffs.length === 1 && diffs[0] === 'causal-dropped',
+      diffs.join(','),
+    ],
+    [
+      '结论的口气：两边各说各的（报告说越界 / 本地也在字面上读到差别）',
+      /报告说越界/.test(String(tone.cross)) && /本地也在字面上读到了差别/.test(String(tone.cross)),
+      String(tone.cross),
+    ],
+    [
+      '结论的口气：报告给的理由逐字显示出来',
+      String(tone.rep).indexOf('把或然说成必然') >= 0,
+      String(tone.rep),
+    ],
+    ['结论的口气：这一块长在结论名片之后', tone.afterConcl === true, String(tone.afterConcl)],
+    ['结论的口气：写着「不动报告」', /不动报告/.test(String(tone.fine)), String(tone.fine)],
+  );
+}
+
+/*
  * 两份对照（跟在 SMOKE_AGREEMENT 后面跑）。
  *
  * 这一条验的是**接线**，不是算法：号码点得动、没选够两份时按钮不许亮、点完面板开、

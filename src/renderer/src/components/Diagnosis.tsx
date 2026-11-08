@@ -38,6 +38,7 @@ import {
 import { CheckStrip, StructureMap, VerdictGauge } from './Diagram';
 import { RefuteMap, RepairMap } from './DiagramMore';
 import { ViewBar, readStoredViews, writeStoredViews } from './ViewBar';
+import { crossNote, toneAudit } from '@shared/modal';
 import { VIEW_ORDER, normalizeViews, sanitizeViews, viewsOf, type ViewId, type ViewSpec } from '@shared/views';
 import { DisputeStrip, focusDispute } from './Disputes';
 import { QuickRead, jumpTo } from './Overview';
@@ -244,6 +245,78 @@ function ClaimCard({
           对该受众：{claim.acceptability.forAudience}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ═══════ 结论的口气 ═══════ */
+
+/**
+ * 报告里 `modalOverreach` / `modalNote` 这一对字段是**模型自评**的，
+ * 而在 2026-11-08 之前，它在界面上一次都没显示过（整个 `src/renderer` 里只有假数据提到它）。
+ * 这一块做两件事：把它印出来，并把**本地自己从原文读到的结果**摆在旁边。
+ *
+ * 两边都说，不裁决谁对：报告说越界、本地没读到，也照实写「本地只看字面」。
+ * 少一句，读者就会以为两者之中有一个是错的——而这里只陈述各自看到了什么。
+ */
+function ToneCard({ d }: { d: Diagnosis }) {
+  const tone = useMemo(() => toneAudit(d), [d]);
+  return (
+    <div className={`tone-card tone-${tone.verdict}`} data-tone data-tone-verdict={tone.verdict}>
+      <div className="tone-head">
+        <span className="tone-title">结论的口气</span>
+        <span className="tone-sub">本地拿原文那一句，逐字核报告那一句</span>
+      </div>
+
+      <div className="tone-pair">
+        <div className="tone-row">
+          <span className="tone-k">原文</span>
+          <span className="tone-v" data-tone-source>
+            {tone.sourceText ?? '（报告没给引文，原文里也没找到对应的一句）'}
+          </span>
+          {tone.from === 'passage' && (
+            <span className="tone-flag" data-tone-from>
+              本地找的
+            </span>
+          )}
+        </div>
+        <div className="tone-row">
+          <span className="tone-k">报告</span>
+          <span className="tone-v" data-tone-claim>
+            {tone.claimText || '（报告没写结论）'}
+          </span>
+        </div>
+      </div>
+
+      {tone.diffs.length > 0 && (
+        <ul className="tone-diffs" data-tone-diffs>
+          {tone.diffs.map((x, i) => (
+            <li key={`${x.kind}-${i}`} data-tone-diff={x.kind}>
+              {x.note}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="tone-note" data-tone-note>
+        {tone.note}
+      </div>
+      <div className="tone-cross" data-tone-cross>
+        {crossNote(tone)}
+      </div>
+
+      {tone.reported &&
+        (tone.reportedNote ? (
+          <div className="tone-rep" data-tone-rep>
+            报告给的理由：{tone.reportedNote}
+          </div>
+        ) : (
+          <div className="tone-rep" data-tone-rep>
+            报告说越界了，但没写理由。
+          </div>
+        ))}
+
+      <div className="tone-fine">这一栏不动报告。本地只比字面上的词，不比意思；读不出来就说读不出来。</div>
     </div>
   );
 }
@@ -1597,6 +1670,7 @@ export function DiagnosisView({
         plain="一条一条摊开给他看：他给了几条依据、结论是哪句、哪些是他没说出口的。图上那几格，就是这里的几条。"
       >
         <ClaimCard claim={d.conclusion} isConclusion active={sel === 'C'} onPick={() => setSel('C')} />
+        <ToneCard d={d} />
         {d.intermediate.map((m) => (
           <ClaimCard key={m.id} claim={m} active={sel === m.id} onPick={() => setSel(m.id)} />
         ))}

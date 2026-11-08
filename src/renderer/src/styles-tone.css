@@ -1,0 +1,115 @@
+/*
+ * 结论的口气：本地拿原文那一句核报告那一句。
+ *
+ * 只用已定义的变量——check:css 把 var(--x, fallback) 里的 fallback 也当变量查，
+ * 有 fallback 也判失败，所以这里不写 fallback，也不写没定义过的名字。
+ * 字号下限 11px：8.5px 的汉字在真机上是认不出的（「回」被读成豆腐块），
+ * 这一块是给人逐字读的，不能更小。
+ */
+
+.tone-card {
+  margin: 8px 0 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+/* 有差别时换边框色——用 --weak 而不是 --invalid：这里是「分歧」，不是「错误」。 */
+.tone-differs {
+  border-color: var(--weak);
+}
+
+.tone-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tone-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.tone-sub {
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.tone-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tone-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.tone-k {
+  flex: 0 0 32px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  padding-top: 2px;
+}
+
+.tone-v {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.tone-flag {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+.tone-diffs {
+  margin: 9px 0 0;
+  padding-left: 16px;
+}
+
+.tone-diffs li {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.tone-note,
+.tone-cross,
+.tone-rep {
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.62;
+}
+
+.tone-note {
+  color: var(--ink-2);
+}
+
+.tone-cross {
+  color: var(--ink-2);
+}
+
+.tone-rep {
+  color: var(--ink-3);
+}
+
+.tone-fine {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--ink-3);
+}

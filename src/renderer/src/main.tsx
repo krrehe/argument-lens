@@ -8,6 +8,7 @@ import './styles-theory.css';
 import './styles-flow.css';
 import './styles-history.css';
 import './styles-sideby.css';
+import './styles-tone.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1232,6 +1232,36 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
        * 「重启后读回来」靠初始化那行源码守着（check:views 有一条断言）。
        * 剩下的写进 README 的已知限制，不装作验过。
        */
+      /*
+       * 「结论的口气」：本地拿原文那一句核报告那一句。
+       *
+       * 这一块不依赖任何开关——报告一出现它就在，所以每条冒烟路径都会顺带核一次。
+       * 核的是**接线**：界面上那两句必须逐字等于报告里的 quote 与 text（不是界面另写一份），
+       * 差别条数与种类必须等于纯函数算出来的那一档。
+       * 「本地算得对不对」归 `check:modal` 的 59 条与八组反证，不在这里重复。
+       */
+      {
+        const tone = await wc.executeJavaScript(`JSON.stringify({
+          has: !!document.querySelector('[data-tone]'),
+          verdict: document.querySelector('[data-tone]')?.getAttribute('data-tone-verdict') ?? '',
+          source: (document.querySelector('[data-tone-source]')?.textContent ?? '').trim(),
+          claim: (document.querySelector('[data-tone-claim]')?.textContent ?? '').trim(),
+          diffs: [...document.querySelectorAll('[data-tone-diff]')].map((e) => e.getAttribute('data-tone-diff')),
+          cross: (document.querySelector('[data-tone-cross]')?.textContent ?? '').trim(),
+          rep: (document.querySelector('[data-tone-rep]')?.textContent ?? '').trim(),
+          fine: (document.querySelector('[data-tone] .tone-fine')?.textContent ?? '').trim(),
+          /* 位置：这一块必须长在结论名片之后、第一条前提之前 */
+          afterConcl: (() => {
+            const tone = document.querySelector('[data-tone]');
+            const cards = [...document.querySelectorAll('.claim-card')];
+            if (!tone || !cards.length) return false;
+            const order = [...document.querySelectorAll('.claim-card, [data-tone]')];
+            return order.indexOf(tone) === 1;
+          })(),
+        })`);
+        add(`TONERESULT ${tone}`);
+      }
+
       if (process.env['AL_VIEWS'] === '1') {
         const snap = async (): Promise<Record<string, unknown>> =>
           JSON.parse(
