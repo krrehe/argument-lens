@@ -15,7 +15,7 @@ import {
   reportScan,
   saveReport,
 } from './archive';
-import { exportReportArgdown, exportReportMarkdown } from './report-export';
+import { exportReportArgdown, exportReportPrg, exportReportMarkdown } from './report-export';
 import { captureStatus, registerCapture, unregisterCapture } from './capture';
 import { clearAnchor, exportUsageCsv, setAnchor, setPricing, summarizeUsage, usageDirPath } from './usage';
 import {
@@ -280,6 +280,12 @@ function registerIpc(): void {
   ipcMain.handle('report:exportArgdown', (e, d: Diagnosis) =>
     exportReportArgdown(BrowserWindow.fromWebContents(e.sender), d)
   );
+  /*
+   * 第三个出口：画布工程（.prg）。前两个带走的是一份文件，这一个带走的是
+   * 「可以自己摆」——节点和线都在，位置只是草稿，用户在画布工具里重排。
+   * 它同样不重算任何判定：节点文本逐字来自报告，线只来自 supports / targetId。
+   */
+  ipcMain.handle('report:exportPrg', (e, d: Diagnosis) => exportReportPrg(BrowserWindow.fromWebContents(e.sender), d));
   ipcMain.handle('usage:reveal', () => shell.openPath(usageDirPath()));
 
   ipcMain.handle('kb:schemes', () => SCHEMES);

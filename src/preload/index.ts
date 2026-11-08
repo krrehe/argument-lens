@@ -118,6 +118,12 @@ const api = {
     /** Argdown：同一份报告的结构，换成可被文本工具渲染的语法。 */
     exportArgdown: (d: Diagnosis): Promise<{ ok: boolean; path?: string; canceled?: boolean }> =>
       ipcRenderer.invoke('report:exportArgdown', d),
+    /**
+     * 画布工程（.prg）：把节点和线交给画布工具，位置只是草稿。
+     * 它与前两个导的是同一份报告，不带新的判定，也不带界面上的颜色含义。
+     */
+    exportPrg: (d: Diagnosis): Promise<{ ok: boolean; path?: string; canceled?: boolean }> =>
+      ipcRenderer.invoke('report:exportPrg', d),
   },
   /**
    * 异议：用户对某条判定说不认同。

@@ -3,6 +3,8 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { argdownFileName, reportToArgdown } from '@shared/argdown';
 import { markdownFileName, reportToMarkdown } from '@shared/report-markdown';
+import { buildPrg } from '@shared/prg-pack';
+import { graphOf, prgFileName } from '@shared/prg-graph';
 import type { Diagnosis } from '@shared/types';
 
 type ExportResult = { ok: boolean; path?: string; canceled?: boolean };
@@ -65,4 +67,32 @@ export function exportReportArgdown(parent: BrowserWindow | null, d: Diagnosis):
     name: 'Argdown',
     ext: 'ad',
   });
+}
+
+/**
+ * 导出为画布工程（`.prg`）。
+ *
+ * 与前两种不一样的地方只有一个：它写的是**字节**，不是文本。所以要多做两件
+ * 前两种不需要做的事：
+ *
+ *   - 写 `Buffer` 而不是字符串，并且**不加 BOM、不做换行转换**：zip 里任何
+ *     一个字节被改，CRC 就对不上，对方的解析器会直接判文件损坏——而用户的
+ *     感受是「导出的文件打不开」，看不出是编码问题。
+ *   - 失败要抛到界面：这个文件里装的是他刚才那份报告的全部结构，写了一半
+ *     留在磁盘上比没有更糟。`saveBinary` 不吞异常，调用方按 catch 处理。
+ */
+export async function exportReportPrg(parent: BrowserWindow | null, d: Diagnosis): Promise<ExportResult> {
+  if (!d || typeof d.id !== 'string' || !d.conclusion) return { ok: false };
+
+  const bytes = buildPrg(graphOf(d));
+  const opts = {
+    title: '导出为画布工程（Project Graph）',
+    defaultPath: join(app.getPath('downloads'), prgFileName(d)),
+    filters: [{ name: 'Project Graph 工程', extensions: ['prg'] }],
+  };
+  const r = parent ? await dialog.showSaveDialog(parent, opts) : await dialog.showSaveDialog(opts);
+  if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+
+  writeFileSync(r.filePath, Buffer.from(bytes));
+  return { ok: true, path: r.filePath };
 }

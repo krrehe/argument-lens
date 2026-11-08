@@ -16,6 +16,7 @@ import { DISPUTE_BY_ID, DISPUTE_SECTION, disputesIn, type DisputeId } from '@sha
 import { topicsOf, type TopicHit } from '@shared/topics';
 import { academicOf, BY_TOOL_LABEL, type AcademicView, type ByTool } from '@shared/academic';
 import { limitsOf } from '@shared/limits';
+import { graphOf, graphSummary } from '@shared/prg-graph';
 import { prescriptionsOf } from '@shared/prescriptions';
 import { fallacyHits, mapSentences } from '@shared/fallacy-map';
 import { REREAD_KIND_LABEL, UNPLACED_LABEL, rereadOf, type RereadView } from '@shared/reread';
@@ -1182,6 +1183,12 @@ export function DiagnosisView({
    * 同样全本地推导——它不含模型判断，只把已落盘的检查项重新组织一遍。
    */
   const rx = useMemo(() => prescriptionsOf(d), [d]);
+  /*
+   * 画布工程里到底有几个节点、几条线，在这里先算出来。导出的那一刻再算就晚了：
+   * 用户点按钮之前就该知道「这次会交出去多少」——尤其是那几句「有几条没画出来」，
+   * 它们是必须说出来、不能静默丢掉的。
+   */
+  const prgLine = useMemo(() => graphSummary(graphOf(d)), [d]);
   const topicsHit = topics.filter((t) => t.hit).length;
 
   /**
@@ -1195,13 +1202,18 @@ export function DiagnosisView({
    * 否则他会以为文件在某个地方等着他。fmt 记着是哪一份在忙，否则两个按钮
    * 会同时显示「正在导出…」，用户分不清点的是哪一个。
    */
-  const [exp, setExp] = useState<{ kind: 'idle' | 'busy' | 'ok' | 'fail'; fmt?: 'md' | 'ad'; msg?: string }>({
+  const [exp, setExp] = useState<{ kind: 'idle' | 'busy' | 'ok' | 'fail'; fmt?: 'md' | 'ad' | 'prg'; msg?: string }>({
     kind: 'idle',
   });
-  const doExport = async (fmt: 'md' | 'ad') => {
+  const doExport = async (fmt: 'md' | 'ad' | 'prg') => {
     setExp({ kind: 'busy', fmt });
     try {
-      const r = fmt === 'md' ? await window.api.report.exportMarkdown(d) : await window.api.report.exportArgdown(d);
+      const r =
+        fmt === 'md'
+          ? await window.api.report.exportMarkdown(d)
+          : fmt === 'ad'
+            ? await window.api.report.exportArgdown(d)
+            : await window.api.report.exportPrg(d);
       if (r.ok && r.path) setExp({ kind: 'ok', fmt, msg: r.path });
       else if (r.canceled) setExp({ kind: 'idle' });
       else setExp({ kind: 'fail', fmt, msg: '没能写成功。换一个目录再试一次。' });
@@ -1247,6 +1259,15 @@ export function DiagnosisView({
         <button className="exp-btn" onClick={() => doExport('ad')} disabled={exp.kind === 'busy'}>
           {exp.kind === 'busy' && exp.fmt === 'ad' ? '正在导出…' : '导出为 Argdown'}
         </button>
+        {/*
+          第三个出口与前两个不是同一类东西：前两个带走的是一份**文件**，
+          这一个带走的是一个**画布**——节点和线都在，位置只是草稿，
+          用户可以按自己的方式重排、加批注、拆成两屏。
+          放在最后是因为它服务于「还要再摆一遍」的那部分人，不是每次都用。
+        */}
+        <button className="exp-btn" onClick={() => doExport('prg')} disabled={exp.kind === 'busy'}>
+          {exp.kind === 'busy' && exp.fmt === 'prg' ? '正在导出…' : '导出为画布工程（.prg）'}
+        </button>
         {exp.kind === 'ok' && (
           <span className="exp-ok" title={exp.msg}>
             已保存：{exp.msg}
@@ -1254,7 +1275,9 @@ export function DiagnosisView({
         )}
         {exp.kind === 'fail' && <span className="exp-fail">{exp.msg}</span>}
         {exp.kind === 'idle' && (
-          <span className="exp-hint">Markdown 给人读；Argdown 是纯文本结构图，可进 git diff</span>
+          <span className="exp-hint">
+            Markdown 给人读；Argdown 是纯文本结构图，可进 git diff；画布工程 {prgLine}（位置是草稿，打开后可自己摆）
+          </span>
         )}
       </div>
 
