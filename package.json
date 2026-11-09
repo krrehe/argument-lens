@@ -59,7 +59,8 @@
     "check:sideby": "node scripts/run-check-sideby.mjs",
     "check:modal": "node scripts/run-check-modal.mjs",
     "check:skeleton": "node scripts/run-check-skeleton.mjs",
-    "check:rewrite": "node scripts/run-check-rewrite.mjs"
+    "check:rewrite": "node scripts/run-check-rewrite.mjs",
+    "check:arch": "node scripts/check-arch.mjs"
   },
   "devDependencies": {
     "@argdown/core": "^2.0.1",

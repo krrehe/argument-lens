@@ -30,12 +30,10 @@
  * 早期存档没有那一栏，那几组仍然分不开「模型每次说得不一样」与「当时换了模型或设置」。
  * 两种情形都必须写在界面上——否则那几个数字会被读成它证明不了的东西。
  */
+import { EXCERPT_LEN } from './excerpt';
 import { flatten } from './replay';
 import { normalizePassage } from './sameness';
 import type { Diagnosis } from './types';
-
-/** 明细里给每组留多长的原文，只为让人认出是同一段字。与样本账同长，不多造一个数。 */
-export const EXCERPT_LEN = 28;
 
 /** 单个取值显示多长。超出的部分由界面补省略号，数据里不造一个不属于原文的字。 */
 export const MAX_VALUE = 110;

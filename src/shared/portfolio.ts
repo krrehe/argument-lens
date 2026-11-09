@@ -18,10 +18,8 @@
  * 先按 (at 降序, id 字典序) 固定排序——文件系统给出的目录顺序不是事实，
  * 拿它当依据会让同一份存档在不同机器上读出不同的账。
  */
+import { EXCERPT_LEN } from './excerpt';
 import { NEAR_SAME, bigrams, dice, normalizePassage, type PriorPassage } from './sameness';
-
-/** 明细里给每组留多长的原文，只为让人认出是哪一组。 */
-export const EXCERPT_LEN = 28;
 
 /**
  * 短文本守卫，与 samenessOf 的 minBigrams 同一个数。

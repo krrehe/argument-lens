@@ -23,12 +23,12 @@ import {
   agreementLine,
   agreementOf,
   agreementText,
-  EXCERPT_LEN,
   MAX_VALUE,
   cellLine,
   spreadLine,
   type AgreementItem,
 } from '@shared/agreement';
+import { EXCERPT_LEN } from '@shared/excerpt';
 import { dice, bigrams, normalizePassage } from '@shared/sameness';
 
 let passed = 0;

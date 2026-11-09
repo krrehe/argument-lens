@@ -21,13 +21,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
-  EXCERPT_LEN,
   groupLine,
   portfolioLine,
   portfolioOf,
   portfolioText,
   type PortfolioView,
 } from '@shared/portfolio';
+import { EXCERPT_LEN } from '@shared/excerpt';
 import { normalizePassage, type PriorPassage } from '@shared/sameness';
 
 let passed = 0;
