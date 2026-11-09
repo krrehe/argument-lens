@@ -600,6 +600,37 @@ const checks = [
     })(),
   ],
   /*
+   * 打包产物里的「骨架缺口」。
+   *
+   * `@shared/skeleton` 没进 asar 时，界面这一块整块消失——而 check:skeleton 的 78 条
+   * 全在源码里跑，包坏不坏它不知道。包内除了「这一块在」，还要核两条缺口的来源标签
+   * 真的带进去了：本地数的那条与报告自己说的那条分得开，才算这一层进了包。
+   */
+  [
+    '打包产物里的骨架缺口带着两种来源',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('GAPSRESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        const all = [r.line, r.sub, r.plain, ...(r.notes ?? []), ...(r.facts ?? [])].join(' ');
+        return (
+          r.has === true &&
+          Number(r.gapCount) === 2 &&
+          Array.isArray(r.kinds) &&
+          r.kinds.join(',') === 'quiet-sentences,hollow-checks' &&
+          Array.isArray(r.froms) &&
+          r.froms.join(',') === 'local,report' &&
+          Array.isArray(r.fromLabels) &&
+          r.fromLabels.join(',') === '本地数的,报告自己说的' &&
+          !/没答|未答/.test(all)
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
    * 打包产物里的「谁跑的」：包内跑一次分析之后，报告里那一栏得在。
    *
    * 这一条与包外那条不完全重复：`Diagnosis.engine` 只有一个类型、逻辑全在 analyze.ts，

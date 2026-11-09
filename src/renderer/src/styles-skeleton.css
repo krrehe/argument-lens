@@ -1,0 +1,105 @@
+/*
+ * 骨架缺口：本地对着原文和检查表数出来的四处空缺。
+ *
+ * 颜色用 --weak 不用 --invalid：这是「这里没接上」，不是「这里错了」。
+ * 红会把「报告漏读了一句」读成「这段话说错了」，那是完全不同的事。
+ * 变量全部取已定义的，不写 fallback——check:css 连 fallback 里的名字也当变量查。
+ */
+
+.sk {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  padding: 11px 13px;
+}
+
+/* 总述那一句：整块的抬头，字号比正文略大一点，因为它是唯一一句总结。 */
+.sk-line {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.sk-gaps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/*
+ * 每条缺口左边界一道黄线，不用背景块：
+ * 六条缺口同时出现时，满屏色块反而看不清哪句是哪句的。
+ */
+.sk-gap {
+  border-left: 3px solid var(--weak);
+  padding: 2px 0 2px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/*
+ * 谁说的。本地算的与报告自己写的必须分得开：不标来源，读的人会把软件数出来的
+ * 缺口当成报告里本来就有的话，也就看不出这一层是本地新产出的判定。
+ */
+.sk-from {
+  align-self: flex-start;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 0 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  color: var(--ink-3);
+  background: var(--muted-bg);
+}
+
+.sk-note {
+  font-size: 12.5px;
+  line-height: 1.68;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+/* 要去核对的位置：等宽、浅色，和上面的句子分开，免得读成同一句话。 */
+.sk-at {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  word-break: break-word;
+}
+
+/* 四个缺口都为零时的说法：不描边，让它看起来是「一条说明」而不是「一个警报」。 */
+.sk-clear {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+
+.sk-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+}
+
+.sk-fact {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.sk-fact i {
+  font-style: normal;
+  color: var(--ink-3);
+  margin-right: 5px;
+}

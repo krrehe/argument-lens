@@ -1262,6 +1262,30 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         add(`TONERESULT ${tone}`);
       }
 
+      /*
+       * 「骨架缺口」：本地第一次对报告本身说「这里接不上」。
+       *
+       * 核的是接线与来源，不是算法：每条缺口都得带 `data-skeleton-from`，
+       * 标签文字得逐字是「本地数的 / 报告自己说的」。不标来源，读的人分不出
+       * 哪几条是本地新产出的判定、哪几条只是把报告里已有的话又念了一遍。
+       * 「算得对不对」归 `check:skeleton` 的断言与反证，不在这里重复。
+       */
+      {
+        const gaps = await wc.executeJavaScript(`JSON.stringify({
+          has: !!document.querySelector('[data-skeleton]'),
+          line: (document.querySelector('[data-skeleton-line]')?.textContent ?? '').trim(),
+          gapCount: Number(document.querySelector('[data-skeleton-line]')?.getAttribute('data-skeleton-line') ?? -1),
+          kinds: [...document.querySelectorAll('[data-skeleton-gap]')].map((e) => e.getAttribute('data-skeleton-gap')),
+          froms: [...document.querySelectorAll('[data-skeleton-gap]')].map((e) => e.getAttribute('data-skeleton-from')),
+          fromLabels: [...document.querySelectorAll('[data-skeleton-from-label]')].map((e) => (e.textContent ?? '').trim()),
+          notes: [...document.querySelectorAll('[data-skeleton-gap] .sk-note')].map((e) => (e.textContent ?? '').trim()),
+          facts: [...document.querySelectorAll('[data-skeleton-fact]')].map((e) => (e.textContent ?? '').trim()),
+          sub: (document.querySelector('#sec-gaps .s')?.textContent ?? '').trim(),
+          plain: (document.querySelector('#sec-gaps .block-plain')?.textContent ?? '').trim(),
+        })`);
+        add(`GAPSRESULT ${gaps}`);
+      }
+
       if (process.env['AL_VIEWS'] === '1') {
         const snap = async (): Promise<Record<string, unknown>> =>
           JSON.parse(

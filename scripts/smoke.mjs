@@ -1160,6 +1160,59 @@ if (process.env.SMOKE_AGREEMENT === '1') {
 }
 
 /*
+ * 骨架缺口（无条件跑：报告一出现它就在）。
+ *
+ * 核的是「这一层有没有真的把本地判定与报告自己的话分开」——
+ * 界面少一个来源标签、或把 `unanswered` 又说回「没答」，check:skeleton 的纯函数
+ * 断言一条都不会红，只有走到界面才看得见。
+ *
+ * 下面的字面量来自 `scripts/mock-llm.mjs`：原文 5 句、检查表 3 条（1 通过 / 2 文中没交代）、
+ * 1 句没人碰。改那份夹具要一起改这里，和「改第一段示例要同步 span 下标」是同一件事。
+ */
+{
+  const g = jOfLine('GAPSRESULT');
+  const kinds = Array.isArray(g.kinds) ? g.kinds : [];
+  const froms = Array.isArray(g.froms) ? g.froms : [];
+  const labels = Array.isArray(g.fromLabels) ? g.fromLabels : [];
+  const notes = Array.isArray(g.notes) ? g.notes : [];
+  const facts = Array.isArray(g.facts) ? g.facts : [];
+  const allText = [g.line, g.sub, g.plain, ...notes, ...facts].join(' ');
+  checks.push(
+    ['骨架缺口：这一块真的出现在报告里', g.has === true],
+    ['骨架缺口：总述标的缺口条数与列表同源', Number(g.gapCount) === kinds.length && kinds.length === 2, String(g.gapCount) + '/' + kinds.join(',')],
+    ['骨架缺口：本地漏读与报告自认的空环都列出来了', kinds.join(',') === 'quiet-sentences,hollow-checks', kinds.join(',')],
+    ['骨架缺口：两条缺口各自标了来源', froms.join(',') === 'local,report', froms.join(',')],
+    ['骨架缺口：来源标签逐字是「本地数的 / 报告自己说的」', labels.join(',') === '本地数的,报告自己说的', labels.join(',')],
+    /*
+     * 下面两条都带「样本非空」：组件被整块摘掉时，两个空数组长度相等、
+     * 空文本里也找不到「没答」，不写非空条件就是两条永远绿的假断言。
+     */
+    ['骨架缺口：每条缺口都有标签，不是只给第一条', kinds.length > 0 && labels.length === kinds.length, labels.length + '/' + kinds.length],
+    [
+      '骨架缺口：界面不许把「文中没交代」说成「没答 / 未答」',
+      notes.length > 0 && facts.length > 0 && !/没答|未答/.test(allText),
+      allText.slice(0, 120),
+    ],
+    [
+      '骨架缺口：总述逐字对得上',
+      g.line === '原文 5 句，1 句没碰；检查表 3 条，其中 2 条报告说「文中没交代」。',
+      String(g.line),
+    ],
+    [
+      '骨架缺口：检查表四档那一行与夹具同源',
+      facts.some((f) => String(f).includes('文中没交代 2') && String(f).includes('通过 1')),
+      facts.join('｜'),
+    ],
+    ['骨架缺口：标题旁写清两种来源分着摆', String(g.sub).includes('分着摆') && String(g.sub).includes('本地数的'), String(g.sub)],
+    [
+      '骨架缺口：「文中没交代」那条说的是指认，不是漏答',
+      notes.some((n) => String(n).includes('指认这几处是空的，不是漏答')),
+      notes.join('｜'),
+    ],
+  );
+}
+
+/*
  * 两份对照（跟在 SMOKE_AGREEMENT 后面跑）。
  *
  * 这一条验的是**接线**，不是算法：号码点得动、没选够两份时按钮不许亮、点完面板开、

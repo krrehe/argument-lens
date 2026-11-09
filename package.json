@@ -57,7 +57,8 @@
     "check:samples": "node scripts/run-check-samples.mjs",
     "check:prg": "node scripts/run-check-prg.mjs",
     "check:sideby": "node scripts/run-check-sideby.mjs",
-    "check:modal": "node scripts/run-check-modal.mjs"
+    "check:modal": "node scripts/run-check-modal.mjs",
+    "check:skeleton": "node scripts/run-check-skeleton.mjs"
   },
   "devDependencies": {
     "@argdown/core": "^2.0.1",

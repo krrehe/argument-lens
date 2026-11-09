@@ -20,6 +20,7 @@ import { graphOf, graphSummary } from '@shared/prg-graph';
 import { prescriptionsOf } from '@shared/prescriptions';
 import { fallacyHits, mapSentences } from '@shared/fallacy-map';
 import { REREAD_KIND_LABEL, UNPLACED_LABEL, rereadOf, type RereadView } from '@shared/reread';
+import { GAP_FROM_LABEL, skeletonOf } from '@shared/skeleton';
 import {
   RESCALE_CONFLICT_LABEL,
   RESCALE_INVALID_LABEL,
@@ -259,6 +260,72 @@ function ClaimCard({
  * 两边都说，不裁决谁对：报告说越界、本地没读到，也照实写「本地只看字面」。
  * 少一句，读者就会以为两者之中有一个是错的——而这里只陈述各自看到了什么。
  */
+/**
+ * 骨架缺口。
+ *
+ * 这是报告里第一块由**本地**给出判定的地方：它不说这段话说得对不对，
+ * 只说这份报告自己接上没有——原文哪句没碰、检查表哪条没答、依据有没有绕成圈。
+ *
+ * 为什么必须是本地算：这些数模型看不见。它不会回头数自己漏读了哪句，
+ * 也不会数自己答了几条检查项；同一个模型两次跑，这两组数可以差很远。
+ * 而它们全部能对着原文和报告逐字核——所以这一块错了，用户能当场抓住。
+ *
+ * 缺口为零时不说「没问题」：那只说明骨架接上了，判断对不对本地核不了。
+ */
+function SkeletonCard({ d }: { d: Diagnosis }) {
+  const sk = useMemo(() => skeletonOf(d), [d]);
+  return (
+    <Block
+      id="sec-gaps"
+      title="骨架缺口"
+      sub="本地数的、报告自己说的，分着摆"
+      plain="软件把原文和报告摆在一起数了一遍：哪几句原文没人碰、依据之间有没有绕成圈、检查表哪几条报告说「文中没交代」。每条都标了是谁说的；这些地方说得对不对，软件算不出来。"
+    >
+      <div className="sk" data-skeleton>
+        <p className="sk-line" data-skeleton-line={sk.gaps.length}>
+          {sk.line}
+        </p>
+        {sk.gaps.length > 0 ? (
+          <ul className="sk-gaps">
+            {sk.gaps.map((g) => (
+              <li
+                className="sk-gap"
+                data-skeleton-gap={g.kind}
+                data-skeleton-from={g.from}
+                key={g.kind}
+              >
+                <span className="sk-from" data-skeleton-from-label>
+                  {GAP_FROM_LABEL[g.from]}
+                </span>
+                <span className="sk-note">{g.note}</span>
+                {g.at.length > 0 && (
+                  <span className="sk-at" data-skeleton-at={g.kind}>
+                    {g.at.join('　·　')}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="sk-clear" data-skeleton-clear>
+            {sk.clearNote}
+          </p>
+        )}
+        {sk.facts.length > 0 && (
+          <div className="sk-facts">
+            {sk.facts.map((f) => (
+              <span className="sk-fact" data-skeleton-fact={f.label} key={f.label}>
+                <i>{f.label}</i>
+                {f.value}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </Block>
+  );
+}
+
 function ToneCard({ d }: { d: Diagnosis }) {
   const tone = useMemo(() => toneAudit(d), [d]);
   return (
@@ -1408,6 +1475,12 @@ export function DiagnosisView({
       )}
 
       <QuickRead d={d} />
+
+      {/*
+        骨架缺口紧跟四句话：读者先知道「这份报告哪儿是空的」，再决定往下深看哪一层。
+        再往后放就成了读到一半才发现的附注，而它恰恰是对整份报告的核对。
+      */}
+      <SkeletonCard d={d} />
 
       {/*
         挑图放在目录之后、正文之前：读者刚看完四句话，正决定「要深看哪一层」。

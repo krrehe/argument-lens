@@ -30,6 +30,7 @@ import './styles-flow.css';
 import './styles-history.css';
 import './styles-sideby.css';
 import './styles-tone.css';
+import './styles-skeleton.css';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。
@@ -39,7 +40,27 @@ import './styles-tone.css';
  * 从没被人眼看过，那是最容易藏错的状态。
  */
 const LENS = new URLSearchParams(location.search).get('lens') ?? MOCK.theory;
-const D = MOCK_BY_THEORY[LENS] ?? MOCK;
+
+/*
+ * ?gaps=clean：换成一份「四个缺口全为零」的报告。
+ *
+ * 缺口为零时是另一种版式——一行说明，不是一列黄线。真实报告里四条同时满足很罕见，
+ * 不给入口，这一版就永远不会被人看过。做法是把原文截到最后一个被引用的句子结束处
+ * （前面的下标不变，引文位置仍然对得上），再把检查项全部改成 passed。
+ */
+function withNoGaps(d: Diagnosis): Diagnosis {
+  const claims = [d.conclusion, ...d.premises, ...d.intermediate].filter(Boolean);
+  const ends = claims.map((c) => (c.span && c.span.quality !== 'failed' ? c.span.end : 0));
+  const maxEnd = Math.max(0, ...ends);
+  return {
+    ...d,
+    passage: maxEnd > 0 ? d.passage.slice(0, maxEnd) : d.passage,
+    checks: d.checks.map((c) => ({ ...c, answer: 'passed' as const })),
+  };
+}
+
+const D0 = MOCK_BY_THEORY[LENS] ?? MOCK;
+const D = new URLSearchParams(location.search).get('gaps') === 'clean' ? withNoGaps(D0) : D0;
 const t = THEORY_BY_ID[D.theory];
 const MOCK_DISPUTES = disputesIn(D);
 
@@ -319,6 +340,22 @@ function ToneAnchor(): null {
 }
 
 /*
+ * ?gaps=1：把页面滚到「骨架缺口」那一块。
+ *
+ * 它在首屏偏下，而且缺口的条数会变（0 条时是另一种版式），
+ * 两种版式都要有入口，否则「缺口清零」那一版永远没人见过。
+ */
+function GapsAnchor(): null {
+  useEffect(() => {
+    /* `?gaps=1` 与 `?gaps=clean` 都要滚到这一块：两种版式各截一张。 */
+    if (!QS.get('gaps')) return;
+    const el = document.querySelector('[data-skeleton]');
+    if (el) el.scrollIntoView({ block: 'center' });
+  }, []);
+  return null;
+}
+
+/*
  * 分析进行中（?running=checking&wait=42）。
  *
  * 这一屏在真应用里只存在 30–90 秒，而且必须先发一次真请求才看得到；
@@ -579,6 +616,7 @@ function Preview() {
         </aside>
         <main className="main">
           <ToneAnchor />
+          <GapsAnchor />
           {RUN_STAGE ? (
             <Running
               progress={{ stage: 'checking', label: RUN_STAGE.label, percent: RUN_STAGE.percent }}
