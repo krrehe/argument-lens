@@ -21,6 +21,7 @@ import { prescriptionsOf } from '@shared/prescriptions';
 import { fallacyHits, mapSentences } from '@shared/fallacy-map';
 import { REREAD_KIND_LABEL, UNPLACED_LABEL, rereadOf, type RereadView } from '@shared/reread';
 import { GAP_FROM_LABEL, skeletonOf } from '@shared/skeleton';
+import { REWRITE_NOTE, rewriteOf } from '@shared/rewrite';
 import {
   RESCALE_CONFLICT_LABEL,
   RESCALE_INVALID_LABEL,
@@ -201,6 +202,9 @@ function ClaimCard({
   active: boolean;
   onPick: () => void;
 }) {
+  /* 本地把「原话」与「整理后那一句」逐字比一遍。两行本来就摆在这张卡上，
+     这一小块贴在它们下面，不是报告外面另起一栏。 */
+  const rw = rewriteOf(claim);
   return (
     <div
       className={`claim-card ${isConclusion ? 'concl' : ''}`}
@@ -226,6 +230,18 @@ function ClaimCard({
       <div className="claim-text">{claim.text}</div>
 
       {claim.quote && <div className="claim-quote">「{claim.quote}」</div>}
+
+      {rw && (
+        <div className="claim-rewrite" data-rewrite={rw.kind}>
+          <div className="claim-rewrite-line" data-rewrite-line={rw.quoteChars}>{rw.line}</div>
+          {rw.detail && (
+            <div className="claim-rewrite-detail" data-rewrite-detail={rw.gone.length + rw.added.length}>
+              {rw.detail}
+            </div>
+          )}
+          <div className="claim-rewrite-note" data-rewrite-note={rw.kind}>{REWRITE_NOTE}</div>
+        </div>
+      )}
 
       {claim.implicitBasis && (
         <div className="claim-quote" style={{ borderLeftColor: 'var(--weak)', color: '#6d5320' }}>

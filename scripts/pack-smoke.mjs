@@ -631,6 +631,34 @@ const checks = [
     })(),
   ],
   /*
+   * 打包产物里的「逐字比」。
+   *
+   * `@shared/rewrite` 没进 asar 时，每张主张卡上那一小块会整块消失，
+   * 而 check:rewrite 全在源码里跑，包坏不坏它不知道。包内除了「这一块在」，
+   * 还要核它贴在原话那行后面、以及片段明细真的带进去了。
+   */
+  [
+    '打包产物里的逐字比贴在每张主张上',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('REWRITERESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        const cards = Array.isArray(r.cards) ? r.cards : [];
+        const first = cards[0] ?? {};
+        return (
+          cards.length === 4 &&
+          cards.every((c) => c.afterQuote === true && c.note === '只比字面，不判改写对不对；这两句都是报告自己写下的。') &&
+          first.line === '本地逐字比：原话 10 字、这一句 14 字；1 段没接上、1 段对不上。' &&
+          String(first.detail).includes('「这说明」') &&
+          String(first.detail).includes('「应当恢复早读」')
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
    * 打包产物里的「谁跑的」：包内跑一次分析之后，报告里那一栏得在。
    *
    * 这一条与包外那条不完全重复：`Diagnosis.engine` 只有一个类型、逻辑全在 analyze.ts，

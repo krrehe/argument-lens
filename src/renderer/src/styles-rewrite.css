@@ -1,0 +1,39 @@
+/*
+ * 逐字比：贴在每一条主张下面的一小块，不是报告外面另起一栏。
+ *
+ * 用最淡的边与字：它是对着两行已有的字念出来的事实，不能比那两行更响。
+ * 变量全部取已定义的，不写 fallback——check:css 连 fallback 里的名字也当变量查。
+ */
+
+.claim-rewrite {
+  margin: 7px 0 2px;
+  padding: 6px 0 6px 10px;
+  border-left: 2px solid var(--line-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* 总述：数字与单位都在这行，字号 11.5px —— 再小汉字就认不出了。 */
+.claim-rewrite-line {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+
+/* 逐字片段：等宽只用在片段上，好和说明分得开。 */
+.claim-rewrite-detail {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-3);
+  word-break: break-word;
+}
+
+.claim-rewrite-note {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--ink-3);
+  word-break: break-word;
+}

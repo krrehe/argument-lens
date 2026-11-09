@@ -1286,6 +1286,35 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         add(`GAPSRESULT ${gaps}`);
       }
 
+      /*
+       * 「逐字比」：贴在每一条主张下面，不在报告外面另起一栏。
+       *
+       * 核的是接线与位置，不是算法：这一块必须紧跟着「原话」那一行、必须逐字
+       * 显示报告自己写下的两句话、必须把本地读出的片段列出来。「算得对不对」
+       * 归 check:rewrite 的断言与反证，不在这里重复。
+       */
+      {
+        const rw = await wc.executeJavaScript(`JSON.stringify({
+          cards: [...document.querySelectorAll('[data-rewrite]')].map((e) => {
+            const card = e.parentElement;
+            const kids = [...(card?.children ?? [])];
+            const quoteAt = kids.findIndex((k) => k.classList.contains('claim-quote'));
+            return {
+              kind: e.getAttribute('data-rewrite'),
+              line: (e.querySelector('[data-rewrite-line]')?.textContent ?? '').trim(),
+              quoteChars: Number(e.querySelector('[data-rewrite-line]')?.getAttribute('data-rewrite-line') ?? -1),
+              detail: (e.querySelector('[data-rewrite-detail]')?.textContent ?? '').trim(),
+              fragCount: Number(e.querySelector('[data-rewrite-detail]')?.getAttribute('data-rewrite-detail') ?? -1),
+              note: (e.querySelector('[data-rewrite-note]')?.textContent ?? '').trim(),
+              quote: (card?.querySelector('.claim-quote')?.textContent ?? '').trim(),
+              text: (card?.querySelector('.claim-text')?.textContent ?? '').trim(),
+              afterQuote: quoteAt >= 0 && kids.indexOf(e) === quoteAt + 1,
+            };
+          }),
+        })`);
+        add(`REWRITERESULT ${rw}`);
+      }
+
       if (process.env['AL_VIEWS'] === '1') {
         const snap = async (): Promise<Record<string, unknown>> =>
           JSON.parse(

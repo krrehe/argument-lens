@@ -10,6 +10,7 @@ import './styles-history.css';
 import './styles-sideby.css';
 import './styles-tone.css';
 import './styles-skeleton.css';
+import './styles-rewrite.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

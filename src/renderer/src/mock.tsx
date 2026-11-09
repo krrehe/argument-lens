@@ -31,6 +31,7 @@ import './styles-history.css';
 import './styles-sideby.css';
 import './styles-tone.css';
 import './styles-skeleton.css';
+import './styles-rewrite.css';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。
@@ -355,6 +356,16 @@ function GapsAnchor(): null {
   return null;
 }
 
+/* ?rewrite=1：滚到第一条主张下面的「逐字比」。它分散贴在每张卡上，不另起一栏。 */
+function RewriteAnchor(): null {
+  useEffect(() => {
+    if (QS.get('rewrite') !== '1') return;
+    const el = document.querySelector('[data-rewrite]');
+    if (el) el.scrollIntoView({ block: 'center' });
+  }, []);
+  return null;
+}
+
 /*
  * 分析进行中（?running=checking&wait=42）。
  *
@@ -617,6 +628,7 @@ function Preview() {
         <main className="main">
           <ToneAnchor />
           <GapsAnchor />
+          <RewriteAnchor />
           {RUN_STAGE ? (
             <Running
               progress={{ stage: 'checking', label: RUN_STAGE.label, percent: RUN_STAGE.percent }}

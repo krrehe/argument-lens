@@ -1213,6 +1213,58 @@ if (process.env.SMOKE_AGREEMENT === '1') {
 }
 
 /*
+ * 逐字比（无条件跑：报告一出现它就贴在每张主张卡上）。
+ *
+ * 核的是「这一层有没有真的贴到正文上」——纯函数层全绿，界面把这一块挪到
+ * 报告外面另起一栏、或者只给第一条，check:rewrite 一条都不会红。
+ * 字面量来自 scripts/mock-llm.mjs 的四条主张，改那份夹具要一起改这里。
+ */
+{
+  const rw = jOfLine('REWRITERESULT');
+  const cards = Array.isArray(rw.cards) ? rw.cards : [];
+  const first = cards[0] ?? {};
+  const allText = cards.map((c) => [c.line, c.detail, c.note].join(' ')).join(' ');
+  checks.push(
+    ['逐字比：每张主张卡上都有这一块（4 张）', cards.length === 4, String(cards.length)],
+    ['逐字比：四块都紧跟在「原话」那一行后面，不是报告外面另起一栏', cards.length === 4 && cards.every((c) => c.afterQuote === true), JSON.stringify(cards.map((c) => c.afterQuote))],
+    ['逐字比：四块都读得到原话与整理后那一句', cards.length === 4 && cards.every((c) => String(c.quote).length > 2 && String(c.text).length > 2), String(cards.length)],
+    [
+      '逐字比：结论那一句的总述逐字对得上',
+      first.line === '本地逐字比：原话 10 字、这一句 14 字；1 段没接上、1 段对不上。',
+      String(first.line),
+    ],
+    ['逐字比：总述里的字数与属性同源（不是写死的）', Number(first.quoteChars) === 10, String(first.quoteChars)],
+    [
+      '逐字比：片段明细逐字对得上，两边各一段',
+      first.detail === '原话里有、这一句没接上：「这说明」；这一句里、原话对不上：「应当恢复早读」',
+      String(first.detail),
+    ],
+    ['逐字比：明细标的段数与片段同源', Number(first.fragCount) === 2, String(first.fragCount)],
+    [
+      '逐字比：两行文字逐字来自报告自己',
+      first.quote === '「这说明取消早读是错的」' && first.text === '取消早读是错的，应当恢复早读',
+      String(first.quote) + ' / ' + String(first.text),
+    ],
+    [
+      '逐字比：每块都印「不判改写对不对」，不是只给第一条',
+      cards.length === 4 && cards.every((c) => c.note === '只比字面，不判改写对不对；这两句都是报告自己写下的。'),
+      String(cards.length),
+    ],
+    [
+      '逐字比：三条读得出片段，一条只差单个字也明说',
+      cards.filter((c) => c.kind === 'fragments').length === 3 &&
+        cards.some((c) => c.kind === 'one-char' && /只差单个字，读不出连续的片段/.test(String(c.line)) && String(c.detail) === ''),
+      cards.map((c) => c.kind).join(','),
+    ],
+    [
+      '逐字比：界面不替报告下判断（带样本非空，摘掉组件时必须红）',
+      cards.length > 0 && !/改错|越界|建议改成|应该改成/.test(allText),
+      allText.slice(0, 120),
+    ],
+  );
+}
+
+/*
  * 两份对照（跟在 SMOKE_AGREEMENT 后面跑）。
  *
  * 这一条验的是**接线**，不是算法：号码点得动、没选够两份时按钮不许亮、点完面板开、
