@@ -60,7 +60,8 @@
     "check:modal": "node scripts/run-check-modal.mjs",
     "check:skeleton": "node scripts/run-check-skeleton.mjs",
     "check:rewrite": "node scripts/run-check-rewrite.mjs",
-    "check:arch": "node scripts/check-arch.mjs"
+    "check:arch": "node scripts/check-arch.mjs",
+    "audit:provenance": "node scripts/run-audit-provenance.mjs"
   },
   "devDependencies": {
     "@argdown/core": "^2.0.1",
