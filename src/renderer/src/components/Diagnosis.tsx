@@ -38,6 +38,7 @@ import { VerdictWhy } from './VerdictWhy';
 import { RereadScreen } from './RereadScreen';
 import { RescaleScreen } from './RescaleScreen';
 import { ConditionScreen } from './ConditionScreen';
+import { SourceBar } from './SourceBar';
 
 /* ═══════ 通用小件 ═══════ */
 
@@ -1448,6 +1449,9 @@ export function DiagnosisView({
           再回原文逐句找。第三件里不出现报告里的任何一句话。
         </span>
       </div>
+
+      {/* 先说清这份报告里的判断是谁写的，再往下读。默认只占两行，清单要点开。 */}
+      <SourceBar d={d} />
 
       {!d.scope.applicable && (
         <div className="banner bad">

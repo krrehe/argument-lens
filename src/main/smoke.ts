@@ -1315,6 +1315,44 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         add(`REWRITERESULT ${rw}`);
       }
 
+      /*
+       * 「来源账」：把「模型给出的判断」与「本地复算」分开的那一栏。
+       *
+       * 核的是接线与展开：默认必须收起（替人决定先读什么不是这一层该做的），
+       * 点开之后四类本地复算要各占一行、每行都标「本地复算」。
+       * 点击与读取分两次并等一拍——同一个 executeJavaScript 里点完立刻读，
+       * 读到的是点击前的 DOM，看起来像「按钮点不动」。
+       */
+      {
+        const sourceBefore = JSON.parse(
+          await wc.executeJavaScript(`JSON.stringify({
+            has: !!document.querySelector('[data-source-bar]'),
+            headline: (document.querySelector('[data-source-headline]')?.textContent ?? '').trim(),
+            modelCount: Number(document.querySelector('[data-source-model-count]')?.getAttribute('data-source-model-count') ?? -1),
+            toggle: (document.querySelector('[data-source-toggle]')?.textContent ?? '').trim(),
+            openedByDefault: !!document.querySelector('[data-source-list]'),
+          })`)
+        );
+        const sourceClicked = await wc.executeJavaScript(`(() => {
+          const b = document.querySelector('[data-source-toggle]');
+          if (!b) return false;
+          b.click();
+          return true;
+        })()`);
+        await sleep(300);
+        const sourceAfter = JSON.parse(
+          await wc.executeJavaScript(`JSON.stringify({
+            rows: [...document.querySelectorAll('[data-source-row]')].map((e) => ({
+              key: e.getAttribute('data-source-row'),
+              from: (e.querySelector('.src-from')?.textContent ?? '').trim(),
+              count: (e.querySelector('.src-count')?.textContent ?? '').trim(),
+            })),
+            note: (document.querySelector('[data-source-note]')?.textContent ?? '').trim(),
+          })`)
+        );
+        add(`SOURCERESULT ${JSON.stringify({ ...sourceBefore, clicked: sourceClicked, ...sourceAfter })}`);
+      }
+
       if (process.env['AL_VIEWS'] === '1') {
         const snap = async (): Promise<Record<string, unknown>> =>
           JSON.parse(

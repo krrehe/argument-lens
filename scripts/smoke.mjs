@@ -1265,6 +1265,29 @@ if (process.env.SMOKE_AGREEMENT === '1') {
 }
 
 /*
+ * 来源账（无条件跑：报告一出现它就在最上面）。
+ *
+ * 核的是接线与展开，不是算法：默认必须收起、点开之后四类本地复算各占一行、
+ * 每行都标「本地复算」、抬头逐字取自纯函数。点开那一半专门验「按钮点了有反应」——
+ * 纯函数与静态源码守卫都看不见这一层。
+ */
+{
+  const so = jOfLine('SOURCERESULT');
+  const rows = Array.isArray(so.rows) ? so.rows : [];
+  checks.push(
+    ['来源账：这一块真的出现在报告里', so.has === true, String(so.has)],
+    ['来源账：默认收起，不替人决定先读什么', so.openedByDefault === false, String(so.openedByDefault)],
+    ['来源账：展开按钮点得动', so.clicked === true, String(so.clicked)],
+    ['来源账：抬头明说判断由模型写出、本地不改判定', /由模型写出/.test(String(so.headline)) && /不改判定/.test(String(so.headline)), String(so.headline)],
+    ['来源账：模型判定点数来自实算，不是写死的 0', Number(so.modelCount) > 2, String(so.modelCount)],
+    ['来源账：按钮写着「本地复算」', /本地复算/.test(String(so.toggle)), String(so.toggle)],
+    ['来源账：点开后四类本地复算都列出来', rows.length === 4 && ['rewrite', 'skeleton', 'tone', 'quote'].every((k) => rows.some((r) => r.key === k)), JSON.stringify(rows.map((r) => r.key))],
+    ['来源账：四类都标「本地复算」', rows.length === 4 && rows.every((r) => r.from === '本地复算'), JSON.stringify(rows.map((r) => r.from))],
+    ['来源账：边界那句在展开后出现', /算得多不等于判断更对/.test(String(so.note)), String(so.note)],
+  );
+}
+
+/*
  * 两份对照（跟在 SMOKE_AGREEMENT 后面跑）。
  *
  * 这一条验的是**接线**，不是算法：号码点得动、没选够两份时按钮不许亮、点完面板开、

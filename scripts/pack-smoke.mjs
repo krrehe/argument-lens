@@ -659,6 +659,34 @@ const checks = [
     })(),
   ],
   /*
+   * 打包产物里的「来源账」：包里这一栏得在、点得开、四类本地复算都在。
+   *
+   * `@shared/provenance` 没进 asar 时，界面这一块整块消失，而源码里的 37 条
+   * 全在源码里跑，包坏不坏它不知道。所以这里只问一句：包里点开之后
+   * 是不是四类齐全、抬头是不是还说着「由模型写出」。
+   */
+  [
+    '打包产物里的来源账点得开，四类本地复算都在',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('SOURCERESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        const rows = Array.isArray(r.rows) ? r.rows : [];
+        return (
+          r.has === true &&
+          r.clicked === true &&
+          /由模型写出/.test(String(r.headline ?? '')) &&
+          Number(r.modelCount) > 2 &&
+          rows.length === 4 &&
+          rows.every((x) => x.from === '本地复算')
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
    * 打包产物里的「谁跑的」：包内跑一次分析之后，报告里那一栏得在。
    *
    * 这一条与包外那条不完全重复：`Diagnosis.engine` 只有一个类型、逻辑全在 analyze.ts，

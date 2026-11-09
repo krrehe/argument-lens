@@ -32,6 +32,7 @@ import './styles-sideby.css';
 import './styles-tone.css';
 import './styles-skeleton.css';
 import './styles-rewrite.css';
+import './styles-source.css';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。
@@ -367,6 +368,24 @@ function RewriteAnchor(): null {
 }
 
 /*
+ * ?source=1：滚到报告顶部的来源账，并把它点开。
+ * 默认收起的清单没人见过就等于没做，这个入口专门拍展开那一版。
+ * 滚动与点击分两拍：同一个 effect 里点完立刻读，界面还没重绘（探针抢跑那个老坑）。
+ */
+function SourceAnchor(): null {
+  useEffect(() => {
+    if (QS.get('source') !== '1') return;
+    const el = document.querySelector('[data-source-bar]');
+    if (el) el.scrollIntoView({ block: 'center' });
+    window.setTimeout(() => {
+      const btn = document.querySelector('[data-source-toggle]');
+      if (btn instanceof HTMLElement && !document.querySelector('[data-source-list]')) btn.click();
+    }, 60);
+  }, []);
+  return null;
+}
+
+/*
  * 分析进行中（?running=checking&wait=42）。
  *
  * 这一屏在真应用里只存在 30–90 秒，而且必须先发一次真请求才看得到；
@@ -629,6 +648,7 @@ function Preview() {
           <ToneAnchor />
           <GapsAnchor />
           <RewriteAnchor />
+          <SourceAnchor />
           {RUN_STAGE ? (
             <Running
               progress={{ stage: 'checking', label: RUN_STAGE.label, percent: RUN_STAGE.percent }}

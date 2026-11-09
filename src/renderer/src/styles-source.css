@@ -1,0 +1,97 @@
+/*
+ * 来源账：报告最上面那条「谁说的」。
+ *
+ * 用 --accent 不用 --invalid：这不是报错，也不是给报告打分，只是一句归属。
+ * 变量全部取已定义的，不写 fallback——check:css 连 fallback 里的名字也当变量查。
+ */
+
+.src-bar {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel-2);
+  padding: 10px 13px;
+  margin: 0 0 14px;
+}
+
+.src-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.src-tag {
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+.src-toggle {
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--muted-bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+.src-toggle:hover {
+  border-color: var(--line-strong);
+}
+
+.src-headline {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.src-list {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.src-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.src-from {
+  flex: none;
+  color: var(--strong);
+  background: var(--strong-bg);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+
+.src-label {
+  flex: 1 1 240px;
+  color: var(--ink-2);
+}
+
+.src-count {
+  flex: none;
+  color: var(--ink);
+  font-family: var(--mono);
+}
+
+.src-note {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--ink-3);
+  word-break: break-word;
+}
