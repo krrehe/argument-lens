@@ -12,6 +12,7 @@ import './styles-tone.css';
 import './styles-skeleton.css';
 import './styles-rewrite.css';
 import './styles-source.css';
+import './styles-field-terms.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

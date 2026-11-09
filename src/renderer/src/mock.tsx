@@ -33,6 +33,7 @@ import './styles-tone.css';
 import './styles-skeleton.css';
 import './styles-rewrite.css';
 import './styles-source.css';
+import './styles-field-terms.css';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。
@@ -386,6 +387,20 @@ function SourceAnchor(): null {
 }
 
 /*
+ * ?terms=1：滚到学术分析里的「这一圈的词」。
+ * 展开与演示词由 DiagnosisView 的 initialTerms / initialTermsWords 直接给，
+ * 这里只负责滚动——这一栏在报告中部，不滚就永远拍不到。
+ */
+function TermsAnchor(): null {
+  useEffect(() => {
+    if (QS.get('terms') !== '1') return;
+    const el = document.querySelector('[data-terms-bar]');
+    if (el) el.scrollIntoView({ block: 'center' });
+  }, []);
+  return null;
+}
+
+/*
  * 分析进行中（?running=checking&wait=42）。
  *
  * 这一屏在真应用里只存在 30–90 秒，而且必须先发一次真请求才看得到；
@@ -649,6 +664,7 @@ function Preview() {
           <GapsAnchor />
           <RewriteAnchor />
           <SourceAnchor />
+          <TermsAnchor />
           {RUN_STAGE ? (
             <Running
               progress={{ stage: 'checking', label: RUN_STAGE.label, percent: RUN_STAGE.percent }}
@@ -682,6 +698,9 @@ function Preview() {
                   ? (QS.get('show')!.split(',').filter((x) => /^(structure|checks|verdict|refute|repair)$/.test(x)) as ViewId[])
                   : undefined
               }
+              /* ?terms=1：预填的四个词只为拍版式（两个命中、两个不命中），真应用里是空的。 */
+              initialTerms={QS.get('terms') === '1'}
+              initialTermsWords={QS.get('terms') === '1' ? '早读, 一本率, 成绩, 举证责任' : undefined}
               initialItems={
                 QS.get('conditions') === '1'
                   ? [

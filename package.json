@@ -62,7 +62,8 @@
     "check:rewrite": "node scripts/run-check-rewrite.mjs",
     "check:arch": "node scripts/check-arch.mjs",
     "audit:provenance": "node scripts/run-audit-provenance.mjs",
-    "check:provenance": "node scripts/run-check-provenance.mjs"
+    "check:provenance": "node scripts/run-check-provenance.mjs",
+    "check:terms": "node scripts/run-check-terms.mjs"
   },
   "devDependencies": {
     "@argdown/core": "^2.0.1",

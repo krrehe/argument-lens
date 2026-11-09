@@ -1,0 +1,148 @@
+/*
+ * 这一圈的词：学术分析区块里的第三条 sec。
+ *
+ * 只用 styles.css 里已定义的变量，不写 fallback——check:css 连 fallback 里的名字也当变量查。
+ * 这一栏不是报错也不是打分，主色用 --accent（与来源账一致）。
+ */
+.ft-bar {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel-2);
+  padding: 11px 13px;
+  margin: 12px 0 0;
+}
+
+.ft-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ft-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ft-toggle {
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--accent);
+  font-size: 11px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+.ft-toggle:hover {
+  background: var(--accent-bg);
+}
+
+.ft-plain {
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  margin-top: 5px;
+}
+
+.ft-panel {
+  margin-top: 11px;
+  border-top: 1px dashed var(--line);
+  padding-top: 10px;
+}
+
+.ft-label {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-2);
+  margin-bottom: 5px;
+}
+
+.ft-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 7px 9px;
+  resize: vertical;
+}
+
+.ft-split {
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+
+.ft-note {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink);
+  background: var(--accent-bg);
+  border-radius: 5px;
+  padding: 7px 9px;
+  margin-top: 9px;
+}
+
+.ft-note[data-terms-state='none-hit'] {
+  background: var(--weak-bg);
+  color: var(--weak);
+}
+
+.ft-rows {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.ft-row {
+  border-top: 1px solid var(--line);
+  padding: 8px 0;
+}
+
+.ft-row-h {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.ft-word {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.ft-count {
+  font-size: 10px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+}
+
+.ft-facts {
+  list-style: none;
+  margin: 5px 0 0;
+  padding: 0;
+}
+
+.ft-fact {
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+
+.ft-caveat {
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--ink-3);
+  border-top: 1px dashed var(--line);
+  padding-top: 8px;
+  margin-top: 8px;
+}

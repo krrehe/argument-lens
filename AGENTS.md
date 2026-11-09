@@ -40,11 +40,9 @@ npm run verify
 
 1. **不给单一判定。** 诊断、红队、重构有档位，查谬误、提问、对照没有；`givesVerdict` / `allowsLabels` 决定，`check:contract` 守着。给「查谬误」加一个总体结论是最容易犯的错。
 2. **「此处合法」一栏不能删。** 只列问题的清单会给出错误的整体印象：一个做得对的地方也会被扣上名字，而用户看不出这是清单的缺陷。
-3. **六副透镜不合并、不翻译。** 分歧本身是输出。把它们压成一个总分，
-   等于宣称六套理论可以通约——它们不能，这也是六副透镜存在的理由。
+3. **六副透镜不合并、不翻译。** 分歧本身是输出；压成一个总分等于宣称六套理论可通约——它们不能。
 4. **失败必须可见。** 写盘失败要抛到界面；空 catch 必须写 `@allow-silent:` 和理由；断言不许静默跳过（跳过就是假绿）。`check:robustness` 逐个数。
-5. **文档不能比软件更自信。** 没验过的别写成验过的。所以本文件**不列断言条数**——
-   没有断言守着的数字一定会烂，实时数以命令输出为准。
+5. **文档不能比软件更自信。** 没验过的别写成验过的；本文件**不列断言条数**——没有断言守着的数字一定会烂，实时数以命令输出为准。
 
 ---
 
@@ -58,7 +56,7 @@ npm run verify
 
 ---
 
-## 全部关卡（`npm run verify` 跑的 36 项）
+## 全部关卡（`npm run verify` 跑的 37 项）
 
 | 命令 | 红了说明什么 |
 |---|---|
@@ -97,6 +95,7 @@ npm run verify
 | `check:rewrite` | 「逐字比」破了：按下标对齐（中间插字就把后面全算成改动）、片段不是逐字照抄、单个字或纯标点被当成一处改动、比不出来时给静默空表、超上限悄悄只比前 400 字、替报告判「改错了 / 越界」、界面没贴到主张上（只剩 import 那一行也绿）、样式或预览入口没接 |
 | `check:arch` | **架构边界烂了**：`shared` 里冒出 electron / node: / main、渲染层直接 import 主进程、值 import 成环、同一个常量写出两份、CSS 冒出第二份 `:root`、三块整屏又搬回 `Diagnosis.tsx`、继续往巨石里塞组件 |
 | `check:provenance` | **来源账破了**：`src/shared/provenance.ts` 的判定点口径与 `audit:provenance` 对不上、某类本地复算被写死、界面另写一份抬头、把「判定在本地」旧宣称写回来、来源条只剩 import 或样式／预览入口没接 |
+| `check:terms` | **「这一圈的词」破了**：本地长回去自动认术语／定义标志、把报告文字当成原文、空词表写「0 处」或「没问题」、界面另抄一份抬头与边界、组件只剩 import、样式／预览入口／端到端探针没接 |
 | `check:docs` | **这份文件自己腐烂了**：它点名的命令/路径不存在，或漏掉了某个 check |
 
 `smoke` 与 `pack:check` 不进 verify（要几分钟、要起应用），改到界面或打包时单独跑。verify 现在是并发的：typecheck 先单跑（它红了会把后面的报错全带偏），其余最多 6 路并行。**怀疑并发把某一项搞红了，先 `VERIFY_JOBS=1 npm run verify` 复现**——串行也红，就不是并发的事。
@@ -133,6 +132,7 @@ npm run verify
 | 导出画布工程（`.prg`） | `check:prg`、`pack:check` | 图在 `@shared/prg-graph`（纯函数），字节在 `@shared/prg-pack`（msgpack + 不压缩的 zip）。**兼容不是声明出来的**：`check:prg` 拿 `@msgpack/msgpack` 与 `@zip.js/zip.js` 当裁判读回我们编的字节，另外人工用对方的 CLI 读过一次（复现步骤见 `docs/与画布工具互通.md`）。改了 `src/` 记得重打包 |
 | 架构 / 分层 / 组件归属 | `check:arch`、`check:css`；拆组件后 `smoke` + `pack:check` | 边界在 `scripts/check-arch.mjs`（只读源码）：`src/shared/` 不许 import electron / node: / main / renderer，渲染层与预加载不许碰主进程，值 import 不许成环；三块整屏各住一个文件，`Diagnosis.tsx` 组件数**冻结在 18 以内**——这是冻结线不是目标，只允许继续拆。摘录长度只有 `@shared/excerpt` 一个家。它只认静态字面量 import，动态拼路径与 `import type` 的类型环不在守的范围 |
 | 来源账 / 定位宣称 | `check:provenance`、`check:css`、`smoke`、预览页 `?source=1` | 判定在 `@shared/provenance`（纯函数）：口径与 `npm run audit:provenance` 对齐，界面抬头逐字取自纯函数，**不许把「判定在本地」写回来**。这一层只分类与计数，不改判定、不落盘；没有逐处给每个判定打标（边界写在 README 已知限制）。改了 `src/` 记得重打包 |
+| 这一圈的词（学科词表） | `check:terms`、`check:css`、`smoke`、`ui:preview` 截图 `?terms=1`、`pack:check` | 判定在 `@shared/field-terms`（纯函数）：**词表由使用者给**，本地只按字面数出现次数、落句、报告结论／前提文字里有没有；原文与报告文字分开（实测 406/407 条主张 `text !== quote`）。不判换义、不按学科换标准、不调模型、不落盘。先量过：15 段学术体裁里显式定义词 0 命中，所以不许长回启发式词表。改了 `src/` 记得重打包 |
 
 ---
 

@@ -39,6 +39,7 @@ import { RereadScreen } from './RereadScreen';
 import { RescaleScreen } from './RescaleScreen';
 import { ConditionScreen } from './ConditionScreen';
 import { SourceBar } from './SourceBar';
+import { FieldTermsBar } from './FieldTermsBar';
 
 /* ═══════ 通用小件 ═══════ */
 
@@ -1231,6 +1232,8 @@ export function DiagnosisView({
   initialItems,
   initialViews,
   initialPicked,
+  initialTerms,
+  initialTermsWords,
 }: {
   d: Diagnosis;
   /**
@@ -1263,6 +1266,9 @@ export function DiagnosisView({
    * 而「默认关」这个取舍不该为了截图而改——真应用里它仍然是关的。
    */
   initialPicked?: ViewId[];
+  /** 预览页专用：展开「这一圈的词」并预填演示词，好让默认收起的那一栏有截图入口。 */
+  initialTerms?: boolean;
+  initialTermsWords?: string;
 }) {
   const [sel, setSel] = useState<string | null>(null);
   /**
@@ -1573,6 +1579,7 @@ export function DiagnosisView({
         plain="如果这段话是从论文、书评或报告里摘出来的，这一栏替你分清两件事：哪些本工具查过了，哪些只能你自己回原文查。引用是否忠实、数据是否真实、方法是否恰当——这三条它一概查不了，所以它把它们指出来，而不是装作没看见。最后一小节讲的是：要反驳，先从哪一层下手。"
       >
         <AcademicBlock a={academic} onOpenClaim={onOpenClaim} />
+        <FieldTermsBar d={d} initialOpen={!!initialTerms} initialWords={initialTermsWords} />
       </Block>
 
       <Block

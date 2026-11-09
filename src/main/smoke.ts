@@ -1353,6 +1353,51 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         add(`SOURCERESULT ${JSON.stringify({ ...sourceBefore, clicked: sourceClicked, ...sourceAfter })}`);
       }
 
+      /*
+       * 「这一圈的词」：学术分析区块里词表由人给的那一栏。
+       *
+       * 核的是接线，不是算法：默认收起、点开后出现输入框、把词真的填进去之后
+       * 本地当场重算（行、条数、状态都跟着变）。填词走 React 受控组件的原生
+       * setter + input 事件；点击／输入／读取分三次并各等一拍，抢跑会读到旧 DOM。
+       */
+      {
+        const termsBefore = JSON.parse(
+          await wc.executeJavaScript(`JSON.stringify({
+            has: !!document.querySelector('[data-terms-bar]'),
+            openedByDefault: !!document.querySelector('[data-terms-panel]'),
+          })`)
+        );
+        const termsClicked = await wc.executeJavaScript(`(() => {
+          const b = document.querySelector('[data-terms-toggle]');
+          if (!b) return false;
+          b.click();
+          return true;
+        })()`);
+        await sleep(300);
+        const termsTyped = await wc.executeJavaScript(`(() => {
+          const el = document.querySelector('[data-terms-input]');
+          if (!el) return false;
+          const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+          setter.call(el, '早读, 一本率, 举证责任');
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          return true;
+        })()`);
+        await sleep(300);
+        const termsAfter = JSON.parse(
+          await wc.executeJavaScript(`JSON.stringify({
+            rows: [...document.querySelectorAll('[data-terms-row]')].map((e) => ({
+              word: e.getAttribute('data-terms-row'),
+              count: (e.querySelector('.ft-count')?.textContent ?? '').trim(),
+              facts: [...e.querySelectorAll('.ft-fact')].map((x) => (x.textContent ?? '').trim()),
+            })),
+            note: (document.querySelector('[data-terms-note]')?.textContent ?? '').trim(),
+            state: document.querySelector('[data-terms-note]')?.getAttribute('data-terms-state') ?? '',
+            caveat: (document.querySelector('[data-terms-caveat]')?.textContent ?? '').trim(),
+          })`)
+        );
+        add(`TERMSRESULT ${JSON.stringify({ ...termsBefore, clicked: termsClicked, typed: termsTyped, ...termsAfter })}`);
+      }
+
       if (process.env['AL_VIEWS'] === '1') {
         const snap = async (): Promise<Record<string, unknown>> =>
           JSON.parse(

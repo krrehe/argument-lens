@@ -687,6 +687,34 @@ const checks = [
     })(),
   ],
   /*
+   * 打包产物里的「这一圈的词」：这一块的纯函数在 `src/shared/`，
+   * 没进 asar 时界面整块消失，而源码里的断言全在源码里跑、包坏不坏它不知道。
+   * 所以这里只问一句：包里点开之后能不能填词、填完本地是不是当场重算。
+   */
+  [
+    '打包产物里的「这一圈的词」点得开，填词后本地重算',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('TERMSRESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        const rows = Array.isArray(r.rows) ? r.rows : [];
+        return (
+          r.has === true &&
+          r.openedByDefault === false &&
+          r.clicked === true &&
+          r.typed === true &&
+          r.state === 'ok' &&
+          rows.length === 3 &&
+          /不判术语有没有换义/.test(String(r.caveat ?? '')) &&
+          /3 个词/.test(String(r.note ?? ''))
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
    * 打包产物里的「谁跑的」：包内跑一次分析之后，报告里那一栏得在。
    *
    * 这一条与包外那条不完全重复：`Diagnosis.engine` 只有一个类型、逻辑全在 analyze.ts，

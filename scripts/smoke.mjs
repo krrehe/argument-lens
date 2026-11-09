@@ -1288,6 +1288,30 @@ if (process.env.SMOKE_AGREEMENT === '1') {
 }
 
 /*
+ * 「这一圈的词」（无条件跑：它长在学术分析区块里，报告一出现 DOM 就有）。
+ *
+ * 核的是接线，不是算法：默认收起、点开后有输入框、把词真的填进去之后本地当场重算。
+ * 三个词不是随手挑的：假模型那份原文是「取消早读」，「早读」「一本率」命中，
+ * 「举证责任」不命中——刚好覆盖命中、不命中与「报告改写过」那一层的入口。
+ */
+{
+  const tm = jOfLine('TERMSRESULT');
+  const rows = Array.isArray(tm.rows) ? tm.rows : [];
+  const byWord = Object.fromEntries(rows.map((r) => [r.word, r]));
+  checks.push(
+    ['圈内词：这一块真的出现在报告里', tm.has === true, String(tm.has)],
+    ['圈内词：默认收起', tm.openedByDefault === false, String(tm.openedByDefault)],
+    ['圈内词：展开按钮点得动', tm.clicked === true, String(tm.clicked)],
+    ['圈内词：输入框在，词真的填进去了', tm.typed === true && rows.length === 3, `${tm.typed} / ${rows.length}`],
+    ['圈内词：填词后状态是 ok，不是空表也不是全不命中', tm.state === 'ok', String(tm.state)],
+    ['圈内词：命中的词有非零次数', Number(String(byWord['早读']?.count ?? '').replace(/\D/g, '')) > 0, String(byWord['早读']?.count)],
+    ['圈内词：不命中的词明说「一次都没出现」', /一次都没出现/.test((byWord['举证责任']?.facts ?? []).join('')), JSON.stringify(byWord['举证责任']?.facts ?? [])],
+    ['圈内词：总述逐字来自纯函数（3 个词、1 个没出现）', /3 个词/.test(String(tm.note)) && /1 个一次没出现/.test(String(tm.note)), String(tm.note)],
+    ['圈内词：边界那句不判换义、不落盘', /不判术语有没有换义/.test(String(tm.caveat)) && /不存盘/.test(String(tm.caveat)), String(tm.caveat)],
+  );
+}
+
+/*
  * 两份对照（跟在 SMOKE_AGREEMENT 后面跑）。
  *
  * 这一条验的是**接线**，不是算法：号码点得动、没选够两份时按钮不许亮、点完面板开、
