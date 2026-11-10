@@ -49,14 +49,13 @@ npm run verify
 ## 三条操作规矩
 
 - **新增断言必须先红后绿。** 写一条永远不会失败的断言（选错选择器、条件恒真、分支被跳过），比不写更糟：它让绿色的总数骗人。做法是故意改坏一处代码，确认它红，再改回来。
-- **碰了 `src/` 就必须重打 `dist/`。** 否则 exe 与源码不符却照常能跑，只能靠纪律发现。打包走本机已解压
-  的 Electron 目录（`-c.electronDist=node_modules/electron/dist`），不去 GitHub 下发行包：2026-11-04 那次
-  `ETIMEDOUT`，`dist` 真退出 1 而 exe 还是旧的。**打完核对 `dist/*.exe` 时间戳**（有过 exit=0 但产物没更新）。
+- **碰了 `src/` 就必须重打 `dist/`。** 否则 exe 与源码不符却照常能跑，只能靠纪律发现。打包走本机已解压的 Electron 目录（`-c.electronDist=node_modules/electron/dist`），不去 GitHub 下发行包：2026-11-04 那次 `ETIMEDOUT`，`dist` 真退出 1 而 exe 还是旧的。
+  **打完核对 `dist/*.exe` 时间戳**（有过 exit=0 但产物没更新）。
 - **只在特定时刻出现的屏，必须留一个能拍到它的入口。** 预览页的 `?running=` / `?dlg=` 与端到端 `SMOKE_*` 开关就是为此存在的。没人见过的界面等于没做。
 
 ---
 
-## 全部关卡（`npm run verify` 跑的 37 项）
+## 全部关卡（`npm run verify` 跑的 38 项）
 
 | 命令 | 红了说明什么 |
 |---|---|
@@ -96,6 +95,7 @@ npm run verify
 | `check:arch` | **架构边界烂了**：`shared` 里冒出 electron / node: / main、渲染层直接 import 主进程、值 import 成环、同一个常量写出两份、CSS 冒出第二份 `:root`、三块整屏又搬回 `Diagnosis.tsx`、继续往巨石里塞组件 |
 | `check:provenance` | **来源账破了**：`src/shared/provenance.ts` 的判定点口径与 `audit:provenance` 对不上、某类本地复算被写死、界面另写一份抬头、把「判定在本地」旧宣称写回来、来源条只剩 import 或样式／预览入口没接 |
 | `check:terms` | **「这一圈的词」破了**：本地长回去自动认术语／定义标志、把报告文字当成原文、空词表写「0 处」或「没问题」、界面另抄一份抬头与边界、组件只剩 import、样式／预览入口／端到端探针没接 |
+| `check:field-samples` | **外部样本那三段字烂了**：文档引用块与数据文件不再逐字一致（含标点）、出处字段缺项、词表全抄错却照样有输出、对照词恰好命中让「没出现」那列空着、审计脚本偷偷把报告侧字段写进输出。**与 `audit:field-samples` 共用同一套自检**，数据固定在仓库里所以进 verify |
 | `check:docs` | **这份文件自己腐烂了**：它点名的命令/路径不存在，或漏掉了某个 check |
 
 `smoke` 与 `pack:check` 不进 verify（要几分钟、要起应用），改到界面或打包时单独跑。verify 现在是并发的：typecheck 先单跑（它红了会把后面的报错全带偏），其余最多 6 路并行。**怀疑并发把某一项搞红了，先 `VERIFY_JOBS=1 npm run verify` 复现**——串行也红，就不是并发的事。
@@ -132,7 +132,7 @@ npm run verify
 | 导出画布工程（`.prg`） | `check:prg`、`pack:check` | 图在 `@shared/prg-graph`（纯函数），字节在 `@shared/prg-pack`（msgpack + 不压缩的 zip）。**兼容不是声明出来的**：`check:prg` 拿 `@msgpack/msgpack` 与 `@zip.js/zip.js` 当裁判读回我们编的字节，另外人工用对方的 CLI 读过一次（复现步骤见 `docs/与画布工具互通.md`）。改了 `src/` 记得重打包 |
 | 架构 / 分层 / 组件归属 | `check:arch`、`check:css`；拆组件后 `smoke` + `pack:check` | 边界在 `scripts/check-arch.mjs`（只读源码）：`src/shared/` 不许 import electron / node: / main / renderer，渲染层与预加载不许碰主进程，值 import 不许成环；三块整屏各住一个文件，`Diagnosis.tsx` 组件数**冻结在 18 以内**——这是冻结线不是目标，只允许继续拆。摘录长度只有 `@shared/excerpt` 一个家。它只认静态字面量 import，动态拼路径与 `import type` 的类型环不在守的范围 |
 | 来源账 / 定位宣称 | `check:provenance`、`check:css`、`smoke`、预览页 `?source=1` | 判定在 `@shared/provenance`（纯函数）：口径与 `npm run audit:provenance` 对齐，界面抬头逐字取自纯函数，**不许把「判定在本地」写回来**。这一层只分类与计数，不改判定、不落盘；没有逐处给每个判定打标（边界写在 README 已知限制）。改了 `src/` 记得重打包 |
-| 这一圈的词（学科词表） | `check:terms`、`check:css`、`smoke`、`ui:preview` 截图 `?terms=1`、`pack:check` | 判定在 `@shared/field-terms`（纯函数）：**词表由使用者给**，本地只按字面数出现次数、落句、报告结论／前提文字里有没有；原文与报告文字分开（实测 406/407 条主张 `text !== quote`）。不判换义、不按学科换标准、不调模型、不落盘。先量过：15 段学术体裁里显式定义词 0 命中，所以不许长回启发式词表。改了 `src/` 记得重打包 |
+| 这一圈的词（学科词表） | `check:terms`、`check:field-samples`、`check:css`、`smoke`、`ui:preview` 截图 `?terms=1`、`pack:check` | 判定在 `@shared/field-terms`（纯函数）：**词表由使用者给**，本地只按字面数出现次数、落句、报告结论／前提文字里有没有；原文与报告文字分开（实测 406/407 条主张 `text !== quote`）。不判换义、不按学科换标准、不调模型、不落盘。先量过：15 段学术体裁里显式定义词 0 命中，所以不许长回启发式词表。三段外部公开摘要在 `scripts/fixtures/field-samples.ts`，`audit:field-samples` 打印账、`check:field-samples` 进 verify；`audit:field-reports` 量本机真报告的报告侧（依赖存档，不进 verify，实测 `onQuietOnly` 几乎零命中：判据要求词的所有落句都没被钉住）。摘要不是论证正文、词表不是专家给的，这两条别忘。改了 `src/` 记得重打包 |
 
 ---
 

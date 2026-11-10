@@ -64,7 +64,9 @@
     "audit:provenance": "node scripts/run-audit-provenance.mjs",
     "check:provenance": "node scripts/run-check-provenance.mjs",
     "check:terms": "node scripts/run-check-terms.mjs",
-    "audit:field-samples": "node scripts/run-audit-field-samples.mjs"
+    "audit:field-samples": "node scripts/run-audit-field-samples.mjs",
+    "audit:field-reports": "node scripts/run-audit-field-reports.mjs",
+    "check:field-samples": "node scripts/run-check-field-samples.mjs"
   },
   "devDependencies": {
     "@argdown/core": "^2.0.1",

@@ -10,8 +10,13 @@
  * 「报告结论文字里没有这个词」——那不是事实，是缺输入。宁可明说量不了，不写假话。
  *
  * 口径不另写一份：切句用界面的 `sentenceBounds`，数词用界面的 `fieldTermsOf`。
- * 不进 `verify`：它依赖一组固定在仓库里的外部文本，换一段字就该换一份账；
- * 命令自带硬断言自检，失败真实退出 1，不静默跳过。
+ *
+ * 两种跑法，**共用上面这一整套自检**：
+ *  - `npm run audit:field-samples` 打印给人看的逐词账；
+ *  - `npm run check:field-samples`（`AL_CHECK_MODE=1`）进 `verify`，只打印一行。
+ * 这份数据固定在仓库里、不依赖使用者存档，所以「不进 verify」那条先例不适用——
+ * `audit:provenance` 不进 verify 是因为换台机器没有存档就该明说量不了，这里没有那个问题。
+ * 任何一处自检失败都真实退出 1，不静默跳过。
  */
 import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
@@ -134,6 +139,16 @@ if (bad) {
   process.exit(1);
 }
 
+/* verify 只吃一行。注意它排在 `if (bad)` 后面：自检没全过就轮不到这一行，
+ * 否则「跳过自检直接打印通过」会变成一处不报错的假绿。 */
+if (process.env['AL_CHECK_MODE'] === '1') {
+  console.log(
+    `外部学术样本：${FIELD_SAMPLES.length} 段逐字文本与文档引用块一致、` +
+      '出处齐全、词表有命中也有落空、报告侧未计，自检全部通过',
+  );
+  process.exit(0);
+}
+
 /* ───── 输出 ───── */
 const sentencesLabel = (ids: number[]): string =>
   ids.length ? ids.map((i) => `第 ${i + 1} 句`).join('、') : '—';
@@ -178,7 +193,7 @@ for (const [i, { sample: s, sentences, rows }] of views.entries()) {
       `没出现 ${rows.filter((r) => r.count === 0).length} 个（含对照词） · ` +
       `跨 ≥2 句的词 ${cross.filter((r) => s.words.includes(r.word)).length} 个`,
   );
-  console.log('   报告侧（结论文字 / 前提文字 / 只在结论里 / quiet 句）：未计 —— 没有真模型报告，见边界 5。\n');
+  console.log('   报告侧（结论文字 / 前提文字 / 只在结论里 / quiet 句）：未计 —— 这三段没有真模型报告，见边界 5。\n');
 }
 
 console.log(
@@ -195,10 +210,11 @@ console.log(`
      每段另放一个该圈常见但本文没用的对照词，用来确认「没出现」那一列不是空的。
   4. 逐字依赖转录：不同站点标点不同（半角/全角逗号），url 是口径的一部分；
      换一页抄，字面次数可能变。互相包含的两个词各算各的，不做分词与归一。
-  5. 报告侧四项**未计**：这三段只有原文，没有真模型报告。把空报告传进去，纯函数
+  5. 报告侧四项**未计**：这三段只有原文，没有它们的真模型报告。把空报告传进去，纯函数
      会写出「报告结论文字里没有这个词」——那是缺输入，不是事实，所以本脚本只采信
-     count / firstAt / sentences / missing 四个原文字段。要验那一半得先有一次真模型
-     分析（本机无 Key、无本地模型、余额为空）。
+     count / firstAt / sentences / missing 四个原文字段。字段本身在本机 103 份真模型
+     报告上已由 npm run audit:field-reports 量过（三项会亮、一项近乎空），但那不是
+     学术文本；要看这三段的报告侧，仍需一次真模型分析（本机无 Key、无本地模型、余额为空）。
   6. 结论只是「原文侧有可复算的字面信号」，不是「主线有进展」：本地独立判定点占比
      仍是 4.8%，「不按学科切换标准」没有被推翻，人填完这几个词是不是更会读自己
      那一行，仍是零证据。`);
