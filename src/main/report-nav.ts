@@ -220,6 +220,11 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
   var POS_KEY = 'alPos.v1', POS_MAX = 40, MARKS = {}, POS_READY = false, posTimer = null;
   /* 最近一次「点着去」的那一节与它的有效期，见 recordPos。 */
   var GOTO_I = -1, GOTO_UNTIL = 0;
+  /* 点「接着读」时落到的节内某一块（没有就是节首），见 focusSection / recordPos。 */
+  var GOTO_SEG = null;
+  /* 上一次记下的节内块序号；-2 是「还没算过」，见 update() 里那段。
+     记它是因为「同一节里往下读三屏」不发 CUR 变化事件，只靠节号更新会漏掉整个节内。 */
+  var LAST_SEG = -2;
 
   function loadMarks(){
     if (POS_READY) return;
@@ -241,6 +246,72 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     ks.sort(function(a, b){ return (MARKS[a].t || 0) - (MARKS[b].t || 0); });
     for (var i = 0; i < ks.length - POS_MAX; i++) delete MARKS[ks[i]];
   }
+  /* ── 节内哪一段 ─────────────────────────────────────────────
+     「第 7 节」只是半句话：一节常有三四屏，重开又回到节首，读者还得自己再找一遍刚才那一处。
+     所以再记一个「块」——节正文的直接子块里，正压着视口顶线的那个。
+     记录里放两样：序号 k 与它开头二十几个字的指纹 x。为什么两样都要：
+     序号会在报告重跑后失效（多一条主张就整体后移），指纹单独用又会认错（两段开头一样）。
+     合起来的规矩是——序号指到的那个块，开头对不上就当没记过：宁可只说「第 7 节」，
+     也不能把人带到别人的第三段，因为这个软件只有本地知道「上次停在哪」，说错了没处核对。
+     正文只有一块的节不记：那里「第 1 段」等于「这一节」，说了等于没说。 */
+  var SEG_TXT = 24;
+  /* 认的是 24 字，给人看的是 12 字：面板只有 250px 宽，24 字要占两行，
+     而那两行下面还有「先看判读」「上一节 / 下一节」。认错的风险在比对上，
+     不在显示上——完整那句还在悬停提示里。 */
+  var SEG_SHOW = 12;
+  function segsOf(i){
+    var sec = sectionOf(HEADS[i]);
+    var box = sec ? (sec.querySelector('.block-body') || sec) : null;
+    var out = [];
+    if (!box) return out;
+    for (var c = box.firstElementChild; c; c = c.nextElementSibling) out.push(c);
+    return out;
+  }
+  function segAt(i, k){
+    var s = segsOf(i);
+    return k >= 0 && k < s.length ? s[k] : null;
+  }
+  function segText(n){
+    return String(n && n.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+  /* 顶线只此一份：update() 判当前节、这里判当前块，用的必须是同一条线，
+     否则「高亮在第 7 节、记下的却是第 6 节的最后一块」这种事没人看得出来。 */
+  function topLine(){
+    return (MAIN ? MAIN.getBoundingClientRect().top : 0) + 72;
+  }
+  function segIndexAt(i){
+    var s = segsOf(i);
+    if (s.length < 2) return -1;
+    var line = topLine(), k = -1;
+    for (var j = 0; j < s.length; j++) {
+      if (s[j].getBoundingClientRect().top <= line) k = j;
+    }
+    return k < 0 ? 0 : k;
+  }
+  function segMark(i, minK){
+    var k = segIndexAt(i);
+    /* minK 是「低于这个序号就不算」：刚点过目录落到节首时，第一块并没有被读，
+       记成「第 1 段」等于替人认了一次没发生的阅读。但同一次里往下滚到第 4 块，
+       那就要记——窗口只该管「哪一节」，不该把节内位置一起抹掉（冒烟第一次跑就是这里红的）。 */
+    if (k < 0 || k < (minK || 0)) return null;
+    var x = segText(segAt(i, k)).slice(0, SEG_TXT);
+    /* 空块（只有一张图、一个按钮）记下来也说不清是哪——不记，比记一个空串好。 */
+    return x ? { k: k, x: x } : null;
+  }
+  /* 点到手的那一块：不靠顶线回头再算一次，直接按它在这一节里的位置记。
+     点了「接着读」之后顶线那一刻可能还没停稳（平滑滚动），回头算会算成上一块。 */
+  function segMarkOf(el, i){
+    var s = segsOf(i), k = s.indexOf(el);
+    if (k < 0) return null;
+    var x = segText(el).slice(0, SEG_TXT);
+    return x ? { k: k, x: x } : null;
+  }
+  /* 记录里的那一块今天还在不在：序号取到、且开头逐字对得上。 */
+  function segFrom(m){
+    if (!m || !m.seg || typeof m.seg.k !== 'number' || !m.seg.x) return null;
+    var n = segAt(m.i, m.seg.k);
+    return n && segText(n).slice(0, SEG_TXT) === String(m.seg.x) ? n : null;
+  }
   function recordPos(){
     if (!LAST_ID || !HEADS.length) return;
     /* 刚点过目录就以「点的哪一节」为准。
@@ -250,7 +321,14 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     var i = GOTO_I >= 0 && Date.now() < GOTO_UNTIL ? GOTO_I : CUR;
     if (i <= 0 || i >= HEADS.length) return;
     loadMarks();
-    MARKS[LAST_ID] = { i: i, t: Date.now(), title: textOf(HEADS[i]) };
+    /* 刚点过目录时落到的是节首，第一块没被读过，所以只从第二块起才记；
+       同一次里读者往下滚到某一块，那是真读了，照记。
+       点「接着读」落到的那一块是点出来的，直接记它。 */
+    var byClick = GOTO_I >= 0 && Date.now() < GOTO_UNTIL;
+    MARKS[LAST_ID] = {
+      i: i, t: Date.now(), title: textOf(HEADS[i]),
+      seg: byClick ? (GOTO_SEG ? segMarkOf(GOTO_SEG, i) : segMark(i, 1)) : segMark(i)
+    };
     trimMarks(); saveMarks();
   }
   /* 隔 350ms 再写：平滑滚动会连着穿过好几节，逐节写盘是把中间站也记成「读到哪」。
@@ -276,15 +354,39 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     if (!m || !HEADS.length || !(m.i > 0) || m.i >= HEADS.length) {
       resume.style.display = 'none';
       resume.removeAttribute('data-resume');
+      resume.removeAttribute('data-seg');
       return;
     }
+    /* 节内那一段还在不在（序号 + 指纹都对上）。对不上就退回「只说节」：
+       报告重跑过、这一节重排过，这时指着「第 3 段」是替一份新报告认了一个不存在的段。 */
+    var segEl = segFrom(m);
+    var k = segEl ? m.seg.k : -1;
     var tt = textOf(HEADS[m.i]);
     resume.setAttribute('data-resume', String(m.i + 1));
     resume.textContent = '';
     resume.appendChild(el('b', '', '接着读：第 ' + (m.i + 1) + ' 节 · ' + tt));
-    resume.appendChild(el('span', '', '上次读到这里（' + whenText(m.t) + '）。点了才跳，不会自动跳。'));
-    resume.title = '上次读到第 ' + (m.i + 1) + ' 节「' + tt + '」';
-    resume.onclick = function(){ goTo(m.i); };
+    if (segEl) {
+      var sTxt = segText(segEl);
+      resume.setAttribute('data-seg', String(k + 1));
+      resume.appendChild(el('span', '', '上次读到第 ' + (k + 1) + ' 段「' + sTxt.slice(0, SEG_SHOW)
+        + (sTxt.length > SEG_SHOW ? '…' : '') + '」（' + whenText(m.t) + '）。点了跳到那一段，不会自动跳。'));
+      resume.title = '上次读到第 ' + (m.i + 1) + ' 节「' + tt + '」第 ' + (k + 1) + ' 段「'
+        + sTxt.slice(0, SEG_TXT) + '」';
+      resume.onclick = function(){ goTo(m.i, segEl); };
+    } else {
+      /* 记过段、这次没找到：明写出来。悄悄退回节首，人会发现位置不对，却不知道为什么。 */
+      if (m.seg) {
+        resume.setAttribute('data-seg', '');
+        resume.appendChild(el('span', '', '上次读到这一节的第 ' + (m.seg.k + 1)
+          + ' 段，那一段这次没找到（报告可能重跑过）。点了只跳到这一节。（' + whenText(m.t) + '）'));
+        resume.title = '上次读到第 ' + (m.i + 1) + ' 节「' + tt + '」的中间，那一段这次没找到';
+      } else {
+        resume.removeAttribute('data-seg');
+        resume.appendChild(el('span', '', '上次读到这里（' + whenText(m.t) + '）。点了才跳，不会自动跳。'));
+        resume.title = '上次读到第 ' + (m.i + 1) + ' 节「' + tt + '」';
+      }
+      resume.onclick = function(){ goTo(m.i); };
+    }
     resume.style.display = '';
   }
 
@@ -313,7 +415,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
       ? '只展开这一节，其余按原顺序排队。'
       : '按原顺序，不替你挑重点。';
   }
-  function focusSection(i){
+  function focusSection(i, land){
     CUR = i;
     if (READING) {
       for (var j = 0; j < FOLDED.length; j++) FOLDED[j] = j === i ? 0 : 1;
@@ -321,8 +423,12 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     } else {
       setFold(i, 0);
     }
-    if (HEADS[i]) HEADS[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    /* 只滚一次就落到终点。先落到节首再落到段，长报告上会「先滑过去、再滑回来」，
+       看起来像点错了又被纠正。land 是节内某一块时，节首自然落在它上面一点。 */
+    var t = land && land.scrollIntoView ? land : HEADS[i];
+    if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
     GOTO_I = i; GOTO_UNTIL = Date.now() + 1500;
+    GOTO_SEG = land && land.scrollIntoView ? land : null;
     syncReadUI(); update();
     /* 点了目录就算「读到这一节」，不必等滚动事件：已经在这一屏时不会有滚动。 */
     schedulePos();
@@ -340,9 +446,9 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     SAVED = null;
     applyFold(); saveFold(); syncReadUI(); update();
   }
-  function goTo(i){
+  function goTo(i, land){
     if (i < 0 || i >= HEADS.length) return;
-    focusSection(i);
+    focusSection(i, land);
   }
   function step(d){ goTo(CUR + d); }
   function ensureFoldButtons(){
@@ -378,7 +484,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     if (READING) exitRead(false);
     var m = document.querySelector('.main');
     var hs = m ? [].slice.call(m.querySelectorAll('.block-head')) : [];
-    MAIN = m; HEADS = hs; LAST_COUNT = hs.length; CUR = -1; VERDICT = -1;
+    MAIN = m; HEADS = hs; LAST_COUNT = hs.length; CUR = -1; VERDICT = -1; LAST_SEG = -2;
     if (!hs.length) {
       panel.style.display = 'none';
       document.body.classList.remove('al-fold-on');
@@ -429,7 +535,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
 
   function update(){
     if (!MAIN || !HEADS.length) return;
-    var line = MAIN.getBoundingClientRect().top + 72;
+    var line = topLine();
     var cur = 0;
     for (var i = 0; i < HEADS.length; i++) {
       if (HEADS[i].getBoundingClientRect().top <= line) cur = i; else break;
@@ -438,6 +544,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
        否则平滑滚动途中高亮会跳到别的节，而展开的仍是原来那一节。 */
     if (!READING && cur !== CUR) {
       CUR = cur;
+      LAST_SEG = segIndexAt(cur);
       /* 滚过一节就记一次（350ms 后落盘）。停在第一节不记，见 recordPos 里那条理由。 */
       schedulePos();
       for (var j = 0; j < list.children.length; j++) {
@@ -451,6 +558,11 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
         }
       }
       syncReadUI();
+    } else if (!READING && cur === CUR && CUR >= 0) {
+      /* 同一节里往下读不发节号变化，只看 cur !== CUR 会整节都不更新。
+         块变了也记一次——这正是「读到节内哪一段」要记的那件事。 */
+      var sk = segIndexAt(CUR);
+      if (sk !== LAST_SEG) { LAST_SEG = sk; schedulePos(); }
     }
     var max = MAIN.scrollHeight - MAIN.clientHeight;
     progI.style.width = (max > 0 ? (MAIN.scrollTop / max * 100) : 0).toFixed(1) + '%';

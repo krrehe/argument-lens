@@ -834,6 +834,128 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               landed: rLanded,
             })}`
           );
+
+          /*
+           * 节内那一段：把「判读」这一节中间的一块顶到视口顶线，等防抖落盘，再重开一次。
+           *
+           * 上面那一条只验到节。这一条验的是「读到节里哪一段」——它多出来的风险在
+           * 「记下来的到底是不是屏幕上那一块」：序号在 DOM 里，读数在滚动里，
+           * 纯函数验得了「比不比字」，验不了这两个数是不是同一块。所以顺序是
+           * 滚 → 等 350ms 落盘 → 读回记录 → 重开 → 那句话 → 点它 → 落点。
+           * 第四步是关键：读回的 seg 必须与当初那一块的开头逐字相同，
+           * 否则「记的是别人的第三段」这条断言看不出来。
+           */
+          if (!canceled) {
+            const segPrep = JSON.parse(
+              await wc.executeJavaScript(`JSON.stringify((() => {
+                const hs = [].slice.call(document.querySelectorAll('.main .block-head'));
+                let idx = -1;
+                for (let i = 0; i < hs.length; i += 1) {
+                  if (/^\\s*判读/.test(hs[i].textContent || '')) { idx = i; break; }
+                }
+                if (idx < 0) return { ok: false, why: 'no-section' };
+                const sec = hs[idx].closest('.block');
+                const body = sec ? sec.querySelector('.block-body') : null;
+                const kids = body ? [].slice.call(body.children) : [];
+                if (kids.length < 2) return { ok: false, why: 'one-block', kids: kids.length };
+                const mid = Math.floor(kids.length / 2);
+                const box = document.querySelector('.main');
+                const top = kids[mid].getBoundingClientRect().top
+                  - box.getBoundingClientRect().top + box.scrollTop - 40;
+                box.scrollTop = Math.max(0, top);
+                return {
+                  ok: true, kids: kids.length, mid,
+                  want: (kids[mid].textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 24),
+                };
+              })())`)
+            );
+            /* 350ms 防抖 + 余量：这一条验的就是「停稳之后记下的那一刻」，等短了会读到上一块。 */
+            await sleep(700);
+            const segRec = JSON.parse(
+              await wc.executeJavaScript(`JSON.stringify((() => {
+                let all = {};
+                try { all = JSON.parse(localStorage.getItem('alPos.v1') || '{}'); } catch (e) { /* @allow-silent: 探针读本机记录，读坏了按「没有记录」处理，只看界面说不说那句话 */ }
+                const ks = Object.keys(all);
+                const v = ks.length ? all[ks[0]] : null;
+                return {
+                  count: ks.length,
+                  i: v ? v.i : -1,
+                  seg: v && v.seg ? { k: v.seg.k, x: String(v.seg.x || '') } : null,
+                };
+              })())`)
+            );
+            await wc.executeJavaScript(`window.__alNavRescan && window.__alNavRescan()`);
+            await sleep(260);
+            const segLine = JSON.parse(
+              await wc.executeJavaScript(`JSON.stringify((() => {
+                const b = document.querySelector('#__alNav .nresume');
+                const vis = !!b && getComputedStyle(b).display !== 'none';
+                return {
+                  vis,
+                  at: b && vis ? b.getAttribute('data-resume') || '' : '',
+                  seg: b && vis ? b.getAttribute('data-seg') || '' : '',
+                  text: b && vis ? (b.textContent || '').replace(/\\s+/g, ' ').trim() : '',
+                };
+              })())`)
+            );
+            /*
+             * 存一张两行版的图。这一句比上一版长一倍（还带一段引文），面板只有 250px 宽：
+             * 撑到四五行、把下面的按钮压走，都不会让任何断言变红——只有看图才知道。
+             */
+            const segRect = await wc.executeJavaScript(`(() => {
+              const el = document.querySelector('#__alNav');
+              if (!el) return null;
+              const b = el.getBoundingClientRect();
+              return {
+                x: Math.max(0, Math.round(b.left) - 6),
+                y: Math.max(0, Math.round(b.top) - 6),
+                width: Math.round(b.width) + 12,
+                height: Math.round(b.height) + 12,
+              };
+            })()`);
+            if (segRect) {
+              const segPng = (await wc.capturePage(segRect)).toPNG();
+              const segShot = join(dirname(shot), 'nav-seg.png');
+              writeFileSync(segShot, segPng);
+              add(`SEGSHOT ${segShot} ${segPng.length} bytes`);
+            }
+            const segTap = await wc.executeJavaScript(`(() => {
+              const b = document.querySelector('#__alNav .nresume');
+              if (!b || getComputedStyle(b).display === 'none') return false;
+              b.click();
+              return true;
+            })()`);            const segLandExpr = `JSON.stringify((() => {
+              const hs = [].slice.call(document.querySelectorAll('.main .block-head'));
+              const n = ${JSON.stringify(segRec.i + 1)};
+              const k = ${JSON.stringify(segRec.seg ? segRec.seg.k : -1)};
+              const h = hs[n - 1];
+              const sec = h && h.closest('.block');
+              const body = sec ? sec.querySelector('.block-body') : null;
+              const kids = body ? [].slice.call(body.children) : [];
+              const el = kids[k];
+              if (!el) return { found: false, n, k };
+              const r = el.getBoundingClientRect();
+              return {
+                found: true, n, k, top: Math.round(r.top),
+                inView: r.top >= -12 && r.top < window.innerHeight * 0.6,
+              };
+            })())`;
+            let segLanded = JSON.parse(await wc.executeJavaScript(segLandExpr));
+            for (let i = 0; i < 20; i += 1) {
+              if (segLanded.inView) break;
+              await sleep(150);
+              segLanded = JSON.parse(await wc.executeJavaScript(segLandExpr));
+            }
+            add(
+              `SEGRESULT ${JSON.stringify({
+                prep: segPrep,
+                rec: segRec,
+                line: segLine,
+                tapped: segTap,
+                landed: segLanded,
+              })}`
+            );
+          }
         }
 
         /*

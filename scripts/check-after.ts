@@ -218,7 +218,7 @@ ok(chipTargets.includes('sec-props') && chipTargets.includes('sec-pivot'), '这�
  * 另外两条是成本：记录不能无限长；平滑滚动穿过好几节时不能逐节写盘。
  */
 ok(/var POS_KEY = 'alPos\.v1'/.test(nav), '位置记录有固定的键名');
-ok(/MARKS\[LAST_ID\] = \{ i: i, t: Date\.now\(\)/.test(nav), '按这一份报告的 id 分开记（不沿用上一份的位置）');
+ok(/MARKS\[LAST_ID\] = \{\s*i: i,\s*t: Date\.now\(\)/.test(nav), '按这一份报告的 id 分开记（不沿用上一份的位置）');
 ok(/if \(i <= 0 \|\| i >= HEADS\.length\) return;/.test(nav), '停在第一节不记（记下来等于抹掉上一次真读到的地方）');
 ok(/var i = GOTO_I >= 0 && Date\.now\(\) < GOTO_UNTIL \? GOTO_I : CUR;/.test(nav), '刚点过目录就以点的哪一节为准（平滑滚动途中不记中间站）');
 ok(/m\.i > 0\) \|\| m\.i >= HEADS\.length/.test(nav), '记录越界时不说话（报告只有 9 节就别说第 12 节）');
@@ -231,9 +231,34 @@ const resumeEnd = nav.indexOf('function setFold(', resumeAt);
 const resumeBody = resumeAt >= 0 && resumeEnd > resumeAt ? nav.slice(resumeAt, resumeEnd) : '';
 ok(resumeBody.length > 200 && /data-resume/.test(resumeBody), '截到了「接着读」那一段（截不到时下面的断言不许静默通过）');
 ok(!/scrollIntoView/.test(resumeBody), '打开报告时不自动滚过去（只有点了才跳）');
-ok(/resume\.onclick = function\(\)\{ goTo\(m\.i\); \}/.test(resumeBody), '点那句才走 goTo');
+ok(/resume\.onclick = function\(\)\{ goTo\(m\.i(, segEl)?\); \}/.test(resumeBody), '点那句才走 goTo（有那一段时连那一段一起给）');
 ok(/上次读到这里/.test(resumeBody) && !/建议|应当先|从这里开始读/.test(resumeBody), '措辞是回忆，不是指令');
 ok(/syncResume\(\);/.test(nav.slice(nav.indexOf('function scan(fresh)'), nav.indexOf('window.__alNavToggle'))), 'scan 结尾真的调了它（否则那句话永远不会出现）');
+
+/*
+ * 节内那一段：多记一层「读到哪一块」，多出来的是三种新的说错方式。
+ *   ⓐ 只记序号 → 报告重跑后整体后移，把读者带到下一段去（它读起来完全正常）；
+ *   ⓑ 只记开头几个字 → 两段开头一样就认错，还说得很肯定；
+ *   ⓒ 记过、这次找不到 → 悄悄退回节首，人只看见位置不对，不知道为什么。
+ * 另外两条是「不记」的边界：只有一块的节不必记；刚点过目录时没读过节内任何一块。
+ */
+const segAt2 = nav.indexOf('/* ── 节内哪一段');
+const segEnd = nav.indexOf('function recordPos(', segAt2);
+const segBody = segAt2 >= 0 && segEnd > segAt2 ? nav.slice(segAt2, segEnd) : '';
+ok(segBody.length > 400, '截到了「节内哪一段」那一段（截不到时下面的断言不许静默通过）');
+ok(/return x \? \{ k: k, x: x \} : null;/.test(segBody), '记的是「序号 + 开头几个字」两样，不是其中一样');
+ok(/if \(s\.length < 2\) return -1;/.test(segBody), '正文只有一块的节不记（那里「第 1 段」等于「这一节」）');
+ok(/segText\(n\)\.slice\(0, SEG_TXT\) === String\(m\.seg\.x\)/.test(segBody), '找回时逐字比开头（序号对上了、字对不上也不算找到）');
+ok(/seg: byClick \? \(GOTO_SEG \? segMarkOf\(GOTO_SEG, i\) : segMark\(i, 1\)\) : segMark\(i\)/.test(nav), '刚点过目录时第一块不算读过；同一次里往下滚到某一块照记');
+ok(/if \(k < 0 \|\| k < \(minK \|\| 0\)\) return null;/.test(segBody), '「第一块不算」是这条判据，不是把整段位置一起抹掉');
+ok(/var SEG_TXT = 24;/.test(segBody) && /var SEG_SHOW = 12;/.test(segBody), '认的比给人看的长（面板 250px 宽，24 字要占两行）');
+ok(/那一段这次没找到/.test(resumeBody), '记过却找不到时说出来，不悄悄退回节首');
+ok(/if \(sk !== LAST_SEG\) \{ LAST_SEG = sk; schedulePos\(\); \}/.test(nav), '同一节里换块也记（只看节号变化会整节都不更新）');
+ok(/function topLine\(\)/.test(nav) && !/MAIN\.getBoundingClientRect\(\)\.top \+ 72/.test(nav.slice(nav.indexOf('function update('))), '判节与判块用同一条顶线（两处各写一个 72 迟早会分家）');
+const focusAt = nav.indexOf('function focusSection(');
+const focusEnd = nav.indexOf('function enterRead(', focusAt);
+const focusBody = focusAt >= 0 && focusEnd > focusAt ? nav.slice(focusAt, focusEnd) : '';
+ok((focusBody.match(/\.scrollIntoView\(\{/g) || []).length === 1, '只滚一次就落到终点（先跳节首再跳段会「滑过去又滑回来」）');
 
 /* ─────────── 收口 ─────────── */
 

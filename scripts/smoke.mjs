@@ -716,6 +716,50 @@ const checks = [
       return [['接着读：结果行能解析', false]];
     }
   })(),
+  /*
+   * 接着读的第二层：节内那一段。
+   *
+   * 这一层比节更容易说假话——「第 7 节」错了，至少人一回滚就发现自己在别的节；
+   * 「第 3 段」错了，人落在节里的另一段上，看上去完全正常。四件事各守一种：
+   *   ① 记下的是不是屏幕上那一块（序号对、开头逐字对）；
+   *   ② 那句话说不说得出第几段；
+   *   ③ 引文是不是那一块的字（不是随手截的）；
+   *   ④ 点下去落不落在这一段上。
+   * 另外先守一条「验得了」：判读这一节得真的有两块以上，否则这条测的是空集。
+   */
+  ...(() => {
+    const line = log.split('\n').find((l) => l.includes('SEGRESULT')) ?? '';
+    if (!line) {
+      return [['接着读·段：真应用里滚到一节中间—重开—点它（探针没跑也算失败）', false]];
+    }
+    try {
+      const r = JSON.parse(line.slice(line.indexOf('{')));
+      const prep = r.prep ?? {};
+      const rec = r.rec ?? {};
+      const seg = rec.seg ?? null;
+      const ln = r.line ?? {};
+      const mid = Number(prep.mid ?? -1);
+      const want = String(prep.want ?? '');
+      return [
+        ['接着读·段：判读这一节至少有两块（一块的节不记，这条就测不成）', prep.ok === true && Number(prep.kids) >= 2],
+        [
+          '接着读·段：停稳之后记下的是屏幕上那一块（序号与开头都对）',
+          seg !== null && Number(seg.k) === mid && want.length > 0 && String(seg.x ?? '') === want,
+        ],
+        [
+          '接着读·段：重开时那句话写着第几段',
+          ln.vis === true && String(ln.seg ?? '') === String(mid + 1) && new RegExp('第\\s*' + (mid + 1) + '\\s*段').test(String(ln.text ?? '')),
+        ],
+        ['接着读·段：那句话里的引文逐字来自那一段', want.length > 0 && String(ln.text ?? '').includes(want.slice(0, 12))],
+        [
+          '接着读·段：点它落在那一段上',
+          r.tapped === true && r.landed?.found === true && r.landed?.inView === true && Number(r.landed?.k) === mid,
+        ],
+      ];
+    } catch {
+      return [['接着读·段：结果行能解析', false]];
+    }
+  })(),
   // 几何：新元素不许宽或高为 0（数得出来但点不到），页面不许横向溢出（截图看不出来的那种坏）
   ['新元素都有实际尺寸', sizesOk()],
   ['无横向溢出', domObj().overflowX === 0],
