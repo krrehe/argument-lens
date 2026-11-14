@@ -605,6 +605,131 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         }
 
         /*
+         * 「接着读」——重开一份报告时，那句话说不说得出来。
+         *
+         * 这一条只有真应用能验：记录写在注入脚本里（目录不在 React 树里），
+         * 而「打开时不自动跳」「点了才跳」这两件事都发生在滚动与落点上。
+         * 纯函数能验的只有措辞，验不了这两件。
+         *
+         * 顺序刻意排成「打开 → 点一节 → 重开 → 点那句」：
+         *   ① 刚打开的这份新报告不该有任何记录，也就不该有那句话；
+         *   ② 点目录里的「先看判读」，记住的必须是判读那一节（不是第一节、不是别的）；
+         *   ③ 重开时那句话写着第几节，且**页面没有被自动滚过去**（滚了就是软件替人决定）；
+         *   ④ 点那句，真的落在那一节。
+         */
+        if (!canceled) {
+          /* 换报告要等渲染层派发 al:report-change（App 里 180ms 防抖）——
+             目录没收到那份通知就不知道「这是哪一份」，位置也就无从记起。 */
+          await sleep(400);
+          const rBefore = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify((() => {
+              const b = document.querySelector('#__alNav .nresume');
+              const j = document.querySelector('#__alNav .njump');
+              let all = {};
+              try { all = JSON.parse(localStorage.getItem('alPos.v1') || '{}'); } catch (e) { /* @allow-silent: 探针读本机记录，读坏了按「没有记录」处理，只看界面说不说那句话 */ }
+              return {
+                shown: !!b && getComputedStyle(b).display !== 'none',
+                marks: Object.keys(all).length,
+                jumpLabel: (j ? j.textContent : '') || '',
+              };
+            })())`)
+          );
+          const rClicked = await wc.executeJavaScript(`(() => {
+            const b = document.querySelector('#__alNav .njump');
+            if (!b) return false;
+            b.click();
+            return true;
+          })()`);
+          await sleep(1500);
+          const rRec = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify((() => {
+              let all = {};
+              try { all = JSON.parse(localStorage.getItem('alPos.v1') || '{}'); } catch (e) { /* @allow-silent: 探针读本机记录，读坏了按「没有记录」处理，只看界面说不说那句话 */ }
+              const ks = Object.keys(all);
+              const v = ks.length ? all[ks[0]] : null;
+              return {
+                count: ks.length,
+                id: ks.length ? ks[0] : '',
+                index: v ? v.i : -1,
+                title: v ? String(v.title || '') : '',
+                sections: document.querySelectorAll('#__alNav .nlist .ni').length,
+              };
+            })())`)
+          );
+          const rScrollBefore = await wc.executeJavaScript(
+            `(() => { const m = document.querySelector('.main'); return m ? Math.round(m.scrollTop) : -1; })()`
+          );
+          await wc.executeJavaScript(`window.__alNavRescan && window.__alNavRescan()`);
+          await sleep(260);
+          const rResume = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify((() => {
+              const b = document.querySelector('#__alNav .nresume');
+              const m = document.querySelector('.main');
+              const vis = !!b && getComputedStyle(b).display !== 'none';
+              return {
+                vis,
+                at: b && vis ? b.getAttribute('data-resume') || '' : '',
+                text: b && vis ? (b.textContent || '').replace(/\\s+/g, ' ').trim() : '',
+                scrollAfter: m ? Math.round(m.scrollTop) : -1,
+              };
+            })())`)
+          );
+          /*
+           * 存一张目录面板的图。这句话只有两行，缩到整页尺寸看不见；
+           * 而它坏起来的样子（挤成三行、按钮被压成一条）不会让任何断言变红。
+           */
+          const navRect = await wc.executeJavaScript(`(() => {
+            const el = document.querySelector('#__alNav');
+            if (!el) return null;
+            const b = el.getBoundingClientRect();
+            return {
+              x: Math.max(0, Math.round(b.left) - 6),
+              y: Math.max(0, Math.round(b.top) - 6),
+              width: Math.round(b.width) + 12,
+              height: Math.round(b.height) + 12,
+            };
+          })()`);
+          if (navRect) {
+            const navPng = (await wc.capturePage(navRect)).toPNG();
+            const navShot = join(dirname(shot), 'nav-resume.png');
+            writeFileSync(navShot, navPng);
+            add(`NAVSHOT ${navShot} ${navPng.length} bytes`);
+          }
+          const rTap = await wc.executeJavaScript(`(() => {
+            const b = document.querySelector('#__alNav .nresume');
+            if (!b || getComputedStyle(b).display === 'none') return false;
+            b.click();
+            return true;
+          })()`);
+          /* 落点等动画结束，不写死时长：报告越长，平滑滚动越久。 */
+          const landExpr = `JSON.stringify((() => {
+            const hs = [].slice.call(document.querySelectorAll('.main .block-head'));
+            const n = Number(${JSON.stringify(rResume.at || '0')});
+            const h = hs[n - 1];
+            if (!h) return { found: false, n };
+            const r = h.getBoundingClientRect();
+            return { found: true, n, top: Math.round(r.top), inView: r.top >= -8 && r.top < window.innerHeight * 0.6 };
+          })())`;
+          let rLanded = JSON.parse(await wc.executeJavaScript(landExpr));
+          for (let i = 0; i < 20; i += 1) {
+            if (rLanded.inView) break;
+            await sleep(150);
+            rLanded = JSON.parse(await wc.executeJavaScript(landExpr));
+          }
+          add(
+            `RESUMERESULT ${JSON.stringify({
+              before: rBefore,
+              clicked: rClicked,
+              rec: rRec,
+              scrollBefore: rScrollBefore,
+              resume: rResume,
+              tapped: rTap,
+              landed: rLanded,
+            })}`
+          );
+        }
+
+        /*
          * 异议账：记一条 → 账出现 → 逐条展开 → 撤销 → 整块消失。
          *
          * 这条账只在「这份报告里已经有过异议」时才出现，所以现场记一条是唯一能让它

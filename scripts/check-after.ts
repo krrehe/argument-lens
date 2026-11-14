@@ -205,7 +205,37 @@ const dead = chipTargets.filter((id) => !diagTsx.includes(`id="${id}"`));
 ok(chipTargets.length >= 8 && dead.length === 0, '跳转条里的每个 id 在报告里都有落点', dead.join(',') || `只找到 ${chipTargets.length} 格`);
 ok(chipTargets.includes('sec-props') && chipTargets.includes('sec-pivot'), '这两格确实在这份清单里', chipTargets.join(','));
 
+/* ─────────── 九 · 接着读：重开时那句话不说假话 ─────────── */
+
+/*
+ * 「上次停在第七节」是这个软件里少数**只有本地知道**的事——报告里没有这一句。
+ * 所以它一旦说错，读者没有办法从别处发现。四条规矩各守一种说错的方式：
+ *   ① 换一份报告沿用了上一份的位置 → 说成「B 的第七节」，其实那是 A 的；
+ *   ② 报告一打开停在第一节就记下 → 把上一次真读到的地方抹掉；
+ *   ③ 记录指向的节已经不在 → 说「第 12 节」，而这份报告只有 9 节；
+ *   ④ 打开就自动滚过去 → 读者从此没有「先看看标题」这个动作。
+ * 另外两条是成本：记录不能无限长；平滑滚动穿过好几节时不能逐节写盘。
+ */
+ok(/var POS_KEY = 'alPos\.v1'/.test(nav), '位置记录有固定的键名');
+ok(/MARKS\[LAST_ID\] = \{ i: i, t: Date\.now\(\)/.test(nav), '按这一份报告的 id 分开记（不沿用上一份的位置）');
+ok(/if \(i <= 0 \|\| i >= HEADS\.length\) return;/.test(nav), '停在第一节不记（记下来等于抹掉上一次真读到的地方）');
+ok(/var i = GOTO_I >= 0 && Date\.now\(\) < GOTO_UNTIL \? GOTO_I : CUR;/.test(nav), '刚点过目录就以点的哪一节为准（平滑滚动途中不记中间站）');
+ok(/m\.i > 0\) \|\| m\.i >= HEADS\.length/.test(nav), '记录越界时不说话（报告只有 9 节就别说第 12 节）');
+ok(/POS_MAX = 40/.test(nav) && /MARKS\[a\]\.t \|\| 0\) - \(MARKS\[b\]\.t \|\| 0\)/.test(nav), '只留最近 40 份，按时间丢最旧');
+ok(/setTimeout\(recordPos, 350\)/.test(nav), '滚动穿过几节时只落一次盘（不把中间站记成「读到哪」）');
+
+/** 只截 syncResume 这一段：它紧接在 setFold 之前，边界稳定。 */
+const resumeAt = nav.indexOf('function syncResume(');
+const resumeEnd = nav.indexOf('function setFold(', resumeAt);
+const resumeBody = resumeAt >= 0 && resumeEnd > resumeAt ? nav.slice(resumeAt, resumeEnd) : '';
+ok(resumeBody.length > 200 && /data-resume/.test(resumeBody), '截到了「接着读」那一段（截不到时下面的断言不许静默通过）');
+ok(!/scrollIntoView/.test(resumeBody), '打开报告时不自动滚过去（只有点了才跳）');
+ok(/resume\.onclick = function\(\)\{ goTo\(m\.i\); \}/.test(resumeBody), '点那句才走 goTo');
+ok(/上次读到这里/.test(resumeBody) && !/建议|应当先|从这里开始读/.test(resumeBody), '措辞是回忆，不是指令');
+ok(/syncResume\(\);/.test(nav.slice(nav.indexOf('function scan(fresh)'), nav.indexOf('window.__alNavToggle'))), 'scan 结尾真的调了它（否则那句话永远不会出现）');
+
 /* ─────────── 收口 ─────────── */
+
 
 if (failed.length) {
   for (const f of failed) console.error(`✗ ${f}`);

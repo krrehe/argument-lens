@@ -634,6 +634,37 @@ const checks = [
       return [['异议账：结果行能解析', false]];
     }
   })(),
+  /*
+   * 「接着读」：重开一份报告时那句话说不说得出来。
+   *
+   * 三种坏法都在这五条里：没有记录也冒出一句（把自己说成记得）、
+   * 记错了节（说第七节、点下去落到第五节）、以及最常见的一种——
+   * 重开时**自动**滚过去：读者从此失去了「打开先看看标题」这个动作。
+   */
+  ...(() => {
+    const line = log.split('\n').find((l) => l.includes('RESUMERESULT')) ?? '';
+    if (!line) {
+      return [['接着读：真应用里打开—跳节—重开—点它（探针没跑也算失败）', false]];
+    }
+    try {
+      const r = JSON.parse(line.slice(line.indexOf('{')));
+      const n = Number((String(r.before?.jumpLabel ?? '').match(/(\d+)/) ?? [])[1] ?? 0);
+      const rec = r.rec ?? {};
+      const rv = r.resume ?? {};
+      return [
+        ['接着读：刚打开的这份报告没有那句话（新报告没有记录）', r.before?.shown === false && Number(r.before?.marks) === 0],
+        ['接着读：点了「先看判读」之后记住的是判读那一节', r.clicked === true && Number(rec.count) === 1 && Number(rec.index) === n - 1 && /判读/.test(String(rec.title ?? ''))],
+        [
+          '接着读：重开时那句话写着第几节、哪一节',
+          rv.vis === true && String(rv.at ?? '') === String(n) && new RegExp('第\\s*' + n + '\\s*节').test(String(rv.text ?? '')) && /判读/.test(String(rv.text ?? '')),
+        ],
+        ['接着读：重开不会自动滚过去（从哪读起是读者的事）', Math.abs(Number(rv.scrollAfter ?? -1) - Number(r.scrollBefore ?? -1)) <= 2],
+        ['接着读：点它真的落到那一节', r.tapped === true && r.landed?.inView === true && Number(r.landed?.n) === n],
+      ];
+    } catch {
+      return [['接着读：结果行能解析', false]];
+    }
+  })(),
   // 几何：新元素不许宽或高为 0（数得出来但点不到），页面不许横向溢出（截图看不出来的那种坏）
   ['新元素都有实际尺寸', sizesOk()],
   ['无横向溢出', domObj().overflowX === 0],

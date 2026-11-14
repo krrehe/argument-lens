@@ -39,6 +39,12 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     '#__alNav .nh button:hover{color:#2c3a49}',
     '#__alNav .nprog{height:3px;background:#eee9de;flex:none}',
     '#__alNav .nprog i{display:block;height:100%;width:0;background:#b98a4a;transition:width .12s linear}',
+    /* 「接着读」：只在这份报告有记录时出现，样式上比「先看判读」更轻——
+       它是回忆，不是建议。 */
+    '#__alNav .nresume{margin:8px 8px 0;padding:7px 9px;border:1px solid #cfdde9;border-radius:5px;background:#eff5fa;color:#2c3a49;cursor:pointer;font:11.5px/1.45 system-ui;text-align:left;flex:none}',
+    '#__alNav .nresume:hover{background:#e3eef7}',
+    '#__alNav .nresume b{display:block;font-weight:600;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '#__alNav .nresume span{display:block;color:#6d7b89;font-size:10px;margin-top:2px}',
     '#__alNav .njump{margin:8px 8px 4px;padding:7px 9px;border:1px solid #d8cdb6;border-radius:5px;background:#faf6ee;color:#5a4b32;cursor:pointer;font:11.5px system-ui;text-align:left;flex:none}',
     '#__alNav .njump:hover{background:#f1e7d3}',
     '#__alNav .nlist{overflow-y:auto;flex:1;min-height:0;padding:2px 6px 6px;scrollbar-width:thin}',
@@ -53,7 +59,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     '#__alNav.al-nav-min{width:34px;bottom:auto}',
     '#__alNav.al-nav-min .nh{flex-direction:column;padding:9px 6px;border:0;gap:9px}',
     '#__alNav.al-nav-min .nh b{writing-mode:vertical-rl;letter-spacing:.18em;font-size:11px;flex:none}',
-    '#__alNav.al-nav-min .nprog,#__alNav.al-nav-min .njump,#__alNav.al-nav-min .nfoldbar,#__alNav.al-nav-min .nreadbar,#__alNav.al-nav-min .nlist,#__alNav.al-nav-min .nf{display:none}',
+    '#__alNav.al-nav-min .nprog,#__alNav.al-nav-min .njump,#__alNav.al-nav-min .nresume,#__alNav.al-nav-min .nfoldbar,#__alNav.al-nav-min .nreadbar,#__alNav.al-nav-min .nlist,#__alNav.al-nav-min .nf{display:none}',
     '#__alNav .nfoldbar{display:flex;gap:6px;padding:0 8px 6px;flex:none}',
     '#__alNav .nfoldbar button{flex:1;border:1px solid #e6e0d3;border-radius:4px;background:#fbf9f4;color:#6b6458;cursor:pointer;font:10.5px system-ui;padding:4px 0}',
     '#__alNav .nfoldbar button:hover{background:#f1e7d3;color:#5a4b32}',
@@ -92,6 +98,14 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
   minBtn.title = '收起目录';
   head.appendChild(title); head.appendChild(minBtn);
   var prog = el('div', 'nprog'); var progI = el('i'); prog.appendChild(progI);
+  /*
+   * 「接着读」：这份报告上次停在第七节，重开时不必从标题重新找起。
+   * 默认隐藏，只有这一份报告在本地真有记录时才出现——没有记录时不给一句
+   * 「暂无阅读记录」的空话。点了才跳，打开报告时绝不自动滚过去。
+   */
+  var resume = el('button', 'nresume');
+  resume.type = 'button';
+  resume.style.display = 'none';
   var jump = el('button', 'njump', '→ 先看判读');
   var fbar = el('div', 'nfoldbar');
   /* 报告开头还有一些不属于 18 个 Block 的说明区，它们不参与折叠；
@@ -119,7 +133,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
   var footN = el('span', '', '—');
   var topBtn = el('button', '', '↑ 回到开头');
   foot.appendChild(footN); foot.appendChild(topBtn);
-  panel.appendChild(head); panel.appendChild(prog); panel.appendChild(jump);
+  panel.appendChild(head); panel.appendChild(prog); panel.appendChild(resume); panel.appendChild(jump);
   panel.appendChild(fbar); panel.appendChild(rbar); panel.appendChild(list); panel.appendChild(foot);
   document.body.appendChild(panel);
 
@@ -194,8 +208,87 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     }
     document.body.classList.toggle('al-fold-on', HEADS.length > 0);
   }
-  function setFold(i, v){
-    if (i < 0 || i >= FOLDED.length || !!FOLDED[i] === !!v) return;
+  /* ── 阅读位置 ───────────────────────────────────────────────
+     一份报告两万像素，「上次停在第七节」是一件只有本地知道的事——报告里没有这一句。
+     四条规则都是为了让这句话不变成假话：
+       · 按报告 id 分开记。换一份报告绝不沿用上一份的位置，否则会把 A 的第七节说成 B 的。
+       · 停在第一节不记。报告一打开就停在那里，记下来等于把上一次真读到的地方抹掉。
+       · 记的是「滚到哪」，不是「读了什么」，也不推断有没有读完。
+       · 记录指向的那一节不在了就什么都不说——说「第 12 节」而报告只有 9 节，比不说更糟。
+     显示只在打开报告时一次（scan 末尾），读到一半不会突然冒出来打断。
+     打开时绝不自动滚过去：从哪一读起是读者的事，软件只留一条回得去的路。 */
+  var POS_KEY = 'alPos.v1', POS_MAX = 40, MARKS = {}, POS_READY = false, posTimer = null;
+  /* 最近一次「点着去」的那一节与它的有效期，见 recordPos。 */
+  var GOTO_I = -1, GOTO_UNTIL = 0;
+
+  function loadMarks(){
+    if (POS_READY) return;
+    POS_READY = true;
+    try {
+      var o = JSON.parse(localStorage.getItem(POS_KEY) || '{}');
+      if (o && typeof o === 'object') MARKS = o;
+    } catch (e) { /* @allow-silent: 记录损坏就当没有记录，不给读者看一段坏数据的解释 */ }
+  }
+  function saveMarks(){
+    try { localStorage.setItem(POS_KEY, JSON.stringify(MARKS)); }
+    catch (e) { /* @allow-silent: 记不住位置只影响下次重开，当前这次阅读照常 */ }
+  }
+  /* 只留最近 POS_MAX 份：这是「上次看到哪」，不是书签管理器。不设上限的话，
+     这个键会随报告数一直长下去，而它每次读写都是同步的。 */
+  function trimMarks(){
+    var ks = Object.keys(MARKS);
+    if (ks.length <= POS_MAX) return;
+    ks.sort(function(a, b){ return (MARKS[a].t || 0) - (MARKS[b].t || 0); });
+    for (var i = 0; i < ks.length - POS_MAX; i++) delete MARKS[ks[i]];
+  }
+  function recordPos(){
+    if (!LAST_ID || !HEADS.length) return;
+    /* 刚点过目录就以「点的哪一节」为准。
+       平滑滚动是一帧一帧走的：350ms 那个瞬间视口常常还停在前一节，
+       照那一刻的 CUR 记下去，就成了「你停在第五节」，而人明明点的是第七节——
+       下一次重开，那句话会把他带到错的地方（第一次跑冒烟就是这么红的）。 */
+    var i = GOTO_I >= 0 && Date.now() < GOTO_UNTIL ? GOTO_I : CUR;
+    if (i <= 0 || i >= HEADS.length) return;
+    loadMarks();
+    MARKS[LAST_ID] = { i: i, t: Date.now(), title: textOf(HEADS[i]) };
+    trimMarks(); saveMarks();
+  }
+  /* 隔 350ms 再写：平滑滚动会连着穿过好几节，逐节写盘是把中间站也记成「读到哪」。
+     这一句只影响存哪个数，不影响界面高亮。 */
+  function schedulePos(){
+    clearTimeout(posTimer);
+    posTimer = setTimeout(recordPos, 350);
+  }
+  function whenText(t){
+    if (!t) return '时间不明';
+    var ms = Date.now() - t;
+    if (ms < 0) return '时间不明';
+    var d = Math.floor(ms / 86400000);
+    if (d < 1) return '今天';
+    if (d === 1) return '昨天';
+    if (d < 7) return d + ' 天前';
+    if (d < 60) return Math.floor(d / 7) + ' 周前';
+    return new Date(t).toLocaleDateString();
+  }
+  function syncResume(){
+    loadMarks();
+    var m = LAST_ID ? MARKS[LAST_ID] : null;
+    if (!m || !HEADS.length || !(m.i > 0) || m.i >= HEADS.length) {
+      resume.style.display = 'none';
+      resume.removeAttribute('data-resume');
+      return;
+    }
+    var tt = textOf(HEADS[m.i]);
+    resume.setAttribute('data-resume', String(m.i + 1));
+    resume.textContent = '';
+    resume.appendChild(el('b', '', '接着读：第 ' + (m.i + 1) + ' 节 · ' + tt));
+    resume.appendChild(el('span', '', '上次读到这里（' + whenText(m.t) + '）。点了才跳，不会自动跳。'));
+    resume.title = '上次读到第 ' + (m.i + 1) + ' 节「' + tt + '」';
+    resume.onclick = function(){ goTo(m.i); };
+    resume.style.display = '';
+  }
+
+  function setFold(i, v){    if (i < 0 || i >= FOLDED.length || !!FOLDED[i] === !!v) return;
     FOLDED[i] = v ? 1 : 0;
     applyFold(); saveFold(); update();
   }
@@ -229,7 +322,10 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
       setFold(i, 0);
     }
     if (HEADS[i]) HEADS[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    GOTO_I = i; GOTO_UNTIL = Date.now() + 1500;
     syncReadUI(); update();
+    /* 点了目录就算「读到这一节」，不必等滚动事件：已经在这一屏时不会有滚动。 */
+    schedulePos();
   }
   function enterRead(){
     if (READING || !HEADS.length) return;
@@ -290,6 +386,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
       /* 空态也要把控件状态摆对：首屏没有报告时，逐节读与上下节都该是禁用的。
          面板此刻虽被隐藏，一旦之后切回空态，按钮不该停在上一份报告的可用状态。 */
       syncReadUI();
+      resume.style.display = 'none';
       return;
     }
     panel.style.display = ''; syncBody();
@@ -326,6 +423,8 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
       : '→ 跳到判读';
     syncReadUI();
     update();
+    /* 位置记录最后读：它要给的是「打开这一份时该说什么」，不是随滚动变的一句话。 */
+    syncResume();
   }
 
   function update(){
@@ -339,6 +438,8 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
        否则平滑滚动途中高亮会跳到别的节，而展开的仍是原来那一节。 */
     if (!READING && cur !== CUR) {
       CUR = cur;
+      /* 滚过一节就记一次（350ms 后落盘）。停在第一节不记，见 recordPos 里那条理由。 */
+      schedulePos();
       for (var j = 0; j < list.children.length; j++) {
         list.children[j].className = (j === cur ? 'ni on' : 'ni') + (FOLDED[j] ? ' fold' : '');
       }
@@ -404,6 +505,9 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     }
   });
   window.__alNavToggle = function(){ minBtn.click(); };
+  /* 冒烟专用：把目录当成「刚打开这份报告」重走一遍 scan（换报告时真应用派发
+     al:report-change 走的是同一条路，只是带 fresh）。只重读、不替读者点任何东西。 */
+  window.__alNavRescan = function(){ scan(); return true; };
 
   /* scroll 不冒泡，用捕获阶段监听所有滚动容器；rAF 合帧，别拖慢长报告。 */
   var queued = false;
