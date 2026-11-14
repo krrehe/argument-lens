@@ -1,6 +1,8 @@
 import type { Diagnosis } from '@shared/types';
 import { LEVEL_LABEL } from '@shared/theories';
 import { disputesIn } from '@shared/disputes';
+import { propositionsOf } from '@shared/propositions';
+import { pivotOf } from '@shared/pivot';
 
 /**
  * 报告开头的「四句话」。
@@ -12,14 +14,40 @@ import { disputesIn } from '@shared/disputes';
  * 不是再加一段说明文字，而是让读者随时能在「结论」和「依据」之间来回跳。
  */
 
-const SECTIONS = [
+const BASE_SECTIONS = [
   { id: 'sec-structure', label: '结构图' },
   { id: 'sec-checks', label: '逐关检查' },
   { id: 'sec-verdict', label: '判读' },
+  /*
+   * 「透镜产物」在正文里排在「重构」之后、「反驳」之前——不是最末。
+   * 这一格此前一直放在最后，读者按索引走会跳过它再折回来；顺序错了不报错，
+   * 只有把格子与正文的先后对着比才看得出来（冒烟里那条就是这么抓到的）。
+   */
+  { id: 'sec-lens', label: '透镜产物' },
   { id: 'sec-refute', label: '反驳' },
   { id: 'sec-repair', label: '修补' },
-  { id: 'sec-lens', label: '透镜产物' },
 ];
+
+/**
+ * 「跳到」那条上的格子。
+ *
+ * 前六格是与透镜无关的固定栏。中间两格（命题账 / 枢纽）是本地算出来的，有数据才存在，
+ * 位置在判读之后——一份真报告里大约在一万像素以下。而这条是整页唯一的紧凑索引：
+ * 不进这条，那两栏基本只有滚到那里的人才会看见，等于做完就藏起来了。
+ *
+ * 「有没有」与正文用同一对纯函数判断，不在这里另写一套：判错方向就会出现
+ * 一格点了没有反应的死入口，而跳转失败最像是「软件卡了一下」。
+ */
+function sectionsFor(d: Diagnosis) {
+  const extra: { id: string; label: string }[] = [];
+  if (propositionsOf(d).total > 0) extra.push({ id: 'sec-props', label: '命题账' });
+  if (pivotOf(d).rows.length > 0) extra.push({ id: 'sec-pivot', label: '枢纽' });
+  const nDisp = disputesIn(d).length;
+  const disp = nDisp ? [{ id: 'sec-disputes', label: `争议 ${nDisp}` }] : [];
+  /* 顺序照正文：判读之后依次是账、柱子、争议，然后才是反驳与修补。 */
+  return [...BASE_SECTIONS.slice(0, 3), ...extra, ...disp, ...BASE_SECTIONS.slice(3)];
+}
+
 export function jumpTo(id: string) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -37,9 +65,7 @@ export function QuickRead({ d }: { d: Diagnosis }) {
   const bad = d.checks.find((c) => c.answer === 'violated') ?? d.checks.find((c) => c.answer === 'unanswered');
   /** 争议有几处。它决定导航里出不出现那一格——没碰到就不给一个点不动的入口。 */
   const nDisp = disputesIn(d).length;
-  const sections = nDisp
-    ? [...SECTIONS.slice(0, 3), { id: 'sec-disputes', label: `争议 ${nDisp}` }, ...SECTIONS.slice(3)]
-    : SECTIONS;
+  const sections = sectionsFor(d);
   const levelClass =
     d.verdict.level === 'withstands' ? 'ok' : d.verdict.level === 'fails' ? 'bad' : d.verdict.level === 'weakened' ? 'mid' : '';
 
@@ -101,7 +127,7 @@ export function QuickRead({ d }: { d: Diagnosis }) {
       <nav className="quick-nav">
         <span className="qn-label">跳到</span>
         {sections.map((s) => (
-          <button key={s.id} className="qn-chip" onClick={() => jumpTo(s.id)}>
+          <button key={s.id} className="qn-chip" data-qnav={s.id} onClick={() => jumpTo(s.id)}>
             {s.label}
           </button>
         ))}

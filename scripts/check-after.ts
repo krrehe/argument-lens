@@ -183,6 +183,28 @@ ok(/function MaybeDigest/.test(mock), '预览页有一层只在 ?digest=1 时才
 ok(/field: 'anchor'/.test(mock), '演示数据里含工作台那条（证明没有区块可跳时不会渲染跳转按钮）');
 ok(/field: 'verdict'/.test(mock) && /field: 'check'/.test(mock), '演示数据覆盖判读与检查项两组');
 
+/* ─────────── 八 · 「跳到」条：新加的两栏得进得去 ─────────── */
+
+/*
+ * 这一段守的不是文案，是「做完就藏起来」：命题账与枢纽在真报告里落在一万像素以下，
+ * 而首屏那条「跳到」是整页唯一的紧凑索引。不进这条，等于只有滚到底的人才看得见。
+ * 两种坏法都要红：①格子没加（读者找不到）；②格子加了但正文里没有那个 id（点了没反应，
+ * 看起来像软件卡了一下）。
+ */
+const ov = src('src/renderer/src/components/Overview.tsx');
+
+ok(/function sectionsFor\(d: Diagnosis\)/.test(ov), '跳转条按这一份的数据现算，不是一张写死的表');
+ok(/if \(propositionsOf\(d\)\.total > 0\) extra\.push\(\{ id: 'sec-props'/.test(ov), '有命题才给「命题账」那一格');
+ok(/if \(pivotOf\(d\)\.rows\.length > 0\) extra\.push\(\{ id: 'sec-pivot'/.test(ov), '有枢纽才给「枢纽」那一格');
+ok(/props\.total > 0/.test(diagTsx) && /pivot\.rows\.length > 0/.test(diagTsx), '正文那边用的是同一个判据（两边判错方向就成了死入口）');
+ok(/BASE_SECTIONS\.slice\(0, 3\), \.\.\.extra, \.\.\.disp, \.\.\.BASE_SECTIONS\.slice\(3\)/.test(ov), '两格插在「判读」之后——与正文从上往下的顺序一致');
+ok(/data-qnav=\{s\.id\}/.test(ov), '每格带着要跳去的区块 id（探针不靠按钮文字认）');
+
+const chipTargets = [...ov.matchAll(/id: '(sec-[a-z]+)'/g)].map((m) => m[1]);
+const dead = chipTargets.filter((id) => !diagTsx.includes(`id="${id}"`));
+ok(chipTargets.length >= 8 && dead.length === 0, '跳转条里的每个 id 在报告里都有落点', dead.join(',') || `只找到 ${chipTargets.length} 格`);
+ok(chipTargets.includes('sec-props') && chipTargets.includes('sec-pivot'), '这两格确实在这份清单里', chipTargets.join(','));
+
 /* ─────────── 收口 ─────────── */
 
 if (failed.length) {

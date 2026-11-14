@@ -584,6 +584,20 @@ const checks = [
     }
   })()],
   /*
+   * 「跳到」条：新加的两栏进得去，且每一格都落到真有的区块。
+   * 这条只有真应用能验：格子是「数据有没有」现算出来的，静态样本可以两边都对，
+   * 到了真报告上仍然可能出现一格点了没反应——那看起来像软件卡了一下。
+   */
+  ['「跳到」条：命题账与枢纽进得去，且每一格都落得到', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      const q = Array.isArray(r.qnav) ? r.qnav : [];
+      return q.includes('sec-props') && q.includes('sec-pivot') && Number(r.qnavDead ?? 1) === 0 && r.qnavOrder === true;
+    } catch {
+      return false;
+    }
+  })()],
+  /*
    * 异议账：记一条之前不出现、记了之后出来、展开能看见理由、撤销之后整块消失。
    *
    * 它只在「这份报告里有过异议」时出现，所以真应用里从来没有被人看见过——

@@ -524,6 +524,30 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               pivNote: (document.querySelector('.pvt-fine')?.textContent ?? '').slice(0, 40),
               pivNext: (document.querySelector('[data-pivot-next]')?.textContent ?? '').slice(0, 40),
               propIf: (document.querySelector('.pl-if')?.textContent ?? '').slice(0, 60),
+              /*
+               * 首屏那条「跳到」。它是整页唯一的紧凑索引，而命题账与枢纽落在一万像素
+               * 以下——不进这条就等于做完藏起来。两种坏法都验：
+               *   qnavDead  格子指向一个不存在的 id（点下去没反应，看起来像卡了一下）
+               *   qnavOrder 格子的先后与正文顺序不一致（读者按索引走会来回折返）
+               */
+              qnav: Array.from(document.querySelectorAll('[data-qnav]')).map(
+                (b) => b.getAttribute('data-qnav') ?? '',
+              ),
+              qnavDead: Array.from(document.querySelectorAll('[data-qnav]')).filter(
+                (b) => !document.getElementById(b.getAttribute('data-qnav') ?? ''),
+              ).length,
+              qnavOrder: (() => {
+                const els = Array.from(document.querySelectorAll('[data-qnav]')).map((b) =>
+                  document.getElementById(b.getAttribute('data-qnav') ?? ''),
+                );
+                for (let i = 1; i < els.length; i += 1) {
+                  const a = els[i - 1];
+                  const b = els[i];
+                  if (!a || !b) return false;
+                  if (!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)) return false;
+                }
+                return true;
+              })(),
               sameCount: document.querySelector('.same-bar')?.getAttribute('data-same') ?? '',
               sameText: (document.querySelector('.same-bar .sb-v')?.textContent ?? '').slice(0, 80),
               text: (document.body.innerText || '').replace(/\\s+/g, ' ').slice(0, 240),
