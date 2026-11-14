@@ -26,6 +26,9 @@
     "check:compare": "node scripts/run-check-compare.mjs",
     "check:lens": "node scripts/run-ssr-diagrams.mjs",
     "check:css": "node scripts/check-css-cover.mjs",
+    "gloss:sync": "node scripts/gen-workbench-gloss.mjs",
+    "check:gloss": "node scripts/check-gloss.mjs",
+    "check:archive": "node scripts/check-archive-health.mjs",
     "check:academic": "node scripts/run-check-academic.mjs",
     "check:theory": "node scripts/run-check-theory.mjs",
     "check:landing": "node scripts/run-check-landing.mjs",
@@ -66,7 +69,14 @@
     "check:terms": "node scripts/run-check-terms.mjs",
     "audit:field-samples": "node scripts/run-audit-field-samples.mjs",
     "audit:field-reports": "node scripts/run-audit-field-reports.mjs",
-    "check:field-samples": "node scripts/run-check-field-samples.mjs"
+    "check:field-samples": "node scripts/run-check-field-samples.mjs",
+    "check:coverage": "node scripts/run-check-coverage.mjs",
+    "check:after": "node scripts/run-check-after.mjs",
+    "check:props": "node scripts/run-check-props.mjs",
+    "check:pivot": "node scripts/run-check-pivot.mjs",
+    "audit:longtext": "node scripts/run-audit-longtext.mjs",
+    "eval:bare": "node scripts/eval/run-bare.mjs",
+    "eval:compare": "node scripts/eval/compare.mjs"
   },
   "devDependencies": {
     "@argdown/core": "^2.0.1",

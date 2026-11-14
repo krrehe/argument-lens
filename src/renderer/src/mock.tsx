@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from 'react';
+import { StrictMode, useEffect, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { THEORIES, THEORY_BY_ID } from '@shared/theories';
 import { disputesIn } from '@shared/disputes';
@@ -16,9 +16,10 @@ import { PortfolioBar } from './components/PortfolioBar';
 import { AgreementBar } from './components/AgreementBar';
 import { SideBySide } from './components/SideBySide';
 import { NextLineBar } from './components/NextLine';
+import { ObjectionCtx } from './components/Objection';
 import { portfolioOf } from '@shared/portfolio';
 import { agreementOf } from '@shared/agreement';
-import type { Diagnosis } from '@shared/types';
+import type { Diagnosis, Objection } from '@shared/types';
 import type { ViewId } from '@shared/views';
 import { nextLinesOf } from '@shared/nextline';
 import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
@@ -34,6 +35,8 @@ import './styles-skeleton.css';
 import './styles-rewrite.css';
 import './styles-source.css';
 import './styles-field-terms.css';
+import './styles-coverage.css';
+import { SAMPLES } from '@shared/samples';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。
@@ -63,9 +66,95 @@ function withNoGaps(d: Diagnosis): Diagnosis {
 }
 
 const D0 = MOCK_BY_THEORY[LENS] ?? MOCK;
-const D = new URLSearchParams(location.search).get('gaps') === 'clean' ? withNoGaps(D0) : D0;
+/*
+ * ?coverage=1：长文覆盖账只在长文本上出现，得有一份长文本才拍得到它。
+ * 这一段**是构造的演示原文**，不是真实语料：以 D0.passage 逐字开头（这样报告里
+ * 那些 span / 引文坐标仍然对得上），后面接仓库里示例文本的其余五段、接两轮。
+ * 不编一个新字、不拿使用者的真文本进仓库；截图里的段落因此会有重复，那是演示数据，
+ * 不是「另一个使用证据」。
+ */
+const LONG_DEMO = new URLSearchParams(location.search).get('coverage') === '1'
+  ? {
+      ...D0,
+      passage: [
+        D0.passage,
+        ...SAMPLES.slice(1).map((s) => s.text),
+        ...SAMPLES.slice(1).map((s) => s.text),
+      ].join('\n\n'),
+    }
+  : D0;
+const D = new URLSearchParams(location.search).get('gaps') === 'clean' ? withNoGaps(LONG_DEMO) : LONG_DEMO;
 const t = THEORY_BY_ID[D.theory];
 const MOCK_DISPUTES = disputesIn(D);
+
+/*
+ * ?digest=1：异议账（这份报告里你不同意哪几处）。
+ *
+ * 这块只在**已经有异议**时出现，而预览页没有存档也没有主进程，
+ * 不造几条就永远拍不到它——「没人见过的界面等于没做」那种状态。
+ * 四条记录覆盖三种情况：有理由、没写理由、以及工作台里钉的（跳不过去）。
+ * 它们只是演示数据，不进任何统计。
+ */
+/* ?digest=1 只看收起那条；?digest=open 连逐条也展开（展开态只有点过才出现）。 */
+const DIGEST_Q = new URLSearchParams(location.search).get('digest') ?? '';
+const DIGEST_ON = DIGEST_Q === '1' || DIGEST_Q === 'open';
+const MOCK_DIGEST: Objection[] = [
+  {
+    key: `${D.theory}:verdict:verdict`,
+    diagId: D.id,
+    at: Date.UTC(2026, 10, 12, 9, 40),
+    theory: D.theory,
+    field: 'verdict',
+    refId: 'verdict',
+    refLabel: '判读',
+    excerpt: '被削弱。',
+    reason: '',
+  },
+  {
+    key: `${D.theory}:check:CQ2`,
+    diagId: D.id,
+    at: Date.UTC(2026, 10, 12, 9, 46),
+    theory: D.theory,
+    field: 'check',
+    refId: 'CQ2',
+    refLabel: 'CQ2 因果方向',
+    excerpt: '从相关跨到因果这一步。',
+    reason: '一本率下滑那一年同时换了教材，报告没有排除这一条。',
+  },
+  {
+    key: `${D.theory}:check:CQ3`,
+    diagId: D.id,
+    at: Date.UTC(2026, 10, 12, 9, 52),
+    theory: D.theory,
+    field: 'check',
+    refId: 'CQ3',
+    refLabel: 'CQ3 替代解释',
+    excerpt: '有没有第三因素被排除。',
+    reason: '同届考生人数也变了，报告没提。',
+  },
+  {
+    key: `${D.theory}:legitimate:P2`,
+    diagId: D.id,
+    at: Date.UTC(2026, 10, 12, 10, 3),
+    theory: D.theory,
+    field: 'legitimate',
+    refId: 'P2',
+    refLabel: '此处合法',
+    excerpt: '引校长的话作为依据，在这个语境里是允许的。',
+    reason: '这里引原话是为了说明对方立场，不是拿权威压人。',
+  },
+  {
+    key: 'anchor:sentence:2',
+    diagId: D.id,
+    at: Date.UTC(2026, 10, 12, 10, 9),
+    theory: D.theory,
+    field: 'anchor',
+    refId: 'workbench',
+    refLabel: '原文第 2 句',
+    excerpt: '王校长在一份公开材料里说……',
+    reason: '这句其实是在转述，不是作者自己的主张。',
+  },
+];
 
 /*
  * 样本账的预览数据。用 portfolioOf 现算而不是写死一串数字：
@@ -326,6 +415,67 @@ const mockRun = (
 const QS = new URLSearchParams(location.search);
 const SETTINGS_BAD = QS.get('bad') === '1';
 
+/**
+ * ?digest=1 时才挂异议上下文。
+ *
+ * 平时**不挂**：ObjectBtn 在没有上下文时返回 null，预览页里那十几处「不同意」
+ * 按钮就该保持不可见——它们是报告内容的一部分，不该为了拍一张账而全亮起来。
+ */
+function MaybeDigest({ children }: { children: ReactNode }) {
+  if (!DIGEST_ON) return <>{children}</>;
+  return (
+    <ObjectionCtx.Provider
+      value={{
+        diagId: D.id,
+        theory: D.theory,
+        list: MOCK_DIGEST,
+        /* 预览页不写盘：点了只为看版式，真链路在端到端冒烟里走。 */
+        add: () => {},
+        remove: () => {},
+      }}
+    >
+      {children}
+    </ObjectionCtx.Provider>
+  );
+}
+
+/*
+ * ?at=<section id>：把报告里任意一节滚进视野。
+ *
+ * 一栏一个截图入口（?digest / ?tone / ?coverage / ?terms …）已经攒了七个，
+ * 每个只为一个元素服务；报告越长，这种入口越会变成负担。
+ * 这里给一个通用的，顺手也给「新加一栏就想拍它」这件事省掉一个开关。
+ */
+function ScrollToAnchor(): null {
+  useEffect(() => {
+    const id = QS.get('at');
+    if (!id) return;
+    const timer = window.setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ block: 'start' });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, []);
+  return null;
+}
+
+/*
+ * ?digest=open：把异议账逐条展开。
+ *
+ * 展开态只在用户点过之后出现，不点开就永远拍不到——「没人见过的界面等于没做」。
+ * 走的是同一个按钮（点它，而不是把状态塞进去），这样截图里看到的就是真实那一屏。
+ */
+function DigestAnchor(): null {
+  useEffect(() => {
+    if (QS.get('digest') !== 'open') return;
+    window.setTimeout(() => {
+      const btn = document.querySelector('[data-obj-digest-toggle]');
+      if (btn instanceof HTMLElement && !document.querySelector('[data-obj-digest-item]')) btn.click();
+    }, 60);
+  }, []);
+  return null;
+}
+
 /*
  * ?tone=1：把页面滚到「结论的口气」那一块。
  *
@@ -381,6 +531,24 @@ function SourceAnchor(): null {
     window.setTimeout(() => {
       const btn = document.querySelector('[data-source-toggle]');
       if (btn instanceof HTMLElement && !document.querySelector('[data-source-list]')) btn.click();
+    }, 60);
+  }, []);
+  return null;
+}
+
+/*
+ * ?coverage=1：滚到报告里的长文覆盖账，并把它点开。
+ * 这一栏只在长文本上出现，演示原文由上面的 LONG_DEMO 给；滚动与点击分两拍，
+ * 免得同一个 effect 里点完立刻读、界面还没重绘（探针抢跑那个老坑）。
+ */
+function CoverageAnchor(): null {
+  useEffect(() => {
+    if (QS.get('coverage') !== '1') return;
+    const el = document.querySelector('[data-coverage]');
+    if (el) el.scrollIntoView({ block: 'center' });
+    window.setTimeout(() => {
+      const btn = document.querySelector('[data-coverage-toggle]');
+      if (btn instanceof HTMLElement && !document.querySelector('[data-coverage-list]')) btn.click();
     }, 60);
   }, []);
   return null;
@@ -660,11 +828,14 @@ function Preview() {
           />
         </aside>
         <main className="main">
+          <ScrollToAnchor />
+          <DigestAnchor />
           <ToneAnchor />
           <GapsAnchor />
           <RewriteAnchor />
           <SourceAnchor />
           <TermsAnchor />
+          <CoverageAnchor />
           {RUN_STAGE ? (
             <Running
               progress={{ stage: 'checking', label: RUN_STAGE.label, percent: RUN_STAGE.percent }}
@@ -675,6 +846,7 @@ function Preview() {
             />
           ) : (
             <>
+            <MaybeDigest>
             <DiagnosisView
               d={shown}
               /* ?reread=1：只在特定时刻出现的那一屏，必须留一个能拍到它的入口。 */
@@ -716,6 +888,7 @@ function Preview() {
                 setTheoryOpen(true);
               }}
             />
+            </MaybeDigest>
             {/* ?nextline=1：这一块的明细默认收起，留个入口把展开后的样子也拍下来。 */}
             <NextLineBar
               view={MOCK_NEXTLINE}

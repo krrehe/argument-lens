@@ -715,6 +715,23 @@ const checks = [
     })(),
   ],
   /*
+   * 打包产物里的长文覆盖账：冒烟跑道是短文本，包里要验的是「不该出现时不出现」。
+   * 源码里的断言全在源码里跑，包坏不坏它不知道；这一条问的是包内渲染。
+   */
+  [
+    '打包产物里的长文覆盖账：短文本不摆空面板',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('COVERAGERESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        return r.short === true && r.present === false && String(r.headline ?? '') === '' && Number(r.rows ?? -1) === 0;
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
    * 打包产物里的「谁跑的」：包内跑一次分析之后，报告里那一栏得在。
    *
    * 这一条与包外那条不完全重复：`Diagnosis.engine` 只有一个类型、逻辑全在 analyze.ts，

@@ -16,6 +16,8 @@ import { DISPUTE_BY_ID, DISPUTE_SECTION, disputesIn, type DisputeId } from '@sha
 import { topicsOf, type TopicHit } from '@shared/topics';
 import { academicOf, BY_TOOL_LABEL, type AcademicView, type ByTool } from '@shared/academic';
 import { limitsOf } from '@shared/limits';
+import { propositionsOf } from '@shared/propositions';
+import { pivotOf } from '@shared/pivot';
 import { graphOf, graphSummary } from '@shared/prg-graph';
 import { prescriptionsOf } from '@shared/prescriptions';
 import { fallacyHits, mapSentences } from '@shared/fallacy-map';
@@ -33,12 +35,16 @@ import { DisputeStrip, focusDispute } from './Disputes';
 import { QuickRead, jumpTo } from './Overview';
 import { Term, usePlain } from './Term';
 import { ObjectBtn } from './Objection';
+import { ObjectionDigest } from './ObjectionDigest';
+import { PropositionLedger } from './PropositionLedger';
+import { PivotCard } from './PivotCard';
 import { ArsGapMap, PtaLocator, ToulminLayout, WaltonFamilyPath } from './LensDiagrams';
 import { VerdictWhy } from './VerdictWhy';
 import { RereadScreen } from './RereadScreen';
 import { RescaleScreen } from './RescaleScreen';
 import { ConditionScreen } from './ConditionScreen';
 import { SourceBar } from './SourceBar';
+import { CoverageBar } from './CoverageBar';
 import { FieldTermsBar } from './FieldTermsBar';
 
 /* ═══════ 通用小件 ═══════ */
@@ -137,8 +143,18 @@ function Meta({ tag, confidence }: { tag: string; confidence: string }) {
   );
 }
 
-/* ═══════ 原文高亮 ═══════ */
+/* ═══════ 原文高亮 + 核对清单 ═══════ */
 
+/**
+ * 原文这一块原来只做一件事：点黄色处选中那条主张，别处跟着亮。
+ * 缺的是反向——「报告到底把我的话读成了什么」，以及「哪几句它根本没碰」。
+ * 所以并排放一列拆解清单：每条主张照原文顺序列出引文与定位质量，两侧互点互跳；
+ * 未被任何主张引用的句子直接画在原文上（虚线），可以关掉。
+ *
+ * 不做的事：不新增判定、不改引文、不替定位质量做取舍——failed 的单列出来，
+ * 因为「说过这句、原文却找不到」正是读者最该自己核的一类。
+ * 句子切分用的是 fallacy-map 那一套，与下面逐句格子图同源，不另起一套断句。
+ */
 function Passage({
   text,
   items,
@@ -146,13 +162,27 @@ function Passage({
   onPick,
 }: {
   text: string;
-  items: { id: string; span: Span | null }[];
+  items: { id: string; span: Span | null; role?: string; quote?: string | null }[];
   sel: string | null;
   onPick: (id: string) => void;
 }) {
+  /*
+   * 未引用句默认不标。
+   *
+   * 真机上是 6268 字那段：167 句里 160 句没人碰，全描成虚线等于把整段原文涂灰——
+   * 「报告只碰了 7 句」这个事实很重要，但用涂灰表达，读者第一眼会以为字坏了。
+   * 所以数字写在统计行里（未引用 160 句），要看具体哪几句再点开。
+   */
+  const [gapOn, setGapOn] = useState(false);
+  const [listOn, setListOn] = useState(false);
+  const sentences = useMemo(() => mapSentences(text), [text]);
+
   const marks = useMemo(() => {
     const valid = items
-      .filter((x): x is { id: string; span: Span } => !!x.span && x.span.quality !== 'failed')
+      .filter(
+        (x): x is { id: string; span: Span; role?: string; quote?: string | null } =>
+          !!x.span && x.span.quality !== 'failed'
+      )
       .sort((a, b) => a.span.start - b.span.start);
     const out: { id: string; start: number; end: number }[] = [];
     let cursor = 0;
@@ -165,20 +195,211 @@ function Passage({
     return out;
   }, [items]);
 
-  const nodes: ReactNode[] = [];
-  let pos = 0;
-  marks.forEach((m, i) => {
-    if (m.start > pos) nodes.push(text.slice(pos, m.start));
-    nodes.push(
-      <mark key={`${m.id}-${i}`} className={sel === m.id ? 'sel' : ''} onClick={() => onPick(m.id)}>
-        {text.slice(m.start, m.end)}
-      </mark>
-    );
-    pos = m.end;
-  });
-  nodes.push(text.slice(pos));
+  /* 没被任何主张碰到的句子。按区间交集算，不按「看起来像」算。 */
+  const gaps = useMemo(
+    () => sentences.filter((s) => !marks.some((m) => m.start < s.end && m.end > s.start)),
+    [sentences, marks]
+  );
 
-  return <div className="passage">{nodes}</div>;
+  const lost = useMemo(() => items.filter((x) => !x.span || x.span.quality === 'failed'), [items]);
+
+  const nodes = useMemo(() => {
+    type Seg = { start: number; end: number; mark: boolean; id: string };
+    const segs: Seg[] = [
+      ...marks.map((m) => ({ start: m.start, end: m.end, mark: true, id: m.id })),
+      ...(gapOn
+        ? gaps.map((g) => ({ start: g.start, end: g.end, mark: false, id: `g${g.index}` }))
+        : []),
+    ].sort((a, b) => a.start - b.start || (a.mark === b.mark ? 0 : a.mark ? -1 : 1));
+
+    const out: ReactNode[] = [];
+    let pos = 0;
+    segs.forEach((s, i) => {
+      if (s.start < pos) return;
+      if (s.start > pos) out.push(text.slice(pos, s.start));
+      if (s.mark) {
+        out.push(
+          <mark
+            key={`${s.id}-${i}`}
+            data-claim={s.id}
+            className={sel === s.id ? 'sel' : ''}
+            onClick={() => onPick(s.id)}
+          >
+            {text.slice(s.start, s.end)}
+          </mark>
+        );
+      } else {
+        out.push(
+          <span key={`g-${i}`} className="pv-gap" title="这句没有被任何主张引用">
+            {text.slice(s.start, s.end)}
+          </span>
+        );
+      }
+      pos = s.end;
+    });
+    out.push(text.slice(pos));
+    return out;
+  }, [text, marks, gaps, gapOn, sel, onPick]);
+
+  const rows = useMemo(() => {
+    const ok = items.filter((x) => x.span && x.span.quality !== 'failed');
+    const bad = items.filter((x) => !x.span || x.span.quality === 'failed');
+    return [...ok.sort((a, b) => (a.span as Span).start - (b.span as Span).start), ...bad];
+  }, [items]);
+
+  const roleOf = (r?: string) =>
+    r === 'conclusion' || r === 'C'
+      ? '结论'
+      : r === 'intermediate'
+        ? '中间结论'
+        : r === 'premise'
+          ? '前提'
+          : '主张';
+
+  /* 点清单 → 原文那处滚进视野；点原文 → 清单那行滚进视野。两边都不换页。 */
+  const markIds = useMemo(() => new Set(marks.map((m) => m.id)), [marks]);
+  const pickRow = (id: string) => {
+    onPick(id);
+    const mk = document.querySelector(`.passage mark[data-claim="${id}"]`);
+    if (mk && mk.scrollIntoView) {
+      mk.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    /* 两条主张引同一句时，高亮只画在靠前那条上，后一条没有自己的 mark。
+       这时改跳它自己的卡片——不能点了什么也不发生。 */
+    jumpCard(id);
+  };
+  const jumpCard = (id: string) => {
+    const card = document.getElementById(`cl-${id}`);
+    if (card && card.scrollIntoView) card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  };
+
+  /*
+   * 为什么不是左右分栏，也不是把清单摆在原文下面。
+   *
+   * 第一版做「左原文、右键 330px 侧栏」：真机量出报告正文列只有 664px，
+   * 分完原文剩 316px，14px 宋体一行不到二十字，读两行就得回头找下一行。
+   * 第二版改成清单放在原文下面：6268 字的原文把清单顶到 5000px 开外，
+   * 要点一条得先滚七屏——联动等于没有。
+   *
+   * 所以：统计与定位条放原文之前，清单默认收起。
+   * 原文始终占满整列。
+   *
+   * 试过让定位条吸顶，不成立：外层 .block 有 overflow:hidden，sticky 在它里面
+   * 不随滚动固定。与其写一条不起作用的样式，不如把「点了要能到」这条做实——
+   * 点任一定位条，那一句会被滚进视口正中。
+   */
+  return (
+    <div className="pv" data-crossexam>
+      <div className="pv-top">
+        <div className="pv-bar">
+          <span className="pv-stat" data-pv-stat>
+            原文 <b>{sentences.length}</b> 句 · 被引用 <b>{sentences.length - gaps.length}</b> 句 · 未引用{' '}
+            <b>{gaps.length}</b> 句
+          </span>
+          <button
+            className={`pv-toggle ${gapOn ? 'on' : ''}`}
+            data-pv-gaptoggle
+            onClick={() => setGapOn((v) => !v)}
+          >
+            {gapOn ? '✓ 原文上标出未引用句' : '标出未引用句'}
+          </button>
+          <button
+            className={`pv-toggle ${listOn ? 'on' : ''}`}
+            data-pv-listtoggle
+            onClick={() => setListOn((v) => !v)}
+          >
+            {listOn ? '收起清单' : `展开清单（${rows.length} 条）`}
+          </button>
+          <span className="pv-hint" data-pv-hint>
+            点编号回原文那一句
+            {lost.length > 0 && <span className="pv-miss">· {lost.length} 条引文在原文里没定位到</span>}
+          </span>
+        </div>
+        <div className="pv-chips" data-pv-chips>
+          {rows.map((r) => {
+            const sp = r.span;
+            const failed = !sp || sp.quality === 'failed';
+            const q = sp?.quality ?? 'failed';
+            const full = failed ? (r.quote ?? '') : text.slice((sp as Span).start, (sp as Span).end);
+            return (
+              <button
+                key={r.id}
+                className={`pv-chip ${sel === r.id ? 'on' : ''} ${failed ? 'lost' : ''} ${
+                  !markIds.has(r.id) && !failed ? 'shared' : ''
+                } ${
+                  q === 'exact' ? 'c-exact' : q === 'normalized' ? 'c-normalized' : q === 'fuzzy' ? 'c-fuzzy' : 'c-failed'
+                }`}
+                data-pv-chip={r.id}
+                title={`${roleOf(r.role)}：${full || '原文里没定位到'}${
+                  !markIds.has(r.id) && !failed ? '（与另一条引用同一句，点它跳到那张卡）' : ''
+                }`}
+                onClick={() => pickRow(r.id)}
+              >
+                <b>{r.id}</b>
+                {roleOf(r.role)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {listOn && (
+        <div className="pv-list" data-pv-list>
+          {rows.map((r) => {
+            const sp = r.span;
+            const failed = !sp || sp.quality === 'failed';
+            const q = sp?.quality ?? 'failed';
+            const shown = failed ? (r.quote ?? '（没有引文）') : text.slice((sp as Span).start, (sp as Span).end);
+            return (
+              <div
+                key={r.id}
+                className={`pv-row ${sel === r.id ? 'on' : ''} ${failed ? 'lost' : ''}`}
+                data-pv-row={r.id}
+                title={failed ? '这句话在原文里没定位到，只能自行核对' : '点一下 → 原文那一句亮起来'}
+                onClick={() => pickRow(r.id)}
+              >
+                <span className="pv-id">{r.id}</span>
+                <span className="pv-role">{roleOf(r.role)}</span>
+                <span
+                  className={`pv-badge ${
+                    q === 'exact'
+                      ? 'q-exact'
+                      : q === 'normalized'
+                        ? 'q-normalized'
+                        : q === 'fuzzy'
+                          ? 'q-fuzzy'
+                          : 'q-failed'
+                  }`}
+                >
+                  {q === 'exact'
+                    ? '逐字命中'
+                    : q === 'normalized'
+                      ? '归一化命中'
+                      : q === 'fuzzy'
+                        ? '模糊匹配'
+                        : '原文找不到'}
+                </span>
+                <button
+                  className="pv-jump"
+                  title="在报告里看这条"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    jumpCard(r.id);
+                  }}
+                >
+                  ↗
+                </button>
+                <span className="pv-q">「{shown}」</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="passage">{nodes}</div>
+    </div>
+  );
 }
 
 /* ═══════ 主张 ═══════ */
@@ -199,6 +420,7 @@ function ClaimCard({
   const rw = rewriteOf(claim);
   return (
     <div
+      id={`cl-${claim.id}`}
       className={`claim-card ${isConclusion ? 'concl' : ''}`}
       onClick={onPick}
       style={active ? { borderColor: 'var(--accent)', boxShadow: 'inset 0 0 0 1px var(--accent)' } : undefined}
@@ -1342,6 +1564,12 @@ export function DiagnosisView({
    * 它们是必须说出来、不能静默丢掉的。
    */
   const prgLine = useMemo(() => graphSummary(graphOf(d)), [d]);
+  /**
+   * 命题账：每条主张该由什么来定（证据 / 现在没证据 / 体系内 / 不由论证裁定）。
+   * 全本地推导，只读报告字段，不改任何判定——所以它和判读永远不会互相矛盾。
+   */
+  const props = useMemo(() => propositionsOf(d), [d]);
+  const pivot = useMemo(() => pivotOf(d), [d]);
   const topicsHit = topics.filter((t) => t.hit).length;
 
   /**
@@ -1358,6 +1586,36 @@ export function DiagnosisView({
   const [exp, setExp] = useState<{ kind: 'idle' | 'busy' | 'ok' | 'fail'; fmt?: 'md' | 'ad' | 'prg'; msg?: string }>({
     kind: 'idle',
   });
+  /*
+   * 「拿走之后」的两件小事：复制成功没有、打开文件失败没有。
+   *
+   * 与 exp 分开记：一次导出成功之后再点「打开文件」失败，不该把「已保存：路径」
+   * 那一条顶掉——那会让人以为文件没存下来。两句话说的是两件事。
+   */
+  const [copied, setCopied] = useState<{ kind: 'idle' | 'ok' | 'fail'; msg?: string }>({ kind: 'idle' });
+  const [actErr, setActErr] = useState<string | null>(null);
+  const doCopy = async () => {
+    setCopied({ kind: 'idle' });
+    try {
+      const r = await window.api.report.copyMarkdown(d);
+      setCopied(
+        r.ok
+          ? { kind: 'ok', msg: `${(r.chars ?? 0).toLocaleString('zh-CN')} 字已复制` }
+          : { kind: 'fail', msg: r.reason ?? '没能写进剪贴板。' }
+      );
+    } catch (e) {
+      setCopied({ kind: 'fail', msg: `复制失败：${(e as Error)?.message ?? '原因不明'}` });
+    }
+  };
+  const openSaved = async (how: 'open' | 'reveal', path: string) => {
+    setActErr(null);
+    try {
+      const r = how === 'open' ? await window.api.report.openSaved(path) : await window.api.report.revealSaved(path);
+      if (!r.ok) setActErr(r.reason ?? (how === 'open' ? '打不开这个文件。' : '没能定位到这个文件。'));
+    } catch (e) {
+      setActErr(`打不开：${(e as Error)?.message ?? '原因不明'}`);
+    }
+  };
   const doExport = async (fmt: 'md' | 'ad' | 'prg') => {
     setExp({ kind: 'busy', fmt });
     try {
@@ -1421,15 +1679,42 @@ export function DiagnosisView({
         <button className="exp-btn" onClick={() => doExport('prg')} disabled={exp.kind === 'busy'}>
           {exp.kind === 'busy' && exp.fmt === 'prg' ? '正在导出…' : '导出为画布工程（.prg）'}
         </button>
-        {exp.kind === 'ok' && (
-          <span className="exp-ok" title={exp.msg}>
-            已保存：{exp.msg}
+        {/*
+          第四个出口不落盘：服务的是「贴到聊天窗口里问一句」「粘进自己的稿子」。
+          它走的是同一个 reportToMarkdown，所以复制出来的字与导出的 .md 逐字相同。
+        */}
+        <button className="exp-btn" onClick={doCopy} data-copy-markdown="1">
+          复制 Markdown
+        </button>
+        {copied.kind === 'ok' && (
+          <span className="exp-ok" data-copy-ok="1">
+            {copied.msg}
           </span>
         )}
+        {copied.kind === 'fail' && <span className="exp-fail">{copied.msg}</span>}
+        {exp.kind === 'ok' && exp.msg && (
+          <>
+            {/*
+              只显示路径是不够的：路径长了会被截断，而且人得自己打开资源管理器再找一遍。
+              这两个按钮打开的是主进程刚写出的那一份——不认别的路径。
+            */}
+            <span className="exp-ok" title={exp.msg}>
+              已保存：{exp.msg}
+            </span>
+            <button className="exp-act" onClick={() => void openSaved('open', exp.msg!)} data-open-saved="1">
+              打开文件
+            </button>
+            <button className="exp-act" onClick={() => void openSaved('reveal', exp.msg!)} data-reveal-saved="1">
+              在文件夹中显示
+            </button>
+          </>
+        )}
         {exp.kind === 'fail' && <span className="exp-fail">{exp.msg}</span>}
+        {actErr && <span className="exp-fail">{actErr}</span>}
         {exp.kind === 'idle' && (
           <span className="exp-hint">
-            Markdown 给人读；Argdown 是纯文本结构图，可进 git diff；画布工程 {prgLine}（位置是草稿，打开后可自己摆）
+            Markdown 给人读；Argdown 是纯文本结构图，可进 git diff；画布工程 {prgLine}（位置是草稿，打开后可自己摆）；
+            复制不落盘，贴到聊天窗口或自己的稿子里用
           </span>
         )}
       </div>
@@ -1458,6 +1743,15 @@ export function DiagnosisView({
 
       {/* 先说清这份报告里的判断是谁写的，再往下读。默认只占两行，清单要点开。 */}
       <SourceBar d={d} />
+
+      {/*
+        异议账放在来源之后、正文之前：它是「你读这份报告时留下的东西」，
+        属于这一份的头，而不是某一节的内容。零条时整块不渲染（组件自己返回 null）。
+      */}
+      <ObjectionDigest diagId={d.id} />
+
+      {/* 长文本才出现：把「原文哪些句子被条目落上了」摆出来，短文本不摆（那是空面板）。 */}
+      <CoverageBar d={d} />
 
       {!d.scope.applicable && (
         <div className="banner bad">
@@ -1504,10 +1798,14 @@ export function DiagnosisView({
       */}
       <ViewBar views={views} picked={picked} onPick={setWanted} initialOpen={!!initialViews} />
 
-      <Block title="原文" sub="点黄色处 → 图上和下面那一条一起亮" plain="他自己写的话。黄色是被拆出来的句子，点一下就知道它在结构图里是哪一格。">
+      <Block
+        title="原文"
+        sub="点黄色处 → 上面定位条和图上一起亮；虚线句是报告没引用的"
+        plain="他自己写的话。黄色是被拆出来的句子，点一下就知道它在结构图里是哪一格；上面那排编号是报告对这句话的读法，虚线是他没用到的话。"
+      >
         <Passage
           text={d.passage}
-          items={allClaims.map((c) => ({ id: c.id, span: c.span }))}
+          items={allClaims.map((c) => ({ id: c.id, span: c.span, role: c.role, quote: c.quote }))}
           sel={sel}
           onPick={(id) => setSel(id === sel ? null : id)}
         />
@@ -1632,6 +1930,40 @@ export function DiagnosisView({
           </div>
         )}
       </Block>
+
+      {/*
+        命题账。放在判读之后、争议之前，位置是有理由的：
+        判读刚给完档位，读者最想问的是「你凭什么」；紧接着这一栏先回答另一半——
+        这些命题里，哪几条根本不是论证能定的。再往后才是「学界在哪吵架」
+        （争议）与「这个工具只有一把尺子」（边界）。顺序是层层退后的：
+        结论 → 哪些不能裁 → 哪里有分歧 → 我根本不做。
+      */}
+      {props.total > 0 && (
+        <Block
+          id="sec-props"
+          title="命题账"
+          sub={props.line}
+          plain="判读只说了一件事：这段话站不站得住。这一栏说的是另一半——里面每一条主张本来该由什么来定。有的能去查，有的现在谁都给不出证据，有的是价值选择，论证再多也只能说明代价，不能把它判真判假。"
+        >
+          <PropositionLedger v={props} />
+        </Block>
+      )}
+
+      {/*
+        枢纽前提。紧接命题账，因为账回答「每条该由什么来定」，这一栏回答
+        「这一段其实压在谁身上」——两问合起来才够用：知道哪条不是证据能定的，
+        还得知道哪一条是整段的承重墙。位置也照顾读法：先看全账，再看那根柱子。
+      */}
+      {pivot.rows.length > 0 && (
+        <Block
+          id="sec-pivot"
+          title="枢纽前提"
+          sub={pivot.line}
+          plain="指出十处措辞毛病，不如指出一次「你把 X 当起点用了，而 X 正是要争的那件事」。这一栏只攒两件事：结论经过谁，谁身上已经有反对意见。"
+        >
+          <PivotCard v={pivot} />
+        </Block>
+      )}
 
       {/*
         争议栏放在判读之后：读者此时刚拿到结论，最想问的正是「你凭什么」。

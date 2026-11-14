@@ -1,7 +1,15 @@
 import { app } from 'electron';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import type { Diagnosis, ReportMeta, UsageRecord } from '@shared/types';
+import { basename, join } from 'node:path';
+import type {
+  ArchiveHealth,
+  ArchiveIndexState,
+  ArchiveIssue,
+  Diagnosis,
+  ReportMeta,
+  ReportProbe,
+  UsageRecord,
+} from '@shared/types';
 import type { PriorPassage } from '@shared/sameness';
 import type { AgreementItem } from '@shared/agreement';
 
@@ -44,6 +52,42 @@ function reportPath(id: string): string {
   return join(archiveDir(), `${safe}.json`);
 }
 
+/** 错误信息只取一句、截短：不把文件正文或本机路径拼进界面文案。 */
+function reasonText(err: unknown, fallback: string): string {
+  const msg = (err as Error)?.message ?? fallback;
+  return String(msg).replace(/\s+/g, ' ').slice(0, 160) || fallback;
+}
+
+/**
+ * 一份报告至少要有哪些字段才算「能打开」。
+ *
+ * 判据来自界面实际会读的东西（`App.tsx` 的 `setDiag(d)` 之后立刻取
+ * `passage / theory / mode / verdict`，`metaOf` 还要 `checks`）。判据只有一份：
+ * 目录扫描、索引重建、单份探测都用 `reportShapeIssue()`，不然同一个文件
+ * 可能在样本账里算好、在历史上点开却是空的——两处看起来都正常。
+ */
+function reportShapeIssue(d: unknown): string | null {
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return '文件能解析，但顶层不是一份报告';
+  const x = d as Partial<Diagnosis>;
+  if (typeof x.id !== 'string' || !x.id) return '缺少 id';
+  if (typeof x.passage !== 'string') return '缺少原文 passage';
+  if (typeof x.createdAt !== 'number') return '缺少时间 createdAt';
+  if (!x.theory) return '缺少透镜 theory';
+  if (!x.verdict) return '缺少判读 verdict';
+  if (!Array.isArray(x.checks)) return '缺少检查项 checks';
+  return null;
+}
+
+/**
+ * 本会话里索引有没有坏过。
+ *
+ * 索引坏了 `readIndex()` 会立刻从磁盘重建（这是有意的设计），重建之后
+ * 文件又变成合法 JSON——于是一次「只读体检」如果晚于列表加载跑，
+ * 就再也看不出它坏过。留一个本会话的记忆，界面才能说「刚才读到过损坏」，
+ * 而不是把已经发生过的自愈伪装成一切如常。
+ */
+let indexIssueSinceBoot: string | null = null;
+
 function excerptOf(passage: string): string {
   return passage.replace(/\s+/g, ' ').trim().slice(0, 72);
 }
@@ -64,16 +108,45 @@ function metaOf(d: Diagnosis, cost: number | null, bytes: number): ReportMeta {
   };
 }
 
-function readIndex(): ReportMeta[] {
+interface IndexRaw {
+  state: ArchiveIndexState;
+  reason: string | null;
+  entries: ReportMeta[];
+}
+
+/**
+ * 裸读索引：**只读，不重建、不写盘**。
+ *
+ * 与 `readIndex()` 分开的理由：体检是「看一眼」，看一眼不该改写 index.json。
+ * 列表通道仍按老规则自愈（文件是真相，索引是缓存），但自愈发生过要留痕。
+ */
+function readIndexRaw(): IndexRaw {
   const p = indexPath();
-  if (!existsSync(p)) return rebuildIndex();
+  if (!existsSync(p)) return { state: 'missing', reason: '索引文件不存在', entries: [] };
+  let text: string;
   try {
-    const raw = JSON.parse(readFileSync(p, 'utf-8'));
-    if (!Array.isArray(raw)) return rebuildIndex();
-    return raw.filter((m: any) => m && typeof m.id === 'string') as ReportMeta[];
-  } catch {
-    return rebuildIndex();
+    text = readFileSync(p, 'utf-8');
+  } catch (err) {
+    return { state: 'invalid', reason: `索引文件读不出来：${reasonText(err, '原因不明')}`, entries: [] };
   }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (err) {
+    return { state: 'invalid', reason: `索引 JSON 解析失败：${reasonText(err, '格式不对')}`, entries: [] };
+  }
+  if (!Array.isArray(raw)) return { state: 'invalid', reason: '索引不是数组', entries: [] };
+  const entries = raw.filter((m: any) => m && typeof m.id === 'string') as ReportMeta[];
+  if (!raw.length) return { state: 'empty', reason: null, entries };
+  return { state: 'ok', reason: null, entries };
+}
+
+function readIndex(): ReportMeta[] {
+  const raw = readIndexRaw();
+  if (raw.state === 'ok' || raw.state === 'empty') return raw.entries;
+  /* 坏过就记住：重建会把文件改成合法 JSON，之后再来体检就看不出这一段了。 */
+  indexIssueSinceBoot = raw.reason ?? raw.state;
+  return rebuildIndex();
 }
 
 function writeIndex(list: ReportMeta[]): void {
@@ -93,13 +166,16 @@ function rebuildIndex(): ReportMeta[] {
   try {
     files = readdirSync(dir).filter((f) => f.endsWith('.json') && f !== 'index.json');
   } catch {
+    // @allow-silent: 目录都列不出来时返回空列表，让调用方照常走完；
+    // archiveHealth() 会把 dirError 报给界面，界面因此不会说「还没有报告」。
     return [];
   }
   const out: ReportMeta[] = [];
   for (const f of files) {
     try {
       const d = JSON.parse(readFileSync(join(dir, f), 'utf-8')) as Diagnosis;
-      if (!d?.id || !d.theory || !d.verdict) continue;
+      /* 与体检、单份探测同一个判据。跳过的文件由 archiveHealth() 逐个点名。 */
+      if (reportShapeIssue(d)) continue;
       const bytes = Buffer.byteLength(JSON.stringify(d), 'utf-8');
       out.push(metaOf(d, null, bytes));
     } catch {
@@ -140,14 +216,16 @@ export interface PassageScan {
 
 interface DirScan {
   diagnoses: Diagnosis[];
-  badFiles: number;
+  /** 目录里所有 .json（不含 index.json）的文件名，用来和索引交叉比对 */
+  files: string[];
+  issues: ArchiveIssue[];
   dirError: string | null;
 }
 
 /**
  * 扫一遍存档目录，把读得出来的报告都解出来。
  *
- * 三个调用者要的东西不同（样本账要原文、同题复跑要整份报告、历史列表读索引），
+ * 三个调用者要的东西不同（样本账要原文、同题复跑要整份报告、体检要点名坏文件），
  * 但「哪些文件读不出来」必须只有一个答案——分开写三份循环，迟早有一份忘了计数，
  * 于是同一台机器上两处说出的份数不一样，而两处看起来都完全正常。
  */
@@ -157,23 +235,38 @@ function scanDir(): DirScan {
   try {
     files = readdirSync(dir).filter((f) => f.endsWith('.json') && f !== 'index.json');
   } catch (err) {
-    return { diagnoses: [], badFiles: 0, dirError: (err as Error)?.message ?? '原因不明' };
+    return { diagnoses: [], files: [], issues: [], dirError: reasonText(err, '目录读不出来') };
   }
   const diagnoses: Diagnosis[] = [];
-  let badFiles = 0;
+  const issues: ArchiveIssue[] = [];
   for (const f of files) {
+    let text: string;
     try {
-      const d = JSON.parse(readFileSync(join(dir, f), 'utf-8')) as Diagnosis;
-      if (!d?.id || typeof d.passage !== 'string' || typeof d.createdAt !== 'number') {
-        badFiles += 1;
-        continue;
-      }
-      diagnoses.push(d);
-    } catch {
-      badFiles += 1;
+      text = readFileSync(join(dir, f), 'utf-8');
+    } catch (err) {
+      issues.push({ file: f, kind: 'unreadable', reason: reasonText(err, '文件读不出来'), bytes: 0 });
+      continue;
     }
+    let d: unknown;
+    try {
+      d = JSON.parse(text);
+    } catch (err) {
+      issues.push({
+        file: f,
+        kind: 'invalid-json',
+        reason: `JSON 解析失败：${reasonText(err, '格式不对')}`,
+        bytes: Buffer.byteLength(text, 'utf-8'),
+      });
+      continue;
+    }
+    const shape = reportShapeIssue(d);
+    if (shape) {
+      issues.push({ file: f, kind: 'incomplete', reason: shape, bytes: Buffer.byteLength(text, 'utf-8') });
+      continue;
+    }
+    diagnoses.push(d as Diagnosis);
   }
-  return { diagnoses, badFiles, dirError: null };
+  return { diagnoses, files, issues, dirError: null };
 }
 
 export function passageScan(): PassageScan {
@@ -181,7 +274,7 @@ export function passageScan(): PassageScan {
   if (scan.dirError) return { items: [], badFiles: 0, dirError: scan.dirError };
   return {
     items: scan.diagnoses.map((d) => ({ id: d.id, at: d.createdAt, passage: d.passage })),
-    badFiles: scan.badFiles,
+    badFiles: scan.issues.length,
     dirError: null,
   };
 }
@@ -217,7 +310,7 @@ export function reportScan(): ReportScan {
       report,
     };
   });
-  return { items, badFiles: scan.badFiles, dirError: null };
+  return { items, badFiles: scan.issues.length, dirError: null };
 }
 
 export function allPassages(): PriorPassage[] {
@@ -228,10 +321,79 @@ export function getReport(id: string): Diagnosis | null {
   const p = reportPath(id);
   if (!existsSync(p)) return null;
   try {
-    return JSON.parse(readFileSync(p, 'utf-8')) as Diagnosis;
+    const d = JSON.parse(readFileSync(p, 'utf-8')) as Diagnosis;
+    /* 能解析不等于能显示：缺 verdict / passage 的报告会把整屏渲染成空白。
+       这里退回 null，至于「文件不在」还是「文件写坏了」由 probeReport() 说清楚。 */
+    return reportShapeIssue(d) ? null : d;
   } catch {
+    /* 文件存在但读不出来。getReport 的签名只有「报告或 null」（smoke 与多处调用
+       都依赖它），原因不能塞进返回值里，改由 archive:probe 单独问一次。 */
     return null;
   }
+}
+
+/**
+ * 单份探测。只读，不删、不修、不改写。
+ *
+ * 存在的理由是一个具体症状：点在历史里的一份坏报告上，屏幕毫无变化。
+ * `openReport` 原本写 `if (!d) return`，`.catch` 接得住 IPC 抛错却接不住 null，
+ * 用户只能以为自己没点中——尽管那段代码的注释正写着「读不出来要说出来」。
+ */
+export function probeReport(id: string): ReportProbe {
+  const p = reportPath(id);
+  const file = basename(p);
+  if (!existsSync(p)) return { state: 'missing', file, reason: '磁盘上没有这个文件' };
+  let text: string;
+  try {
+    text = readFileSync(p, 'utf-8');
+  } catch (err) {
+    return { state: 'unreadable', file, reason: reasonText(err, '文件读不出来') };
+  }
+  let d: unknown;
+  try {
+    d = JSON.parse(text);
+  } catch (err) {
+    return { state: 'invalid-json', file, reason: `JSON 解析失败：${reasonText(err, '格式不对')}` };
+  }
+  const shape = reportShapeIssue(d);
+  return shape ? { state: 'incomplete', file, reason: shape } : { state: 'ok', file, reason: null };
+}
+
+/**
+ * 本机存档的一次只读体检。
+ *
+ * 它只回答「哪些东西读不出来、索引和文件对不对得上」，**不修任何东西**：
+ * 不删坏文件、不重建索引、不覆盖报告。自动修复听起来贴心，但用户还没看清
+ * 少了什么就被改了盘，比看到一个红条更糟。要看文件本身用「打开报告文件夹」。
+ *
+ * `dirError` 非空时任何数字都不可信，因此 missing / orphans 直接留空，
+ * 界面必须说「目录读不出来」，不能说「一份报告也没有」。
+ */
+export function archiveHealth(): ArchiveHealth {
+  const scan = scanDir();
+  const raw = readIndexRaw();
+  const indexState: ArchiveIndexState =
+    indexIssueSinceBoot && (raw.state === 'ok' || raw.state === 'empty') ? 'rebuilt' : raw.state;
+  const indexReason =
+    indexState === 'rebuilt'
+      ? `本会话读到过损坏（${indexIssueSinceBoot}），列表已按磁盘文件重建；报告文件没有被改写`
+      : raw.reason;
+  /* 用文件名而不是报告内的 id 做交叉比对：坏文件根本解不出 id。
+     saveReport 写的文件名就是 id，两种口径在正常文件上是一致的。 */
+  const diskNames = new Set(scan.files.map((f) => f.replace(/\.json$/, '')));
+  const indexIds = raw.entries.map((m) => String(m.id));
+  const indexSet = new Set(indexIds);
+  return {
+    checkedAt: Date.now(),
+    dirError: scan.dirError,
+    issues: scan.issues,
+    healthyFiles: scan.diagnoses.length,
+    indexState,
+    indexReason,
+    indexEntries: raw.entries.length,
+    missing: scan.dirError ? [] : indexIds.filter((id) => !diskNames.has(id)),
+    orphans: scan.dirError ? [] : [...diskNames].filter((n) => !indexSet.has(n)).sort(),
+  };
 }
 
 /**

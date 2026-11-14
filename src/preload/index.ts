@@ -1,8 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
   AnalysisMode,
+  ArchiveHealth,
   Diagnosis,
+  ReportProbe,
   Objection,
+  ObjectionAnchor,
   ObjectionStat,
   ReportMeta,
   LlmSettings,
@@ -109,7 +112,7 @@ const api = {
   /**
    * 报告导出。
    *
-   * 只给一个方向：报告 → 一份文件。没有「从文件导入」——
+   * 方向只有「报告 → 一份文件」与「报告 → 剪贴板」。没有「从文件导入」——
    * 报告是模型输出的解析结果，手写一份 JSON 塞进来，程序无法分辨它是不是真的分析过。
    */
   report: {
@@ -124,6 +127,22 @@ const api = {
      */
     exportPrg: (d: Diagnosis): Promise<{ ok: boolean; path?: string; canceled?: boolean }> =>
       ipcRenderer.invoke('report:exportPrg', d),
+    /**
+     * 复制 Markdown 全文到剪贴板。
+     *
+     * 这条会写剪贴板，与 `capture` 那侧「不写」的边界不冲突：那是防止软件
+     * 在用户不知情时改掉剪贴板内容；这里是用户按下的按钮，写进去的是他自己
+     * 刚看完的这份报告，由同一个生成函数产出，不另拼一份。
+     */
+    copyMarkdown: (d: Diagnosis): Promise<{ ok: boolean; chars?: number; reason?: string }> =>
+      ipcRenderer.invoke('report:copyMarkdown', d),
+    /**
+     * 打开 / 在文件夹中显示刚导出的文件。
+     * 主进程只认本次运行真的写出过的那几个路径，别的路径一律拒绝并给出原因。
+     */
+    openSaved: (path: string): Promise<{ ok: boolean; reason?: string }> => ipcRenderer.invoke('report:openSaved', path),
+    revealSaved: (path: string): Promise<{ ok: boolean; reason?: string }> =>
+      ipcRenderer.invoke('report:revealSaved', path),
   },
   /**
    * 异议：用户对某条判定说不认同。
@@ -144,6 +163,8 @@ const api = {
       refLabel: string;
       excerpt: string;
       reason: string;
+      /** 工作台自记异议的位置；不传就是主程序里那类已有判定锚点的异议。 */
+      anchor?: ObjectionAnchor;
     }): Promise<{ ok: boolean; list: Objection[]; error?: string }> =>
       ipcRenderer.invoke('objections:add', input),
     remove: (diagId: string, key: string): Promise<{ ok: boolean; list: Objection[]; error?: string }> =>
@@ -175,6 +196,13 @@ const api = {
   archive: {
     list: (): Promise<ReportMeta[]> => ipcRenderer.invoke('archive:list'),
     get: (id: string): Promise<Diagnosis | null> => ipcRenderer.invoke('archive:get', id),
+    /**
+     * 存档体检：哪些报告文件读不出来、索引与磁盘对不对得上。
+     * 只读——看一眼面板不会改写任何文件；要动手得用户自己去文件夹里做。
+     */
+    health: (): Promise<ArchiveHealth> => ipcRenderer.invoke('archive:health'),
+    /** 单份报告为什么打不开。get() 给 null 时用它问一句具体原因。 */
+    probe: (id: string): Promise<ReportProbe> => ipcRenderer.invoke('archive:probe', id),
     remove: (id: string): Promise<ReportMeta[]> => ipcRenderer.invoke('archive:remove', id),
     reveal: (): Promise<string> => ipcRenderer.invoke('archive:reveal'),
     /**
@@ -218,6 +246,34 @@ const api = {
       system: string;
       userTemplate: string;
     }> => ipcRenderer.invoke('prompt:get', theory, mode),
+  },
+  workbench: {
+    open: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('workbench:open'),
+    /** 重读本机存档并刷新工作台；不发起分析、不花钱、不改任何报告。 */
+    refresh: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('workbench:refresh'),
+    /** 按 id 取一份历史存档全文；只认索引里的 id，不接路径。 */
+    report: (id: string): Promise<{
+      ok: boolean;
+      report?: unknown;
+      compare?: unknown;
+      error?: string;
+    }> => ipcRenderer.invoke('workbench:report', id),
+    /** 跨报告全文检索：只读本机存档，不调模型、不写盘、不接路径。 */
+    search: (
+      q: string,
+      filter?: { mode?: string; theory?: string; level?: string; limit?: number }
+    ): Promise<{
+      ok: boolean;
+      total?: number;
+      docTotal?: number;
+      capped?: boolean;
+      hits?: {
+        id: string; at: number; mode: string; theory: string; level: string;
+        sec: string; path: string; snippet: string; n: number;
+      }[];
+      error?: string;
+    }> => ipcRenderer.invoke('workbench:search', q, filter ?? {}),
+    back: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('workbench:back'),
   },
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('app:openExternal', url),
 };

@@ -3,11 +3,14 @@ import {
   ANALYSIS_MODES,
   MODE_META,
   type AnalysisMode,
+  type AnalysisStage,
+  type ReportProbe,
   Diagnosis,
   LlmSettings,
   Objection,
   PragmaRule,
   ProgressEvent,
+  type ReportMeta,
   UsageRecord,
   UsageSummary,
 } from '@shared/types';
@@ -22,7 +25,7 @@ import { DisputeDialog } from './components/Disputes';
 import { ObjectionCtx } from './components/Objection';
 import { UsageChip, UsagePanel } from './components/Usage';
 import { SegmentBar } from './components/SegmentBar';
-import { Running } from './components/Running';
+import { Running, type RunEvent } from './components/Running';
 import { RevisionBar } from './components/Revision';
 import { HistoryPanel, when } from './components/History';
 import { formatMoney, formatTokens } from '@shared/tokens';
@@ -41,6 +44,20 @@ import { SAMPLES } from '@shared/samples';
 import { decideCapture, type CaptureStatus } from '@shared/capture';
 
 type Tab = 'analyze' | 'prompt';
+
+/**
+ * 点开一份打不开的报告时，按探测结果说人话。
+ *
+ * 「文件可能被手动删了或写坏了一半」这句旧提示把三种情况揉在一起，
+ * 用户没法判断该去找备份、该去查权限、还是该当这份报告已经废了。
+ */
+const PROBE_TEXT: Record<ReportProbe['state'], string> = {
+  ok: '刚才还能读，这次却没取到（可能正被别的程序改动）',
+  missing: '磁盘上没有这个文件（索引里这一行已经找不到对应报告）',
+  unreadable: '文件在，但读不出来（可能被占用或权限不够）',
+  'invalid-json': '文件在，但内容写坏了，JSON 解不开',
+  incomplete: '文件能解析，但缺了报告该有的字段',
+};
 
 /** 一次分析调用的返回形状。推断出来而不是手写，免得 preload 改了这里不跟。 */
 type RunResult = Awaited<ReturnType<typeof window.api.analysis.run>>;
@@ -125,6 +142,36 @@ export default function App() {
   /** 按了停、还在等主进程确认。按钮这时显示「正在停…」并且不可再点。 */
   const [stopping, setStopping] = useState(false);
   /**
+   * 这一次已经收到的进度事件（带到达时刻）。
+   *
+   * 主进程只在真的进入某一步时发一条，所以这串东西是「已经走过哪几步、
+   * 每步花了多久」的唯一证据。它不是进度估算——不插值、不预测，
+   * 清单上没走到的步骤一律显示中性说明，不替模型编时间。
+   */
+  const [runEvents, setRunEvents] = useState<RunEvent[]>([]);
+  /** 上一条进度事件的到达时刻。用来分辨「在动」和「没动静」。 */
+  const [progressAt, setProgressAt] = useState(0);
+  /**
+   * 上一次发起分析时那段文字的快照。
+   *
+   * 「重跑这一次」必须对准失败的那一段，而不是输入框里现有的字——
+   * 用户失败后常会先去改设置或改别处，回来再点一次，那时框里可能已经是另一段话了。
+   * 用快照重跑，跑出来的才是他想再试的那一次。
+   */
+  const [lastAttempt, setLastAttempt] = useState<{
+    text: string;
+    parentId: string | null;
+    chars: number;
+  } | null>(null);
+  /**
+   * 屏幕上这份报告是对着哪段字跑出来的。
+   *
+   * 分析要几十秒，这期间输入框是可编辑的。跑完之后框里已经换成另一段话，
+   * 而报告还在说上一段——旧界面一个字都不提。带上报告 id 是为了不误判：
+   * 从历史里点开旧报告时，这份对不上框里的字是理所当然的，不该提示。
+   */
+  const [ranFor, setRanFor] = useState<{ id: string; text: string } | null>(null);
+  /**
    * 「这段文字跑过没有」。
    *
    * 这一条的存在理由不是功能，是证据：102 份存档里 98 份落在同一段早读上。
@@ -178,6 +225,8 @@ export default function App() {
   const [nextLinesErr, setNextLinesErr] = useState<string | null>(null);
   /** 历史面板。这里同时放异议统计——两者都是「跨会话才看得出的东西」。 */
   const [histOpen, setHistOpen] = useState(false);
+  /** 首屏「最近报告」：只读存档索引，不写回、不发起分析。 */
+  const [recent, setRecent] = useState<ReportMeta[]>([]);
   /*
    * 正在对照的两份报告。null 表示没开。
    * 存的是**全文**而不是 id：读盘只该发生一次，之后翻来覆去看的是同一份数据。
@@ -250,7 +299,16 @@ export default function App() {
         setNextLinesErr(null);
       })
       .catch((err: Error) => setNextLinesErr(err?.message ?? '原因不明'));
-    return window.api.analysis.onProgress((e) => setProgress(e));
+    return window.api.analysis.onProgress((e) => {
+      setProgress(e);
+      /*
+       * 到达时刻在这里记，不在主进程记：清单说的是「你等了多久」，
+       * 用渲染层的时钟才算得上用户真正经历的时间。
+       */
+      const at = Date.now();
+      setProgressAt(at);
+      setRunEvents((v) => [...v, { stage: e.stage, label: e.label, at }].slice(-24));
+    });
   }, [refreshUsage]);
 
   /*
@@ -309,6 +367,22 @@ export default function App() {
   useEffect(() => {
     refreshPortfolio();
   }, [refreshPortfolio, diag?.id, histOpen]);
+
+  /*
+   * 首屏不该是一片空白：本机跑过的报告要能被一眼看见、一点就回得去。
+   * 这里只读索引前三份；换报告、开关历史面板时重读，其余时候不打扰。
+   */
+  useEffect(() => {
+    if (diag || loading) return;
+    let alive = true;
+    window.api.archive
+      .list()
+      .then((list) => { if (alive) setRecent(list.slice(0, 3)); })
+      .catch(() => {
+        // @allow-silent: 读不到索引就老实显示「还没有存档」，不该因为附加内容报错。
+      });
+    return () => { alive = false; };
+  }, [diag, loading, histOpen]);
 
   /*
    * 全局快捷键的接线。
@@ -448,6 +522,7 @@ export default function App() {
         setOnboard(true);
         return;
       }
+      const parentForThis = override?.parentId ?? pendingParent ?? null;
       abortRef.current = false;
       stopRef.current = false;
       setStopping(false);
@@ -457,6 +532,14 @@ export default function App() {
       setNotice(null);
       setDiag(null);
       setProgress({ stage: 'scope', label: '准备', percent: 4 });
+      /*
+       * 清单从零开始，并且立刻记下「现在」：否则第一条进度到达之前，
+       * 「多久没动静」会从一个更早的时刻起算，把还没起步的准备阶段算成卡住。
+       */
+      setRunEvents([]);
+      setProgressAt(Date.now());
+      /* 失败时「重跑这一次」要对准这一段，而不是那时输入框里可能已经改过的字 */
+      setLastAttempt({ text, parentId: parentForThis, chars: text.length });
 
       /* 切分过的段落照样能跑：切分只是帮人选一段，不是改写文本。 */
       /*
@@ -471,7 +554,7 @@ export default function App() {
         text,
         theory,
         mode,
-        override?.parentId ?? pendingParent ?? null
+        parentForThis
       ).catch(
         (err: Error): RunResult => ({
           ok: false,
@@ -499,6 +582,8 @@ export default function App() {
       if (res.ok && res.data) {
         setDiag(res.data);
         setLastUsage(res.usage ?? null);
+        /* 记下这份报告对应的输入，好在框里的字被改过之后照实说出来 */
+        setRanFor({ id: res.data.id, text });
         /*
          * 按了停却照样出了报告：说一句「没赶上」。
          *
@@ -581,10 +666,55 @@ export default function App() {
       });
   }, [loading, stopping]);
 
+  /**
+   * 「重跑这一次」。
+   *
+   * 用的是失败那次的文字快照，不是输入框里现在的字：失败之后用户常先去改设置、
+   * 或者顺手把框里的话改成另一段，回来再点一次时，想重试的仍然是刚才那一次。
+   * 透镜与问法用当前选中的——改这两样本来就是「换一副眼镜再看」，不是重试。
+   */
+  const retry = useCallback(() => {
+    if (!lastAttempt || loading) return;
+    setError(null);
+    setStopNote(null);
+    run({ text: lastAttempt.text, parentId: lastAttempt.parentId });
+  }, [lastAttempt, loading, run]);
+
+  /*
+   * 键盘：Ctrl/⌘+Enter 跑、Esc 停。
+   *
+   * 界面上写了这两条（按钮旁、停止说明里），写了就得真的能按。
+   * 对话框打开时不接管：那时 Esc 属于对话框，抢过来会让人关不掉设置页。
+   */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const dialogOpen =
+        settingsOpen || onboard || histOpen || usageOpen || glossOpen || theoryOpen || dispOpen;
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (dialogOpen || loading) return;
+        e.preventDefault();
+        void run();
+        return;
+      }
+      if (e.key === 'Escape' && loading && !dialogOpen) {
+        e.preventDefault();
+        stop();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [run, stop, loading, settingsOpen, onboard, histOpen, usageOpen, glossOpen, theoryOpen, dispOpen]);
+
   /** 换透镜不自动重跑：跑一次要花钱和时间，而且旧结果仍有对照价值。 */
   const switchTheory = (id: TheoryId) => setTheory(id);
 
   const stale = useMemo(() => !!diag && diag.theory !== theory, [diag, theory]);
+  /*
+   * 距上一条进度事件过了多久。每次渲染现算，靠的是「已等几秒」那个
+   * 每 500 毫秒一次的刷新——所以它只在分析进行中才有意义，也只在那里显示。
+   * 不在 state 里另起一个计时器：两个计时器会各自漂移，界面上就会自相矛盾。
+   */
+  const stillMs = progressAt ? Math.max(0, Date.now() - progressAt) : 0;
   /** 这一份碰到了几处理论争议。没分析时是 0，芯片不显示数字。 */
   const disputes = useMemo(() => (diag ? disputesIn(diag) : []), [diag]);
 
@@ -650,6 +780,21 @@ export default function App() {
     };
   }, [diag?.parentId, diag?.id]);
 
+  /**
+   * 报告目录是主进程注入的独立脚本，不在 React 树里。它原先靠「.main 节点换了
+   * 或区块数变了」判断换报告；18 个一级区块被架构检查冻结、React 又复用 .main，
+   * 两个判据经常同时不成立，于是上一份收起的节被套到新报告上。
+   * 这里改成显式通知：报告 id 一变，等这一帧渲染落地，让注入脚本重扫并全展开。
+   * 事件只带 id，不带报告内容，不写盘；连点时只保留最后一次通知。
+   */
+  useEffect(() => {
+    if (!diag?.id) return;
+    const t = window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('al:report-change', { detail: { id: diag.id } }));
+    }, 180);
+    return () => window.clearTimeout(t);
+  }, [diag?.id]);
+
   /** 与上一版的对照。两份都在时才算得出来。 */
   const revision = useMemo(() => (diag && parent ? diffRevision(parent, diag) : null), [diag, parent]);
 
@@ -675,8 +820,27 @@ export default function App() {
     setProgress(null);
     window.api.archive
       .get(id)
-      .then((d) => {
-        if (!d) return;
+      .then(async (d) => {
+        if (!d) {
+          /*
+           * get() 只回 null，说不出「不存在」和「写坏了」的区别；以前这里
+           * `if (!d) return`，点了毫无反应——正是下面那段注释说要避免的症状。
+           * 补问一次 probe，把具体原因和「文件没被改动」一起讲清楚。
+           */
+          let p: ReportProbe | null = null;
+          try {
+            p = await window.api.archive.probe(id);
+          } catch {
+            // @allow-silent: 探测也失败时不再弹第二条错，下面用兜底文案说明「原因读不出来」；
+            // 屏幕上仍然有反应，不是把异常吞成「什么都没发生」。
+          }
+          const why = p ? PROBE_TEXT[p.state] : '读不出原因';
+          const detail = p?.reason ? `（${p.reason}）` : '';
+          setNotice(
+            `这份报告打不开：${why}${detail}。原文件没有被改动；到「历史」里的体检条能看全本机还有哪些读不出来。`
+          );
+          return;
+        }
         setDiag(d);
         setTheory(d.theory);
         setPassage(d.passage);
@@ -690,9 +854,13 @@ export default function App() {
       /*
        * 读不出来要说出来。以前这里接住异常却什么都不做：
        * 点在历史里的一份报告上、屏幕毫无变化，用户只能以为自己没点中。
-       * 常见原因就是文件被手动删了或写坏了一半。
+       * 常见原因就是文件被手动删了或写坏了一半。别劝人删那一行——先看体检。
        */
-      .catch(() => setNotice('这份报告读不出来（文件可能被手动删掉或写坏了一半）。列表里那一行可以先移除。'));
+      .catch((err: Error) =>
+        setNotice(
+          `读这份报告时出错：${err?.message ?? '原因不明'}。原文件没有改动；到「历史」里看体检结果，先弄清少了什么。`
+        )
+      );
   }, []);
 
   /**
@@ -1037,6 +1205,8 @@ export default function App() {
                   {/* 模式条下面那行 mode-note 已经显示过 MODE_META[mode].hint，
                       这里再重复一遍，同一句话会在 50px 内出现两次。这里只说透镜立场。 */}
                   这副透镜是「{profile.name}」。换一副透镜，同一处地方会被判成不同的东西——这不是错误，是这个工具的立场。
+                  <br />
+                  <b>Ctrl/⌘+Enter</b> 直接跑；跑起来之后按 <b>Esc</b> 停。
                 </p>
                 {usage?.balance.runsLeft === 0 && (
                   <button className="u-exhausted" onClick={() => setUsageOpen(true)}>
@@ -1070,10 +1240,22 @@ export default function App() {
                   <div>
                     <b>分析未完成</b>
                     {error}
+                    {lastAttempt && !loading && (
+                      <span className="banner-sub">
+                        「重跑这一次」用的是刚才那 {lastAttempt.chars} 字，不是框里现在的字；透镜与问法用现在选中的。
+                      </span>
+                    )}
                   </div>
-                  <button className="banner-act" onClick={() => setUsageOpen(true)}>
-                    看余额与用量
-                  </button>
+                  <div className="banner-acts">
+                    {lastAttempt && !loading && (
+                      <button className="banner-act" onClick={retry} data-retry="1">
+                        重跑这一次
+                      </button>
+                    )}
+                    <button className="banner-act" onClick={() => setUsageOpen(true)}>
+                      看余额与用量
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1088,9 +1270,15 @@ export default function App() {
                     <b>停在这里</b>
                     {stopNote}
                   </div>
-                  <button className="banner-x" onClick={() => setStopNote(null)} aria-label="知道了">
-                    ✕
-                  </button>
+                  <div className="banner-acts">
+                    {/* 停是主动选择，不是故障：这里给的是「接着来」，不是「去排查」 */}
+                    <button className="banner-act" onClick={() => run()} data-retry="1">
+                      再跑一次
+                    </button>
+                    <button className="banner-x" onClick={() => setStopNote(null)} aria-label="知道了">
+                      ✕
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1106,11 +1294,54 @@ export default function App() {
                 </div>
               )}
 
+              {/*
+                报告出自我自己按下的那一次，而框里的字已经被改过。
+                分析要几十秒，这期间输入框一直是可编辑的——跑完之后屏幕上这份
+                说的还是旧那一段，旧界面一个字都不提，用户会以为它在判现在这段。
+                只有 id 对得上才提：从历史里点开旧报告时对不上是理所当然的。
+              */}
+              {diag &&
+                !loading &&
+                ranFor &&
+                ranFor.id === diag.id &&
+                ranFor.text !== passage.trim() && (
+                  <div className="banner info" data-ran-text="1">
+                    <div>
+                      <b>这份报告判的不是框里现在这段字</b>
+                      它对应你按下「分析」时的那 {ranFor.text.length} 字；框里现在是另一段（
+                      {passage.trim().length} 字）。要判断现在这段，需要再跑一次——报告不会自己跟着改。
+                    </div>
+                    <div className="banner-acts">
+                      <button className="banner-act" onClick={() => run()} data-retry="1">
+                        用框里这段跑
+                      </button>
+                    </div>
+                  </div>
+                )}
+
               {stale && diag && (
-                <div className="banner info">
+                <div className="banner info" data-stale="1">
                   <div>
                     <b>当前展示的是「{THEORY_BY_ID[diag.theory].name}」的结果</b>
                     你已切到「{profile.name}」。同一段文本换一副透镜就是另一次分析，需要重新运行才能得到这份结果。
+                    <span className="banner-sub">
+                      重跑用的是这份报告的 {diag.passage.length} 字，不是框里现在那段（可能已经被改过）。
+                    </span>
+                  </div>
+                  <div className="banner-acts">
+                    {/*
+                      这句话既然说了「需要重新运行」，就得给得出那一下。
+                      不带 parentId：换透镜的两份不是「改稿前后」，拿它们做修订对照
+                      会把两把尺子的差别读成「改好了 / 改坏了」。
+                    */}
+                    <button
+                      className="banner-act"
+                      onClick={() => void run({ text: diag.passage, parentId: null })}
+                      disabled={loading}
+                      data-stale-retry="1"
+                    >
+                      用「{profile.name}」重跑这段
+                    </button>
                   </div>
                 </div>
               )}
@@ -1152,7 +1383,7 @@ export default function App() {
               {revision && <RevisionBar diff={revision} onOpenParent={() => parent && openReport(parent.id)} />}
 
               {loading ? (
-                <Running progress={progress} elapsed={waited} stopping={stopping} onStop={stop} />
+                <Running progress={progress} elapsed={waited} stopping={stopping} onStop={stop} events={runEvents} stillMs={stillMs} />
               ) : diag ? (
                 <ObjectionCtx.Provider value={objCtx}>
                   <DiagnosisView
@@ -1197,14 +1428,93 @@ export default function App() {
                   <div className="empty">
                     <h2>先给一段真话</h2>
                     {/*
+                      首屏起始区。原来只有「标题 + 说明 + 三步 + 报告预览」全部居中，
+                      右半屏一大片空白，也没有一个能直接按的入口。这里补三件真动作
+                      （聚焦输入框 / 填示例 / 开历史）和本机最近三份报告，一点就回得去。
+                      下面原有的说明、三步与报告预览一字未删——首屏冒烟是逐项数过的。
+
+                      这一版做减法：导语原来与下面那段 <p> 几乎是同一句话，读两遍；
+                      报告预览又长又靠下，把首屏撑到要滚。现在导语只说「现在做什么」，
+                      预览收进可展开区。探针数的是 .empty > p / .step / .em-steps > div
+                      这些节点，收起不等于删掉，一条断言都不用放宽。
+                    */}
+                    <div className="start-hero">
+                      <div className="start-lead">一次只处理一段话。给它原文，剩下的按下面三步走。</div>
+                      <div className="start-actions">
+                        <button
+                          className="start-primary"
+                          onClick={() => {
+                            const t = document.querySelector('.composer textarea') as HTMLTextAreaElement | null;
+                            t?.focus();
+                            t?.scrollIntoView({ block: 'center' });
+                            /* 按下去要看得见落点：输入框在左侧，只 focus 常常像「没反应」。
+                               给两秒高亮，用户一开始打字 React 重渲染会自然带走它。 */
+                            if (t) {
+                              t.classList.add('al-start-focus');
+                              window.setTimeout(() => t.classList.remove('al-start-focus'), 2400);
+                            }
+                          }}
+                        >
+                          粘贴一段话，开始
+                        </button>
+                        <button className="start-ghost" onClick={fillSample}>
+                          先载入一段示例
+                        </button>
+                        <button className="start-ghost" onClick={() => setHistOpen(true)}>
+                          打开历史报告
+                        </button>
+                      </div>
+                      <div className="start-meta">
+                        已存下的报告随时能回看，不需要重新分析，也不花钱。
+                      </div>
+                      {/*
+                        产品定位（2026-11-12，用户选 B）：判断由模型写出，软件只做可读化与回看。
+                        这句话必须与报告页 SourceBar 是同一套口径——首屏是用户第一次看到
+                        这个软件的地方，在这里把判断说成软件自己下的，后面再纠正就晚了。
+                        用 div 而不是 p：空态探针读的是 .empty > p 的第一个直接子元素。
+                      */}
+                      <div className="start-scope">
+                        判断由模型写出；这里做的是把它拆开、对回原文、存下来能回看。软件不替你判定这段话站不站得住。
+                      </div>
+                    </div>
+                    <div className="start-recent">
+                      <div className="start-recent-h">
+                        <span>最近看过的报告</span>
+                        <button onClick={() => void window.api.workbench.open()}>回看工作台 →</button>
+                      </div>
+                      {recent.length ? (
+                        <div className="start-recent-list">
+                          {recent.map((m) => (
+                            <button className="start-recent-item" key={m.id} onClick={() => openReport(m.id)}>
+                              <b>
+                                {m.excerpt.slice(0, 34)}
+                                {m.excerpt.length > 34 ? '…' : ''}
+                              </b>
+                              <span>
+                                {new Date(m.at).toLocaleString('zh-CN', {
+                                  month: 'numeric',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}{' '}
+                                · {m.chars} 字 · 未答 {m.open}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="start-recent-empty">还没有存档。跑完第一份，这里会留着它。</div>
+                      )}
+                    </div>
+                    {/*
                       这段话设定的是期望，所以它必须跟着功能走：
                       加了查谬误模式之后，「这里不检测谬误」就成了假话——
                       它检测，只是不给一串光秃秃的名字。文案与功能不一致，
                       用户会按旧印象低估新功能，或按新名词高估旧承诺，两头都是误读。
                     */}
                     <p>
-                      这里不给总分，也不替你站队。它把一段话拆成结构，逐条走完这套理论要问的问题，
-                      告诉你它站在哪、倒在哪、哪一处其实站得住。想要「有没有谬误」的名单，
+                      这里不给总分，也不替你站队。模型按这副透镜要问的问题写出判断，软件把它拆成结构、
+                      每一处对回原文，让你自己核对哪一处站得住、哪一处倒了。想要「有没有谬误」的名单，
                       切到查谬误——但每个名字都得指得出原文哪一句，附上什么时候其实合法。
                     </p>
                     <div className="steps">
@@ -1221,31 +1531,44 @@ export default function App() {
                         <span>点「分析」，先看开头那四句话</span>
                       </div>
                     </div>
-                    <div className="empty-map">
-                      <div className="em-title">报告会是这个样子</div>
-                      <div className="em-steps">
-                        <div>
-                          <b>①</b>
-                          <span>开头四句话把结论说完，不用读整页</span>
-                        </div>
-                        <div>
-                          <b>②</b>
-                          <span>一张结构图：左依据、右结论，线断在哪一眼看见</span>
-                        </div>
-                        <div>
-                          <b>③</b>
-                          <span>一排关卡：绿过、红没过、黄没答，点进去看依据</span>
-                        </div>
-                        <div>
-                          <b>④</b>
-                          <span>能直接拿去说的话，附对方最强回击</span>
-                        </div>
-                      </div>
-                      <p className="hint">
-                        上面画的是诊断模式。输入框下面还有四种问法，各出一份不同的报告：
-                        红队找攻击点、查谬误给名字、重构只画结构、提问只给问题——不判档位的那些，报告上会写明为什么。
-                      </p>
+                    {/* 目录与逐节读只出现在报告页，首屏不提一句就没人知道它们存在。
+                        这里说的是「有什么」，不是替读者规定「该先读哪一节」。 */}
+                    <div className="start-navhint">
+                      报告出来后，右侧有目录：能跳到任意一节、收起暂时不看的节，也能「逐节读」一次只看一节。
                     </div>
+                    {/*
+                      报告预览是给「想先看看会得到什么」的人看的，不是开始分析的前提。
+                      它原来把首屏撑到要滚两屏，现在收进原生 details：节点仍在 DOM 里，
+                      首屏冒烟数的四步一条不少，想看的人点一下就展开。
+                    */}
+                    <details className="start-more">
+                      <summary>先看看报告长什么样</summary>
+                      <div className="empty-map">
+                        <div className="em-title">报告会是这个样子</div>
+                        <div className="em-steps">
+                          <div>
+                            <b>①</b>
+                            <span>开头四句话把结论说完，不用读整页</span>
+                          </div>
+                          <div>
+                            <b>②</b>
+                            <span>一张结构图：左依据、右结论，线断在哪一眼看见</span>
+                          </div>
+                          <div>
+                            <b>③</b>
+                            <span>一排关卡：绿过、红没过、黄没答，点进去看依据</span>
+                          </div>
+                          <div>
+                            <b>④</b>
+                            <span>能直接拿去说的话，附对方最强回击</span>
+                          </div>
+                        </div>
+                        <p className="hint">
+                          上面画的是诊断模式。输入框下面还有四种问法，各出一份不同的报告：
+                          红队找攻击点、查谬误给名字、重构只画结构、提问只给问题——不判档位的那些，报告上会写明为什么。
+                        </p>
+                      </div>
+                    </details>
                   </div>
                 )
               )}

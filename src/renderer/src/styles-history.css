@@ -376,3 +376,86 @@
   line-height: 1.65;
   color: var(--ink-2);
 }
+
+/* ─────────── 存档体检：读不出来的东西必须看得见 ─────────── */
+
+.hs-health {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--invalid);
+  border-left-width: 3px;
+  border-radius: 5px;
+  background: var(--invalid-bg);
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+.hs-health-top {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.hs-health-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--invalid);
+}
+.hs-health-top b {
+  color: var(--invalid);
+  font-size: 12.5px;
+}
+.hs-health-sub {
+  color: var(--ink-2);
+  font-size: 11px;
+}
+.hs-health-lines {
+  margin-top: 5px;
+  color: var(--ink-2);
+}
+.hs-health-more {
+  margin-top: 6px;
+  border-top: 1px dashed var(--line-strong);
+  padding-top: 6px;
+}
+.hs-health-more summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 11.5px;
+}
+.hs-health-list {
+  list-style: none;
+  margin: 6px 0 0;
+  max-height: 168px;
+  overflow: auto;
+}
+.hs-health-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-2);
+}
+.hs-health-file {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink);
+  word-break: break-all;
+}
+.hs-health-kind {
+  flex: 0 0 auto;
+  color: var(--invalid);
+  font-size: 10.5px;
+}
+.hs-health-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed var(--line-strong);
+}

@@ -158,8 +158,21 @@ ok(
 ok(!/from ['"]electron['"]|from ['"]@shared\/types['"]/.test(SRC), '内核不碰 electron、不读报告类型');
 /* 纯函数守得住 badFiles 怎么显示，守不住主进程有没有真的把它数出来。 */
 const ARCHIVE = readFileSync(resolve('src/main/archive.ts'), 'utf-8');
-ok(/badFiles\s*\+=\s*1/.test(ARCHIVE), '读不出来的报告文件在主进程里被计数，不是 continue 就过去');
-ok(/dirError:\s*\(err as Error\)/.test(ARCHIVE), '连目录都打不开时把原因回出去，不是回填 null');
+/*
+ * 存档扫描后来收成一处（scanDir）：三种读不出来的情况各记一条 issue，
+ * badFiles 与 dirError 都从那一份结果里取，不再由三个调用者各数一遍。
+ * 断言跟着「行为」走而不是跟着旧写法走——但仍要盯住两件事：
+ * 每一类失败都得留痕，以及「目录打不开」必须带原因，不是回填 null。
+ */
+ok(
+  (ARCHIVE.match(/issues\.push\(/g) ?? []).length >= 3,
+  '三种读不出来的情况（文件读不出、JSON 解析失败、形状不对）各记一条，不是 continue 就过去',
+);
+ok(
+  /badFiles:\s*scan\.issues\.length/.test(ARCHIVE),
+  '读不出来的报告文件在主进程里被计数，且与「名字、原因」取自同一份扫描结果',
+);
+ok(/dirError:\s*reasonText\(err/.test(ARCHIVE), '连目录都打不开时把原因回出去，不是回填 null');
 ok(
   !/建议|应该|应当|试试|不妨|最好|结论|证明|因此|所以|质量|评分|得分|判定|太少|换一段/.test(LITERALS),
   '源码的字符串字面量里没有一句劝告或判断（注释不算，注释是给维护者看的）',

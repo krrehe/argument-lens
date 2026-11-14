@@ -9,10 +9,10 @@ README 回答「这软件是什么、为什么这么设计」；这份文件回�
 
 ## 三十秒版
 
-Electron + React + TypeScript。**设计意图**：模型只负责**抽取**（把话拆成结论、前提、推理链），
-判定由 `src/main/analyze.ts` 的十一道裁决在本地兜住、可复算、可对照原话检验。
-**这不是已实现的状态**：实测报告正文绝大多数逐字来自模型原文，裁决只在越界时纠偏，
-本地独立产出的判定点很少。四轮量化与解锁条件见 `docs/路线图.md`「一、现在的处境」——别再照上面那句宣称加一块本地计算。
+Electron + React + TypeScript。**已定定位（2026-11-12，用户拍板）**：模型输出可读化 + 回看工具。
+判断（评级 / 可接受度 / 举证责任 / 检查项答案 / 反驳）由模型写出；十一道裁决只在输出越界时纠偏。
+本地做定位、字面比对、结构核对、计数、存档回看与异议记录，**不独立判定「站不站得住」**。
+这是产品决定不是待办：别再往本地加一块判定，也别把旧宣称写回来（`check:provenance` 守着）。依据与边界见 `docs/产品定位.md`，历史量化见路线图「一、现在的处境」。
 
 一条命令验收：
 
@@ -35,8 +35,7 @@ npm run verify
 
 ## 五条不可动摇
 
-这五条是设计决定，不是待办，也不是可以顺手「优化掉」的冗余。
-想动任何一条，先写清代价，再问用户——**不要自己判断它已经过时**。
+这五条是设计决定，不是待办，也不是可以顺手「优化掉」的冗余。想动任何一条，先写清代价，再问用户——**不要自己判断它已经过时**。
 
 1. **不给单一判定。** 诊断、红队、重构有档位，查谬误、提问、对照没有；`givesVerdict` / `allowsLabels` 决定，`check:contract` 守着。给「查谬误」加一个总体结论是最容易犯的错。
 2. **「此处合法」一栏不能删。** 只列问题的清单会给出错误的整体印象：一个做得对的地方也会被扣上名字，而用户看不出这是清单的缺陷。
@@ -49,13 +48,12 @@ npm run verify
 ## 三条操作规矩
 
 - **新增断言必须先红后绿。** 写一条永远不会失败的断言（选错选择器、条件恒真、分支被跳过），比不写更糟：它让绿色的总数骗人。做法是故意改坏一处代码，确认它红，再改回来。
-- **碰了 `src/` 就必须重打 `dist/`。** 否则 exe 与源码不符却照常能跑，只能靠纪律发现。打包走本机已解压的 Electron 目录（`-c.electronDist=node_modules/electron/dist`），不去 GitHub 下发行包：2026-11-04 那次 `ETIMEDOUT`，`dist` 真退出 1 而 exe 还是旧的。
-  **打完核对 `dist/*.exe` 时间戳**（有过 exit=0 但产物没更新）。
+- **碰了 `src/` 就必须重打 `dist/`。** 否则 exe 与源码不符却照常能跑，只能靠纪律发现。打包走本机已解压的 Electron 目录（`-c.electronDist=node_modules/electron/dist`），不去 GitHub 下发行包：2026-11-04 那次 `ETIMEDOUT`，`dist` 真退出 1 而 exe 还是旧的。**打完核对 `dist/*.exe` 时间戳**（有过 exit=0 但产物没更新）。
 - **只在特定时刻出现的屏，必须留一个能拍到它的入口。** 预览页的 `?running=` / `?dlg=` 与端到端 `SMOKE_*` 开关就是为此存在的。没人见过的界面等于没做。
 
 ---
 
-## 全部关卡（`npm run verify` 跑的 38 项）
+## 全部关卡（`npm run verify` 跑的 43 项）
 
 | 命令 | 红了说明什么 |
 |---|---|
@@ -96,9 +94,13 @@ npm run verify
 | `check:provenance` | **来源账破了**：`src/shared/provenance.ts` 的判定点口径与 `audit:provenance` 对不上、某类本地复算被写死、界面另写一份抬头、把「判定在本地」旧宣称写回来、来源条只剩 import 或样式／预览入口没接 |
 | `check:terms` | **「这一圈的词」破了**：本地长回去自动认术语／定义标志、把报告文字当成原文、空词表写「0 处」或「没问题」、界面另抄一份抬头与边界、组件只剩 import、样式／预览入口／端到端探针没接 |
 | `check:field-samples` | **外部样本那三段字烂了**：文档引用块与数据文件不再逐字一致（含标点）、出处字段缺项、词表全抄错却照样有输出、对照词恰好命中让「没出现」那列空着、审计脚本偷偷把报告侧字段写进输出。**与 `audit:field-samples` 共用同一套自检**，数据固定在仓库里所以进 verify |
+| `check:props` | **命题账破了**：短词先匹配（「不合理」被读成「合理」、「不得不」被读成「不得」，归类方向整个反过来）、只给一个标签不给依据与改归条件、举证责任没分配却写成「双方」、靠标签替模型猜前提类型、一个 id 重复上账把总数抬高、顺手长出「重要度／可信度」这类新分数、四类被读成一个刻度 |
+| `check:pivot` | **枢纽前提破了**：不承重的也被算成枢纽（争赢也改不了判定的那几处被排在前面）、承重只看有没有支撑不看有没有替补（三条并列撑着同一个结论时，任何一条都被说成「承重墙」）、同一处两条反驳被算成两种信号（吵得凶的压过真正没被建立的）、信号不写来源、把承重与争点加权成一个总分、结论自己进了候选 |
+| `check:after` | **报告出来之后那三件事破了**：异议账把别的报告算进来、同一处重复记两条就数成两条、组顺序随今天先记了哪条变、复制另拼一份 Markdown 与导出的 .md 不一样、打开文件变成打开本机任意路径的通道、换透镜那句「需要重新运行」下面没有按钮 |
+| `check:coverage` | **长文覆盖账破了**：短文本也摆一条 100% 的空面板、句子带着段间空行被归错段（off-by-one）、另切一套段落不与「切给我看」同源、每句归一段的守恒破了、界面写出劝告或「分析漏了」、只剩 import 或样式／预览／端到端探针没接 |
 | `check:docs` | **这份文件自己腐烂了**：它点名的命令/路径不存在，或漏掉了某个 check |
 
-`smoke` 与 `pack:check` 不进 verify（要几分钟、要起应用），改到界面或打包时单独跑。verify 现在是并发的：typecheck 先单跑（它红了会把后面的报错全带偏），其余最多 6 路并行。**怀疑并发把某一项搞红了，先 `VERIFY_JOBS=1 npm run verify` 复现**——串行也红，就不是并发的事。
+`check:gloss` 守工作台的人话口径：内联术语表由 `gloss:sync` 从 `src/renderer/src/glossary.ts` 生成，术语改了字却没同步、字段映射引用了不存在的术语 key、或检查器丢掉「原始 JSON」取证入口，这一关就红。`check:archive` 守存档损坏不许被吞掉：`archive:health` / `archive:probe` 纯读不写盘、点开坏报告有话说、历史空态在坏盘上不谎报「还没有」、`archive:list` / `archive:get` 形状不变（smoke 拿它们当独立真值）；改 `src/main/archive.ts` 的 catch 之前先读 `scripts/check-archive-health.mjs`。`smoke` 与 `pack:check` 不进 verify（要几分钟、要起应用），改到界面或打包时单独跑。verify 现在是并发的：typecheck 先单跑（它红了会把后面的报错全带偏），其余最多 6 路并行。**怀疑并发把某一项搞红了，先 `VERIFY_JOBS=1 npm run verify` 复现**——串行也红，就不是并发的事。
 
 ---
 
@@ -132,6 +134,10 @@ npm run verify
 | 导出画布工程（`.prg`） | `check:prg`、`pack:check` | 图在 `@shared/prg-graph`（纯函数），字节在 `@shared/prg-pack`（msgpack + 不压缩的 zip）。**兼容不是声明出来的**：`check:prg` 拿 `@msgpack/msgpack` 与 `@zip.js/zip.js` 当裁判读回我们编的字节，另外人工用对方的 CLI 读过一次（复现步骤见 `docs/与画布工具互通.md`）。改了 `src/` 记得重打包 |
 | 架构 / 分层 / 组件归属 | `check:arch`、`check:css`；拆组件后 `smoke` + `pack:check` | 边界在 `scripts/check-arch.mjs`（只读源码）：`src/shared/` 不许 import electron / node: / main / renderer，渲染层与预加载不许碰主进程，值 import 不许成环；三块整屏各住一个文件，`Diagnosis.tsx` 组件数**冻结在 18 以内**——这是冻结线不是目标，只允许继续拆。摘录长度只有 `@shared/excerpt` 一个家。它只认静态字面量 import，动态拼路径与 `import type` 的类型环不在守的范围 |
 | 来源账 / 定位宣称 | `check:provenance`、`check:css`、`smoke`、预览页 `?source=1` | 判定在 `@shared/provenance`（纯函数）：口径与 `npm run audit:provenance` 对齐，界面抬头逐字取自纯函数，**不许把「判定在本地」写回来**。这一层只分类与计数，不改判定、不落盘；没有逐处给每个判定打标（边界写在 README 已知限制）。改了 `src/` 记得重打包 |
+| 长文覆盖账 / 长文本 | `check:coverage`、`audit:longtext`、`check:css`、`smoke`、`ui:preview` 截图 `?coverage=1`、`pack:check` | 判定在 `@shared/coverage`（纯函数）：句子与 quiet 复用 `@shared/reread`、段落与阈值复用 `@shared/segment`，**只在 ≥800 字时出现**，短文本整块不渲染。只数位置，不判「漏了」、不劝、不落盘；`audit:longtext` 在真存档上复算数字（依赖本机存档，不进 verify，没有长文本时明说量不了）。预览页那段长文由仓库内示例拼接，是演示文本不是使用证据。改了 `src/` 记得重打包 |
+| 报告读完之后（异议账 / 复制 / 打开文件 / 换透镜重跑） | `check:after`、`smoke`、`ui:preview` 截图（`?digest=1` / `?digest=open`）、`pack:check` | 异议账在 `@shared/objection-digest.ts`（纯函数）：**按 key 去重、组顺序固定、认不出位置的旧记录单独成组**（不静默丢掉），只归类与计数、不改判、不提供「按我的意见重算」。复制与导出共用 `reportToMarkdown`；「打开文件 / 在文件夹中显示」只认本次运行真写出过的路径（`report-export.ts` 里那份名单），文件不在就直说。`smoke` 会真点「复制 Markdown」再从系统剪贴板读回来核对（Electron 45 起 `clipboard.writeText` 是异步的，不等它就等于报了个没落地的成功）。换透镜那条横幅下面必须有按钮——「需要重新运行」却不给入口，就是一句空话 |
+| 命题账（每条主张该由什么来定） | `check:props`、`smoke`、`ui:preview` 截图、`pack:check` | 归类在 `@shared/propositions.ts`（纯函数）：只按用词与已落盘字段分，**不改判、不给分、不排序**。规范词长词优先（「不合理」不许读成「合理」，「不得不」不是「不得」）；「证据不足」与「不由论证裁定」不是一条尺子的两档，界面竖排、明写不可横比；每行必须带凭什么这么归与什么条件下改归；账上先给 A3 路由（纯事实／纯规范／混合＝拆成几栏），并写明 D2 的双向禁令（论证好不推出结论真、论证差不推出结论假）。界面自认短处：含蓄的价值判断（「取消早读是错误决定」）它认不出来，会落在事实那组 |
+| 枢纽前提（这一段压在谁身上） | `check:pivot`、`smoke`、`ui:preview` 截图（`?at=sec-pivot`）、`pack:check` | 推导在 `@shared/pivot.ts`（纯函数）：**只读已落盘的 supports / acceptability / confidence / refutations / implicit**，外加一处字面二元组重合（并明写「按字面算的」）。承重 = 沿 supports 走得到结论；必经 = 它供给的那一步没有别的支撑者；**连不上结论的不进候选**（进「白吵」，并说清争赢也改不了判定）。排序依次比 ①能不能到结论 ②有没有替补 ③有几种**独立的**争点信号（同一种算一种）——没有权重、没有总分，规则随界面与导出一起给出去。只摆事实、不代判；短处照写：结构是模型写的，结构错这一栏就跟着错 |
 | 这一圈的词（学科词表） | `check:terms`、`check:field-samples`、`check:css`、`smoke`、`ui:preview` 截图 `?terms=1`、`pack:check` | 判定在 `@shared/field-terms`（纯函数）：**词表由使用者给**，本地只按字面数出现次数、落句、报告结论／前提文字里有没有；原文与报告文字分开（实测 406/407 条主张 `text !== quote`）。不判换义、不按学科换标准、不调模型、不落盘。先量过：15 段学术体裁里显式定义词 0 命中，所以不许长回启发式词表。三段外部公开摘要在 `scripts/fixtures/field-samples.ts`，`audit:field-samples` 打印账、`check:field-samples` 进 verify；`audit:field-reports` 量本机真报告的报告侧（依赖存档，不进 verify，实测 `onQuietOnly` 几乎零命中：判据要求词的所有落句都没被钉住）。摘要不是论证正文、词表不是专家给的，这两条别忘。改了 `src/` 记得重打包 |
 
 ---
@@ -155,26 +161,22 @@ src/shared/reread.ts       回到原文重读（纯函数）：切句复用 fall
 src/shared/rescale.ts      换个尺度重读（纯函数）：用户给词 → 不重叠区间替换 → 可逆的编辑记录；切句复用 reread
 src/shared/conditions.ts   自己列成立条件（纯函数）：用户写条件 + 点原文句子 → 坐标对位、未问句子可见、纯文本导出；不读报告
 src/shared/types.ts 的 engine 字段  「谁跑的」：模型 / 主机 / 生效温度，三项齐全才落盘；旧报告没有这一栏
-src/shared/views.ts        挑图（纯函数）：可画性判定（画不出时给原因，不静默过滤）+ 选择规范化（垃圾输入落地、顺序稳定、空选择保留）+ 计数文案；界面在 components/ViewBar.tsx
+src/shared/{views,skeleton}.ts  挑图与骨架缺口（纯函数）：可画性判定（画不出时给原因，不静默过滤）｜本地数的缺口与报告自己说的分开标（垃圾输入落地、顺序稳定、空选择保留）+ 计数文案；界面在 components/ViewBar.tsx
 src/renderer/src/components/DiagramMore.tsx  反驳落点（实心=挂了关卡 / 空心=只打到这一处）、修补对照（断口 + 补出来后）
 src/shared/agreement.ts    同题复跑（纯函数）：指纹+透镜+模式+逐字文本切组 → 按路径数「几次一样、几次变过」；身份与输入不算差异，缺字段与数组长度各算一条路径
 src/shared/portfolio.ts    样本账（纯函数）：本地存档 → 固定排序 → 按字面重合分堆 → 只数事实；读不出来的文件不许静默
-src/shared/nextline.ts     下一句（纯函数）：原话逐字 → 只数逐字相同的次数 → 不判断这句话算不算空泛
-src/shared/modal.ts        结论的口气（纯函数）：原文那句 vs 报告那句，按软化/硬化/因果三张表读字面；只在有证据时说话，读不到就说读不到，四条词表共用一份占位记录
-src/shared/rewrite.ts      逐字比（纯函数）：原话 vs 整理后那一句，LCS 切连续片段，贴在主主张卡上；只列字面不判改写
-src/shared/skeleton.ts     骨架缺口（纯函数）：本地数的与报告自己说的分开标
-src/main/nextlines.ts      下一句的落盘：userData/nextlines.jsonl，只追加；删除按原样的行重写；写失败抛
+src/shared/nextline.ts + src/main/nextlines.ts  下一句：只数逐字相同的次数，不判断算不算空泛｜落盘 userData/nextlines.jsonl，只追加，删除按原样的行重写
+src/shared/{modal,rewrite}.ts  口气与逐字比（纯函数）：原文那句 vs 报告那句，按软化/硬化/因果三张表读字面；LCS 切片段贴在主主张卡上；只在有证据时说话，读不到就说读不到
+src/shared/{propositions,pivot}.ts  命题账与枢纽前提（纯函数）：每条该由什么来定（证据 / 没证据 / 体系内 / 不由论证裁定）｜这一段压在谁身上（承重 × 有争），只读 supports 与已落盘信号，不打分
 scripts/replay-lib.ts      读存档 → 重新解析 → 重跑裁决；不联网、不读设置
 src/renderer/src/components/{Reread,Rescale,Condition}Screen.tsx  三块「换整屏」，各自只依赖 React 与自己的 @shared 模块；Diagnosis.tsx 只放报告主体
-scripts/check-arch.mjs    架构边界（只读源码）；src/shared/excerpt.ts  摘录长度唯一的家
-scripts/fixtures/replay/   冻结的模型原文 + 当时的产物（check:replay 的基准）；docs/路线图.md 接下来做什么、明确不做什么
+scripts/check-arch.mjs    架构边界（只读源码）；src/shared/excerpt.ts  摘录长度唯一的家｜scripts/fixtures/replay/  冻结的模型原文 + 当时的产物（check:replay 基准）；docs/路线图.md 接下来做什么、明确不做什么
 ```
 
 ### 关于重放的两条边界（别把它当评测）
 
 1. **它不跑模型。** 验的是「同一段原文，现在的解析与裁决会不会给出另一份报告」。模型下次会不会换个说法，它管不着——那是 `eval` 的事。
-2. **基准是冻住的模型输出，其中两份是构造的，一份来自假模型。** `fx-g3-overrun` / `fx-g6-system` 是拿真实原文改一两个字段做出来的，好让 G3、G6 真被踩到（真实那几份模型很乖，一条裁决都没触发）；`mvyyz0lj` 是假模型的查谬误模式，守住「不给档位」——G8 只在那边生效，删掉它、把 G8 整段拆了也照样绿。
-   它们锁的是**当前行为**，不是「正确行为」：真发现某条裁决判错了，改完要重新 `--accept`，不是让它继续红着。
+2. **基准是冻住的模型输出，其中两份是构造的，一份来自假模型。** `fx-g3-overrun` / `fx-g6-system` 是拿真实原文改一两个字段做出来的，好让 G3、G6 真被踩到（真实那几份模型很乖，一条裁决都没触发）；`mvyyz0lj` 是假模型的查谬误模式，守住「不给档位」——G8 只在那边生效，删掉它、把 G8 整段拆了也照样绿。它们锁的是**当前行为**，不是「正确行为」：真发现某条裁决判错了，改完要重新 `--accept`，不是让它继续红着。
 
 `npm run replay`（不带 `check:`）跑的是**你自己的存档目录**，一般比基准覆盖面大，但那些是你的真实文本；`--accept` 会把当前输出写回去，写之前先逐条看完差异。
 
@@ -182,9 +184,7 @@ scripts/fixtures/replay/   冻结的模型原文 + 当时的产物（check:repla
 
 ---
 
-## 交付时怎么说
-
-三件事，第三项不许省：
+## 交付时怎么说（三件事，第三项不许省）
 
 1. **改了什么**（碰了哪些文件，为什么这么改）
 2. **验了什么**（跑了哪条命令、多少项、哪几步是反向验证过的）

@@ -1,4 +1,4 @@
-import { app, type BrowserWindow } from 'electron';
+import { app, clipboard, type BrowserWindow } from 'electron';
 import { appendFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { listReports } from './archive';
@@ -500,6 +500,30 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
                * 两样都要：只验条在，等于允许它渲染成一句空话；只验文字不验数目，
                * 验不出「数错了」——而数错了才最危险（说 89 次，实际 97 份）。
                */
+              /*
+               * 命题账。它是纯本地推导：模型每次给的前提数目不一样，所以这里
+               * 不钉死条数，只验三件在真应用里会单独坏掉的事——
+               * 挂没挂上（0 行）、分到组没有、每行有没有露出依据与改归条件。
+               * 第三件最容易坏成「四个标签一字排开」，那样子上还是一栏，
+               * 实际只是把标签又贴了一遍。
+               */
+              propRows: document.querySelectorAll('[data-prop]').length,
+              propGroups: document.querySelectorAll('[data-decid]').length,
+              propBasis: (document.querySelector('.pl-why')?.textContent ?? '').slice(0, 60),
+              /*
+               * 枢纽前提。它和命题账一样全是本地推导，条数跟着模型给的支撑关系走，
+               * 所以不钉死条数；守三件会单独坏的事——
+               * 挂没挂上（0 行）、有没有主句、排序规则有没有印出来。
+               * 第三件最容易坏成「一个排名悬在半空」：读者看到「枢纽」两个字，
+               * 却不知道凭什么它排第一，那一栏就成了判决。
+               */
+              pivRows: document.querySelectorAll('[data-pivot]').length,
+              pivHead: (document.querySelector('.pvt-head')?.textContent ?? '').slice(0, 80),
+              pivBadges: Array.from(document.querySelectorAll('.pvt-badge')).map((b) => b.textContent ?? ''),
+              pivSigs: document.querySelectorAll('[data-sig]').length,
+              pivNote: (document.querySelector('.pvt-fine')?.textContent ?? '').slice(0, 40),
+              pivNext: (document.querySelector('[data-pivot-next]')?.textContent ?? '').slice(0, 40),
+              propIf: (document.querySelector('.pl-if')?.textContent ?? '').slice(0, 60),
               sameCount: document.querySelector('.same-bar')?.getAttribute('data-same') ?? '',
               sameText: (document.querySelector('.same-bar .sb-v')?.textContent ?? '').slice(0, 80),
               text: (document.body.innerText || '').replace(/\\s+/g, ' ').slice(0, 240),
@@ -519,6 +543,156 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             add(`RESULT ${state}`);
             break;
           }
+        }
+
+        /*
+         * 报告出来之后的第一件事——把全文复制走。默认就跑，不需要开关：
+         * 它不花钱、不发请求、只多等半秒，而「点了没反应」正是这个按钮最可能的坏法。
+         *
+         * 这条只有真应用能验：复制走的是渲染层按钮 → preload → 主进程 clipboard 这条链，
+         * 纯函数断言守得住「复制的内容与导出同一份」，守不住「按钮点下去真的写进了剪贴板」。
+         * 读回来的文字就是系统剪贴板里那一段，不是组件里那份 state。
+         *
+         * 剪贴板是系统级的：读完把它还回去，不把用户原来复制的东西弄丢。
+         */
+        if (!canceled) {
+          const prevClip = await clipboard.readText();
+          const copyClicked = await wc.executeJavaScript(`(() => {
+            const b = document.querySelector('[data-copy-markdown]');
+            if (!b) return false;
+            b.click();
+            return true;
+          })()`);
+          await sleep(600);
+          const copied = await clipboard.readText();
+          await clipboard.writeText(prevClip);
+          const copyLine = await wc.executeJavaScript(
+            `(document.querySelector('[data-copy-ok]')?.textContent ?? '').trim()`
+          );
+          add(
+            `AFTERRESULT ${JSON.stringify({
+              clicked: copyClicked,
+              chars: copied.length,
+              head: copied.slice(0, 16),
+              sections: (copied.match(/\n## /g) ?? []).length,
+              line: copyLine,
+            })}`
+          );
+        }
+
+        /*
+         * 异议账：记一条 → 账出现 → 逐条展开 → 撤销 → 整块消失。
+         *
+         * 这条账只在「这份报告里已经有过异议」时才出现，所以现场记一条是唯一能让它
+         * 在真应用里出现的方式——预览页能拍到版式，拍不到「点了真的记上、记上真的回到
+         * 那一节」。四步互相卡着：不记就没有账、账不出现说明上下文没接上、
+         * 撤销之后还留着一个 0 条的壳，就等于把「没有异议」写成了一条空记录。
+         */
+        if (!canceled) {
+          const dgBefore = await wc.executeJavaScript(`!!document.querySelector('[data-obj-digest]')`);
+          const objClicked = await wc.executeJavaScript(`(() => {
+            const b = document.querySelector('.obj-btn');
+            if (!b) return false;
+            b.click();
+            return true;
+          })()`);
+          await sleep(220);
+          const objTyped = await wc.executeJavaScript(`(() => {
+            const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+            const ta = document.querySelector('.obj-form textarea');
+            if (!set || !ta) return false;
+            set.call(ta, '这一条的依据只举了一个学校的例子，不足以支撑整句');
+            ta.dispatchEvent(new Event('input', { bubbles: true }));
+            return true;
+          })()`);
+          await sleep(140);
+          const objSaved = await wc.executeJavaScript(`(() => {
+            const b = document.querySelector('.obj-save');
+            if (!b) return false;
+            b.click();
+            return true;
+          })()`);
+          await sleep(500);
+          const dgAfter = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify({
+              present: !!document.querySelector('[data-obj-digest]'),
+              total: Number(document.querySelector('[data-obj-digest]')?.getAttribute('data-obj-digest') ?? -1),
+            })`)
+          );
+          const dgOpened = await wc.executeJavaScript(`(() => {
+            const b = document.querySelector('[data-obj-digest-toggle]');
+            if (!b) return false;
+            b.click();
+            return true;
+          })()`);
+          await sleep(280);
+          const dgOpen = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify({
+              items: document.querySelectorAll('[data-obj-digest-item]').length,
+              jumps: document.querySelectorAll('[data-obj-jump]').length,
+              text: (document.querySelector('[data-obj-digest-item]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+            })`)
+          );
+          const dgJump = JSON.parse(
+            await wc.executeJavaScript(`(() => {
+              const b = document.querySelector('[data-obj-jump]');
+              if (!b) return JSON.stringify({ clicked: false });
+              const id = b.getAttribute('data-obj-jump') || '';
+              b.click();
+              return JSON.stringify({ clicked: true, id });
+            })()`)
+          );
+          /*
+           * 等它落位，而不是等一个固定时长。
+           *
+           * 原来是 `sleep(1100)` 一把梭：滚动的 behavior 是 smooth，页面越长落位越慢。
+           * 报告里加了「枢纽前提」那一栏之后页面又长了一截，这条断言第一次真红在
+           * 「还在滚」上——固定等待这种东西，页面的高度一变就变成偶发红，
+           * 而偶发红最后一定会被人当噪声忽略掉。改成每 150ms 看一次、最多 3 秒：
+           * 等的是动画结束，不是放宽标准（判定条件一个字没动）。
+           */
+          const measureJump = `(() => {
+              const id = ${JSON.stringify(String(dgJump.id ?? ''))};
+              const el = id ? document.getElementById(id) : null;
+              if (!el) return JSON.stringify({ found: false, id });
+              const r = el.getBoundingClientRect();
+              return JSON.stringify({
+                found: true,
+                id,
+                top: Math.round(r.top),
+                inView: r.top >= -8 && r.top < window.innerHeight * 0.6,
+                folded: el.getAttribute('data-al-fold') === '1',
+              });
+            })()`;
+          let dgLanded = JSON.parse(await wc.executeJavaScript(measureJump));
+          for (let i = 0; i < 20; i++) {
+            if (dgLanded.inView && !dgLanded.folded) break;
+            await sleep(150);
+            dgLanded = JSON.parse(await wc.executeJavaScript(measureJump));
+          }
+          const dgUndone = await wc.executeJavaScript(`(() => {
+            const b = document.querySelector('.odg-undo');
+            if (!b) return false;
+            b.click();
+            return true;
+          })()`);
+          await sleep(500);
+          const dgStillThere = await wc.executeJavaScript(`!!document.querySelector('[data-obj-digest]')`);
+          add(
+            `DIGESTRESULT ${JSON.stringify({
+              before: dgBefore,
+              clicked: objClicked,
+              typed: objTyped,
+              saved: objSaved,
+              after: dgAfter,
+              opened: dgOpened,
+              open: dgOpen,
+              jump: dgJump,
+              landed: dgLanded,
+              undone: dgUndone,
+              stillThere: dgStillThere,
+            })}`
+          );
         }
 
         /*
@@ -1396,6 +1570,24 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           })`)
         );
         add(`TERMSRESULT ${JSON.stringify({ ...termsBefore, clicked: termsClicked, typed: termsTyped, ...termsAfter })}`);
+      }
+
+      /*
+       * 长文覆盖账：这一栏只在长文本上出现。冒烟跑道用的是短文本示例，
+       * 所以这里验的是「不该出现时整块不出现」——把 `!v.long` 那道闸去掉，
+       * 短文本就多一条 100% 的空面板，页面不报任何错，看起来还挺正常。
+       * 长文本那一版由预览页 `?coverage=1`（真组件渲染）与 `npm run audit:longtext`
+       * （在真模型长报告上复算）分别守，边界写在 README 已知限制。
+       */
+      {
+        const cv = JSON.parse(
+          await wc.executeJavaScript(`JSON.stringify({
+            present: !!document.querySelector('[data-coverage]'),
+            headline: (document.querySelector('[data-coverage-headline]')?.textContent ?? '').trim(),
+            rows: document.querySelectorAll('[data-coverage-row]').length,
+          })`)
+        );
+        add(`COVERAGERESULT ${JSON.stringify({ ...cv, short: true })}`);
       }
 
       if (process.env['AL_VIEWS'] === '1') {

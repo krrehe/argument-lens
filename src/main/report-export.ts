@@ -1,5 +1,5 @@
-import { app, dialog, type BrowserWindow } from 'electron';
-import { writeFileSync } from 'node:fs';
+import { app, clipboard, dialog, shell, type BrowserWindow } from 'electron';
+import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { argdownFileName, reportToArgdown } from '@shared/argdown';
 import { markdownFileName, reportToMarkdown } from '@shared/report-markdown';
@@ -8,6 +8,18 @@ import { graphOf, prgFileName } from '@shared/prg-graph';
 import type { Diagnosis } from '@shared/types';
 
 type ExportResult = { ok: boolean; path?: string; canceled?: boolean };
+
+/**
+ * 本次运行里真的写到磁盘上的路径。
+ *
+ * 为什么留一份名单、而不是让渲染层传什么就打开什么：那等于给界面开了一个
+ * 「打开本机任意文件」的通道，而这里没有任何功能需要它。存下来之后，
+ * 「打开文件」「在文件夹中显示」只认自己刚写出的那几份。
+ *
+ * 名单只在内存里：重启之后路径还显示在界面上，但按钮会明说「不是这次导出的」——
+ * 比假装能打开、点了一下什么也不发生要好。
+ */
+const SAVED_PATHS = new Set<string>();
 
 /**
  * 把报告写成一份文本文件。
@@ -42,6 +54,7 @@ async function saveText(
   if (r.canceled || !r.filePath) return { ok: false, canceled: true };
 
   writeFileSync(r.filePath, text, 'utf-8');
+  SAVED_PATHS.add(r.filePath);
   return { ok: true, path: r.filePath };
 }
 
@@ -94,5 +107,57 @@ export async function exportReportPrg(parent: BrowserWindow | null, d: Diagnosis
   if (r.canceled || !r.filePath) return { ok: false, canceled: true };
 
   writeFileSync(r.filePath, Buffer.from(bytes));
+  SAVED_PATHS.add(r.filePath);
   return { ok: true, path: r.filePath };
+}
+
+/* ─────────── 拿走这份报告：复制、打开、定位 ─────────── */
+
+/**
+ * 把 Markdown 全文放进剪贴板。
+ *
+ * 与「导出为 Markdown」走**同一个生成函数**：如果这里另拼一份，两份文件迟早
+ * 会长得不一样，而用户看不出哪一份才是报告。复制不弹保存框——它服务的是
+ * 「贴到聊天窗口里问一句」「粘进自己的稿子」这类不需要落盘的用法。
+ *
+ * 关于写剪贴板这件事：`capture` 那一侧刻意没有 `write()`（能写就能悄悄改掉
+ * 用户复制的文字）。这里的边界不一样：这是用户按下的一个按钮，写进去的是
+ * 软件自己刚生成的报告全文，不是替谁伪造一段剪贴板内容。
+ */
+export async function copyReportMarkdown(
+  d: Diagnosis
+): Promise<{ ok: boolean; chars?: number; reason?: string }> {
+  if (!d || typeof d.id !== 'string' || !d.verdict) return { ok: false, reason: '当前没有可以复制的报告。' };
+  const text = reportToMarkdown(d);
+  /*
+   * Electron 45 起剪贴板改成异步的：写是「已提交到系统剪贴板」才 resolve。
+   * 所以这里必须等它——不等就回一句「已复制」，而写失败（被别的程序占着、
+   * 系统拒绝）时界面已经说了成功。宁可晚 10ms 报成功。
+   */
+  try {
+    await clipboard.writeText(text);
+  } catch (err) {
+    return { ok: false, reason: `没能写进剪贴板：${(err as Error)?.message ?? '原因不明'}` };
+  }
+  return { ok: true, chars: text.length };
+}
+
+/** 打开刚导出的那份文件（用系统默认程序）。 */
+export async function openExported(path: string): Promise<{ ok: boolean; reason?: string }> {
+  if (typeof path !== 'string' || !SAVED_PATHS.has(path)) {
+    return { ok: false, reason: '这个路径不是本次运行里导出的文件，界面不替你打开别的文件。' };
+  }
+  if (!existsSync(path)) return { ok: false, reason: '文件不在了（可能被移动或删除）。' };
+  const msg = await shell.openPath(path);
+  return msg ? { ok: false, reason: msg } : { ok: true };
+}
+
+/** 在资源管理器里定位到那份文件——比「打开」更稳：没有默认程序也能看见它。 */
+export function revealExported(path: string): { ok: boolean; reason?: string } {
+  if (typeof path !== 'string' || !SAVED_PATHS.has(path)) {
+    return { ok: false, reason: '这个路径不是本次运行里导出的文件，界面不替你在别处定位。' };
+  }
+  if (!existsSync(path)) return { ok: false, reason: '文件不在了（可能被移动或删除）。' };
+  shell.showItemInFolder(path);
+  return { ok: true };
 }

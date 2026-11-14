@@ -505,11 +505,12 @@ const checks = [
    * 而那一轮只跑了 `pack:check`，没人跑冒烟，于是它红着躺了一整轮。
    * 现在的写法对「加了一个出口」这件事是**会红的**（`every` 要求每个都在名单里），
    * 加出口的人必须来改这里；但不再靠一个总数去猜。
+   * 「复制 Markdown」加上来时这一条果然红了——它是第四个出口，虽然不落盘。
    */
-  ['三个导出按钮（Markdown / Argdown / 画布工程）', (() => {
+  ['四个出口（Markdown / Argdown / 画布工程 / 复制）', (() => {
     try {
       const btns = JSON.parse(resultLine.slice(resultLine.indexOf('{')))?.expBtns;
-      const want = ['Markdown', 'Argdown', '画布工程'];
+      const want = ['Markdown', 'Argdown', '画布工程', '复制'];
       return (
         Array.isArray(btns) &&
         btns.length === want.length &&
@@ -519,6 +520,106 @@ const checks = [
       return false;
     }
   })()],
+  /*
+   * 「复制 Markdown」真的写进了系统剪贴板。
+   *
+   * 纯函数断言只守得住「复制的内容与导出的 .md 同一份」（check:after），
+   * 守不住「点下去有没有真的写进去」：按钮在、handler 名字对，通道却断了的话，
+   * 界面上只会显示一行「没能写进剪贴板」，而没人会去点它。
+   * 读的是主进程剪贴板里那一段，不是组件 state；探针读完把原来的内容还回去。
+   */
+  ['「复制 Markdown」真的把报告写进了剪贴板', (() => {
+    /* 这里自己解析那一行：`jOfLine` 定义在文件后半段，此刻还没初始化（const 的 TDZ）。 */
+    const line = log.split('\n').find((l) => l.includes('AFTERRESULT')) ?? '';
+    if (!line) return false;
+    try {
+      const r = JSON.parse(line.slice(line.indexOf('{')));
+      return (
+        r.clicked === true &&
+        Number(r.chars ?? 0) > 800 &&
+        String(r.head ?? '').startsWith('# 论证分析') &&
+        Number(r.sections ?? 0) >= 3 &&
+        /字已复制/.test(String(r.line ?? ''))
+      );
+    } catch {
+      return false;
+    }
+  })()],
+  /*
+   * 命题账。纯本地推导，条数跟着模型给的前提走，所以不钉死数字；
+   * 守的是「挂上了 / 分到组了 / 每行露出依据与改归条件」这三件会单独坏的事。
+   * 它坏起来很安静：四个标签一字排开，看上去仍是一栏，实际只是把标签又贴了一遍。
+   */
+  ['命题账：挂上了，且每行都带依据与改归条件', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      return (
+        Number(r.propRows ?? 0) >= 2 &&
+        Number(r.propGroups ?? 0) >= 1 &&
+        /凭什么这么归/.test(String(r.propBasis ?? '')) &&
+        /什么条件下改归/.test(String(r.propIf ?? ''))
+      );
+    } catch {
+      return false;
+    }
+  })()],
+  /*
+   * 枢纽前提。条数跟着报告里的支撑关系走，不钉死；守的是三件会单独坏的事——
+   * 挂没挂上、有没有主句、排序规则有没有跟着印出来。
+   * 第三件最要紧：一个排名悬在半空（只有「枢纽」两个字，没有凭什么）就成了判决。
+   */
+  ['枢纽前提：挂上了，主句与排序规则都在', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      return (
+        Number(r.pivRows ?? 0) >= 1 &&
+        /当前提用/.test(String(r.pivHead ?? '')) &&
+        (r.pivBadges ?? []).includes('枢纽') &&
+        Number(r.pivSigs ?? 0) >= 1 &&
+        /排序按/.test(String(r.pivNote ?? '')) &&
+        String(r.pivNext ?? '').length > 0
+      );
+    } catch {
+      return false;
+    }
+  })()],
+  /*
+   * 异议账：记一条之前不出现、记了之后出来、展开能看见理由、撤销之后整块消失。
+   *
+   * 它只在「这份报告里有过异议」时出现，所以真应用里从来没有被人看见过——
+   * 预览页能拍版式，拍不到「点了真的记上、记上真的能回到那一节」。
+   */
+  ...(() => {
+    const line = log.split('\n').find((l) => l.includes('DIGESTRESULT')) ?? '';
+    if (!line) {
+      return [['异议账：真应用里记一条之后出现（探针没跑也算失败）', false]];
+    }
+    try {
+      const r = JSON.parse(line.slice(line.indexOf('{')));
+      const after = r.after ?? {};
+      const open = r.open ?? {};
+      return [
+        ['异议账：记之前不出现（不摆「暂无异议」的空壳）', r.before === false],
+        ['异议账：记一条之后出现，且数目是 1', r.saved === true && after.present === true && Number(after.total) === 1],
+        ['异议账：逐条展开有一条，且带「跳到这一节」', r.opened === true && Number(open.items) === 1 && Number(open.jumps) >= 1],
+        [
+          '异议账：理由逐字是刚才打的那句话',
+          /这一条的依据只举了一个学校的例子，不足以支撑整句/.test(String(open.text ?? '')),
+        ],
+        [
+          '异议账：点「跳到这一节」真的落到那一节（不在折叠状态下停住）',
+          r.jump?.clicked === true &&
+            r.landed?.found === true &&
+            r.landed?.id === r.jump?.id &&
+            r.landed?.inView === true &&
+            r.landed?.folded === false,
+        ],
+        ['异议账：撤销之后整块消失（没有留下 0 条的壳）', r.undone === true && r.stillThere === false],
+      ];
+    } catch {
+      return [['异议账：结果行能解析', false]];
+    }
+  })(),
   // 几何：新元素不许宽或高为 0（数得出来但点不到），页面不许横向溢出（截图看不出来的那种坏）
   ['新元素都有实际尺寸', sizesOk()],
   ['无横向溢出', domObj().overflowX === 0],
@@ -1308,6 +1409,19 @@ if (process.env.SMOKE_AGREEMENT === '1') {
     ['圈内词：不命中的词明说「一次都没出现」', /一次都没出现/.test((byWord['举证责任']?.facts ?? []).join('')), JSON.stringify(byWord['举证责任']?.facts ?? [])],
     ['圈内词：总述逐字来自纯函数（3 个词、1 个没出现）', /3 个词/.test(String(tm.note)) && /1 个一次没出现/.test(String(tm.note)), String(tm.note)],
     ['圈内词：边界那句不判换义、不落盘', /不判术语有没有换义/.test(String(tm.caveat)) && /不存盘/.test(String(tm.caveat)), String(tm.caveat)],
+  );
+}
+
+/*
+ * 长文覆盖账：冒烟跑道是短文本，这里验「不该出现时整块不出现」。
+ * 这一条不是凑数——去掉 `!v.long` 之后界面完全正常，只是短文本多了一条
+ * 100% 的空面板；长文本那一版由预览页与 audit:longtext 守。
+ */
+{
+  const cv = jOfLine('COVERAGERESULT');
+  checks.push(
+    ['长文覆盖账：短文本报告里整块不出现', cv.short === true && cv.present === false, `${cv.short} / ${cv.present}`],
+    ['长文覆盖账：没有偷偷留一行总述或清单', String(cv.headline ?? '') === '' && Number(cv.rows ?? -1) === 0, `${cv.headline} / ${cv.rows}`],
   );
 }
 

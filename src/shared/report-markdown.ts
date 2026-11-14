@@ -17,6 +17,8 @@
  */
 import { ACCEPT_LABEL, ANSWER_LABEL, BURDEN_LABEL, CONF_LABEL, STRATEGY_LABEL, WHAT_REFUTED_LABEL } from './labels';
 import { limitsOf } from './limits';
+import { DECID_LABEL, propositionsOf } from './propositions';
+import { pivotOf } from './pivot';
 import { prescriptionsOf } from './prescriptions';
 import { LEVEL_LABEL, THEORY_BY_ID } from './theories';
 import { MODE_META, type Claim, type Diagnosis } from './types';
@@ -113,6 +115,60 @@ export function reportToMarkdown(d: Diagnosis): string {
   }
   if (d.verdict.qualification) {
     out.push(`限定：${oneLine(d.verdict.qualification)}`);
+    out.push('');
+  }
+
+  /*
+   * ── 命题账 ──
+   *
+   * 它和「边界」一样是本地推导的，所以也调原来的模块，不在这里另写一份归类。
+   * 放在判定之后：读者刚看完一个档位，紧接着要知道这个档位管得到哪儿。
+   * 每条的「凭什么这么归」与「什么条件下改归」都必须带出来——只留四个类名，
+   * 这几行就成了四个没有来路的标签。
+   */
+  const props = propositionsOf(d);
+  if (props.total > 0) {
+    out.push('## 每条主张该由什么来定');
+    out.push('');
+    out.push('四类不是四个等级：能去查的、现在没证据的、只在自己体系内成立的、论证裁定不了的价值选择。');
+    out.push('');
+    if (props.routeLine) {
+      out.push(`**路由**　${props.routeLine}`);
+      out.push('');
+    }
+    for (const r of props.rows) {
+      out.push(`- **${r.id}**（${r.roleLabel}${r.implicit ? '·补出的' : ''}）　${DECID_LABEL[r.decidability]}`);
+      out.push(`  - 凭什么这么归：${oneLine(r.basis)}`);
+      out.push(`  - 什么条件下改归：${oneLine(r.reclassifyIf)}`);
+    }
+    out.push('');
+  }
+
+  /*
+   * ── 枢纽前提 ──
+   *
+   * 与命题账同一处推导（@shared/pivot.ts），不另写一份判断。
+   * 放在账之后：「哪条不是证据能定的」之后紧接「哪条是整段的承重墙」。
+   * 排序规则必须一起导出——只给一个排名、不给排序依据，读者没法反驳它。
+   */
+  const pivot = pivotOf(d);
+  if (pivot.rows.length > 0) {
+    out.push('## 这一段压在谁身上');
+    out.push('');
+    if (pivot.headline) {
+      out.push(pivot.headline);
+      out.push('');
+    }
+    for (const r of pivot.rows) {
+      out.push(`- **${r.id}**（${r.roleLabel}${r.implicit ? '·补出的' : ''}）　${r.badge}　${oneLine(r.why)}`);
+      for (const g of r.signals) out.push(`  - 争点：${oneLine(g.text)}`);
+    }
+    if (pivot.nextToCheck) {
+      out.push('');
+      out.push(pivot.nextToCheck);
+    }
+    out.push('');
+    out.push(`> ${pivot.orderNote}`);
     out.push('');
   }
 

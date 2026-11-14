@@ -2799,3 +2799,475 @@
   color: var(--ink);
   overflow-wrap: break-word;
 }
+
+/* ─────────── 异议账（这份报告里你不同意哪几处） ───────────
+   它是报告的头，不是某一节的内容：一条细边、一点底色，与正文里的
+   「你不同意」小条同色系，但比 banner 轻——banner 是「有件事没做成」，
+   这里只是把用户自己的记录摆出来。 */
+.odg {
+  margin: 0 0 14px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 7px 7px 0;
+  background: rgba(60, 79, 99, 0.035);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.odg-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+  padding: 7px 11px;
+}
+
+.odg-h {
+  color: var(--ink-2);
+}
+
+.odg-h b {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.odg-where {
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.odg-why {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.odg-toggle,
+.odg-jump {
+  flex: none;
+  font-family: inherit;
+  font-size: 10.5px;
+  line-height: 16px;
+  padding: 1px 7px;
+  color: var(--ink-2);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.odg-toggle:hover,
+.odg-jump:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.odg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 8px 11px 10px;
+  border-top: 1px solid var(--line);
+}
+
+.odg-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.odg-st {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.odg-st-t {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+.odg-st-n {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--accent);
+}
+
+.odg-unk {
+  font-size: 10px;
+  color: var(--weak);
+}
+
+.odg-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-left: 10px;
+}
+
+.odg-label {
+  flex: none;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.odg-reason {
+  min-width: 0;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.odg-reason.dim {
+  color: var(--ink-3);
+}
+
+.odg-undo {
+  flex: none;
+  margin-left: auto;
+  padding: 0;
+  font-family: inherit;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.odg-undo:hover {
+  color: var(--accent);
+}
+
+/* ─────────── 命题账（每条主张该由什么来定） ───────────
+   按四组竖排，不做表格：一张表会让人横着比，而「证据不足」与
+   「不由论证裁定」不是同一条尺子的两档，是两件不同的事。
+   所以没有红黄绿，也不按严重程度排序——这一栏没有褒贬，只有性质。
+   组分隔只靠一条细线，逐条之间用虚线，让十行读下来不糊成一片。 */
+.pl {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.pl-grp {
+  display: flex;
+  flex-direction: column;
+}
+
+.pl-gh {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.pl-gt {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+
+.pl-gn {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--accent);
+}
+
+.pl-gg {
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--ink-3);
+}
+
+.pl-row {
+  display: flex;
+  gap: 9px;
+  padding: 7px 0 7px 2px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.pl-row:last-child {
+  border-bottom: none;
+}
+
+.pl-l {
+  flex: none;
+  width: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.pl-role {
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+.pl-b {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pl-text {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.pl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 11px;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+.pl-why,
+.pl-if {
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+
+.pl-why b,
+.pl-if b {
+  margin-right: 6px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.pl-if {
+  color: var(--ink-2);
+}
+
+/* 结论那一行稍重一点：读者最先想知道的是「这个结论能不能被裁」。 */
+.pl-row[data-prop='C'] .pl-text {
+  font-weight: 500;
+}
+
+.pl-fine {
+  margin: 4px 0 0;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+/* A3 路由那一行。它不是第四条结论，是把「这一段该用哪套标准量」先说在前面——
+   流程里这一步在立案阶段，界面放在账的最上面，理由一样：不先说清用哪把尺子，
+   下面十行读起来就像同一把尺子在量两种东西。 */
+.pl-route {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel-2);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.pl-route b {
+  margin-right: 7px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.pl-route[data-route='mixed'] {
+  border-color: var(--line-strong);
+}
+
+/* D2 的铁律。放在逐条之后、自我说明之前：看完十行再读它，才知道这句在防什么。 */
+.pl-d2 {
+  margin: 6px 0 0;
+  padding: 7px 10px;
+  border-left: 2px solid var(--accent);
+  background: rgba(60, 79, 99, 0.035);
+  border-radius: 0 5px 5px 0;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.pl-d2 b {
+  margin-right: 7px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+/* ─────────── 枢纽前提（这一段压在谁身上，而谁正是争点） ───────────
+   主句单独占一行，比正文重半档：这一栏只有一句话要说，混在卡片里就白做了。
+   三种行首标记用三种颜色，但都不红不绿——它们说的是「该先看哪」，
+   不是「好／坏」。红绿在这套界面里已经归判定档位专用。 */
+.pvt {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pvt-head {
+  margin: 0;
+  padding: 8px 11px;
+  border-left: 2px solid var(--accent);
+  background: var(--accent-bg);
+  border-radius: 0 6px 6px 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.pvt-line {
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.pvt-row {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0 9px 2px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.pvt-row:last-of-type {
+  border-bottom: none;
+}
+
+.pvt-l {
+  flex: none;
+  width: 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.pvt-badge {
+  font-size: 10px;
+  line-height: 15px;
+  padding: 0 5px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+}
+
+.pvt-badge.k-pivot {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid rgba(60, 79, 99, 0.25);
+}
+
+.pvt-badge.k-sole {
+  color: var(--weak);
+  background: var(--weak-bg);
+  border: 1px solid rgba(150, 112, 44, 0.25);
+}
+
+.pvt-badge.k-noisy {
+  color: var(--ink-3);
+  background: var(--muted-bg);
+  border: 1px solid var(--line);
+}
+
+.pvt-role {
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+.pvt-b {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pvt-text {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.pvt-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 11px;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+.pvt-sig {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pvt-sig li {
+  position: relative;
+  padding-left: 12px;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+
+.pvt-sig li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 8px;
+  width: 4px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+/* 字面重合那一条单独重一点：它是唯一「可能是循环论证」的指控，不能和别的信号同色。 */
+.pvt-sig li[data-sig='circular'] {
+  color: var(--invalid);
+}
+
+.pvt-sig li[data-sig='circular']::before {
+  background: var(--invalid);
+}
+
+.pvt-next {
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel-2);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.pvt-none {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.pvt-fine {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: var(--ink-3);
+}

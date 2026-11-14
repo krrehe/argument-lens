@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>论证镜 · 工作台</title>
+<style>
+:root,[data-theme="dark"]{
+ --bg:#0E1216;--panel:#141A21;--panel2:#1A222B;--panel3:#202A35;--line:#28323D;--line2:#384553;--edge:#5C6E80;
+ --text:#D6DEE7;--text2:#9EABB8;--muted:#6E7C8A;--accent:#6BA7E8;--accentbg:#15283C;
+ --warn:#E0A94A;--warnbg:#2E2617;--ok:#63B08A;--okbg:#182A22;--danger:#D47272;--sel:#1D3348;
+ --mono:ui-monospace,"Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",monospace;
+ --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+[data-theme="light"]{
+ --bg:#ECEFF3;--panel:#FFFFFF;--panel2:#F4F6F8;--panel3:#EAEEF2;--line:#D8DEE5;--line2:#C4CDD7;--edge:#8FA0B0;
+ --text:#1C2733;--text2:#4A5764;--muted:#7B8794;--accent:#1F6FBF;--accentbg:#E4F0FC;
+ --warn:#9A6100;--warnbg:#FBF0DC;--ok:#2E7355;--okbg:#E6F2EB;--danger:#B34B4B;--sel:#DCEBFA;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:12px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+.mono{font-family:var(--mono)}
+.app{display:grid;grid-template-rows:28px 34px auto minmax(0,1fr) 24px;height:100vh}
+.body{display:grid;grid-template-columns:236px minmax(0,1fr) 296px;min-height:0;border-top:1px solid var(--line)}
+.center{display:grid;grid-template-rows:minmax(0,1fr) 190px;min-height:0;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.pane{background:var(--panel);min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.ph{height:24px;flex:0 0 24px;display:flex;align-items:center;gap:8px;padding:0 9px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.ph b{font-weight:600;color:var(--text2);letter-spacing:.08em}
+.ph .sp{flex:1}
+.ph button{color:var(--muted);font-size:11px;padding:1px 4px;border-radius:2px}
+.ph button:hover{background:var(--panel3);color:var(--text)}
+.scroll{overflow:auto;min-height:0;flex:1}
+.scroll::-webkit-scrollbar{width:9px;height:9px}
+.scroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:5px}
+.scroll::-webkit-scrollbar-track{background:transparent}
+
+.topbar{display:flex;align-items:center;gap:16px;padding:0 10px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:11px}
+.topbar .logo{font-weight:600;letter-spacing:.1em;color:var(--text)}
+.topbar .logo span{font-weight:400;color:var(--muted);letter-spacing:.04em;margin-left:7px;font-family:var(--mono);font-size:10px}
+.menu{color:var(--text2)}
+.menu span{margin-right:13px}
+.topbar .sp{flex:1}
+.tlink{color:var(--muted);font-family:var(--mono);font-size:10px}
+.tlink:hover{color:var(--accent)}
+.toolbar{display:flex;align-items:center;gap:5px;padding:0 9px;background:var(--panel);border-bottom:1px solid var(--line)}
+.tb{border:1px solid var(--line);background:var(--panel2);border-radius:3px;padding:4px 9px;font-size:11px;color:var(--text2);white-space:nowrap}
+.tb:hover{border-color:var(--line2);background:var(--panel3);color:var(--text)}
+.tb.pri{border-color:var(--accent);color:var(--accent);background:var(--accentbg)}
+.sep{width:1px;height:18px;background:var(--line);margin:0 5px}
+.toolbar select{border:1px solid var(--line);background:var(--panel2);border-radius:3px;padding:4px 7px;font-size:11px;color:var(--text2)}
+.toolbar .sp{flex:1}
+.kbd{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:2px 6px}
+
+.tabs{display:flex;align-items:stretch;flex:0 0 30px;background:var(--panel2);border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{padding:0 14px;display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);border-right:1px solid var(--line);white-space:nowrap;border-bottom:2px solid transparent}
+.tab:hover{color:var(--text2);background:var(--panel3)}
+.tab.on{color:var(--text);background:var(--panel);border-bottom-color:var(--accent)}
+.tab .n{font-family:var(--mono);font-size:9px;color:var(--muted);background:var(--panel3);border-radius:2px;padding:0 4px}
+
+.row{display:flex;align-items:center;min-height:22px;border-bottom:1px solid var(--line);font-size:11px}
+.row:hover{background:var(--panel3)}
+.row.sel{background:var(--sel)}
+.k{width:150px;flex:0 0 150px;padding:4px 9px;color:var(--muted);font-family:var(--mono);font-size:10px;border-right:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v{padding:4px 10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.v.strong{color:var(--text)}
+.sec{border-bottom:1px solid var(--line2)}
+.sech{display:flex;align-items:center;gap:8px;height:25px;padding:0 9px;background:var(--panel2);cursor:pointer;font-size:11px;position:sticky;top:0;z-index:2}
+.sech:hover{background:var(--panel3)}
+.sech .arw{font-family:var(--mono);color:var(--muted);width:9px}
+.sech .nm{font-weight:600;color:var(--text);letter-spacing:.03em}
+.sech .cnt{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.sech .path{font-family:var(--mono);font-size:9px;color:var(--muted);margin-left:auto}
+.sech.flash{background:var(--accentbg)}
+table.t{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}
+table.t th{text-align:left;font-weight:500;color:var(--muted);font-family:var(--mono);font-size:9px;letter-spacing:.06em;background:var(--panel2);padding:5px 8px;border-bottom:1px solid var(--line);position:sticky;top:25px;z-index:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table.t td{padding:5px 8px;border-bottom:1px solid var(--line);color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table.t tr:hover td{background:var(--panel3)}
+table.t tr.sel td{background:var(--sel)}
+.badge{display:inline-block;font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:2px;border:1px solid var(--line2);color:var(--muted)}
+.badge.unanswered{color:var(--warn);border-color:var(--warn);background:var(--warnbg)}
+.badge.passed{color:var(--ok);border-color:var(--ok);background:var(--okbg)}
+.badge.violated{color:var(--danger);border-color:var(--danger)}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--muted);margin-right:6px;vertical-align:middle}
+.dot.warn{background:var(--warn)}.dot.ok{background:var(--ok)}.dot.danger{background:var(--danger)}.dot.acc{background:var(--accent)}
+
+.treegrp{border-bottom:1px solid var(--line2)}
+.tgh{display:flex;align-items:center;gap:7px;padding:5px 9px;background:var(--panel2);font-size:10px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;white-space:nowrap;overflow:hidden}
+.tgh .sp{flex:1}
+.ti{display:flex;align-items:center;gap:7px;padding:3px 9px 3px 18px;font-size:11px;color:var(--text2);min-height:21px;cursor:pointer;border-left:2px solid transparent}
+.ti:hover{background:var(--panel3)}
+.ti.on{background:var(--sel);border-left-color:var(--accent);color:var(--text)}
+.ti .id{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.ti .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ti .ct{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.ti .sub{padding-left:8px}
+.tifoot{padding:8px 10px;font-size:10px;color:var(--muted);line-height:1.7;border-top:1px solid var(--line)}
+
+.inspkv{display:grid;grid-template-columns:104px minmax(0,1fr);border-bottom:1px solid var(--line);font-size:11px}
+.inspkv .ik{padding:5px 8px;font-family:var(--mono);font-size:10px;color:var(--muted);border-right:1px solid var(--line);word-break:break-all}
+.inspkv .iv{padding:5px 8px;color:var(--text2);word-break:break-word;white-space:pre-wrap;line-height:1.6}
+.inspsec{padding:6px 9px;background:var(--panel2);font-size:10px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--line)}
+pre.json{margin:0;padding:9px;font-family:var(--mono);font-size:10px;color:var(--text2);white-space:pre-wrap;word-break:break-all;line-height:1.55;background:var(--bg)}
+/* 检查器人话层：中文名、术语解释、枚举翻译都写在明确标注的阅读层里，
+   原始字段名和原始 JSON 都留着，方便逐字取证。 */
+.in-about{padding:8px 10px;font-size:11px;line-height:1.7;color:var(--text2);background:var(--panel);border-bottom:1px solid var(--line)}
+.in-caveat{padding:7px 10px;font-size:10px;line-height:1.65;color:var(--muted);background:var(--accentbg);border-bottom:1px solid var(--line)}
+.inspkv{grid-template-columns:120px minmax(0,1fr)}
+.izh{display:block;color:var(--text);font-size:11px;font-weight:600;margin-bottom:2px;line-height:1.4}
+.ien{display:block;color:var(--muted);font-size:9px;word-break:break-all;font-family:var(--mono)}
+.ik .iq{display:inline-block;margin-top:3px;padding:0 4px;border:1px solid var(--line2);border-radius:8px;color:var(--muted);font-size:9px;line-height:13px}
+.iv-zh{display:inline-block;margin-left:7px;padding:1px 5px;border-radius:3px;background:var(--accentbg);color:var(--accent);font-size:10px;cursor:help;white-space:nowrap}
+.inog{display:block;margin-top:3px;color:var(--muted);font-size:9px}
+.in-act{display:flex;gap:6px;flex-wrap:wrap;padding:9px 10px;border-top:1px solid var(--line);background:var(--panel2)}
+.in-json{border-top:1px solid var(--line)}
+.in-json summary{padding:7px 10px;font-size:10px;color:var(--muted);cursor:pointer;background:var(--panel2)}
+.in-json[open] summary{border-bottom:1px solid var(--line)}
+.empty{padding:18px 12px;color:var(--muted);font-size:11px;line-height:1.8}
+
+.btabs{display:flex;align-items:center;background:var(--panel2);border-bottom:1px solid var(--line);height:25px;flex:0 0 25px}
+.btab{padding:0 11px;font-size:10px;color:var(--muted);height:25px;display:flex;align-items:center;border-right:1px solid var(--line);letter-spacing:.04em}
+.btab.on{color:var(--text);background:var(--panel);border-bottom:2px solid var(--accent)}
+.btab:hover{color:var(--text2)}
+.btabs .sp{flex:1}
+.collapsed{height:25px!important;flex:0 0 25px!important}
+.collapsed .scroll,.collapsed .btabs{display:none}
+
+.qrow{display:flex;align-items:flex-start;gap:9px;padding:6px 10px;border-bottom:1px solid var(--line);font-size:11px}
+.qrow:hover{background:var(--panel3)}
+.qrow .qi{font-family:var(--mono);font-size:10px;color:var(--accent);min-width:34px}
+.qrow .qt{flex:1;color:var(--text2);line-height:1.6}
+.qrow .qw{font-family:var(--mono);font-size:9px;color:var(--muted);white-space:nowrap}
+.qbar{display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:10px;color:var(--muted)}
+.qbar .track{flex:1;height:3px;background:var(--line);border-radius:2px;overflow:hidden}
+.qbar .fill{height:100%;background:var(--warn);width:0}
+.qact{display:flex;gap:6px;padding:8px 10px;align-items:center;border-top:1px solid var(--line)}
+.qact input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:3px;padding:5px 8px;font-size:11px;outline:none;min-width:0}
+.qact input:focus{border-color:var(--accent)}
+/* ─────────── 异议锚点 ───────────
+ * 一条异议原来只是底部一行字，看不出它反对的是哪一处。这里把「钉在哪」
+ * 做成单独一条，且让原文每一句都能当锚点。颜色沿用 accent（分歧不是错误，
+ * 不用红）；徽标是按钮，点它能回到那一处。 */
+.anbar{display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--panel2);border-top:1px solid var(--line);font-size:10px;flex-wrap:wrap}
+.anbar .anlbl{color:var(--muted);white-space:nowrap}
+.anbar .anval{font-family:var(--mono);font-size:10px;color:var(--accent);background:var(--accentbg);border:1px solid var(--line2);border-radius:3px;padding:2px 6px;max-width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.anbar .anquote{color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:34%;font-size:10px}
+.anbar .sp{flex:1}
+.anbar .hint{color:var(--muted);font-size:10px;line-height:1.6;flex-basis:100%}
+.anbadge{display:inline-block;font-family:var(--mono);font-size:9px;color:var(--accent);background:var(--accentbg);border:1px solid var(--line2);border-radius:3px;padding:1px 5px;margin-right:6px;line-height:1.7}
+.anbadge:hover{border-color:var(--accent)}
+.anbadge.none{color:var(--muted);background:transparent;border-style:dashed}
+.anq{color:var(--muted);font-size:10px;display:block;margin:2px 0;line-height:1.6}
+.anpick{border:1px solid var(--line2);background:transparent;color:var(--accent);font-size:9px;border-radius:3px;padding:1px 5px;cursor:pointer;font-family:var(--mono)}
+.anpick:hover{background:var(--accentbg)}
+.codeln.anchored{background:var(--accentbg)}
+.codeln.flash{background:var(--warnbg)}
+.codeln .an{display:flex;align-items:center;gap:7px}
+.anmark{color:var(--accent);font-size:9px}
+.anstat{display:flex;gap:12px;padding:7px 10px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:10px;color:var(--muted);flex-wrap:wrap}
+.anstat b{color:var(--text);font-family:var(--mono)}
+.anrow{display:flex;gap:9px;padding:7px 10px;border-bottom:1px solid var(--line);font-size:11px;cursor:pointer;align-items:flex-start}
+.anrow:hover{background:var(--panel3)}
+.anrow .andoc{font-family:var(--mono);font-size:9px;color:var(--muted);min-width:76px;padding-top:2px}
+.anrow .anbody{flex:1;color:var(--text2);line-height:1.6;min-width:0}
+.anrow .anmeta{color:var(--muted);font-family:var(--mono);font-size:9px;white-space:nowrap;padding-top:2px}
+.anrow .cur{color:var(--accent)}
+.anempty{padding:16px 12px;color:var(--muted);font-size:11px;line-height:1.9}
+.logline{padding:3px 10px;font-family:var(--mono);font-size:10px;color:var(--text2);border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logline .ts{color:var(--muted);margin-right:9px}
+
+.status{display:flex;align-items:center;gap:14px;padding:0 10px;background:var(--accentbg);border-top:1px solid var(--line);font-family:var(--mono);font-size:10px;color:var(--text2)}
+.status .sp{flex:1}
+.status .hi{color:var(--accent)}
+.status .st-warn{flex:0 0 auto;border:1px solid var(--warn);border-radius:3px;background:transparent;color:var(--warn);font:inherit;cursor:pointer;padding:1px 6px}
+.status .st-warn:hover{background:var(--warn);color:var(--bg)}
+
+.gridbg{background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:20px 20px;opacity:.5}
+.graphwrap{position:relative;padding:16px;min-height:100%}
+.graphwrap .abs{position:relative;z-index:1}
+.gnode{fill:var(--panel2);stroke:var(--line2);stroke-width:1;cursor:pointer}
+.gnode:hover{fill:var(--sel);stroke:var(--accent)}
+.gnode.hit{fill:var(--warnbg);stroke:var(--warn)}
+.gtext{fill:var(--text);font-size:11px;font-family:var(--sans)}
+.gsmall{fill:var(--muted);font-size:9px;font-family:var(--mono)}
+.gedge{stroke:var(--edge);stroke-width:1.4;fill:none}
+.gedge.cut{stroke:var(--warn);stroke-dasharray:4 3}
+.glabel{fill:var(--warn);font-size:9px;font-family:var(--mono)}
+
+.cmp{width:100%;border-collapse:collapse;font-size:11px}
+.cmp th{background:var(--panel2);color:var(--muted);font-family:var(--mono);font-size:10px;text-align:left;padding:6px 9px;border-bottom:1px solid var(--line);position:sticky;top:0}
+.cmp td{padding:6px 9px;border-bottom:1px solid var(--line);color:var(--text2);vertical-align:top;line-height:1.6;width:33%}
+.cmp td:first-child{font-family:var(--mono);font-size:10px;color:var(--muted);width:22%}
+.cmp td.diff{background:var(--warnbg);color:var(--text)}
+.cmphead{display:flex;gap:14px;padding:9px 10px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:10px;color:var(--muted);font-family:var(--mono)}
+
+.code{font-family:var(--mono);font-size:12px;line-height:2.1;padding:12px 0}
+.codeln{display:flex;border-bottom:1px solid var(--line);min-height:26px}
+.codeln:hover{background:var(--panel3)}
+.codeln .ln{width:44px;flex:0 0 44px;text-align:right;padding:3px 10px 3px 0;color:var(--muted);border-right:1px solid var(--line);font-size:10px;user-select:none}
+.codeln .ct{padding:3px 12px;color:var(--text2);white-space:pre-wrap;flex:1}
+.codeln .an{font-family:var(--mono);font-size:9px;color:var(--accent);padding:3px 10px;white-space:nowrap}
+.codeln mark{background:var(--accentbg);color:var(--accent);border-bottom:1px solid var(--accent)}
+
+.cmdwrap{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;display:flex;justify-content:center;align-items:flex-start;padding-top:12vh}
+.cmd{width:520px;max-width:92vw;background:var(--panel);border:1px solid var(--line2);border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.45);overflow:hidden}
+.cmd input{width:100%;padding:12px 14px;background:var(--panel2);border:0;border-bottom:1px solid var(--line);outline:none;font-size:13px;color:var(--text)}
+.cmdlist{max-height:300px;overflow:auto}
+.cmdi{padding:8px 14px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text2);border-bottom:1px solid var(--line);cursor:pointer}
+.cmdi:hover,.cmdi.on{background:var(--sel);color:var(--text)}
+.cmdi .t{flex:1}
+.cmdi .p{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.cmdf{padding:6px 14px;font-size:10px;color:var(--muted);font-family:var(--mono)}
+.toast{position:fixed;right:16px;bottom:36px;z-index:70;background:var(--panel3);border:1px solid var(--line2);border-radius:4px;padding:8px 13px;font-size:11px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.tlink.btn{border:1px solid var(--accent);background:var(--accentbg);color:var(--accent);border-radius:3px;padding:3px 10px;font-family:var(--sans);font-size:11px;font-weight:600;white-space:nowrap}
+.tlink.btn:hover{background:var(--sel)}
+.guide{display:flex;align-items:center;gap:10px;padding:5px 12px;background:var(--accentbg);border-bottom:1px solid var(--line);font-size:11px;color:var(--text2);line-height:1.5}
+.guide b{color:var(--text);font-weight:600}
+.guide .sp{flex:1}
+.guide button{border:1px solid var(--line2);border-radius:3px;padding:2px 9px;font-size:10px;color:var(--text2);white-space:nowrap}
+.guide button:hover{background:var(--panel3);color:var(--text)}
+.ov{padding:24px 30px 38px;max-width:960px}
+.ov .kicker{font-family:var(--mono);font-size:10px;letter-spacing:.13em;color:var(--muted);margin-bottom:15px}
+.ov h1{font-size:22px;line-height:1.55;font-weight:600;color:var(--text);margin:0 0 12px;max-width:860px}
+.ov .issue{font-size:12px;color:var(--text2);margin-bottom:22px;padding-left:11px;border-left:2px solid var(--line2)}
+.ovgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;margin-bottom:18px}
+.ovcard{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:12px 14px;min-height:118px}
+.ovcard .h{font-size:10px;letter-spacing:.1em;color:var(--muted);margin-bottom:10px}
+.ovcard .p{font-size:12px;line-height:1.75;color:var(--text2);margin:0 0 8px}
+.ovcard .p:last-child{margin-bottom:0}
+.ovcard .q{font-family:var(--mono);font-size:10px;color:var(--accent);display:block;margin-bottom:3px}
+.ovquote{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:3px;padding:10px 14px;font-size:12px;line-height:1.8;color:var(--text2);margin-bottom:20px;cursor:pointer}
+.ovquote:hover{background:var(--panel3)}
+.ovquote .lb{font-family:var(--mono);font-size:10px;color:var(--muted);display:block;margin-bottom:5px}
+.ovact{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:13px}
+.ovbtn{border:1px solid var(--line2);background:var(--panel2);color:var(--text);border-radius:4px;padding:9px 15px;font-size:12px}
+.ovbtn:hover{background:var(--panel3);border-color:var(--accent)}
+.ovbtn.primary{background:var(--accentbg);border-color:var(--accent);color:var(--accent);font-weight:600}
+.ovbtn.primary:hover{background:var(--sel)}
+.ovfoot{font-size:10px;color:var(--muted);line-height:1.8;max-width:760px}
+/* 只读值、左树过滤、命令类别：把「看着能改其实改不了」的控件换成只读 + 真动作。 */
+.ro{display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--panel2);border-radius:3px;padding:4px 8px;font-family:var(--mono);font-size:10px;color:var(--text2);white-space:nowrap}
+.arcfilter{width:100%;box-sizing:border-box;background:var(--bg);border:0;border-bottom:1px solid var(--line);padding:6px 9px;font-size:10.5px;color:var(--text2);outline:none}
+.arcfilter:focus{border-bottom-color:var(--accent)}
+.arcfilter::placeholder{color:var(--muted)}
+.cmdi .kind{font-family:var(--mono);font-size:9px;color:var(--muted);border:1px solid var(--line);border-radius:2px;padding:1px 5px;white-space:nowrap}
+.ti.arcnow{background:var(--sel);border-left-color:var(--accent);color:var(--text)}
+/* 跨报告全文检索：搜的是本机已存档报告里的字，不调模型、不写盘。 */
+.sr{padding:18px 22px 34px;max-width:960px}
+.sr-h{font-size:11px;color:var(--text2);line-height:1.7;margin-bottom:12px}
+.sr-h b{color:var(--text)}
+.sr-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.sr-input{flex:1;min-width:240px;background:var(--panel2);border:1px solid var(--line2);border-radius:4px;padding:8px 11px;color:var(--text);font-size:12px;outline:none;font-family:var(--sans)}
+.sr-input:focus{border-color:var(--accent)}
+.sr-input::placeholder{color:var(--muted)}
+.sr-btn{border:1px solid var(--line2);background:var(--panel2);color:var(--text);border-radius:4px;padding:8px 13px;font-size:11px;white-space:nowrap}
+.sr-btn:hover{background:var(--panel3)}
+.sr-btn.pri{background:var(--accentbg);border-color:var(--accent);color:var(--accent);font-weight:600}
+.sr-sel{background:var(--panel2);border:1px solid var(--line2);border-radius:4px;padding:7px 8px;color:var(--text2);font-size:11px;outline:none}
+.sr-meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line);padding:7px 0 9px;margin-bottom:4px}
+.sr-meta b{color:var(--text);font-family:var(--mono)}
+.sr-meta .cap{color:var(--warn)}
+.sr-row{display:grid;grid-template-columns:104px minmax(0,1fr) 78px;gap:10px;align-items:start;padding:9px 8px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:3px}
+.sr-row:hover{background:var(--panel2)}
+.sr-stale{opacity:.45}
+.sr-id{font-family:var(--mono);font-size:10px;color:var(--accent);line-height:1.7}
+.sr-id .sm{display:block;color:var(--muted);font-size:9px}
+.sr-body{min-width:0}
+.sr-path{font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-bottom:3px;word-break:break-all}
+.sr-clip{font-size:11.5px;line-height:1.7;color:var(--text2);word-break:break-word}
+.sr-clip mark{background:var(--warnbg);color:var(--warn);border-radius:2px;padding:0 1px}
+.sr-go{font-size:10px;color:var(--muted);text-align:right;white-space:nowrap;line-height:1.7}
+.sr-row:hover .sr-go{color:var(--accent)}
+.sr-empty{padding:26px 8px;color:var(--muted);font-size:11px;line-height:1.8}
+.sr-foot{font-size:10px;color:var(--muted);line-height:1.8;margin-top:14px;border-top:1px solid var(--line);padding-top:9px}
+.sr-err{color:var(--danger);font-size:11px;padding:8px 0}
+@media(max-width:1100px){.body{grid-template-columns:196px minmax(0,1fr) 240px}.k{width:118px;flex-basis:118px}.ov{padding:20px}}
+</style>
+</head>
+<body>
+<div class="app">
+ <div class="topbar">
+  <div class="logo">论证镜<span>回看工作台 / WORKBENCH</span></div>
+  <div class="sp"></div>
+  <button class="tlink" id="wbRefresh">⟳ 刷新存档</button>
+  <button class="tlink" id="themeBtn">◐ 深色 / 浅色</button>
+  <button class="tlink" id="cmdBtn">⌘K 命令面板</button>
+  <button class="tlink btn" id="wbBack">← 回去分析文本</button>
+  <span class="tlink" id="wbSource">v2 · 样张数据</span>
+ </div>
+
+ <div class="toolbar">
+  <button class="tb" data-back="＋ 新建分析：回到原界面，光标已放进原文输入框">＋ 新建分析</button>
+  <button class="tb" data-back="↻ 带原文回去：回原界面后原文输入框已聚焦；要不要重跑由你决定，工作台不替你发起分析、不花钱">↻ 带原文回去</button>
+  <button class="tb" data-tab="diagnose">▤ 全部字段</button>
+  <button class="tb" data-tab="compare">⇄ 对照</button>
+  <button class="tb" data-tab="search">⌕ 全库检索</button>
+  <div class="sep"></div>
+  <!-- 这两项原来是 select，选完只弹一句「需重新分析」，状态栏却跟着变，
+       报告其实没换。改成当前报告自己的只读值 + 一个真的能回去换的按钮。 -->
+  <span style="color:var(--muted);font-size:10px">这份报告</span>
+  <span class="ro" id="lensNow" title="当前报告生成时用的透镜">透镜 —</span>
+  <span class="ro" id="modeNow" title="当前报告生成时用的模式">模式 —</span>
+  <button class="tb" data-back="回原界面换透镜 / 模式：工作台只回看已存档报告，换透镜要重新分析">换透镜 · 回原界面</button>
+  <div class="sep"></div>
+  <button class="tb" id="exportBtn">↓ 导出 JSON</button>
+  <button class="tb" id="anMapBtn" title="列出这台机器记过的全部异议，点一条回到它钉住的位置">⚑ 异议地图</button>
+  <button class="tb" id="objReveal" title="打开存放异议的本机目录">异议存到哪</button>
+  <button class="tb" data-tab="graph">⊙ 结构图</button>
+  <div class="sp"></div>
+  <span class="kbd">Ctrl/⌘ + K 搜命令 / 字段</span>
+ </div>
+
+ <div class="guide" id="guideBar">
+  <b>这里是回看台</b><span>：左边点任意一份存档打开报告，中间看速览，点字段在右侧看原文值——右侧检查器给每个字段配了中文名和一句解释，最下面「原始 JSON」还能展开逐字核。Ctrl/⌘+K 搜命令和字段；底部「待答队列」记异议时先选锚点（字段或原文某一句），「异议地图」列出这台机器记过的全部异议，点一条回到那一处。异议另存本机、不改报告。要分析新文本，点右上角「回去分析文本」。</span>
+  <span class="sp"></span><button id="guideClose">知道了</button>
+ </div>
+
+ <div class="body">
+  <div class="pane">
+   <div class="ph"><b>资源管理器</b><span class="sp"></span><button data-log="资源管理器：仅展示本机存档索引">···</button></div>
+   <div class="scroll" id="leftTree"></div>
+  </div>
+
+  <div class="center">
+   <div class="pane" style="border-bottom:1px solid var(--line)">
+    <div class="tabs" id="mainTabs"></div>
+    <div class="scroll" id="mainBody"></div>
+   </div>
+   <div class="pane" id="bottomPane">
+    <div class="ph"><b>面板</b><span class="sp"></span><button id="bottomToggle">▾ 折叠</button></div>
+    <div class="btabs" id="bottomTabs"></div>
+    <div class="scroll" id="bottomBody"></div>
+   </div>
+  </div>
+
+  <div class="pane">
+   <div class="ph"><b>检查器</b><span class="sp"></span><button data-log="检查器：字段值逐字取自报告">···</button></div>
+   <div class="scroll" id="inspector"></div>
+  </div>
+ </div>
+
+ <div class="status" id="statusBar"></div>
+</div>
+
+<div id="cmdLayer"></div>
+<div id="toastLayer"></div>
+
+<!-- GLOSS_BEGIN 由 scripts/gen-workbench-gloss.mjs 生成，勿手改 -->
+<script id="gloss" type="application/json">{"v":1,"n":39,"terms":{"conclusion":["结论","这段话到底想让你接受哪一句。一段话里通常只有一句。","很多争论吵不起来，是因为双方连「要争的是哪一句」都没对齐。所以先把它单独拎出来。","「这说明取消早读是错的」——这就是结论。"],"premise":["前提","他摆出来当依据的那几句话。","","「去年取消早读，今年一本率降了 6 个点」——这是前提。"],"implicit":["隐含前提","他一个字没说、但你必须先同意，结论才推得出来的一句话。","补出隐含前提是有风险的：补错了，你就在反驳一个对方没说过的主张。所以本工具要求每条隐含前提都写成固定句式，写不出就不许列。","他说「取消早读后成绩降了，所以取消早读是错的」，中间欠一句「成绩下降确实是取消早读造成的」。"],"intermediate":["中间结论","一步推不完时，中途先得出的那句小结论。","",""],"reconstruction":["重构","把口语整理成「因为……所以……」的样子，先摆平了再看。","重构本身就可能出错，而且重构错了，后面所有评价都跟着错。所以它排在评价前面，也接受被质疑。",""],"supports":["支撑关系","哪句依据在撑哪句话。结构图上的连线就是它。","",""],"verdict":["判读","最后那一句话：站得住、被削弱，还是不成。","「被削弱」和「不成」是两件事：被削弱只是说他没论证成功，不等于他说错了。混为一谈是最常见的越界。",""],"acceptability":["可接受性","这条依据，他的听众认不认。","注意它不是「客观上真不真」。一个真有数据支撑的前提，对一群不承认统计学的人依然不可接受——而论证是要说服人的。",""],"relevance":["相关性","这条依据跟结论有没有关系。","","「他儿子考上了清华」跟「他的教学方案好不好」没有关系。"],"sufficiency":["充分性","这些依据加起来，够不够撑住结论。","「够」永远是相对于某个标准说的：同一个证据量，在刑事判决里不够，在民事里可能够。所以判充分性必须先写清是哪一档标准。",""],"burden":["举证责任","谁该拿出证据。","「你证明不了我错，所以我是对的」是错置责任。提出主张的人先举证；只有对方给出反证时，责任才可能翻过去。",""],"defeat":["击败","这份论证在哪一步上没撑住。","",""],"undermining":["削弱性击败","把「依据」和「结论」之间那根线剪断了，但没说结论一定是假的。","","「同期生源也变了」——这不证明取消早读没影响，只证明他的论证不足以说明有影响。"],"rebutting":["反驳性击败","直接给出「结论是假的」的理由。","真正做到这一步很难：要证明结论假，光挑论证的毛病不够。所以界面上大多数结果只能是「削弱」。",""],"scope":["范围门","这把尺子在这段话上根本不适用时，直接说「不量了」。","","拿「讨论是否公平」的十规则去量一条广告，看起来很严密，其实是拿错了尺子。"],"tag":["认识论标签","这个判断的根据是哪一类：有出处、算出来的、推出来的、常识，还是猜的。","",""],"confidence":["置信度","他自己对这个判断有多确定。","「猜的」最高只能标到「低」。这条限制是为了防止流畅的措辞冒充确定。",""],"steelman":["对方最强版本","替对方想出他最能打的那个回击，而不是立个稻草人。","没有这一栏的反驳只是吵架，而且会让你拿着半成品去被人一句话打回。",""],"legit":["此处合法","看起来可疑、其实做得对的地方。","清单式批评最深的毛病：列出的四条里有一条其实是对方做得对，你也不改判，因为清单上没有「合法」这一栏。",""],"meta":["元问题","先问的那个总闸问题。它答「否」，后面一串问题都不用问了。","","「他是不是这个领域的专家」答否，就不用再问「他的说法有没有依据」。"],"epi":["自检量表","这份分析给自己打的七项分，不是给原文打的。","一个只会挑别人毛病的工具，本身就违反了它自己的标准。所以它必须对自己用同一把尺子。",""],"modal":["模态越界","把「很可能」说成「必然」。","","「今年降了 6 个点」→「所以取消早读是错的」，中间这一步把相关当成了唯一原因。"],"catalog":["名录法","查字典式地给论证贴个名字。","机器在细分类上最好也只有三成左右准确率；同一处往往能对上好几个名字。所以这副透镜只给候选，不给判决。",""],"scheme":["型式","大家惯用的推理套路，比如「专家说的」「前后脚发生所以有因果」「都这么干所以没错」。","套路本身没有对错。错的是误用：套路自带的问题没回答，或者这个套路在这里根本不该用。",""],"cq":["批判性问题","每个套路自带的那几个「你凭什么叫我相信」。","","「专家说的」自带的问题：他真是这行的专家吗？他说的和这个结论是同一件事吗？有没有别的专家不同意？"],"family":["族","套路的四大类：靠后果吓你、靠因果解释你、靠谁说的压你、靠比较说服你。","认错族比认错具体型式更常见，也更致命——四条批判性问题会全部问偏。",""],"skeleton":["骨架","把这个套路写成一行字：依据是这些，所以结论是那个。","",""],"warrant":["担保","凭什么这些理由能推出那个主张。","它和「理由」不是一回事：理由是事实，担保是「这种事实通常能推出那种结论」的通行规则。绝大多数论证出错，就错在这根担保没说出口、或者撑不住。","理由：今年降了 6 个点。担保：成绩波动通常由校内政策造成。这根担保站不住，因为生源、师资、命题难度都会影响。"],"grounds":["理由","他摆出来的那些事实。","",""],"backing":["支援","担保本身有没有靠山。","支援缺位在生活里极常见，也常常够用——图尔敏只记录它在不在，不判对错。",""],"qualifier":["限定","他把话说得多满：「必然」「通常」还是「可能」。","",""],"rebuttal":["例外","他自己承认的「除非……」。","",""],"stage":["四阶段","一场讨论的四个段落：吵起来、谈规则、摆理由、收尾。","",""],"dialogue":["对话类型","这是在说服、在谈判、在吵架、还是在查证。","同一句话换个场合，合法性就变了：谈判桌上藏住底价是本事，学术讨论里藏住数据是作弊。",""],"rule":["十规则","让讨论能谈下去的十条基本规矩：不许堵嘴、不许偷换议题、不许把举证推给对方……","规则只管程序公不公平，不管谁对。程序干净而结论错误，是完全可能的。",""],"pta":["型式周期表","把论证按三个特征分格子的分类法，像化学元素表。","",""],"order":["阶","一步推到底（一阶），还是绕了一层（二阶）。","",""],"axis":["轴","在说同一个东西的两面（谓词），还是拿两个东西在比（主词）。","",""],"condition":["成立条件","使它成为「这一条」而不是「别一条」的条件。","写不出这个条件，就不该给名字——这是本工具对「贴标签」收的过路费。",""]}}</script>
+<!-- GLOSS_END -->
+
+<script id="data" type="application/json">{"report":{"version":2,"id":"mvw1rvpe-0uieud","parentId":null,"mode":"diagnose","theory":"walton","createdAt":1793429760578,"passage":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。\n王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读书。\n很多家长也支持恢复早读，可见早读肯定有益。\n另外，如果连早读都保证不了，将来上课、自习、考试还能保证什么？","context":{"issue":"该不该恢复早读","speakerPosition":"应当恢复早读，取消早读是错的","opposingPosition":"取消早读是可行的安排","dialogueType":"persuasion","dialogueTypeBasis":"通篇在说服读者接受「应恢复早读」，并给出理由，不是询问也不是协商","stage":"argumentation","audience":"关注升学率的家长与校内决策者","audienceKind":"general","contextGaps":["该校一本率的历史波动","同期是否有其他教学安排变动","「早读」的具体时长与形式"]},"scope":{"applicable":true,"reason":"文本给出了前提并由此推出结论，属可重构的论证，型式透镜可用","outOfScopeAt":null,"partialNote":null},"conclusion":{"id":"C","role":"conclusion","text":"取消早读是错的，应当恢复早读","supports":[],"quote":"这说明取消早读是错的","span":{"start":30,"end":40,"quote":"这说明取消早读是错的","quality":"exact"},"implicit":false,"implicitBasis":null,"burden":"proponent","acceptability":{"status":"questionable","reason":"结论是价值判断（「是错的」），而给出的理由全是事实性数据，中间缺一步「一本率是衡量学校做法对错的標準」","forAudience":"对看重升学率的家长较可接受；对关注学生睡眠的受众不可接受","tag":"inferred","confidence":"high"},"modalOverreach":true,"modalNote":"「可见早读肯定有益」把或然说成必然，且「有益」的范围未限定"},"premises":[{"id":"P1","role":"premise","text":"去年取消早读，今年高考一本率下降 6 个百分点","supports":["C"],"quote":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点","span":{"start":0,"end":29,"quote":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点","quality":"exact"},"implicit":false,"implicitBasis":null,"burden":"proponent","acceptability":{"status":"acceptable","reason":"是可核查的校内数据陈述，文本内未给出出处但属可验证类型","forAudience":"对家长可接受","tag":"known","confidence":"medium"}},{"id":"P2","role":"premise","text":"王校长说早读能提高记忆效率","supports":["C"],"quote":"王校长在一份公开材料里说，早读能提高记忆效率","span":{"start":42,"end":64,"quote":"王校长在一份公开材料里说，早读能提高记忆效率","quality":"exact"},"implicit":false,"implicitBasis":null,"burden":"proponent","acceptability":{"status":"questionable","reason":"「记忆效率」与「高考一本率」不是同一个量，中间隔着迁移与考试形式两个环节","forAudience":"对家长有说服力，因其身份","tag":"known","confidence":"medium"}},{"id":"P3","role":"premise","text":"很多家长支持恢复早读","supports":["C"],"quote":"很多家长也支持恢复早读","span":{"start":75,"end":86,"quote":"很多家长也支持恢复早读","quality":"exact"},"implicit":true,"implicitBasis":"原文只说了「支持」这一态度事实，未言明「多数人支持即合理」这条桥接假设","burden":"proponent","acceptability":{"status":"unacceptable","reason":"支持人数是态度分布，不是效果证据。它最多说明主张受欢迎","forAudience":"对家长群体有感染力","tag":"inferred","confidence":"high"}}],"intermediate":[],"checks":[{"id":"CQ1","system":"walton-cq","label":"CQ1 相关性事实","question":"确实存在正相关吗？","meta":false,"answer":"passed","basis":"文本给出两个时间点上的一对事实：取消早读在前，一本率下降在后。作为「相关」它成立","guards":"相关这一事实本身","landsOn":null},{"id":"CQ2","system":"walton-cq","label":"CQ2 因果方向与「不只是同时发生」","question":"为何不只是同时发生？","meta":false,"answer":"unanswered","basis":"只给了单校单年的前后对比，没有对照、没有控制其他变量。一本率受生源、命题难度、志愿填报共同影响","guards":"从相关跨到因果这一步","landsOn":"post-hoc"},{"id":"CQ3","system":"walton-cq","label":"CQ3 共同原因","question":"有无既引起 A 又引起 B 的第三因素？","meta":false,"answer":"unanswered","basis":"文中未排除同期其他变动（如作息调整、教师流动、招生政策）","guards":"因果解释的排他性","landsOn":null}],"lens":{"kind":"walton","family":"causal","familyBasis":"从「取消之后出现下降」推到「取消导致下降」，担保是因果联结，不是价值或来源","schemeId":"correlation-causation","schemeName":"相关—因果","skeleton":"P1 取消早读后一本率下降 6 个百分点 ∴ C 取消早读导致下降，故取消是错的","alternativeFamily":"pragmatic","alternativeNote":"若把结论读作「应恢复早读」的行动建议，则更接近实践推理：目标是一本率，手段是早读。两种读法下要问的问题不同"},"defeat":{"kind":"undermining","checkId":"CQ2","cuts":"P1 → C 之间的因果这一步","explanation":"CQ2 未答意味着「下降由取消早读引起」这一环没有支撑。这一步断了，C 失去理由，但 C 本身未被证明为假","tag":"inferred","confidence":"high"},"verdict":{"scale":"型式强度：抗 CQ 的能力","scaleValue":"CQ2、CQ3 未答，属削弱性击败","level":"weakened","statement":"在目前给出的证据下，「取消早读导致一本率下降」这一因果判断似真但未获支撑，结论因此被削弱，而非被驳倒","qualification":"若能补充对照校或控制变量的数据，且排除同期其他变动，此论证可恢复","whatIsRefuted":"argument-only"},"repair":{"missingPremise":"若取消早读，则一本率会下降（且这一影响大于同期其他因素）","alternativeReading":"换语用辩证透镜：这段话第 4 条（相干性）有问题——家长支持率与早读效果不相干；但同一段里对校长的引用并不违反任何规则，那里其实是合格的。换图尔敏透镜：担保是空的，「一本率下降」到「取消是错的」之间没有可陈述的担保","answerable":["CQ1"],"burdenStatus":"仍在提议者一方：CQ2 需要他提供对照数据，而不是由反对方证明因果不存在","repairedForm":"P1 取消早读后一本率下降 6 个百分点；P2 同期无其他教学安排变动，且对照校未出现同等下降 ∴ C 取消早读很可能导致下降，需进一步核查"},"labels":[{"id":"post-hoc","name":"以先后为因果","nameEn":"post hoc ergo propter hoc","condition":"使它成为该谬误而非别种的条件：仅凭时间先后断言因果，且未给出任何机制或排除第三因素","whenLegitimate":"当因果机制已知、时间间隔合理、并且排除了主要干扰变量时，由先后推因果是正当的——流行病学与临床判断大量依赖这种推理","riskOfError":"本条最可能错在把「证据不足」当成「推理错误」。文本作者若有未写出的对照数据，这条判定即不成立","landsOnCheck":"CQ2","tradition":"walton","tag":"framework","confidence":"medium"},{"id":"ad-populum","name":"诉诸公众","nameEn":"argumentum ad populum","condition":"使它成为该谬误而非别种的条件：以支持者数量作为主张为真的理由，且该主张是可独立检验的事实或效果判断","whenLegitimate":"在「应不应当」的决策里，多数人的偏好本身就是相干理由之一——民主程序正是建立在此之上。区别在于它支持的是「受欢迎」，不是「有效」","riskOfError":"若作者本意只是说「此事有民意基础」，则不构成谬误，只是理由不充分","landsOnCheck":null,"tradition":"copi","tag":"framework","confidence":"medium"}],"legitimateMoves":[{"targetId":"P2","quote":"王校长在一份公开材料里说，早读能提高记忆效率","what":"一次有名有姓、有出处的专业意见引用","why":"引专家意见本身不是诉诸权威。要构成谬误，需缺 CQ2（领域相关性）或 CQ3（引述忠实度）；此处两者都未被违反，问题只在于「记忆效率」不能直接推出「一本率」","tag":"computed","confidence":"high"},{"targetId":"P1","quote":"今年高考一本率下降了 6 个百分点","what":"一个可核查的量化事实","why":"给出具体数字不是「假精确」——6 个百分点是可验证的校内统计。假精确指的是给不可能达到精度的数字（如「提升 37.2% 的学习效率」）","tag":"computed","confidence":"high"}],"refutations":[{"id":"R1","targetId":"P1","checkId":"CQ2","strategy":"alternative-explanation","claim":"一本率下降有多种可能来源，取消早读只是其中之一","script":"这两年一本率下降的学校不止你们一家，命题难度和招生计划都在变。有没有对照校的数据，能说明只有取消早读的学校降了？","steelman":"对方可能答：我校降幅明显高于全市平均，且时间点吻合","reply":"那也只是把「同期」缩窄了，仍未排除校内其他变动。可以请他给出降幅对比的具体数字，再谈因果","evidenceNeeded":["同区域未取消早读学校的一本率变化","该校近五年一本率序列"],"burdenAfter":"proponent","tag":"inferred","confidence":"high"},{"id":"R2","targetId":"P3","checkId":null,"strategy":"premise-unsupported","claim":"家长支持率不是早读有效的证据","script":"家长支持早读，说明大家希望孩子学得好，这点我同意。但支持的人多不能说明早读真有用——如果多数人支持就能定效果，那体检项目也不用做实验了。","steelman":"对方可能答：教育安排本就应该尊重家长意愿，不全是效果问题","reply":"如果是意愿问题，那就该说「家长希望恢复」，而不是「可见早读肯定有益」。这两句话的举证责任不一样","evidenceNeeded":[],"burdenAfter":"proponent","tag":"computed","confidence":"high"},{"id":"R3","targetId":"C","checkId":null,"strategy":"distinguo","claim":"「早读有益」需要区分是哪一种益，文本把它们混成一个","script":"我区分一下：早读可能对记忆效率有益，这不等于对高考成绩有益，更不等于对每个学生都划算。您说的「有益」是指哪一个？","steelman":"对方可能答：记忆效率提高自然会体现在成绩上","reply":"这是一条需要证据的桥。而且睡眠不足同样影响成绩，早读挤占的是睡眠时间，两边要一起算","evidenceNeeded":["早读时长与学生睡眠时长的关系","记忆效率到考试成绩的迁移研究"],"burdenAfter":"proponent","tag":"inferred","confidence":"medium"}],"selfCheck":{"epi":{"P1_source":1,"P2_context":2,"P3_position":2,"P4_withdrawal":1,"P5_selfApply":2,"P6_openness":2,"P7_steelman":2,"total":12,"vetoed":false,"reading":"legitimate","notes":["P1 扣分：未核对该校一本率的历史波动幅度","P4 扣分：未明确写出哪个证据出现时本判断应被撤回"]},"ruleAudit":["第 4 条相干性：P3（家长支持）与 C（早读效果）不相干，此处违反"],"unknowns":["该校一本率的历史区间","同期其他教学安排是否变动","「早读」具体包含什么活动"],"opennessNote":"名录只列了 2 条候选，实际可能还有其他读法。未列入不等于不存在。","withdrawIf":["出现对照校数据且显示取消早读的学校降幅同样明显","文本上下文表明「一本率」只是举例，真正争的是学生作息"],"underOtherLens":"语用辩证透镜会把重点放在第 4 条（相干性）而不是因果链；图尔敏透镜则会指出担保缺失——从「一本率下降」到「取消是错的」之间没有可陈述的担保，这比因果问题更靠前"},"diagnostics":[]},"compare":{"version":2,"id":"mvx5dfg3-z1dpnv","parentId":null,"mode":"redteam","theory":"walton","createdAt":1793496270963,"passage":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。\n王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读书。\n很多家长也支持恢复早读，可见早读肯定有益。\n另外，如果连早读都保证不了，将来上课、自习、考试还能保证什么？","context":{"issue":"该不该恢复早读","speakerPosition":"应当恢复早读，取消早读是错的","opposingPosition":"取消早读是可行的安排","dialogueType":"persuasion","dialogueTypeBasis":"通篇在说服读者接受「应恢复早读」，并给出理由，不是询问也不是协商","stage":"argumentation","audience":"关注升学率的家长与校内决策者","audienceKind":"general","contextGaps":["该校一本率的历史波动","同期是否有其他教学安排变动","「早读」的具体时长与形式"]},"scope":{"applicable":true,"reason":"文本给出了前提并由此推出结论，属可重构的论证，型式透镜可用","outOfScopeAt":null,"partialNote":null},"conclusion":{"id":"C","role":"conclusion","text":"取消早读是错的，应当恢复早读","supports":[],"quote":"这说明取消早读是错的","span":{"start":30,"end":40,"quote":"这说明取消早读是错的","quality":"exact"},"implicit":false,"implicitBasis":null,"burden":"proponent","acceptability":{"status":"questionable","reason":"结论是价值判断（「是错的」），而给出的理由全是事实性数据，中间缺一步「一本率是衡量学校做法对错的標準」","forAudience":"对看重升学率的家长较可接受；对关注学生睡眠的受众不可接受","tag":"inferred","confidence":"high"},"modalOverreach":true,"modalNote":"「可见早读肯定有益」把或然说成必然，且「有益」的范围未限定"},"premises":[{"id":"P1","role":"premise","text":"去年取消早读，今年高考一本率下降 6 个百分点","supports":["C"],"quote":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点","span":{"start":0,"end":29,"quote":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点","quality":"exact"},"implicit":false,"implicitBasis":null,"burden":"proponent","acceptability":{"status":"acceptable","reason":"是可核查的校内数据陈述，文本内未给出出处但属可验证类型","forAudience":"对家长可接受","tag":"known","confidence":"medium"}},{"id":"P2","role":"premise","text":"王校长说早读能提高记忆效率","supports":["C"],"quote":"王校长在一份公开材料里说，早读能提高记忆效率","span":{"start":42,"end":64,"quote":"王校长在一份公开材料里说，早读能提高记忆效率","quality":"exact"},"implicit":false,"implicitBasis":null,"burden":"proponent","acceptability":{"status":"questionable","reason":"「记忆效率」与「高考一本率」不是同一个量，中间隔着迁移与考试形式两个环节","forAudience":"对家长有说服力，因其身份","tag":"known","confidence":"medium"}},{"id":"P3","role":"premise","text":"很多家长支持恢复早读","supports":["C"],"quote":"很多家长也支持恢复早读","span":{"start":75,"end":86,"quote":"很多家长也支持恢复早读","quality":"exact"},"implicit":true,"implicitBasis":"原文只说了「支持」这一态度事实，未言明「多数人支持即合理」这条桥接假设","burden":"proponent","acceptability":{"status":"unacceptable","reason":"支持人数是态度分布，不是效果证据。它最多说明主张受欢迎","forAudience":"对家长群体有感染力","tag":"inferred","confidence":"high"}}],"intermediate":[],"checks":[{"id":"CQ1","system":"walton-cq","label":"CQ1 相关性事实","question":"确实存在正相关吗？","meta":false,"answer":"passed","basis":"文本给出两个时间点上的一对事实：取消早读在前，一本率下降在后。作为「相关」它成立","guards":"相关这一事实本身","landsOn":null},{"id":"CQ2","system":"walton-cq","label":"CQ2 因果方向与「不只是同时发生」","question":"为何不只是同时发生？","meta":false,"answer":"unanswered","basis":"只给了单校单年的前后对比，没有对照、没有控制其他变量。一本率受生源、命题难度、志愿填报共同影响","guards":"从相关跨到因果这一步","landsOn":"post-hoc"},{"id":"CQ3","system":"walton-cq","label":"CQ3 共同原因","question":"有无既引起 A 又引起 B 的第三因素？","meta":false,"answer":"unanswered","basis":"文中未排除同期其他变动（如作息调整、教师流动、招生政策）","guards":"因果解释的排他性","landsOn":null}],"lens":{"kind":"walton","family":"causal","familyBasis":"从「取消之后出现下降」推到「取消导致下降」，担保是因果联结，不是价值或来源","schemeId":"correlation-causation","schemeName":"相关—因果","skeleton":"P1 取消早读后一本率下降 6 个百分点 ∴ C 取消早读导致下降，故取消是错的","alternativeFamily":"pragmatic","alternativeNote":"若把结论读作「应恢复早读」的行动建议，则更接近实践推理：目标是一本率，手段是早读。两种读法下要问的问题不同"},"defeat":{"kind":"undermining","checkId":"CQ2","cuts":"P1 → C 之间的因果这一步","explanation":"CQ2 未答意味着「下降由取消早读引起」这一环没有支撑。这一步断了，C 失去理由，但 C 本身未被证明为假","tag":"inferred","confidence":"high"},"verdict":{"scale":"型式强度：抗 CQ 的能力","scaleValue":"CQ2、CQ3 未答，属削弱性击败","level":"weakened","statement":"在目前给出的证据下，「取消早读导致一本率下降」这一因果判断似真但未获支撑，结论因此被削弱，而非被驳倒","qualification":"若能补充对照校或控制变量的数据，且排除同期其他变动，此论证可恢复","whatIsRefuted":"argument-only"},"repair":{"missingPremise":"若取消早读，则一本率会下降（且这一影响大于同期其他因素）","alternativeReading":"换语用辩证透镜：这段话第 4 条（相干性）有问题——家长支持率与早读效果不相干；但同一段里对校长的引用并不违反任何规则，那里其实是合格的。换图尔敏透镜：担保是空的，「一本率下降」到「取消是错的」之间没有可陈述的担保","answerable":["CQ1"],"burdenStatus":"仍在提议者一方：CQ2 需要他提供对照数据，而不是由反对方证明因果不存在","repairedForm":"P1 取消早读后一本率下降 6 个百分点；P2 同期无其他教学安排变动，且对照校未出现同等下降 ∴ C 取消早读很可能导致下降，需进一步核查"},"labels":[{"id":"post-hoc","name":"以先后为因果","nameEn":"post hoc ergo propter hoc","condition":"使它成为该谬误而非别种的条件：仅凭时间先后断言因果，且未给出任何机制或排除第三因素","whenLegitimate":"当因果机制已知、时间间隔合理、并且排除了主要干扰变量时，由先后推因果是正当的——流行病学与临床判断大量依赖这种推理","riskOfError":"本条最可能错在把「证据不足」当成「推理错误」。文本作者若有未写出的对照数据，这条判定即不成立","landsOnCheck":"CQ2","tradition":"walton","tag":"framework","confidence":"medium"},{"id":"ad-populum","name":"诉诸公众","nameEn":"argumentum ad populum","condition":"使它成为该谬误而非别种的条件：以支持者数量作为主张为真的理由，且该主张是可独立检验的事实或效果判断","whenLegitimate":"在「应不应当」的决策里，多数人的偏好本身就是相干理由之一——民主程序正是建立在此之上。区别在于它支持的是「受欢迎」，不是「有效」","riskOfError":"若作者本意只是说「此事有民意基础」，则不构成谬误，只是理由不充分","landsOnCheck":null,"tradition":"copi","tag":"framework","confidence":"medium"}],"legitimateMoves":[{"targetId":"P2","quote":"王校长在一份公开材料里说，早读能提高记忆效率","what":"一次有名有姓、有出处的专业意见引用","why":"引专家意见本身不是诉诸权威。要构成谬误，需缺 CQ2（领域相关性）或 CQ3（引述忠实度）；此处两者都未被违反，问题只在于「记忆效率」不能直接推出「一本率」","tag":"computed","confidence":"high"},{"targetId":"P1","quote":"今年高考一本率下降了 6 个百分点","what":"一个可核查的量化事实","why":"给出具体数字不是「假精确」——6 个百分点是可验证的校内统计。假精确指的是给不可能达到精度的数字（如「提升 37.2% 的学习效率」）","tag":"computed","confidence":"high"}],"refutations":[{"id":"R1","targetId":"P1","checkId":"CQ2","strategy":"alternative-explanation","claim":"一本率下降有多种可能来源，取消早读只是其中之一","script":"这两年一本率下降的学校不止你们一家，命题难度和招生计划都在变。有没有对照校的数据，能说明只有取消早读的学校降了？","steelman":"对方可能答：我校降幅明显高于全市平均，且时间点吻合","reply":"那也只是把「同期」缩窄了，仍未排除校内其他变动。可以请他给出降幅对比的具体数字，再谈因果","evidenceNeeded":["同区域未取消早读学校的一本率变化","该校近五年一本率序列"],"burdenAfter":"proponent","tag":"inferred","confidence":"high"},{"id":"R2","targetId":"P3","checkId":null,"strategy":"premise-unsupported","claim":"家长支持率不是早读有效的证据","script":"家长支持早读，说明大家希望孩子学得好，这点我同意。但支持的人多不能说明早读真有用——如果多数人支持就能定效果，那体检项目也不用做实验了。","steelman":"对方可能答：教育安排本就应该尊重家长意愿，不全是效果问题","reply":"如果是意愿问题，那就该说「家长希望恢复」，而不是「可见早读肯定有益」。这两句话的举证责任不一样","evidenceNeeded":[],"burdenAfter":"proponent","tag":"computed","confidence":"high"},{"id":"R3","targetId":"C","checkId":null,"strategy":"distinguo","claim":"「早读有益」需要区分是哪一种益，文本把它们混成一个","script":"我区分一下：早读可能对记忆效率有益，这不等于对高考成绩有益，更不等于对每个学生都划算。您说的「有益」是指哪一个？","steelman":"对方可能答：记忆效率提高自然会体现在成绩上","reply":"这是一条需要证据的桥。而且睡眠不足同样影响成绩，早读挤占的是睡眠时间，两边要一起算","evidenceNeeded":["早读时长与学生睡眠时长的关系","记忆效率到考试成绩的迁移研究"],"burdenAfter":"proponent","tag":"inferred","confidence":"medium"}],"selfCheck":{"epi":{"P1_source":1,"P2_context":2,"P3_position":2,"P4_withdrawal":1,"P5_selfApply":2,"P6_openness":2,"P7_steelman":2,"total":12,"vetoed":false,"reading":"legitimate","notes":["P1 扣分：未核对该校一本率的历史波动幅度","P4 扣分：未明确写出哪个证据出现时本判断应被撤回"]},"ruleAudit":["第 4 条相干性：P3（家长支持）与 C（早读效果）不相干，此处违反"],"unknowns":["该校一本率的历史区间","同期其他教学安排是否变动","「早读」具体包含什么活动"],"opennessNote":"名录只列了 2 条候选，实际可能还有其他读法。未列入不等于不存在。","withdrawIf":["出现对照校数据且显示取消早读的学校降幅同样明显","文本上下文表明「一本率」只是举例，真正争的是学生作息"],"underOtherLens":"语用辩证透镜会把重点放在第 4 条（相干性）而不是因果链；图尔敏透镜则会指出担保缺失——从「一本率下降」到「取消是错的」之间没有可陈述的担保，这比因果问题更靠前"},"diagnostics":[],"prompt":{"version":"2.2.0","fingerprint":"279caf5120c3"}},"archive":[{"id":"mwapigne-bobyig","at":1794316158410,"theory":"walton","mode":"diagnose","parentId":null,"chars":6268,"excerpt":"跟男朋友说好了不要小孩儿，还用要彩礼吗？男朋友家里很穷，但是我们感情很好，还要彩礼吗？女人要了彩礼，如何能保证跟我们的感情是纯粹的？女人要了彩礼","level":"weakened","open":2,"cost":0.021529,"bytes":59282},{"id":"mw1vz9yf-mv9kpf","at":1793782824999,"theory":"walton","mode":"diagnose","parentId":null,"chars":146,"excerpt":"从社会学角度，这跟涂尔干式权威很像，试图用一个归摄性的普遍来统摄并抹杀具体的、第一人称的实践。它预设了一套高高在上的分类体系，居高临下地框定了高","level":"undetermined","open":0,"cost":0.012253,"bytes":15146},{"id":"mvyyynrj-m41cwj","at":1793606436559,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":25249},{"id":"mvyvcxbt-wu2i2l","at":1793600383674,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":25249},{"id":"mvyu8zn3-bpiw3j","at":1793598520431,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":25249},{"id":"mvyu0an8-owo1yn","at":1793598114788,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":25249},{"id":"mvysmf0j-3ncoos","at":1793595787651,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":25249},{"id":"mvxqbitu-490sp5","at":1793531453970,"theory":"walton","mode":"diagnose","parentId":null,"chars":41,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。","level":"weakened","open":2,"cost":null,"bytes":8626},{"id":"mvxq3btk-9ocrbz","at":1793531071640,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":25249},{"id":"mvxontsf-dx1knw","at":1793528668815,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":24961},{"id":"mvxk3q86-ansu7c","at":1793521012614,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":24961},{"id":"mvxiuy1h-07lsxu","at":1793518923221,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":24961},{"id":"mvxius29-tw2u9w","at":1793518915473,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":24961},{"id":"mvxiu8vd-tnkfv4","at":1793518890601,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":24961},{"id":"mvxitxli-dz1h2n","at":1793518875990,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":24961},{"id":"mvxhd5xq-seo69g","at":1793516414030,"theory":"walton","mode":"diagnose","parentId":null,"chars":128,"excerpt":"我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。 王校长在一份公开材料里说，早读能提高记忆效率，学生就该早起读","level":"weakened","open":2,"cost":null,"bytes":24371}],"stats":{"total":104,"passages":8,"maxGroup":89,"modes":{"diagnose":87,"redteam":9,"reconstruct":5,"interrogate":3},"levels":{"weakened":93,"undetermined":11},"theories":{"walton":102,"ars":1,"pragma":1},"checks":{"passed":99,"unanswered":208,"violated":7},"burdenPremises":"308/308","burdenAfter":"284/284","stage":{"argumentation":101,"unknown":3}}}</script>
+<script>
+let D = JSON.parse(document.getElementById('data').textContent);
+let R = D.report, C = D.compare, ST = D.stats;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const short = v => { if(v===null||v===undefined) return '—'; if(Array.isArray(v)) return `[${v.length} 项] ${v.slice(0,2).map(x=>typeof x==='object'?'{…}':String(x)).join(', ')}`; if(typeof v==='object') return '{'+Object.keys(v).slice(0,4).join(', ')+'}'; return String(v); };
+/* ── 检查器的人话层 ──────────────────────────────────────────────────
+ * 术语解释逐字取自主程序 glossary.ts（gloss:sync 生成到 #gloss），这里只做
+ * 「英文 JSON 字段名 → 中文名 / 术语 key」的一层薄映射，不另写一套学科说法。
+ * 边界写在界面上：中文名、解释、枚举翻译都是工作台加的阅读说明，不是报告
+ * 内容，也不写回报告。没收录的字段显示原名并明说「暂无解释」，不编。
+ */
+const GL=(()=>{try{return JSON.parse(document.getElementById('gloss').textContent);}catch(e){return {n:0,terms:{}};}})();
+function termPlain(k){const t=GL.terms&&GL.terms[k];return t?{name:t[0],plain:t[1],more:t[2],eg:t[3]}:null;}
+function termTip(k){const t=termPlain(k);return t?t.name+'：'+t.plain+(t.more?'\n\n'+t.more:'')+(t.eg?'\n\n例：'+t.eg:''):'';}
+/* zh=中文名；k=术语表里的 key（有它就取术语表的解释）；n=工作台补的一句。 */
+const FZ={
+ passage:{zh:'原文',n:'当初粘进来要分析的那段话'},
+ context:{zh:'语境',k:'dialogue'},scope:{zh:'范围门',k:'scope'},
+ conclusion:{zh:'结论',k:'conclusion'},premises:{zh:'前提',k:'premise'},
+ intermediate:{zh:'中间结论',k:'intermediate'},lens:{zh:'型式透镜',k:'scheme'},
+ checks:{zh:'批判性问题',k:'cq'},defeat:{zh:'击败',k:'defeat'},
+ verdict:{zh:'判读',k:'verdict'},repair:{zh:'修补',k:'implicit'},
+ labels:{zh:'命名候选',k:'catalog'},legitimateMoves:{zh:'此处合法',k:'legit'},
+ refutations:{zh:'反驳候选',k:'steelman'},selfCheck:{zh:'自检',k:'epi'},
+ diagnostics:{zh:'诊断信息',n:'分析过程留下的技术信息'},
+ id:{zh:'编号'},version:{zh:'报告格式版本'},mode:{zh:'模式'},theory:{zh:'透镜'},
+ createdAt:{zh:'生成时间'},parentId:{zh:'修订自哪一份'},
+ text:{zh:'整理后的那一句',n:'把口语摆平后的写法'},quote:{zh:'原文原句',n:'逐字引自原文'},
+ span:{zh:'原文位置',n:'这句在原文里的起止字'},start:{zh:'起字'},end:{zh:'止字'},
+ quality:{zh:'引文质量'},implicit:{zh:'是不是隐含的',k:'implicit'},
+ implicitBasis:{zh:'凭什么说它隐含'},supports:{zh:'支撑关系',k:'supports'},role:{zh:'角色'},
+ burden:{zh:'举证责任',k:'burden'},burdenAfter:{zh:'反驳后谁举证',k:'burden'},
+ burdenStatus:{zh:'举证责任现状',k:'burden'},
+ acceptability:{zh:'可接受性',k:'acceptability'},status:{zh:'状态'},reason:{zh:'理由'},
+ forAudience:{zh:'对听众呢',n:'同一句依据，换一群听众认不认'},
+ tag:{zh:'认识论标签',k:'tag'},confidence:{zh:'置信度',k:'confidence'},
+ modalOverreach:{zh:'模态越界',k:'modal'},modalNote:{zh:'越界说明'},
+ issue:{zh:'在争什么'},speakerPosition:{zh:'说话人的立场'},opposingPosition:{zh:'对面的立场'},
+ dialogueType:{zh:'对话类型',k:'dialogue'},dialogueTypeBasis:{zh:'为什么算这类对话'},
+ stage:{zh:'讨论阶段',k:'stage'},audience:{zh:'听众'},audienceKind:{zh:'听众类型'},
+ contextGaps:{zh:'语境缺口',n:'文本没交代、但会影响判断的背景'},
+ applicable:{zh:'这把尺子适用吗',k:'scope'},outOfScopeAt:{zh:'从哪一步起不适用'},partialNote:{zh:'部分适用说明'},
+ kind:{zh:'类别'},family:{zh:'型式族',k:'family'},familyBasis:{zh:'为什么归这一族'},
+ schemeId:{zh:'型式编号',k:'scheme'},schemeName:{zh:'型式名',k:'scheme'},
+ skeleton:{zh:'骨架写法',k:'skeleton'},alternativeFamily:{zh:'另一种可能的族'},alternativeNote:{zh:'另一种读法'},
+ system:{zh:'问题来自哪套体系'},label:{zh:'问题名'},question:{zh:'问题'},
+ meta:{zh:'是不是总闸问题',k:'meta'},answer:{zh:'回答情况'},basis:{zh:'依据'},
+ guards:{zh:'守着哪一步'},landsOn:{zh:'落在哪个命名候选'},landsOnCheck:{zh:'落在哪一关'},
+ cuts:{zh:'断在哪一步'},explanation:{zh:'说明'},checkId:{zh:'关联哪一关'},
+ scale:{zh:'判读尺度',n:'这一份报告自己声明用什么尺子量'},
+ scaleValue:{zh:'尺度取值',n:'按上面那把尺子读出来的结果'},
+ level:{zh:'强度档位'},statement:{zh:'判读原话',n:'报告最后写下的那一句判断'},
+ qualification:{zh:'什么情况下能恢复'},whatIsRefuted:{zh:'被驳倒的是什么'},
+ missingPremise:{zh:'欠的那一句',k:'implicit'},alternativeReading:{zh:'换一副透镜怎么读'},
+ answerable:{zh:'哪一关文本里能答'},repairedForm:{zh:'补完后的写法'},
+ name:{zh:'名字'},nameEn:{zh:'英文名'},condition:{zh:'成立条件',k:'condition'},
+ whenLegitimate:{zh:'什么时候其实合法'},riskOfError:{zh:'这条最可能错在哪'},
+ tradition:{zh:'来自哪套传统'},targetId:{zh:'指向哪一条'},what:{zh:'这是什么'},why:{zh:'为什么合法'},
+ strategy:{zh:'反驳路数'},claim:{zh:'反驳主张'},script:{zh:'可以怎么说'},
+ steelman:{zh:'对方最强版本',k:'steelman'},reply:{zh:'接着怎么回'},evidenceNeeded:{zh:'还缺什么证据'},
+ epi:{zh:'自检量表',k:'epi'},total:{zh:'合计分'},vetoed:{zh:'是否被一票否决'},
+ reading:{zh:'读法'},notes:{zh:'扣分说明'},ruleAudit:{zh:'规则核查'},unknowns:{zh:'还不知道的'},
+ opennessNote:{zh:'开放性说明'},withdrawIf:{zh:'什么情况下撤回判断'},underOtherLens:{zh:'换透镜会怎样'},
+ P1_source:{zh:'出处'},P2_context:{zh:'语境'},P3_position:{zh:'立场'},P4_withdrawal:{zh:'撤回条件'},
+ P5_selfApply:{zh:'对自己用同一把尺'},P6_openness:{zh:'开放性'},P7_steelman:{zh:'对方最强版本'},
+ /* 运行元数据：不是判读结果，写清楚免得被当成某种评价。 */
+ prompt:{zh:'提示词记录',n:'生成这份报告时用的提示词；不是判读结果'},
+ fingerprint:{zh:'提示词指纹'},engine:{zh:'判定引擎版本'},model:{zh:'模型名'},
+ host:{zh:'调用来源'},temperature:{zh:'采样温度'},
+ raw:{zh:'模型原始输出',n:'未经整理的原始返回；不是判读结果'},attempts:{zh:'重试次数'}
+};
+/* 枚举值：[中文, 术语 key（可选，有则解释取术语表）, 工作台补的边界说明]。
+   只翻译标签字面，不解释它是怎么产生的——那属于报告内容，工作台不替它说。 */
+const VZ={
+ weakened:['削弱','verdict'],undetermined:['未定','','这副透镜在这段话上没量出结果；不是判它错'],
+ upheld:['站得住','verdict'],refuted:['不成','verdict'],
+ undermining:['削弱性击败','undermining'],rebutting:['反驳性击败','rebutting'],
+ undercutting:['削弱性击败','undermining'],
+ proponent:['提议者（主张一方）','burden'],opponent:['反对方','burden'],
+ passed:['已答','','文本里给了可核的依据'],
+ unanswered:['未答','','文本里没有回答这一关；「未答」是报告对文本的指认，不是模型忘了答'],
+ violated:['违反','','这一关被判为没守住'],
+ known:['有出处','tag'],inferred:['推出来的','tag'],computed:['算出来的','tag'],
+ framework:['框架给的','tag'],guessed:['猜的','tag'],
+ high:['高','confidence'],medium:['中','confidence'],low:['低','confidence'],
+ acceptable:['可接受','acceptability'],questionable:['存疑','acceptability'],unacceptable:['不可接受','acceptability'],
+ exact:['逐字命中','','引文与原文逐字对得上'],approximate:['大致命中','','引文与原文不完全一致'],
+ missing:['没找到','','原文里没定位到这一句'],
+ walton:['沃尔顿型式','scheme'],ars:['论辩术',''],pragma:['语用辩证','dialogue'],
+ copi:['柯比名录','catalog'],toulmin:['图尔敏','warrant'],
+ diagnose:['诊断',''],redteam:['找反驳',''],reconstruct:['重构','reconstruction'],interrogate:['追问','cq'],
+ argumentation:['摆理由阶段','stage'],persuasion:['说服','dialogue'],inquiry:['查证','dialogue'],
+ negotiation:['谈判','dialogue'],deliberation:['商量','dialogue'],quarrel:['争吵','dialogue'],
+ general:['一般听众',''],causal:['因果','family'],pragmatic:['实践','family'],
+ 'argument-only':['只驳论证，不驳结论','','结论本身没被证明为假'],
+ legitimate:['合法','legit'],applicable:['适用','scope'],
+ conclusion:['结论','conclusion'],premise:['前提','premise']
+};
+function inspectorPath(){
+ const l=String(S.selLabel||'');
+ const m=l.match(/([A-Za-z_$][\w$]*(?:\.[\w$]+|\[\d+\])*)\s*$/);
+ return m?m[1].replace(/^report\./,'').replace(/\[\d+\]/g,''):'';
+}
+function fieldInfo(path,key){
+ const parent=String(path||'').split('.')[0];
+ return FZ[parent+'.'+key]||FZ[key]||null;
+}
+function valInfo(v){
+ if(typeof v==='boolean') return {zh:v?'是':'否',tip:'报告里写的是布尔值 '+String(v)};
+ const e=VZ[String(v??'')]; if(!e) return null;
+ const t=e[1]?termTip(e[1]):'';
+ return {zh:e[0],tip:(t?t+'\n\n':'')+(e[2]||'工作台翻译：'+String(v))};
+}
+const now = () => new Date().toLocaleTimeString('zh-CN',{hour12:false});
+/* 诊断页默认只展开三块最要紧的；其余折叠，别一上来铺 13 张字段表。 */
+const DEFAULT_OPEN = {context:false,conclusion:false,premises:false,intermediate:false,lens:false,
+ checks:true,defeat:false,verdict:true,repair:true,labels:false,legitimateMoves:false,
+ refutations:false,selfCheck:false};
+/*
+ * 透镜与模式不再进 state：它们是报告自己的属性，只读 R.theory / R.mode。
+ * 原先放在 S 里、由下拉框改写，结果状态栏换了字、报告没换——等于界面在说谎。
+ * objLive 区分「异议真的写进本机文件了」与「样张模式只留在本页」。
+ */
+const S = {live:false,tab:'overview',theme:'dark',sel:null,selLabel:'',btab:'queue',bottomOpen:true,open:{...DEFAULT_OPEN},log:[],objections:[],objLive:false,cmdOpen:false,cmdQ:'',cmdIdx:0,activeSection:null,arcQ:'',
+ /* 全库检索。sseq 是响应序号：连打几个字会发出多次查询，慢的那次回来不能盖掉新结果。 */
+ sq:'',sf:{mode:'all',theory:'all',level:'all'},shits:[],stotal:0,sdocTotal:0,scapped:false,sbusy:false,serr:'',sdone:false,sseq:0,pendingJump:null,
+ /* sdirty：输入框已经变了、结果还没回来。此时旧结果必须标明是上一次的，不能冒充新结果。 */
+ sdirty:false,slastq:'',
+ /* 异议锚点：null=跟随当前选中字段；对象=锁定的句子/字段；false=明确不锚定。
+    allObj 是跨报告的异议清单，objSeq 挡住「切了报告才回来的旧响应」。 */
+ anchor:null,allObj:[],objSeq:0,objErr:'',
+ /* 打开存档的响应序号：连点两份时，只采纳最后一次点击回来的那一份。 */
+ arcSeq:0};
+
+function objApi(){ return (window.api && window.api.objections) || null; }
+function wbHost(){ return (window.api && window.api.workbench) || null; }
+function syncMeta(){
+ const l=$('lensNow'), m=$('modeNow');
+ if(l) l.textContent='透镜 '+(R.theory||'—');
+ if(m) m.textContent='模式 '+(R.mode||'—');
+}
+/* 报告里的字段路径 → 值。Ctrl/⌘+K 说的「搜字段」靠它兑现，不是只搜命令。 */
+let FIELD_INDEX=[];
+function getPath(root,p){
+ let v=root;
+ for(const k of String(p).replace(/\[(\d+)\]/g,'.$1').split('.').filter(Boolean)){
+  if(v===null||v===undefined) return undefined; v=v[k];
+ }
+ return v;
+}
+function buildFieldIndex(){
+ const out=[];
+ const walk=(o,path,depth)=>{
+  if(depth>5||o===null||o===undefined) return;
+  if(Array.isArray(o)){ o.forEach((v,i)=>walk(v,`${path}[${i}]`,depth+1)); return; }
+  if(typeof o==='object'){ for(const [k,v] of Object.entries(o)) walk(v,path?`${path}.${k}`:k,depth+1); return; }
+  const val=String(o).replace(/\s+/g,' ').trim();
+  if(!val) return;
+  out.push({path,key:String(path).split('.').pop().replace(/\[\d+\]$/,''),val,sec:String(path).split(/[.\[]/)[0]});
+ };
+ walk(R,'',0); FIELD_INDEX=out;
+}
+function objView(list){
+ return (list||[]).filter(o=>o.diagId===R.id).map(o=>({
+  key:o.key,diagId:o.diagId,reason:o.reason||o.excerpt||'（没写理由）',at:o.at,
+  field:o.field,refId:o.refId,refLabel:o.refLabel,excerpt:o.excerpt,anchor:o.anchor||null,mem:!!o.mem
+ }));
+}
+/* ─────────── 异议锚点 ───────────
+ * 一条异议原来只是底部一行字：写了「我不同意」，却看不出反对的是哪一处，
+ * 而且所有工作台异议都落到同一个 refId:'workbench' 上，同一份报告里
+ * 第二条会静默覆盖第一条。这里把位置补上，并让位置能点回去。
+ *
+ * 三类来源统一成同一种显示对象：
+ *   新锚点（工作台记的，带 anchor）/ 主程序判定异议（field + refId 已经是位置）
+ *   / 老工作台裸异议（refId='workbench'，只能老实写「未锚定」，不假装知道）
+ * 派生对象只用于界面，不写回文件；写一个字段多一个字段都算改历史。
+ */
+const ANCHOR_PATH_RE=/^[A-Za-z_$][\w$]*(?:\.\w+|\[\d+\])*$/;
+const FIELD_SEC={verdict:'verdict',defeat:'defeat',check:'checks',label:'labels',legitimate:'legitimateMoves',anchor:'verdict'};
+const FIELD_NM={verdict:'判读',defeat:'击败',check:'检查项',label:'命名候选',legitimate:'此处合法',anchor:'读者锚点'};
+function sentenceText(n){ return sentences()[(Number(n)||0)-1]||''; }
+/* 与主进程 anchorRefId 同一套规则：即使锚点被判为无效，refId 里仍留着位置，
+   不会退回旧裸异议的 key 把第一条覆盖掉。 */
+function refIdOf(a){
+ if(!a) return 'workbench';
+ if(a.kind==='field') return `field:${a.path||''}`;
+ if(a.kind==='sentence') return `sentence:${a.sentence||0}`;
+ return 'report:whole';
+}
+function deriveAnchor(o){
+ if(!o) return null;
+ if(o.anchor && typeof o.anchor==='object') return o.anchor;
+ if(!o.refId || String(o.refId)==='workbench') return null;
+ const f=String(o.field||'');
+ return {kind:'field',path:FIELD_SEC[f]||'verdict',
+  label:'判定 · '+(o.refLabel||o.refId||FIELD_NM[f]||'未命名'),quote:o.excerpt||'',legacy:true};
+}
+/* 当前检查器里的字段路径。对象则下钻到第一个有字的标量，
+   免得锚点变成一整坨 JSON。 */
+function readablePath(path){
+ const v=getPath(R,path);
+ if(v&&typeof v==='object'&&!Array.isArray(v)){
+  const k=Object.keys(v).find(k=>typeof v[k]==='string'&&v[k].trim());
+  if(k) return path+'.'+k;
+ }
+ return path;
+}
+ function selectionPath(){
+ const l=String(S.selLabel||'');
+ /* 先认「前缀 + 路径」；认不出再取末尾那段路径（检索命中、异议锚点的标签
+    是「中文 · 路径」这种写法）。两种都不认就退回判读那一句，不瞎钉。 */
+ const m=l.match(/^(?:report\.|字段\s+|检索命中\s+|异议锚点\s+)?([A-Za-z_$][\w$]*(?:\.\w+|\[\d+\])*)$/)
+      || l.match(/([A-Za-z_$][\w$]*(?:\.\w+|\[\d+\])*)\s*$/);
+ if(m && ANCHOR_PATH_RE.test(m[1]) && getPath(R,m[1])!==undefined) return readablePath(m[1]);
+ return 'verdict.statement';
+}
+function fieldAnchor(path){
+ const v=getPath(R,path);
+ return {kind:'field',path,label:'字段 · '+path,
+  quote:clip(typeof v==='object'?JSON.stringify(v):String(v??''),160)};
+}
+function sentenceAnchor(n){
+ return {kind:'sentence',sentence:n,label:`原文 · 第 ${n} 句`,quote:clip(sentenceText(n),160)};
+}
+/* null 跟随字段 / 对象锁定 / false 明确不锚定。三态不能用一个「空」糊过去：
+   「没选」和「不想锚定」在界面上是两句话。 */
+function currentAnchor(){
+ if(S.anchor===false) return null;
+ if(S.anchor) return S.anchor;
+ return fieldAnchor(selectionPath());
+}
+function jumpOf(a){
+ if(!a) return null;
+ if(a.kind==='sentence') return {sec:'passage',sentence:a.sentence,label:a.label};
+ if(a.kind==='field'&&a.path) return {sec:String(a.path).split(/[.\[]/)[0],path:a.path,label:a.label};
+ return {sec:'overview',label:a.label};
+}
+function flashSentence(n){
+ const el=$('src-s-'+n);
+ if(!el) return;
+ el.scrollIntoView({block:'center'});
+ el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),1400);
+}
+function applyJump(j){
+ if(!j) return;
+ if(j.sentence){
+  S.tab='source'; renderTabs(); renderMain();
+  setTimeout(()=>flashSentence(j.sentence),20);
+  log(`异议锚点 → 原文第 ${j.sentence} 句`);
+  return;
+ }
+ if(j.path){
+  const sec=SECTIONS.find(s=>s.id===j.sec);
+  S.tab=sec?'diagnose':'overview';
+  if(sec){ S.open[sec.id]=true; S.activeSection=sec.id; }
+  renderTabs(); renderMain(); renderTree();
+  const v=getPath(R,j.path);
+  inspect(v===undefined?{path:j.path}:v,`异议锚点 · ${j.path}`);
+  setTimeout(()=>{
+   const n=$('mainBody').querySelector(`[data-secbody="${j.sec}"]`);
+   if(n){ n.scrollIntoView({block:'start'}); n.classList.add('flash'); setTimeout(()=>n.classList.remove('flash'),1100); }
+  },20);
+  log(`异议锚点 → ${j.path}`);
+  return;
+ }
+ S.tab='overview'; renderTabs(); renderMain(); log('异议锚点 → 整份报告');
+}
+function locateObjection(o){
+ if(!o) return;
+ const a=deriveAnchor(o), j=jumpOf(a);
+ if(!j){ toast('这条是旧版记下的异议，当时没记位置，只能看到理由'); return; }
+ if(o.diagId && o.diagId!==R.id){ S.pendingJump=j; openArchive(o.diagId); return; }
+ applyJump(j);
+}
+/* 跨报告清单直接读已有的 objections:list，不新开通道、不重新分析。
+   序号保护：连点两份报告时，慢的那次回来不能盖掉当前这份。 */
+async function loadAllObjections(){
+ const a=objApi(); const seq=++S.objSeq;
+ if(!a){ S.allObj=[]; S.objErr='样张模式没有本机异议通道'; if(S.btab==='anchors') renderBottom(); return; }
+ try{
+  const list=await a.list();
+  if(seq!==S.objSeq) return;
+  S.allObj=list||[]; S.objErr='';
+ }catch(e){
+  if(seq!==S.objSeq) return;
+  S.allObj=[]; S.objErr=String(e);
+ }
+ if(S.btab==='anchors') renderBottom();
+}
+
+const SECTIONS=[
+ {id:'context',nm:'语境 / Context',get:r=>r.context,kind:'kv'},
+ {id:'conclusion',nm:'结论 / Conclusion',get:r=>r.conclusion,kind:'kv'},
+ {id:'premises',nm:'前提 / Premises',get:r=>r.premises,kind:'table',cols:['id','text','supports','burden','quote']},
+ {id:'intermediate',nm:'中间结论 / Intermediate',get:r=>r.intermediate,kind:'table',cols:['id','text','supports']},
+ {id:'lens',nm:'型式透镜 / Lens',get:r=>r.lens,kind:'kv'},
+ {id:'checks',nm:'批判性问题 / Checks',get:r=>r.checks,kind:'table',cols:['id','label','question','answer']},
+ {id:'defeat',nm:'击败 / Defeat',get:r=>r.defeat,kind:'kv'},
+ {id:'verdict',nm:'判读 / Verdict',get:r=>r.verdict,kind:'kv'},
+ {id:'repair',nm:'修补 / Repair',get:r=>r.repair,kind:'kv'},
+ {id:'labels',nm:'命名候选 / Labels',get:r=>r.labels,kind:'table',cols:['name','nameEn','landsOnCheck','tradition','tag']},
+ {id:'legitimateMoves',nm:'此处合法 / Legitimate',get:r=>r.legitimateMoves,kind:'table',cols:['targetId','what','why']},
+ {id:'refutations',nm:'反驳候选 / Refutations',get:r=>r.refutations,kind:'table',cols:['id','targetId','checkId','strategy','claim']},
+ {id:'selfCheck',nm:'自检 / SelfCheck',get:r=>r.selfCheck,kind:'kv'}];
+const TABS=[{id:'overview',nm:'速览',n:0},{id:'diagnose',nm:'诊断',n:13},{id:'graph',nm:'结构图',n:0},{id:'checks',nm:'逐关检查',n:3},{id:'compare',nm:'对照',n:0},{id:'source',nm:'原文',n:0},{id:'search',nm:'全库检索',n:0}];
+const BTABS=[{id:'queue',nm:'待答队列'},{id:'anchors',nm:'异议地图'},{id:'provenance',nm:'来源账'},{id:'replay',nm:'复跑账'},{id:'log',nm:'日志'}];
+
+function log(msg){ S.log.unshift({t:now(),m:msg}); if(S.log.length>60) S.log.pop(); if(S.btab==='log') renderBottom(); }
+function toast(msg){ $('toastLayer').innerHTML=`<div class="toast">${esc(msg)}</div>`; setTimeout(()=>{$('toastLayer').innerHTML='';},2200); }
+function inspect(val,label){ S.sel=val; S.selLabel=label; renderInspector(); log(`检查器 → ${label}`); }
+
+function renderTree(){
+ const secs=SECTIONS.map(s=>{
+  const v=s.get(R); const n=Array.isArray(v)?v.length:(v&&typeof v==='object'?Object.keys(v).length:0);
+  return `<div class="ti ${S.activeSection===s.id?'on':''}" data-sec="${s.id}"><span class="mono" style="color:var(--muted)">▸</span><span class="nm">${esc(s.nm.split(' / ')[0])}</span><span class="ct">${n}</span></div>`;
+ }).join('');
+ /* 全量索引 + 过滤：原来只给 16 条、点了还只是把元数据塞进右栏，
+    一个叫「资源管理器」的面板却打不开任何一份报告。 */
+ const arcAll=D.archive||[];
+ const q=S.arcQ.trim().toLowerCase();
+ const shown=arcAll.filter(a=>!q||`${a.id} ${a.mode} ${a.theory} ${a.level} ${a.excerpt||''}`.toLowerCase().includes(q));
+ /* 全量渲染，不截断：104 行 DOM 很轻，截成 60 条会让「资源管理器」只剩一半，
+    用户还得先猜出 id 才能搜到剩下那些。滚动 + 过滤已经够了。 */
+ const arc=shown.map(a=>{
+  const lv=a.level==='weakened'?'warn':'ok';
+  return `<div class="ti ${a.id===R.id?'arcnow':''}" data-arc="${esc(a.id)}" title="${esc(a.excerpt||'')}"><span class="dot ${lv}"></span><span class="id">${esc(a.id.slice(0,8))}</span><span class="nm sub">${esc(a.mode)}</span><span class="ct">${a.chars}</span></div>`;
+ }).join('');
+ const none=!shown.length?`<div class="tifoot">没有匹配的存档。清空关键词可看全部 ${arcAll.length} 份。</div>`:'';
+ $('leftTree').innerHTML=`
+  <div class="treegrp"><div class="tgh">当前报告<span class="sp"></span><span class="mono">${esc(R.id.slice(0,8))} · ${R.theory}/${R.mode}</span></div>${secs}</div>
+  <div class="treegrp"><div class="tgh">存档 · 点一条打开<span class="sp"></span><span class="mono">${q?shown.length+'/'+arcAll.length:arcAll.length}</span></div>
+   <input id="arcFilter" class="arcfilter" placeholder="过滤存档：id / 模式 / 原文片段" value="${esc(S.arcQ)}">${arc}${none}</div>
+  <div class="tifoot">本机存档 <b>${ST.total}</b> 份，其中 <b>${ST.passages}</b> 段不同的原文<br>
+   <span style="color:var(--muted)">其余是同一段话反复分析留下的；这两个数字来自存档索引，不是新跑出来的结果。上面列出 ${(D.archive||[]).length} 条${S.live?'（全量）':'（样张只带了开头这些）'}。</span><br>
+   点任意一条打开那份报告（只读）<br>报告不改写；异议另存本机 objections 目录</div>`;
+ $('leftTree').querySelectorAll('[data-sec]').forEach(el=>el.addEventListener('click',()=>{
+  const id=el.dataset.sec; S.tab='diagnose'; S.activeSection=id; S.open[id]=true;
+  renderTabs(); renderMain(); renderTree();
+  setTimeout(()=>{const n=$('mainBody').querySelector(`[data-secbody="${id}"]`); if(n){n.scrollIntoView({block:'start'});n.classList.add('flash');setTimeout(()=>n.classList.remove('flash'),1100);}},30);
+  const s=SECTIONS.find(x=>x.id===id); inspect(s.get(R),`report.${id}`);
+ }));
+ $('leftTree').querySelectorAll('[data-arc]').forEach(el=>el.addEventListener('click',()=>{ openArchive(el.dataset.arc); }));
+ const af=$('arcFilter');
+ if(af){
+  af.addEventListener('input',e=>{
+   S.arcQ=e.target.value; const pos=e.target.selectionStart;
+   renderTree();
+   const n=$('arcFilter');
+   if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(_){ /* @allow-silent: 光标位置只是输入体验，重绘本身已完成 */ } }
+  });
+  af.addEventListener('keydown',e=>{ if(e.key==='Escape'){ S.arcQ=''; renderTree(); } });
+ }
+}
+
+function renderTabs(){
+ $('mainTabs').innerHTML=TABS.map(t=>`<div class="tab ${S.tab===t.id?'on':''}" data-tab="${t.id}">${t.nm}${t.n?`<span class="n">${t.n}</span>`:''}</div>`).join('')+`<div style="flex:1"></div><div class="tab" style="border:0;color:var(--muted);font-family:var(--mono);font-size:10px">${esc(R.id)}</div>`;
+ $('mainTabs').querySelectorAll('[data-tab]').forEach(el=>el.addEventListener('click',()=>{S.tab=el.dataset.tab;renderTabs();renderMain();log(`切换标签 → ${el.dataset.tab}`);}));
+}
+
+function kvRows(obj,path){
+ return Object.entries(obj||{}).map(([k,v])=>`<div class="row" data-kv="${esc(k)}" data-path="${esc(path)}"><div class="k" title="${esc(k)}">${esc(k)}</div><div class="v ${typeof v==='string'&&v.length>18?'strong':''}" title="${esc(short(v))}">${esc(short(v))}</div></div>`).join('');
+}
+function tableRows(arr,cols,path){
+ if(!arr||!arr.length) return '<div class="empty">空数组 — 这一节在本次分析中没有条目。</div>';
+ return `<table class="t"><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${arr.map((o,i)=>`<tr data-ti="${i}" data-path="${esc(path)}">${cols.map(c=>{
+   let v=o[c]; if(c==='answer'||c==='tag'||c==='burden') return `<td><span class="badge ${esc(String(v??''))}">${esc(short(v))}</span></td>`;
+   return `<td title="${esc(short(v))}">${esc(short(v))}</td>`;}).join('')}</tr>`).join('')}</tbody></table>`;
+}
+function clip(s,n){ const t=String(s??'').replace(/\s+/g,' ').trim(); return t.length>n?t.slice(0,n)+'…':t; }
+/*
+ * 速览：工作台默认页。不是新一层分析，只是把同一份报告里已经写下的字
+ * 按「判读 → 依据 → 还欠什么 → 怎么反驳」重排一遍，让人第一眼知道该看哪。
+ * 所有文字逐字取自 R，缺字段就老实说没有，不补话、不生成。
+ */
+function renderOverview(){
+ const v=R.verdict||{}, ctx=R.context||{}, chk=R.checks||[], ref=R.refutations||[], rep=R.repair||{}, def=R.defeat||{};
+ const statement=clip(v.statement||v.text||'',300)||'（这份报告没有给出判读文字，可到「诊断」标签看逐字字段）';
+ const issue=clip(ctx.issue||ctx.question||'',160);
+ const cuts=Array.isArray(def.cuts)?def.cuts.join('；'):(def.cuts||'');
+ const why=clip(cuts||def.explanation||'',230)||'报告未给额外说明。';
+ const openQ=chk.filter(c=>c.answer==='unanswered').slice(0,2).map(c=>clip(c.question||c.label||'',110));
+ if(rep.missingPremise) openQ.push('待补前提：'+clip(rep.missingPremise,90));
+ const rebut=ref.slice(0,2).map(r=>clip(r.claim||r.script||r.strategy||'',110));
+ const quote=clip(v.quote||((R.premises||[]).find(p=>p.quote)||{}).quote||(R.conclusion||{}).quote||'',200);
+ const card=(h,arr,empty)=>`<div class="ovcard"><div class="h">${esc(h)}</div>${arr.length?arr.map(x=>`<p class="p">${esc(x)}</p>`).join(''):`<p class="p">${esc(empty)}</p>`}</div>`;
+ return `<div class="ov">
+  <div class="kicker">速览 · 报告 ${esc(R.id)} · ${esc(R.theory||'')}/${esc(R.mode||'')} · 只读</div>
+  <h1>${esc(statement)}</h1>
+  ${issue?`<div class="issue">这份报告在问：${esc(issue)}</div>`:''}
+  <div class="ovgrid">
+   ${card('为什么这么判',[why],'报告未给判读依据。')}
+   ${card('还欠哪几句',openQ,'这份报告没有标出未答问题。')}
+   ${card('可以怎么反驳',rebut,'这份报告没有给反驳候选。')}
+  </div>
+  ${quote?`<div class="ovquote" id="ovQuote"><span class="lb">判读落在原文这一句 · 点开看全文</span>${esc(quote)}</div>`:''}
+  <div class="ovact">
+   <button class="ovbtn primary" data-act="back">← 回去分析文本</button>
+   <button class="ovbtn" data-act="diagnose">看完整字段表</button>
+   <button class="ovbtn" data-act="checks">逐关检查</button>
+   <button class="ovbtn" data-act="graph">结构图</button>
+  </div>
+  <div class="ovfoot">这一页只把已存档报告里的字重新排了一遍，没有新增判断。报告里的判断由模型写出，工作台只负责重排与回看；不发起分析、不调模型、不改报告、不花钱。要分析新文本或复跑，请回原界面。</div>
+ </div>`;
+}
+function renderDiagnose(){
+ return SECTIONS.map(s=>{
+  const v=s.get(R); const n=Array.isArray(v)?v.length:(v&&typeof v==='object'?Object.keys(v).length:0);
+  const open=S.open[s.id]!==false;
+  return `<div class="sec" data-secbody="${s.id}"><div class="sech" data-toggle="${s.id}"><span class="arw">${open?'▾':'▸'}</span><span class="nm">${esc(s.nm)}</span><span class="cnt">${n}</span><span class="path mono">report.${s.id}</span></div>
+   <div ${open?'':'style="display:none"'}>${s.kind==='kv'?kvRows(v,s.id):tableRows(v,s.cols,s.id)}</div></div>`;
+ }).join('');
+}
+function renderGraph(){
+ const ps=[...(R.premises||[]),...(R.intermediate||[])];
+ const H=Math.max(230,ps.length*76+90), W=760;
+ const nodes=ps.map((p,i)=>({id:p.id,x:40,y:40+i*76,w:300,h:50,t:p.text,label:p.id,cut:(R.defeat.checkId&&p.supports&&p.supports.length===0)}));
+ const cx=490,cy=Math.max(80,H/2-28);
+ const edges=nodes.map(n=>`<path class="gedge" d="M${n.x+n.w} ${n.y+n.h/2} C${n.x+n.w+70} ${n.y+n.h/2}, ${cx-70} ${cy+28}, ${cx} ${cy+28}"/>`).join('');
+ const cut=R.defeat.checkId?`<text class="glabel" x="${(nodes[0]?.x+nodes[0]?.w+cx)/2||380}" y="${cy-6}">断 · ${esc(R.defeat.checkId)} · ${esc(R.defeat.kind)}</text>`:'';
+ return `<div class="gridbg graphwrap"><div class="abs" style="min-height:${H}px">
+  <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="max-width:100%">
+   ${edges}
+   ${nodes.map(n=>`<g data-gn="${esc(n.id)}" style="cursor:pointer"><rect class="gnode ${n.cut?'hit':''}" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="3"/><text class="gsmall" x="${n.x+10}" y="${n.y+16}">${esc(n.label)} · premise</text><text class="gtext" x="${n.x+10}" y="${n.y+35}">${esc(n.t.length>34?n.t.slice(0,34)+'…':n.t)}</text></g>`).join('')}
+   <g data-gn="C" style="cursor:pointer"><rect class="gnode" x="${cx}" y="${cy}" width="240" height="56" rx="3"/><text class="gsmall" x="${cx+10}" y="${cy+16}">C · conclusion</text><text class="gtext" x="${cx+10}" y="${cy+37}">${esc(R.conclusion.text.length>26?R.conclusion.text.slice(0,26)+'…':R.conclusion.text)}</text></g>
+   ${cut}
+  </svg>
+  <div style="font-family:var(--mono);font-size:10px;color:var(--muted);padding:4px 2px">${esc(R.lens.skeleton)} · 实线来自 supports 字段 · 断口来自 defeat.checkId，未连线的判定不画</div>
+ </div></div>`;
+}
+function renderChecks(){
+ const cs=R.checks||[]; const un=cs.filter(c=>c.answer==='unanswered').length, ok=cs.filter(c=>c.answer==='passed').length, vi=cs.filter(c=>c.answer==='violated').length;
+ return `<div class="qbar"><span>共 ${cs.length} 关</span><span style="color:var(--warn)">未答 ${un}</span><span style="color:var(--ok)">已答 ${ok}</span><span style="color:var(--danger)">违反 ${vi}</span><div class="track"><div class="fill" style="width:${cs.length?Math.round((ok+vi)/cs.length*100):0}%"></div></div><span>按检查顺序，不按优先级</span></div>`+
+ cs.map((c,i)=>`<div class="qrow" data-ck="${i}"><span class="qi">${esc(c.id)}</span><span class="dot ${c.answer==='unanswered'?'warn':c.answer==='passed'?'ok':'danger'}"></span><span class="qt"><b style="color:var(--text)">${esc(c.question)}</b><br><span style="color:var(--muted);font-size:10px">${esc(c.label)} · 依据：${esc(c.basis)}</span></span><span class="qw">${esc(c.answer)}</span></div>`).join('');
+}
+function fieldOf(r,p){ return p.split('.').reduce((o,k)=>o?o[k]:undefined,r); }
+function renderCompare(){
+ const fields=['theory','mode','context.stage','context.dialogueType','lens.schemeName','lens.family','verdict.level','verdict.statement','defeat.kind','defeat.cuts','repair.burdenStatus','repair.missingPremise','selfCheck.epi.total'];
+ const rows=fields.map(f=>{
+  const a=short(fieldOf(R,f)),b=short(fieldOf(C,f)); const d=a!==b;
+  return `<tr><td>${esc(f)}</td><td class="${d?'diff':''}">${esc(a)}</td><td class="${d?'diff':''}">${esc(b)}</td></tr>`;
+ }).join('');
+ const ca=(R.checks||[]).map(c=>c.answer).join(','), cb=(C.checks||[]).map(c=>c.answer).join(',');
+ return `<div class="cmphead"><span>A · ${esc(R.id)} / ${esc(R.mode)}</span><span>B · ${esc(C.id)} / ${esc(C.mode)}</span><span style="margin-left:auto">同一段原文，不同模式 · 差异高亮</span></div>
+ <table class="cmp"><thead><tr><th>字段</th><th>A · ${esc(R.mode)}</th><th>B · ${esc(C.mode)}</th></tr></thead><tbody>${rows}
+ <tr><td>checks[].answer</td><td class="${ca!==cb?'diff':''}">${esc(ca)}</td><td class="${ca!==cb?'diff':''}">${esc(cb)}</td></tr>
+ <tr><td>refutations[].burdenAfter</td><td>${esc((R.refutations||[]).map(x=>x.burdenAfter).join(','))}</td><td>${esc((C.refutations||[]).map(x=>x.burdenAfter).join(','))}</td></tr>
+ </tbody></table><div class="empty">对照只列字段取值，不评哪一份更对。数据均来自本机真实存档。</div>`;
+}
+function sentences(){ return R.passage.split(/\n+/).map(x=>x.trim()).filter(Boolean).flatMap(x=>x.split(/(?<=[。？！])/).map(y=>y.trim()).filter(Boolean)); }
+function renderSource(){
+ const qs=[{q:R.conclusion?.span?.quote||R.conclusion?.quote,id:'C'},...(R.premises||[]).map(p=>({q:p.span?.quote||p.quote,id:p.id}))].filter(x=>x.q);
+ /* 已经钉过异议的句子要在原文里看得见，否则回看时又只剩底部一行字。 */
+ const pinned=new Set(S.objections.map(o=>o.anchor&&o.anchor.kind==='sentence'?Number(o.anchor.sentence):0).filter(Boolean));
+ return `<div class="code">${sentences().map((s,i)=>{
+  const n=i+1, hit=qs.find(x=>s.includes(x.q)), marked=pinned.has(n);
+  let out=esc(s);
+  if(hit) out=out.replace(esc(hit.q),`<mark>${esc(hit.q)}</mark>`);
+  return `<div class="codeln ${marked?'anchored':''}" id="src-s-${n}"><span class="ln">${String(n).padStart(2,'0')}</span><span class="ct">${out}</span><span class="an">${hit?esc(hit.id)+' · 命中':'—'}${marked?'<span class="anmark">◈ 已钉异议</span>':''}<button class="anpick" data-anchor-sentence="${n}" title="把下一条异议钉在这一句">钉在这句</button></span></div>`;
+ }).join('')}</div><div class="empty">命中位置来自 span.quote / quote 字段，逐字取自报告，未做重新抽取。点「钉在这句」只设定异议的位置，不改这份报告，也不重新分析。</div>`;
+}
+/* ─────────── 全库检索 ───────────
+ * 只更新 #srResults，不重建整个主区：输入框若被重渲染，每打一个字都会丢焦点、
+ * 光标跳回开头，检索就没法用了。响应带序号，慢的那次回来不能盖掉新结果。
+ */
+function fmtAt(ms){
+ const d=new Date(Number(ms||0));
+ if(!ms||isNaN(d.getTime())) return '—';
+ return `${d.getMonth()+1}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+/* 先转义再插 <mark>：关键词来自输入框，绝不能当 HTML 拼进去。 */
+function hl(text,q){
+ const safe=esc(String(text??'')), needle=esc(q||''), lo=needle.toLowerCase(), lower=safe.toLowerCase();
+ if(!needle) return safe;
+ let out='',i=0;
+ for(;;){
+  const p=lower.indexOf(lo,i);
+  if(p<0){ out+=safe.slice(i); break; }
+  out+=safe.slice(i,p)+'<mark>'+safe.slice(p,p+needle.length)+'</mark>';
+  i=p+needle.length;
+ }
+ return out;
+}
+function optList(values,cur){
+ return Object.keys(values||{}).sort().map(v=>`<option value="${esc(v)}" ${cur===v?'selected':''}>${esc(v)} · ${values[v]}</option>`).join('');
+}
+function srResultsHtml(){
+ const noHost=!wbHost()||!wbHost().search;
+ const stale=S.sdirty?`<span class="cap">正在搜「${esc(S.sq)}」… 下列仍是「${esc(S.slastq||'上一次')}」的结果</span>`:'';
+ const meta=S.sdone?`<div class="sr-meta"><span>命中 <b>${S.sdocTotal}</b> 份报告 / <b>${S.stotal}</b> 处</span><span>下列 <b>${S.shits.length}</b> 条</span>${stale}${S.scapped&&!S.sdirty?'<span class="cap">结果已限量（每份最多 3 条）；缩小关键词或加过滤可看更多</span>':''}${S.sbusy?'<span>检索中…</span>':''}</div>`:'';
+ let body='';
+ if(noHost) body=`<div class="sr-empty">样张模式没有全库检索通道：这一页内嵌的只有一份报告和一段摘要索引。打开桌面应用里的「回看工作台」，检索才连得上本机全部存档。</div>`;
+ else if(!S.sdone) body=`<div class="sr-empty">输入一个词，搜本机 ${ST.total} 份已存档报告。<br>能搜判读、依据、谬误名、反驳话术、修补建议和原文引句。例如「举证责任」「以先后为因果」「对照校」「早读」。</div>`;
+ else if(!S.shits.length) body=`<div class="sr-empty">没有匹配的存档。换个词，或把上面的过滤改回「不限」。<br>检索只查已存档报告里的字，不会替你重新分析。</div>`;
+ else body=S.shits.map((h,i)=>`<div class="sr-row" data-srow="${i}" title="打开这份报告并定位到 ${esc(h.path)}">
+   <div class="sr-id">${esc(String(h.id).slice(0,8))}<span class="sm">${esc(h.mode)} · ${esc(fmtAt(h.at))}</span></div>
+   <div class="sr-body"><div class="sr-path">${esc(h.path)} · 命中 ${h.n} 处</div><div class="sr-clip">${hl(h.snippet,S.sq)}</div></div>
+   <div class="sr-go">打开并定位 →</div></div>`).join('');
+ return meta+(S.sdirty&&!noHost&&S.shits.length?`<div class="sr-stale">${body}</div>`:body);
+}
+function renderSearch(){
+ return `<div class="sr">
+  <div class="sr-h"><b>在这台机器存过的报告里搜字。</b>只读，不重新分析、不调模型、不写盘；命中的字逐字取自存档，未做改写。</div>
+  <div class="sr-bar">
+   <input id="srInput" class="sr-input" placeholder="搜判读 / 依据 / 谬误名 / 反驳话术 / 原文引句…" value="${esc(S.sq)}" autocomplete="off">
+   <button class="sr-btn pri" id="srGo">检索</button>
+   <button class="sr-btn" id="srClear">清空</button>
+  </div>
+  <div class="sr-bar">
+   <span style="color:var(--muted);font-size:10px">模式</span>
+   <select class="sr-sel" id="srMode"><option value="all">不限</option>${optList(ST.modes,S.sf.mode)}</select>
+   <span style="color:var(--muted);font-size:10px">透镜</span>
+   <select class="sr-sel" id="srTheory"><option value="all">不限</option>${optList(ST.theories,S.sf.theory)}</select>
+   <span style="color:var(--muted);font-size:10px">档位</span>
+   <select class="sr-sel" id="srLevel"><option value="all">不限</option>${optList(ST.levels,S.sf.level)}</select>
+   <span style="color:var(--muted);font-size:10px">Enter 立即搜 · 输入自动搜 · Esc 清空</span>
+  </div>
+  <div id="srErr">${S.serr?`<div class="sr-err">${esc(S.serr)}</div>`:''}</div>
+  <div id="srResults">${srResultsHtml()}</div>
+  <div class="sr-foot">索引范围：${ST.total} 份存档的可读字段，不含模型原始输出、提示词与结构连线 id。同一段原文复跑过多份时，每份分别列出——这不是去重，也不是替你判断哪一份更对。</div>
+ </div>`;
+}
+function bindSrRows(){
+ $('mainBody').querySelectorAll('[data-srow]').forEach(el=>el.addEventListener('click',()=>{
+  const h=S.shits[Number(el.dataset.srow)]; if(!h) return;
+  S.pendingJump={sec:h.sec,path:h.path};
+  openArchive(h.id);
+ }));
+}
+function srReset(){
+ ++S.sseq; S.sdone=false; S.shits=[]; S.stotal=0; S.sdocTotal=0; S.scapped=false; S.sbusy=false; S.serr=''; S.sdirty=false; S.slastq='';
+ const b=$('srResults'); if(b) b.innerHTML=srResultsHtml();
+ const e=$('srErr'); if(e) e.innerHTML='';
+}
+let srTimer=null;
+async function runSearch(){
+ const h=wbHost();
+ if(!h||!h.search) return;
+ const seq=++S.sseq;
+ S.sbusy=true; S.sdirty=true;
+ const box=$('srResults'); if(box) box.innerHTML=srResultsHtml();
+ try{
+  const r=await h.search(S.sq,{mode:S.sf.mode,theory:S.sf.theory,level:S.sf.level,limit:120});
+  if(seq!==S.sseq) return;
+  if(!r||!r.ok){ S.serr=(r&&r.error)||'检索通道没有返回结果'; S.shits=[]; S.stotal=0; S.sdocTotal=0; S.scapped=false; }
+  else { S.serr=''; S.shits=r.hits||[]; S.stotal=r.total||0; S.sdocTotal=r.docTotal||0; S.scapped=!!r.capped; }
+  S.sdone=true;
+ }catch(e){
+  if(seq!==S.sseq) return;
+  S.serr=String(e); S.shits=[]; S.stotal=0; S.sdocTotal=0; S.scapped=false; S.sdone=true;
+ }
+ S.sbusy=false; S.sdirty=false; S.slastq=S.sq;
+ const b=$('srResults'); if(b){ b.innerHTML=srResultsHtml(); bindSrRows(); }
+ const er=$('srErr'); if(er) er.innerHTML=S.serr?`<div class="sr-err">${esc(S.serr)}</div>`:'';
+}
+function bindSearch(){
+ const inp=$('srInput'); if(!inp) return;
+ inp.addEventListener('input',e=>{
+  S.sq=e.target.value; clearTimeout(srTimer);
+  if(!S.sq.trim()){ srReset(); return; }
+  /* 防抖的这 260ms 里，旧结果还在屏上。立刻把它标成「上一次的」，
+     否则输入框写着新词、列表却高亮旧词，看起来像检索算错了。 */
+  S.sdirty=true;
+  const box=$('srResults'); if(box){ box.innerHTML=srResultsHtml(); bindSrRows(); }
+  srTimer=setTimeout(runSearch,260);
+ });
+ inp.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){ e.preventDefault(); clearTimeout(srTimer); runSearch(); }
+  else if(e.key==='Escape'){ e.preventDefault(); S.sq=''; inp.value=''; clearTimeout(srTimer); srReset(); }
+ });
+ $('srGo').addEventListener('click',()=>{ clearTimeout(srTimer); runSearch(); });
+ $('srClear').addEventListener('click',()=>{ S.sq=''; inp.value=''; clearTimeout(srTimer); srReset(); inp.focus(); });
+ [['srMode','mode'],['srTheory','theory'],['srLevel','level']].forEach(([id,k])=>{
+  $(id).addEventListener('change',e=>{ S.sf[k]=e.target.value; if(S.sq.trim()) runSearch(); });
+ });
+ bindSrRows();
+ inp.focus();
+}
+function renderMain(){
+ const fn={overview:renderOverview,diagnose:renderDiagnose,graph:renderGraph,checks:renderChecks,compare:renderCompare,source:renderSource,search:renderSearch}[S.tab]||renderOverview;
+ $('mainBody').innerHTML=fn();
+ $('mainBody').querySelectorAll('[data-toggle]').forEach(el=>el.addEventListener('click',()=>{const id=el.dataset.toggle;S.open[id]=S.open[id]===false;renderMain();}));
+ $('mainBody').querySelectorAll('[data-kv]').forEach(el=>el.addEventListener('click',()=>{
+  const k=el.dataset.kv,p=el.dataset.path,obj=fieldOf(R,p)||{}; inspect(obj[k],`report.${p}.${k}`);
+ }));
+ $('mainBody').querySelectorAll('[data-ti]').forEach(el=>el.addEventListener('click',()=>{
+  const arr=fieldOf(R,el.dataset.path)||[]; inspect(arr[Number(el.dataset.ti)],`report.${el.dataset.path}[${el.dataset.ti}]`);
+ }));
+ $('mainBody').querySelectorAll('[data-gn]').forEach(el=>el.addEventListener('click',()=>{
+  const id=el.dataset.gn; const v=id==='C'?R.conclusion:[...(R.premises||[]),...(R.intermediate||[])].find(p=>p.id===id); inspect(v,`graph/${id}`);
+ }));
+ $('mainBody').querySelectorAll('[data-ck]').forEach(el=>el.addEventListener('click',()=>{const i=Number(el.dataset.ck);inspect(R.checks[i],`checks[${i}] / ${R.checks[i].id}`);}));
+ $('mainBody').querySelectorAll('[data-anchor-sentence]').forEach(el=>el.addEventListener('click',e=>{
+  e.stopPropagation();
+  const n=Number(el.dataset.anchorSentence);
+  S.anchor=sentenceAnchor(n);
+  S.btab='queue'; S.bottomOpen=true;
+  $('bottomPane').classList.remove('collapsed'); $('bottomToggle').textContent='▾ 折叠';
+  renderBottom();
+  const inp=$('objInput'); if(inp) inp.focus();
+  toast(`锚点已设为原文第 ${n} 句；写下理由，这条异议就钉在这里`);
+ }));
+ if(S.tab==='search') bindSearch();
+}
+
+function renderInspector(){
+ const box=$('inspector');
+ if(!S.sel){ box.innerHTML='<div class="empty">未选中对象。<br>点左侧树、诊断行、结构图节点或逐关检查项，这里会用中文名列出这一处的字段；原始值仍逐字保留。</div>'; return; }
+ const o=S.sel||{}, path=inspectorPath(), base=String(path||'').split('.')[0];
+ const sec=SECTIONS.find(s=>s.id===base), f0=FZ[base];
+ const head=sec?sec.nm.split(' / ')[0]:(f0?f0.zh:(base||'选中对象'));
+ const t0=f0&&f0.k?termPlain(f0.k):null;
+ const about=t0?t0.plain:(f0&&f0.n)||'';
+ const aboutTip=t0?termTip(f0.k):'';
+ const rows=Object.entries(o).map(([k,v])=>{
+  const f=fieldInfo(path,k), zh=f?f.zh:k;
+  const tip=f&&f.k?termTip(f.k):(f&&f.n)||'';
+  const vi=valInfo(v);
+  return `<div class="inspkv" data-fk="${esc(k)}"><div class="ik"${tip?` title="${esc(tip)}"`:''}>
+   <span class="izh">${esc(zh)}</span><span class="ien">${esc(k)}</span>${tip?'<span class="iq">?</span>':''}</div>
+   <div class="iv">${esc(short(v))}${vi?`<span class="iv-zh" title="${esc(vi.tip)}">${esc(vi.zh)}</span>`:''}${f?'':'<span class="inog">这一栏暂无解释（保留原字段名）</span>'}</div></div>`;
+ }).join('');
+ const tag=o&&typeof o==='object'?(o.tag||o.confidence||o.answer||''):'';
+ const tagV=tag?valInfo(tag):null;
+ box.innerHTML=`<div class="inspsec" id="gloss-source">选中 · ${esc(head)} <span style="text-transform:none;letter-spacing:0">${path?'/ '+esc(path):''}</span></div>
+  ${about?`<div class="in-about"${aboutTip?` title="${esc(aboutTip)}"`:''}><b>这一处说的是：</b>${esc(about)}</div>`:''}
+  <div class="in-caveat">中文名、问号里的解释和彩色标签都是<b>工作台加的阅读说明</b>（取自主程序术语表），不是报告内容、不写回报告。下面的取值逐字取自报告，原始 JSON 仍可展开取证。</div>
+  <div class="inspsec">字段 ${Object.keys(o).length} 个 · 中文名 / 原字段名 / 值</div>${rows}
+  ${tag?`<div class="inspsec">标记 / 状态</div><div style="padding:8px 10px"><span class="badge ${esc(String(tag))}">${esc(short(tag))}</span>${tagV?`<span class="iv-zh" title="${esc(tagV.tip)}">${esc(tagV.zh)}</span>`:''}</div>`:''}
+  <div class="in-act">
+   <button class="tb" id="inPin" title="把下一条异议钉在检查器当前这一处">把异议钉在这处</button>
+   <button class="tb" id="inFull" title="切到诊断页并展开这一节">看完整字段表</button>
+   <button class="tb" id="inSearch" title="切到全库检索，在存档里搜字">去全库检索</button>
+  </div>
+  <details class="in-json" id="gloss-raw"><summary>原始 JSON · 逐字，用于取证（${esc(String(Object.keys(o).length))} 个字段）</summary><pre class="json">${esc(JSON.stringify(o,null,2))}</pre></details>`;
+ const pin=$('inPin');
+ if(pin) pin.addEventListener('click',()=>{
+  const p=selectionPath(); S.anchor=fieldAnchor(p); S.btab='queue'; renderBottom();
+  const inp=$('objInput'); if(inp) inp.focus();
+  toast('锚点已设为 '+p+'；写下理由就钉在这一处');
+ });
+ const full=$('inFull');
+ if(full) full.addEventListener('click',()=>{
+  const b=SECTIONS.some(s=>s.id===base)?base:'';
+  S.tab='diagnose'; if(b){S.activeSection=b;S.open[b]=true;}
+  renderTabs();renderMain();renderTree();
+  if(b) setTimeout(()=>{const n=$('mainBody').querySelector(`[data-secbody="${b}"]`);if(n){n.scrollIntoView({block:'start'});n.classList.add('flash');setTimeout(()=>n.classList.remove('flash'),1100);}},30);
+ });
+ const sr=$('inSearch');
+ if(sr) sr.addEventListener('click',()=>{ S.tab='search'; renderTabs(); renderMain(); setTimeout(()=>{const q=$('srInput');if(q)q.focus();},30); });
+}
+
+function objRowHtml(o,i){
+ const a=deriveAnchor(o);
+ const badge=a?`<button class="anbadge" data-locate="${i}" title="打开并回到这一处">${esc(a.label)} ↗</button>`:`<span class="anbadge none">未锚定（旧版）</span>`;
+ const q=a&&a.quote?`<span class="anq">「${esc(clip(a.quote,90))}」</span>`:'';
+ return `<div class="qrow"><span class="qi">异议${i+1}</span><span class="dot acc"></span><span class="qt">${badge}${esc(o.reason)}${q}<br><span style="color:var(--muted);font-size:10px">${o.mem?'只留在本页 · 未写入本机':'已写入本机 objections · 判定文字未改'}${o.at?' · '+esc(fmtAt(o.at)):''}</span></span><button class="tb" data-drop="${i}">撤销</button></div>`;
+}
+function renderAnchorBar(){
+ const a=currentAnchor();
+ const mode=S.anchor===false?'none':(S.anchor&&S.anchor.kind==='sentence'?'sentence':'field');
+ const quote=a&&a.quote?`「${esc(clip(a.quote,40))}」`:'';
+ const hint=mode==='none'?'未锚定的异议在同一份报告里只保留最新一条；想留多条就钉到不同位置。'
+  :mode==='sentence'?'已锁定到这一句；同一处只保留最新一条，换句子才能再记一条。'
+  :'默认跟随右侧检查器选中的字段；同一处只保留最新一条，换字段才能再记一条。点徽标能回到那一处。';
+ return `<div class="anbar"><span class="anlbl">这条钉在</span><span class="anval">${a?esc(a.label):'未锚定'}</span><span class="anquote">${quote}</span><span class="sp"></span>
+  <button class="tb" id="anField">用当前字段</button><button class="tb" id="anPick">选原文一句</button><button class="tb" id="anNone">不锚定</button>
+  <span class="hint">${hint}</span></div>`;
+}
+/* 跨报告回看：读的是已经存在的 objections:list，不新开通道。
+   统计只数真实记录，不把「反复被反对」说成「判定错了」——那需要人自己看。 */
+function renderAnchors(){
+ const noHost=!objApi();
+ const total=S.allObj.length, docs=new Set(S.allObj.map(o=>o.diagId)).size;
+ const pinned=S.allObj.filter(o=>deriveAnchor(o)).length;
+ const byKey={}; for(const o of S.allObj) byKey[o.key]=(byKey[o.key]||0)+1;
+ const counts=Object.values(byKey), repeats=counts.filter(n=>n>1).length, top=Math.max(0,...counts);
+ const stat=`<div class="anstat"><span>本机异议 <b>${total}</b> 条</span><span>覆盖 <b>${docs}</b> 份报告</span><span>已锚定 <b>${pinned}</b> / 未锚定 <b>${total-pinned}</b></span><span>同一位置被反复反对 <b>${repeats}</b> 处${repeats?`（最多 ${top} 次）`:''}</span><button class="tb" id="anReload">⟳ 重读</button></div>`;
+ const foot=`<div class="anempty" style="padding:8px 12px">这里只做回看：不改报告、不改判定、不重新分析。「同一位置」按异议的跨报告身份归并，不按报告 id 数。</div>`;
+ /* 没有通道时连统计也不显示：那几个数字是上一次真通道读来的，
+    摆在这里会让人以为样张里真的存了 5 条异议。 */
+ if(noHost) return `<div class="anstat"><span>本机异议通道不可用</span></div><div class="anempty">样张模式没有本机异议通道：这一页内嵌的只有一份报告。<br>打开桌面应用里的「回看工作台」，这里才列得出这台机器记过的全部异议。</div>`;
+ if(S.objErr) return stat+`<div class="anempty">读不出本机异议：${esc(S.objErr)}</div>`;
+ if(!total) return stat+`<div class="anempty">本机还没有记过异议。<br>在「待答队列」里选好锚点、写下理由，这里会按报告列出来，点一条就能回到那一处。</div>`;
+ return stat+S.allObj.map((o,i)=>{
+  const a=deriveAnchor(o);
+  const badge=a?`<span class="anbadge">${esc(a.label)} ↗</span>`:`<span class="anbadge none">未锚定</span>`;
+  const q=a&&a.quote?`<span class="anq">「${esc(clip(a.quote,90))}」</span>`:'';
+  return `<div class="anrow" data-anrow="${i}" title="打开这份报告并回到异议所在位置">
+   <span class="andoc ${o.diagId===R.id?'cur':''}">${esc(String(o.diagId||'—').slice(0,8))}${o.diagId===R.id?' · 当前':''}</span>
+   <span class="anbody">${badge}${esc(o.reason||o.excerpt||'（没写理由）')}${q}</span>
+   <span class="anmeta">${esc(fmtAt(o.at))}</span></div>`;
+ }).join('')+foot;
+}
+function renderBottom(){
+ $('bottomTabs').innerHTML=BTABS.map(b=>`<div class="btab ${S.btab===b.id?'on':''}" data-btab="${b.id}">${b.nm}${b.id==='queue'?`<span style="margin-left:6px;font-family:var(--mono);color:var(--warn)">${(R.checks||[]).filter(c=>c.answer==='unanswered').length+S.objections.length}</span>`:''}${b.id==='log'?`<span style="margin-left:6px;font-family:var(--mono);color:var(--muted)">${S.log.length}</span>`:''}</div>`).join('');
+ $('bottomTabs').querySelectorAll('[data-btab]').forEach(el=>el.addEventListener('click',()=>{
+  S.btab=el.dataset.btab;renderBottom();if(S.btab==='anchors')loadAllObjections();
+ }));
+ const un=(R.checks||[]).filter(c=>c.answer==='unanswered');
+ let html='';
+ if(S.btab==='queue'){
+  html=`<div class="qbar"><span>待答 ${un.length+S.objections.length}</span><span>已答 ${(R.checks||[]).filter(c=>c.answer==='passed').length}</span><div class="track"><div class="fill" style="width:${Math.round((R.checks||[]).filter(c=>c.answer==='passed').length/(R.checks||[]).length*100)}%"></div></div><span>按事件先后，不排优先级</span></div>`+
+   un.map(c=>`<div class="qrow"><span class="qi">${esc(c.id)}</span><span class="dot warn"></span><span class="qt">${esc(c.question)}<br><span style="color:var(--muted);font-size:10px">${esc(R.repair.burdenStatus)}</span></span><span class="qw">${esc(c.answer)}</span></div>`).join('')+
+   S.objections.map(objRowHtml).join('')+
+   renderAnchorBar()+
+   `<div class="qact"><input id="objInput" placeholder="我不同意这处…写下原话，只记录你的判断，不改报告"><button class="tb pri" id="objAdd">记下异议</button></div>`+
+   `<div class="qbar" style="border-top:0">${S.objLive?'异议已连上本机文件；换一份报告会重新载入那一份的异议。':'样张模式：异议只留在本页，关掉窗口就没了。'}</div>`;
+ } else if(S.btab==='anchors'){
+  html=renderAnchors();
+ } else if(S.btab==='provenance'){
+  const tags={};
+  const walk=o=>{ if(Array.isArray(o)) return o.forEach(walk); if(!o||typeof o!=='object') return; for(const [k,v] of Object.entries(o)){ if(k==='tag'&&typeof v==='string') tags[v]=(tags[v]||0)+1; walk(v);} };
+  walk(R);
+  html=`<div class="qbar">字段 tag 分布 · 由本机报告逐处统计，不是宣称</div>`+Object.entries(tags).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`<div class="row"><div class="k">${esc(k)}</div><div class="v"><span class="badge">${n}</span> 处</div></div>`).join('')+
+   `<div class="row"><div class="k">premises[].burden</div><div class="v">${esc(ST.burdenPremises)} 全为 proponent</div></div><div class="row"><div class="k">refutations[].burdenAfter</div><div class="v">${esc(ST.burdenAfter)} 全为 proponent</div></div>`;
+ } else if(S.btab==='replay'){
+  html=`<div class="qbar">本机存档实测 · 只读 userData/archive</div>`+
+   [['存档总份数',ST.total],['不同原文段数',ST.passages],['最大一组复跑',ST.maxGroup],['checks 总条数',Object.values(ST.checks).reduce((a,b)=>a+b,0)],['未答 / 已答 / 违反',`${ST.checks.unanswered} / ${ST.checks.passed} / ${ST.checks.violated}`],['stage=argumentation',ST.stage.argumentation],['verdict=weakened',ST.levels.weakened]].map(([k,v])=>`<div class="row"><div class="k">${esc(k)}</div><div class="v mono">${esc(v)}</div></div>`).join('')+
+   Object.entries(ST.modes).map(([k,v])=>`<div class="row"><div class="k">mode · ${esc(k)}</div><div class="v mono">${v}</div></div>`).join('');
+ } else {
+  html=S.log.length?S.log.map(l=>`<div class="logline"><span class="ts">${esc(l.t)}</span>${esc(l.m)}</div>`).join(''):'<div class="empty">暂无操作记录。点任意面板或按 Ctrl/⌘ + K 试试。</div>';
+ }
+ $('bottomBody').innerHTML=html;
+ const body=$('bottomBody');
+ const oi=$('objInput');
+ if(oi){
+  const add=()=>{const v=oi.value.trim(); if(!v)return; oi.value=''; addObjection(v);};
+  $('objAdd').addEventListener('click',add);
+  oi.addEventListener('keydown',e=>{if(e.key==='Enter')add();});
+ }
+ body.querySelectorAll('[data-drop]').forEach(b=>b.addEventListener('click',()=>dropObjection(S.objections[Number(b.dataset.drop)])));
+ body.querySelectorAll('[data-locate]').forEach(b=>b.addEventListener('click',()=>locateObjection(S.objections[Number(b.dataset.locate)])));
+ body.querySelectorAll('[data-anrow]').forEach(b=>b.addEventListener('click',()=>locateObjection(S.allObj[Number(b.dataset.anrow)])));
+ if($('anField')) $('anField').addEventListener('click',()=>{S.anchor=null;renderBottom();toast('锚点改为跟随当前选中字段');});
+ if($('anPick')) $('anPick').addEventListener('click',()=>{S.tab='source';renderTabs();renderMain();toast('点原文某句行尾的「钉在这句」');});
+ if($('anNone')) $('anNone').addEventListener('click',()=>{S.anchor=false;renderBottom();toast('这条不锚定；同一份报告里只保留最新一条');});
+ if($('anReload')) $('anReload').addEventListener('click',()=>loadAllObjections());
+}
+
+function renderStatus(){
+ const p=R.passage||'', th=valInfo(R.theory), md=valInfo(R.mode);
+ const lens=th?th.zh:esc(R.theory||'—'), act=md?md.zh:esc(R.mode||'—');
+ /* 回看台同样不能把「少读了几份」说成「本机就这些」。样张没有 health 时
+    什么都不显示——缺数据不等于体检通过，也不能反过来宣称无事。 */
+ const h=D.health;
+ const bad=h&&!h.dirError?(h.issues||[]).length:0,
+       gone=h&&!h.dirError?(h.missing||[]).length:0,
+       orph=h&&!h.dirError?(h.orphans||[]).length:0,
+       idx=h&&(h.indexState==='invalid'||h.indexState==='rebuilt')?1:0;
+ const n=bad+gone+orph+idx;
+ const warn=h&&h.dirError?'存档目录读不出来':(n?`存档 ${n} 处对不上`:'');
+ const warnTitle=h&&h.dirError?`目录：${h.dirError}。这时数目不可信，逐条结果在主程序「历史」里`
+   :`读不出来的文件 ${bad} · 索引幽灵行 ${gone} · 磁盘孤儿 ${orph} · 索引异常 ${idx}。只读体检，没有删改任何文件；逐条结果在主程序「历史」里`;
+ $('statusBar').innerHTML=`<span class="hi">● 就绪</span><span title="报告 id（本机存档用的编号）">${esc(R.id)}</span>
+  <span title="报告原文写的是 ${esc(R.theory||'—')} / ${esc(R.mode||'—')}；中文只是标签翻译">透镜 ${esc(lens)} · ${esc(act)}</span>
+  <span title="原文长度与切出的句数，按本地切句算">原文 ${p.length} 字 · ${sentences().length} 句</span>
+  <span title="逐关检查里标为「未答」的条数 + 本机记下的异议条数">待答检查 / 异议 ${(R.checks||[]).filter(c=>c.answer==='unanswered').length+S.objections.length}</span>
+  <span>我的异议 ${S.objections.length}${S.objLive?' · 已存盘':' · 未存盘'} · 已锚定 ${S.objections.filter(o=>deriveAnchor(o)).length}</span><span class="sp"></span>
+  ${warn?`<button class="st-warn" data-archive-alert title="${esc(warnTitle)}">${esc(warn)} · 去主程序历史看</button>`:''}
+  <span title="来自存档索引；左边资源管理器实际列出 ${(D.archive||[]).length} 条。数字不随这页的过滤变化">本机存档 ${ST.total} 份 · 这页索引 ${(D.archive||[]).length} 条${S.live?'（全量）':'（样张只带开头这些）'}</span>
+  <span>UTF-8</span><span>${S.live?'报告只读 · 异议另存':'样张数据 · 未接模型'}</span><span class="hi">Ctrl/⌘+K</span>`;
+ const al=$('statusBar').querySelector('[data-archive-alert]');
+ if(al) al.addEventListener('click',()=>{
+  const a=window.api&&window.api.archive;
+  if(a&&a.reveal){ a.reveal(); toast('逐条文件名与原因在主程序「历史 → 存档体检」里；这里没有删改文件'); }
+  else toast('这是样张，没有本机存档目录；逐条体检要开桌面应用');
+ });
+}
+
+const COMMANDS=[...SECTIONS.map(s=>({t:`跳到 ${s.nm}`,p:`report.${s.id}`,run:()=>{S.tab='diagnose';S.activeSection=s.id;S.open[s.id]=true;renderTabs();renderMain();renderTree();setTimeout(()=>$('mainBody').querySelector(`[data-secbody="${s.id}"]`)?.scrollIntoView({block:'start'}),30);inspect(s.get(R),`report.${s.id}`);}})),
+ ...TABS.map(t=>({t:`切换标签 ${t.nm}`,p:`view.${t.id}`,run:()=>{S.tab=t.id;renderTabs();renderMain();}})),
+ {t:'切换深浅主题',p:'view.theme',run:()=>toggleTheme()},
+ {t:'导出当前报告 JSON',p:'file.export',run:()=>doExport()},
+ {t:'打开复跑账',p:'panel.replay',run:()=>{S.btab='replay';S.bottomOpen=true;$('bottomPane').classList.remove('collapsed');renderBottom();}},
+];
+/*
+ * 字段搜索。命令面板原来只列命令，工具栏却写着「搜字段」——按下去找不到任何字段。
+ * 这里把当前报告的每个叶子字段（路径 / 键名 / 值）做成可搜条目，文字逐字取自 R。
+ * 空白查询只列命令，不把上千个字段糊人一脸；输入关键词才开始列字段。
+ */
+function jumpToField(f){
+ const sec=SECTIONS.find(s=>s.id===f.sec);
+ if(sec){
+  S.tab='diagnose'; S.activeSection=sec.id; S.open[sec.id]=true;
+  renderTabs();renderMain();renderTree();
+  setTimeout(()=>{
+   const n=$('mainBody').querySelector(`[data-secbody="${sec.id}"]`);
+   if(n){ n.scrollIntoView({block:'start'}); n.classList.add('flash'); setTimeout(()=>n.classList.remove('flash'),1100); }
+  },30);
+ }
+ const v=getPath(R,f.path);
+ inspect(v===undefined?{path:f.path,value:f.val}:v,`字段 ${f.path}`);
+}
+function commandList(){
+ const q=S.cmdQ.trim().toLowerCase();
+ const cmds=COMMANDS.filter(c=>(c.t+c.p).toLowerCase().includes(q)).map(c=>({...c,kind:'命令'}));
+ const fields=q?FIELD_INDEX.filter(f=>(f.path+' '+f.key+' '+f.val).toLowerCase().includes(q)).slice(0,8)
+   .map(f=>({t:`${f.key} · ${clip(f.val,46)}`,p:f.path,kind:'字段',run:()=>jumpToField(f)})):[];
+ return [...cmds,...fields].slice(0,12);
+}
+function renderCmd(){
+ if(!S.cmdOpen){$('cmdLayer').innerHTML='';return;}
+ const list=commandList();
+ S.cmdIdx=Math.min(S.cmdIdx,Math.max(0,list.length-1));
+ $('cmdLayer').innerHTML=`<div class="cmdwrap" id="cmdWrap"><div class="cmd">
+  <input id="cmdInput" placeholder="输入命令或字段名…" value="${esc(S.cmdQ)}" autocomplete="off">
+  <div class="cmdlist">${list.length?list.map((c,i)=>`<div class="cmdi ${i===S.cmdIdx?'on':''}" data-ci="${i}"><span class="t">${esc(c.t)}</span><span class="kind">${esc(c.kind)}</span><span class="p">${esc(c.p)}</span></div>`).join(''):'<div class="empty">没有匹配的命令或字段</div>'}</div>
+  <div class="cmdf">↑↓ 选择 · Enter 执行 · Esc 关闭 · 共 ${list.length} 条${S.cmdQ.trim()?'（含字段）':' · 输入关键词才列字段'}</div></div></div>`;
+ const inp=$('cmdInput'); inp.focus(); inp.setSelectionRange(inp.value.length,inp.value.length);
+ inp.addEventListener('input',e=>{S.cmdQ=e.target.value;S.cmdIdx=0;renderCmd();});
+ inp.addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'){e.preventDefault();S.cmdIdx=Math.min(S.cmdIdx+1,list.length-1);renderCmd();}
+  else if(e.key==='ArrowUp'){e.preventDefault();S.cmdIdx=Math.max(S.cmdIdx-1,0);renderCmd();}
+  else if(e.key==='Enter'){e.preventDefault();runCmd(list[S.cmdIdx]);}
+  else if(e.key==='Escape'){closeCmd();}
+ });
+ $('cmdLayer').querySelectorAll('[data-ci]').forEach(el=>el.addEventListener('click',()=>runCmd(list[Number(el.dataset.ci)])));
+ $('cmdWrap').addEventListener('click',e=>{if(e.target.id==='cmdWrap')closeCmd();});
+}
+function runCmd(c){ if(!c)return; closeCmd(); c.run(); log(`命令 → ${c.p}`); renderStatus(); }
+function closeCmd(){S.cmdOpen=false;S.cmdQ='';S.cmdIdx=0;renderCmd();}
+function openCmd(){S.cmdOpen=true;S.cmdQ='';S.cmdIdx=0;renderCmd();}
+function toggleTheme(){S.theme=S.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=S.theme;log(`主题 → ${S.theme}`);}
+function doExport(){
+ const blob=new Blob([JSON.stringify(R,null,2)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${R.id}.json`;a.click();URL.revokeObjectURL(a.href);
+ toast('已导出当前报告 JSON');log(`导出 → ${R.id}.json`);
+}
+
+$('themeBtn').addEventListener('click',toggleTheme);
+$('cmdBtn').addEventListener('click',openCmd);
+/*
+ * 打开一份历史存档：向主进程要全文，成功后整套面板围绕新 R 重绘，
+ * 并重算对照、重建字段索引、重新载入这一份自己的异议。
+ * 样张模式（浏览器直接打开本文件）没有通道，明说打不开，不假装换了报告。
+ */
+async function openArchive(id){
+ const seq=++S.arcSeq;
+ /* 检索结果带过来的定位请求在函数入口就消费掉：打开失败、或这次点击已被
+    后一次点击取代，都不留着，否则下一次随手点报告会莫名跳到某个字段。 */
+ const jump=S.pendingJump; S.pendingJump=null;
+ const sec=jump?SECTIONS.find(s=>s.id===jump.sec):null;
+ const h=wbHost();
+ if(!h || !h.report){
+  toast('样张模式：内嵌样张只有索引，打不开其它存档');
+  const a=(D.archive||[]).find(x=>x.id===id); if(a) inspect(a,`archive/${id}`);
+  return;
+ }
+ toast('正在打开 '+id.slice(0,8)+' …');
+ try{
+  const r=await h.report(id);
+  /* 连点两份：先发出去的旧请求可能后回来，采纳它就会把旧报告盖到新报告上。 */
+  if(seq!==S.arcSeq) return;
+  if(!r || !r.ok || !r.report){ toast((r&&r.error)||'这份存档打不开'); return; }
+  R=r.report; C=r.compare||R;
+  S.tab=sec?'diagnose':(jump&&jump.sec==='passage'?'source':'overview');
+  S.sel=R.verdict; S.selLabel='report.verdict'; S.open={...DEFAULT_OPEN};
+  S.activeSection=sec?sec.id:null;
+  if(sec) S.open[sec.id]=true;
+  S.log=[]; S.objections=[]; S.objLive=false; S.cmdOpen=false; S.cmdQ=''; S.anchor=null;
+  $('cmdLayer').innerHTML='';
+  buildFieldIndex(); syncMeta();
+  renderTree();renderTabs();renderMain();renderInspector();renderBottom();renderStatus();
+  log(`打开存档 ${R.id}（${R.theory}/${R.mode}）`);
+  if(jump){
+   setTimeout(()=>{
+    /* 异议锚点可以钉在原文某句上；检索命中只落在字段上，两者分开走。 */
+    if(jump.sentence){ S.tab='source'; renderTabs(); renderMain(); flashSentence(jump.sentence); return; }
+    if(!jump.path) return;
+    if(sec){
+     const n=$('mainBody').querySelector(`[data-secbody="${sec.id}"]`);
+     if(n){ n.scrollIntoView({block:'start'}); n.classList.add('flash'); setTimeout(()=>n.classList.remove('flash'),1100); }
+    }
+    const v=getPath(R,jump.path), key=String(jump.path).split('.').pop();
+    inspect(v!==null&&typeof v==='object'?v:{[key]:v??'—'},`${jump.label?'异议锚点':'检索命中'} · ${jump.path}`);
+   },30);
+  }
+  toast('已打开 '+R.id.slice(0,8)+' · '+R.mode);
+  await loadObjections();
+ }catch(e){ if(seq!==S.arcSeq) return; toast('打不开：'+String(e)); log('打开存档失败：'+String(e)); }
+}
+/* 异议按报告 id 存取；异步回来时若已切到另一份，别把旧异议贴到新报告上。 */
+async function loadObjections(){
+ const a=objApi(); const id=R.id;
+ if(!a){ S.objections=[]; S.objLive=false; renderBottom(); renderStatus(); return; }
+ try{
+  const list=await a.of(id);
+  if(R.id!==id) return;
+  S.objections=objView(list); S.objLive=true;
+  renderBottom(); renderStatus();
+  if(S.tab==='source') renderMain();  // 原文里「已钉异议」的标记要跟着刷新
+ }catch(e){
+  if(R.id!==id) return;
+  S.objections=[]; S.objLive=false; renderBottom(); renderStatus();
+  toast('读不出本机异议：'+String(e));
+ }
+ loadAllObjections();
+}
+async function addObjection(reason){
+ const a=objApi(); const id=R.id; const anchor=currentAnchor();
+ if(!a){
+  S.objections.push({key:'mem-'+Date.now(),diagId:id,reason,at:Date.now(),mem:true,anchor});
+  log('样张模式：异议只留在本页，未写入本机'); renderBottom(); renderStatus();
+  if(S.tab==='source') renderMain();
+  toast('样张模式：只留在本页，没写进本机文件'); return;
+ }
+ const btn=$('objAdd'); if(btn) btn.disabled=true;
+ try{
+  /* refId 里也带上位置：万一主进程把锚点判成无效，这条也不会退回旧裸异议的
+     key、把同报告里第一条异议悄悄覆盖掉。 */
+  const r=await a.add({diagId:id,theory:R.theory,field:'anchor',
+   refId:refIdOf(anchor),refLabel:anchor?anchor.label:'工作台 · 读者自记',
+   excerpt:anchor?anchor.quote:String((R.verdict||{}).statement||'').slice(0,120),
+   reason,...(anchor?{anchor}:{})});
+  if(R.id!==id) return;
+  if(!r || !r.ok){ toast('没记上：'+((r&&r.error)||'写入失败')); log('异议写入失败'); return; }
+  S.objections=objView(r.list); S.objLive=true; S.anchor=null;
+  renderBottom(); renderStatus(); if(S.tab==='source') renderMain();
+  log(`异议已写入本机文件（${anchor?anchor.label:'未锚定'}，不改报告）`);
+  toast(anchor?`已钉在「${anchor.label}」；判定文字未改`:'已写入本机异议文件；判定文字未改');
+  loadAllObjections();
+ }catch(e){ toast('没记上：'+String(e)); }
+ finally{ const b=$('objAdd'); if(b) b.disabled=false; }
+}
+async function dropObjection(o){
+ if(!o) return;
+ const a=objApi();
+ if(!a || o.mem){
+  S.objections=S.objections.filter(x=>x.key!==o.key);
+  renderBottom(); renderStatus(); log('撤销一条本页异议'); return;
+ }
+ const id=R.id;
+ try{
+  const r=await a.remove(id,o.key);
+  if(R.id!==id) return;
+  if(!r || !r.ok){ toast('没能撤销：'+((r&&r.error)||'删除失败')); return; }
+  S.objections=objView(r.list); renderBottom(); renderStatus();
+  if(S.tab==='source') renderMain();
+  log('撤销一条本机异议'); loadAllObjections();
+ }catch(e){ toast('没能撤销：'+String(e)); }
+}
+/* 工具栏入口：展开底部面板、切到异议地图，并当场重读一次本机文件。 */
+$('anMapBtn').addEventListener('click',()=>{
+ S.btab='anchors'; S.bottomOpen=true;
+ $('bottomPane').classList.remove('collapsed'); $('bottomToggle').textContent='▾ 折叠';
+ renderBottom(); loadAllObjections();
+ log('工具栏 → 异议地图（只读本机 objections.jsonl）');
+});
+$('objReveal').addEventListener('click',()=>{
+ const a=objApi();
+ if(!a){ toast('样张模式：没有本机异议目录'); return; }
+ a.reveal().then(p=>{toast('已打开：'+p);log('打开异议目录');}).catch(e=>toast('打不开：'+String(e)));
+});
+$('exportBtn').addEventListener('click',doExport);
+$('bottomToggle').addEventListener('click',()=>{S.bottomOpen=!S.bottomOpen;$('bottomPane').classList.toggle('collapsed',!S.bottomOpen);$('bottomToggle').textContent=S.bottomOpen?'▾ 折叠':'▴ 展开';});
+document.querySelectorAll('[data-log]').forEach(b=>b.addEventListener('click',()=>{log(b.dataset.log);toast(b.dataset.log);if(S.btab==='log')renderBottom();}));
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{S.tab=b.dataset.tab;renderTabs();renderMain();log(`工具栏 → ${S.tab}`);}));
+document.addEventListener('keydown',e=>{
+ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();S.cmdOpen?closeCmd():openCmd();}
+ else if(e.key==='Escape'&&S.cmdOpen)closeCmd();
+});
+
+/*
+ * 应用内运行时：主进程在 dom-ready 之后把本机真实存档注入进来，替换内嵌的样张数据。
+ * 单独用浏览器打开这个文件时没有 window.api，按钮会明说是样张模式，不假装能用。
+ * 注入只换数据源，界面里没有任何一行判定文字会被主进程改写。
+ */
+/* wbHost() 定义在脚本开头，与 openArchive / goBack / 刷新按钮共用同一处。 */
+$('wbRefresh').addEventListener('click',()=>{ const h=wbHost(); if(h) h.refresh(); else toast('样张模式：没有本机存档通道'); });
+function goBack(msg){
+  const h=wbHost();
+  if(h){ h.back(); if(msg) log(msg); }
+  else toast('样张模式：没有主界面可切回（在应用里会回到原文输入框）');
+}
+$('wbBack').addEventListener('click',()=>goBack('← 回到原界面分析文本'));
+/* 工具栏与速览页的按钮在重绘后仍然存在，用委托绑一次，不做半死不活的假按钮。 */
+document.addEventListener('click',e=>{
+  const a=e.target.closest&&e.target.closest('[data-act]');
+  if(a){
+    const k=a.dataset.act;
+    if(k==='back'){ goBack('速览 → 回到原界面分析文本'); return; }
+    S.tab=k; renderTabs(); renderMain(); log(`速览 → ${k}`);
+    return;
+  }
+  const b=e.target.closest&&e.target.closest('[data-back]');
+  if(b){ goBack(b.dataset.back.trim()); return; }
+  if(e.target.closest&&e.target.closest('#ovQuote')){ S.tab='source'; renderTabs(); renderMain(); }
+});
+/* 引导条只第一次出现，之后别一直占一行。 */
+$('guideClose').addEventListener('click',()=>{
+  $('guideBar').style.display='none';
+  try{ localStorage.setItem('wbGuideV2','1'); }catch(_){}
+});
+try{ if(localStorage.getItem('wbGuideV2')==='1') $('guideBar').style.display='none'; }catch(_){}
+window.__wbApply = (d)=>{
+  if(!d || !d.report) return;
+  D=d; D.archive=Array.isArray(D.archive)?D.archive:[]; D.pairOf=d.pairOf||{};
+  R=d.report; C=d.compare||d.report; ST=d.stats||ST;
+  S.live=true; S.tab='overview'; S.sel=R.verdict; S.selLabel='report.verdict';
+  S.open={...DEFAULT_OPEN}; S.objections=[]; S.objLive=false; S.log=[]; S.arcQ=''; S.activeSection=null; S.anchor=null;
+  S.arcSeq++; // 主进程重新注入了整份数据：在途的「打开存档」请求一律作废
+  buildFieldIndex(); syncMeta();
+  renderTree();renderTabs();renderMain();renderInspector();renderBottom();renderStatus();
+  const e=$('wbSource'); if(e) e.textContent='v2 · 本机存档';
+  log(`载入本机存档 ${R.id}（索引 ${D.archive.length} 条）`);
+  loadObjections();
+};
+
+log(`载入真实报告 ${R.id}`);
+S.sel=R.verdict;S.selLabel='report.verdict';
+buildFieldIndex(); syncMeta();
+renderTree();renderTabs();renderMain();renderInspector();renderBottom();renderStatus();
+loadObjections();
+</script>
+</body>
+</html>

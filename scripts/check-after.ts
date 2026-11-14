@@ -1,0 +1,193 @@
+/**
+ * 「报告出来之后」的三件事：拿走、跳回、重跑。
+ *
+ * 一份报告读完之后，用户手里通常只剩三个动作：把它带走（复制 / 导出 / 打开文件）、
+ * 回到自己记过意见的那一处再看一眼、换一副透镜对同一段字重跑一次。
+ * 这三件事以前都只有半截：导出只显示一个会被截断的路径，异议记完就散在十万像素里，
+ * 「需要重新运行」那句提示下面一个按钮都没有。
+ *
+ * 所以这里守的不是文案，是四个「看起来做了、其实没接上」的失败方式：
+ *   1. 异议账把别的报告的记录算进来，或同一处重复记两条就数成两条；
+ *   2. 组顺序随「今天先记了哪一条」变，第二天找不到昨天那条；
+ *   3. 「复制」另拼一份 Markdown，与导出的 .md 迟早不一样；
+ *   4. 「打开文件」变成打开本机任意路径的通道，或按钮点了没有任何反应也照样绿。
+ *
+ * 防恒真写在样本里：主样本**故意不是时间有序的**、**故意含一条认不出位置的旧记录**、
+ * **故意让同一 key 出现两次且理由不同**——去掉去重或排序，对应断言立刻红。
+ *
+ * 跑法：npm run check:after
+ */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import type { Objection } from '@shared/types';
+import { digestLine, digestOf } from '@shared/objection-digest';
+
+let passed = 0;
+const failed: string[] = [];
+function ok(cond: boolean, label: string, detail = ''): void {
+  if (cond) passed += 1;
+  else failed.push(detail ? `${label}（${detail}）` : label);
+}
+const src = (p: string): string => readFileSync(resolve(process.cwd(), p), 'utf8');
+
+/* ─────────── 一 · 样本：故意打乱、故意重复、故意有一条认不出位置 ─────────── */
+
+const T = Date.UTC(2026, 10, 12, 9, 0);
+const obj = (p: Partial<Objection> & { key: string }): Objection => ({
+  diagId: 'd1',
+  at: T,
+  theory: 'toulmin',
+  field: 'check',
+  refId: 'CQ1',
+  refLabel: 'CQ1 相关性',
+  excerpt: '这一条的依据',
+  reason: '',
+  ...p,
+});
+
+const LIST: Objection[] = [
+  /* 不是时间有序：第一条是最晚的，最后一条是其次 */
+  obj({ key: 'k-legit', field: 'legitimate', refId: 'P2', refLabel: '此处合法', at: T + 5000, reason: '这里是转述，不是拿权威压人。' }),
+  obj({ key: 'k-verdict', field: 'verdict', refId: 'verdict', refLabel: '判读', at: T + 1000 }),
+  /* 同一处写了两遍，后写的理由是用户最后的意思 */
+  obj({ key: 'k-cq2', field: 'check', refId: 'CQ2', refLabel: 'CQ2 因果方向', at: T + 2000, reason: '旧理由：样本只有一届。' }),
+  obj({ key: 'k-cq2', field: 'check', refId: 'CQ2', refLabel: 'CQ2 因果方向', at: T + 3000, reason: '新理由：那一年同时换了教材。' }),
+  obj({ key: 'k-cq3', field: 'check', refId: 'CQ3', refLabel: 'CQ3 替代解释', at: T + 2500 }),
+  /* 旧版本写下的、field 认不出来的记录：不许静默丢掉 */
+  obj({ key: 'k-old', field: 'ancient' as Objection['field'], refId: 'x', refLabel: '旧记录', at: T + 400 }),
+  /* 别的报告：一条都不该算进来 */
+  obj({ key: 'k-other', diagId: 'd2', field: 'verdict', refId: 'verdict', refLabel: '判读', at: T + 9000 }),
+  /* 工作台里钉在句子上的：同属这份报告，但没有可跳的区块 */
+  obj({ key: 'k-anchor', field: 'anchor', refId: 'workbench', refLabel: '原文第 2 句', at: T + 3500 }),
+];
+
+const SNAPSHOT = JSON.stringify(LIST);
+const dg = digestOf(LIST, 'd1');
+
+/* ─────────── 二 · 纯函数 ─────────── */
+
+ok(dg.total === 6, '一份报告里的异议总数按 key 去重（6 条，不是 7 条）', String(dg.total));
+ok(dg.sections.map((s) => s.title).join('|') === '判读|逐关检查|此处合法|在工作台里钉的|位置不明', '分组顺序固定，与阅读顺序一致', dg.sections.map((s) => s.title).join('|'));
+ok(dg.sections[1].items.length === 2, '「逐关检查」里两条不同的检查项都在', String(dg.sections[1].items.length));
+ok(dg.sections[1].items[0].key === 'k-cq2' && dg.sections[1].items[0].reason === '新理由：那一年同时换了教材。', '同一 key 留最新那条的理由（后写的覆盖先写的）');
+ok(dg.sections[1].items[1].key === 'k-cq3', '组内按时间倒序：最近记的在前');
+ok(!JSON.stringify(dg).includes('k-other'), '别的报告里的异议一条都不算进来');
+ok(dg.unknown === 1, '认不出位置的旧记录单独计数', String(dg.unknown));
+const odd = dg.sections.find((s) => s.unknown);
+ok(!!odd && odd.title === '位置不明' && odd.sectionId === null, '认不出的记录进「位置不明」，不给一个假的区块 id');
+ok(!!odd && odd.items[0].key === 'k-old', '「位置不明」里就是那条旧记录');
+ok(dg.sections.find((s) => s.title === '在工作台里钉的')?.sectionId === null, '工作台里的记录没有可跳的区块（sectionId 为 null）');
+ok(dg.sections.filter((s) => s.title === '命名' || s.title === '击败类型').length === 0, '空组不出现（不摆空壳）');
+ok(dg.sections.reduce((n, s) => n + s.items.length, 0) === dg.total, '守恒：各组条数之和 = 总数');
+
+/* 确定性：把输入顺序打乱，账必须逐字节一样 */
+const shuffled = [LIST[4], LIST[0], LIST[7], LIST[2], LIST[5], LIST[1], LIST[6], LIST[3]];
+ok(JSON.stringify(digestOf(shuffled, 'd1')) === JSON.stringify(dg), '输入顺序打乱后整份账不变（分组与排序都有定序）');
+ok(JSON.stringify(LIST) === SNAPSHOT, '纯函数不改输入：调用前后原始列表逐字节相同');
+
+/* 边界：空 id 不许把所有历史记录都吞进来 */
+ok(digestOf(LIST, '').total === 0, '空 diagId 得到空账（不把「没有报告 id」的历史记录算到当前这份上）');
+ok(digestOf([], 'd1').total === 0, '空列表得到空账');
+ok(digestOf(LIST, 'nope').total === 0, '不存在的报告得到空账');
+
+/* 同一时刻按 key 定序：两条时间相同的记录顺序不能取决于输入顺序 */
+const tie = [
+  obj({ key: 'b', at: T, refId: 'CQ9', refLabel: 'b' }),
+  obj({ key: 'a', at: T, refId: 'CQ8', refLabel: 'a' }),
+];
+const tie2 = [tie[1], tie[0]];
+ok(
+  JSON.stringify(digestOf(tie, 'd1').sections[0].items.map((x) => x.key)) ===
+    JSON.stringify(digestOf(tie2, 'd1').sections[0].items.map((x) => x.key)),
+  '同一时刻的两条记录，顺序由 key 决定，与输入顺序无关',
+);
+
+/* 文案：只数事实，不评价这些异议对不对 */
+ok(/6 条/.test(digestLine(dg)), '总述带着条数', digestLine(dg));
+ok(/3 处/.test(digestLine(dg)), '总述带着「分布在哪几处」（工作台那条与位置不明的都不算一处报告区块）', digestLine(dg));
+ok(!/建议|应该|最好|不妨|推荐|务必|证明|可见/.test(digestLine(dg)), '总述不劝告、不下判断');
+ok(digestLine(digestOf([], 'd1')) === '这份报告里没有记下不同意见。', '零条时有一句明确的话（组件不显示它，但常量本身不许说谎）');
+
+/* ─────────── 三 · 内核守则 ─────────── */
+
+const kernel = src('src/shared/objection-digest.ts');
+ok(!/from ['"]electron['"]|from ['"]node:|from ['"].*main/.test(kernel), '内核不碰 electron / node / 主进程');
+ok(/from '\.\/types'/.test(kernel), '只借 types 的类型，不 import 判定逻辑');
+ok(!/\bscore\b|\brecommend\b|\brating\b|\blevel\b/.test(kernel.replace(/\/\*[\s\S]*?\*\//g, '')), '内核没有评分、推荐、档位字段（verdict 只是字段名，不算判定）');
+ok(/sectionId: 'sec-verdict'/.test(kernel) && /sectionId: 'sec-checks'/.test(kernel), '区块 id 只有一个来源（这里），界面不另抄一份');
+
+/* ─────────── 四 · 界面接线（防「只剩 import 也绿」） ─────────── */
+
+const comp = src('src/renderer/src/components/ObjectionDigest.tsx');
+const diagTsx = src('src/renderer/src/components/Diagnosis.tsx');
+const nav = src('src/main/report-nav.ts');
+const app = src('src/renderer/src/App.tsx');
+const mock = src('src/renderer/src/mock.tsx');
+const flow = src('src/renderer/src/styles-flow.css');
+
+ok(/<ObjectionDigest diagId=\{d\.id\} \/>/.test(diagTsx), '报告主体里真的渲染了异议账（不是只有 import）');
+ok(
+  /<ObjectionCtx\.Provider value=\{objCtx\}>[\s\S]*<DiagnosisView/.test(app),
+  '异议账在真应用里确实长在异议上下文中（上下文挂了、账没挂，界面会永远空白）',
+);
+ok(/import \{ ObjectionDigest \} from '\.\/ObjectionDigest'/.test(diagTsx), '主报告组件引了它');
+ok(/if \(!ctx \|\| !dg \|\| !dg\.total\) return null/.test(comp), '零条时整块不渲染（不摆「暂无异议」的空壳）');
+ok(/useMemo\(\(\) => \(ctx \? digestOf\(ctx\.list, diagId\) : null\)/.test(comp), '界面用纯函数算，不另写一套分组');
+ok(/data-obj-digest=\{dg\.total\}/.test(comp), '探针带着条数');
+ok(/data-obj-digest-item="1"/.test(comp), '逐条留了探针');
+ok(/data-obj-jump=\{s\.sectionId\}/.test(comp), '「跳到这一节」的按钮带着区块 id');
+ok(/new CustomEvent\('al:unfold'/.test(comp), '跳转先派事件让目录把那一节展开');
+ok(/window\.addEventListener\('al:unfold'/.test(nav), '目录那边真的接了这个事件');
+ok(/setFold\(i, 0\)/.test(nav), '接到事件后是「展开这一节」，不是删 DOM 属性');
+ok(/scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/.test(comp), '跳转真的滚过去');
+ok(/ctx\.remove\(o\.key\)/.test(comp), '撤销走的是异议那一层同一个删除');
+ok(/报告不改，你的意见与它并列留着/.test(comp), '写明「报告不改」（不许写成「按你的意见重算」）');
+ok(!/按你的意见|重算|改判/.test(comp), '界面上没有「按我的意见改判」这种话');
+ok(/\.odg\b/.test(flow) && /\.odg-head\b/.test(flow) && /\.odg-item\b/.test(flow) && /\.odg-jump\b/.test(flow), '样式表里有这一栏的容器、头、行与跳转按钮');
+ok(/\.al-jump-hit\{/.test(nav), '跳过去的落点有短暂高亮（只看滚动落点分不清跳到了哪一节）');
+
+/* ─────────── 五 · 拿走：复制 / 打开 / 定位 ─────────── */
+
+const exp = src('src/main/report-export.ts');
+const mainTs = src('src/main/index.ts');
+const preload = src('src/preload/index.ts');
+
+ok(/clipboard\.writeText\(text\)/.test(exp), '复制真的写进剪贴板');
+ok(/const text = reportToMarkdown\(d\)/.test(exp), '复制走的是与导出同一个 reportToMarkdown（不另拼一份）');
+ok(/if \(!d \|\| typeof d\.id !== 'string' \|\| !d\.verdict\) return \{ ok: false/.test(exp), '没有报告时不写一段空内容进剪贴板');
+ok(/const SAVED_PATHS = new Set<string>\(\)/.test(exp), '只记本次真的写出过的路径');
+ok(/SAVED_PATHS\.add\(r\.filePath\)/.test(exp) && (exp.match(/SAVED_PATHS\.add/g) ?? []).length >= 2, '文本与字节两条导出路径都登记了');
+ok(/!SAVED_PATHS\.has\(path\)/.test(exp), '打开 / 定位只认名单里的路径（不给界面开「打开任意文件」的口子）');
+ok(/existsSync\(path\)/.test(exp), '文件被移走时说「文件不在了」，不静默失败');
+ok(/shell\.showItemInFolder\(path\)/.test(exp), '「在文件夹中显示」用的是系统定位');
+ok(/const msg = await shell\.openPath\(path\)/.test(exp) && /return msg \? \{ ok: false/.test(exp), '打开失败把系统原因带回来');
+
+ok(/'report:copyMarkdown'/.test(mainTs) && /'report:openSaved'/.test(mainTs) && /'report:revealSaved'/.test(mainTs), '三个 IPC 都注册了');
+ok(/copyMarkdown: \(d: Diagnosis\)/.test(preload) && /openSaved: \(path: string\)/.test(preload) && /revealSaved: \(path: string\)/.test(preload), 'preload 三条通道都暴露了');
+ok(/data-copy-markdown="1"/.test(diagTsx), '报告页有「复制 Markdown」按钮');
+ok(/data-open-saved="1"/.test(diagTsx) && /data-reveal-saved="1"/.test(diagTsx), '导出成功后真的有「打开文件」与「在文件夹中显示」');
+ok(/setActErr\(r\.reason/.test(diagTsx), '打开失败要说出来，不能点了没反应');
+ok(/\.exp-act\b/.test(src('src/renderer/src/styles.css')), '这两个按钮有样式（没有样式的按钮在长报告里像一行灰字）');
+
+/* ─────────── 六 · 换透镜之后：说得出就要按得动 ─────────── */
+
+ok(/data-stale="1"/.test(app) && /data-stale-retry="1"/.test(app), '「需要重新运行」那条提示下真的有一个按钮');
+ok(/run\(\{ text: diag\.passage, parentId: null \}\)/.test(app), '重跑用的是这份报告的原文，且不与上一版做修订对照');
+ok(/不是框里现在那段/.test(app), '写明重跑的不是输入框里现在那段字（可能已被改过）');
+
+/* ─────────── 七 · 预览入口（没人见过的界面等于没做） ─────────── */
+
+ok(/get\('digest'\)/.test(mock) && /DIGEST_ON/.test(mock), '?digest=1 是这一栏的截图入口');
+ok(/DIGEST_Q === 'open'/.test(mock) && /data-obj-digest-toggle/.test(mock), '?digest=open 把逐条展开也纳入同一个入口（展开态只有点过才出现）');
+ok(/function MaybeDigest/.test(mock), '预览页有一层只在 ?digest=1 时才挂的上下文');
+ok(/field: 'anchor'/.test(mock), '演示数据里含工作台那条（证明没有区块可跳时不会渲染跳转按钮）');
+ok(/field: 'verdict'/.test(mock) && /field: 'check'/.test(mock), '演示数据覆盖判读与检查项两组');
+
+/* ─────────── 收口 ─────────── */
+
+if (failed.length) {
+  for (const f of failed) console.error(`✗ ${f}`);
+  console.error(`\n✗ 报告之后的三件事 ${failed.length} 条没过（共 ${passed + failed.length} 条）`);
+  process.exit(1);
+}
+console.log(`✓ 报告之后的三件事：${passed} 条全部通过｜异议账去重与定序、复制同源、打开只认自己写出的路径、换透镜可重跑`);

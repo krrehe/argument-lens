@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MODE_META, normalizeMode, type ObjectionStat, type ReportMeta } from '@shared/types';
+import {
+  MODE_META,
+  normalizeMode,
+  type ArchiveHealth,
+  type ArchiveIssueKind,
+  type ObjectionStat,
+  type ReportMeta,
+} from '@shared/types';
 import { LEVEL_LABEL, THEORY_BY_ID } from '@shared/theories';
 import { objectionFieldName } from '@shared/objection';
 import { formatMoney } from '@shared/tokens';
@@ -29,6 +36,13 @@ interface Props {
 
 type Tab = 'reports' | 'objections';
 
+/** 坏文件的三种原因说成人话，且与主进程 `ArchiveIssueKind` 一一对应。 */
+const ISSUE_LABEL: Record<ArchiveIssueKind, string> = {
+  unreadable: '文件读不出来',
+  'invalid-json': '写坏了（JSON 解不开）',
+  incomplete: '能解析，但不像一份完整报告',
+};
+
 /**
  * 时间说成人话。导出给 App 用——「这段跑过没有」那一行要跟历史面板说同一个时间，
  * 两处各写一份格式化，迟早会出现同一天两种写法。
@@ -47,22 +61,58 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
   const [list, setList] = useState<ReportMeta[]>([]);
   const [stats, setStats] = useState<ObjectionStat[]>([]);
   const [loaded, setLoaded] = useState(false);
+  /** 只读体检结果。null 表示还没读到或读失败，界面不能据此说「一切正常」。 */
+  const [health, setHealth] = useState<ArchiveHealth | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
   /** 正在等待二次确认的那一份。删除不可逆，且会切断修订对照。 */
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
-    window.api.archive
-      .list()
-      .then((l) => {
-        setList(l);
-        setLoaded(true);
-      })
-      .catch(() => setLoaded(true));
+    let alive = true;
+    (async () => {
+      /*
+       * 体检必须排在列表前面：`list()` 在索引坏时会从磁盘重建并写回 index.json。
+       * 顺序反了，体检看到的已经是修好的文件，「索引刚才坏过」这件事就永远报不出来。
+       * 两条通道都是只读与自查，串行多花的只是扫一次目录的十几毫秒。
+       */
+      try {
+        const h = await window.api.archive.health();
+        if (alive) setHealth(h);
+      } catch (err) {
+        if (alive) setHealthError((err as Error)?.message ?? '原因不明');
+      }
+      try {
+        const l = await window.api.archive.list();
+        if (alive) setList(l);
+      } catch (err) {
+        /* 列表读失败以前被吞成一张空表，和「还没跑过分析」长得一模一样。 */
+        if (alive) setListError((err as Error)?.message ?? '原因不明');
+      }
+      /* 体检和列表都问过了才允许显示空态，免得「还没有」先闪一下再说有坏文件。 */
+      if (alive) setLoaded(true);
+    })();
     window.api.objections
       .stats()
       .then(setStats)
       .catch(() => setStats([]));
+    return () => {
+      alive = false;
+    };
   }, []);
+
+  const issues = health?.issues ?? [];
+  const missing = health?.missing ?? [];
+  const orphans = health?.orphans ?? [];
+  const dirError = health?.dirError ?? healthError;
+  /* 空机器上没有 index.json 是完全正常的，只有磁盘上确实有东西时才算线索。 */
+  const indexMissing =
+    health?.indexState === 'missing' &&
+    (health.healthyFiles > 0 || issues.length > 0 || health.indexEntries > 0);
+  const indexBad = health?.indexState === 'invalid' || health?.indexState === 'rebuilt';
+  const problemCount =
+    issues.length + missing.length + orphans.length + (indexBad ? 1 : 0) + (indexMissing ? 1 : 0);
+  const hasProblem = !!dirError || !!listError || problemCount > 0;
 
   const byId = useMemo(() => new Map(list.map((m) => [m.id, m])), [list]);
 
@@ -89,7 +139,11 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
         <div className="hs-head">
           <div className="hs-title">历史</div>
           <div className="hs-tabs">
-            <button className={`hs-tab ${tab === 'reports' ? 'on' : ''}`} onClick={() => setTab('reports')}>
+            <button
+              className={`hs-tab ${tab === 'reports' ? 'on' : ''}`}
+              title={hasProblem ? `列表里能读到的 ${list.length} 份；另有 ${problemCount} 处对不上，见下方体检` : undefined}
+              onClick={() => setTab('reports')}
+            >
               报告 <span className="hs-n">{list.length}</span>
             </button>
             <button className={`hs-tab ${tab === 'objections' ? 'on' : ''}`} onClick={() => setTab('objections')}>
@@ -109,9 +163,86 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
               <b>它的主要用途不是存档，是验收</b>——补完再判一次，两份就能摆在一起看。
             </p>
 
+            {hasProblem && (
+              <div className="hs-health" data-archive-health>
+                <div className="hs-health-top">
+                  <span className="hs-health-dot" />
+                  <b>{dirError ? '存档目录读不出来' : `${problemCount} 处存档对不上`}</b>
+                  <span className="hs-health-sub">这是只读体检的结果：没有删除、没有改写任何文件。</span>
+                </div>
+                <div className="hs-health-lines">
+                  {dirError && <div>· 目录：{dirError}。这时「0 份」不可信，数目没有显示。</div>}
+                  {listError && <div>· 列表读取失败：{listError}</div>}
+                  {issues.length > 0 && (
+                    <div>· {issues.length} 个报告文件读不出来，列表里可能就少了这几份。</div>
+                  )}
+                  {missing.length > 0 && (
+                    <div>· 索引里有 {missing.length} 条找不到对应文件，点那些行会是空的。</div>
+                  )}
+                  {orphans.length > 0 && (
+                    <div>· 磁盘上有 {orphans.length} 个文件不在索引里：报告还在，只是列表没列出来。</div>
+                  )}
+                  {indexBad && (
+                    <div>
+                      · 索引{health?.indexState === 'rebuilt' ? '读到过损坏，列表已按磁盘重建' : '读到损坏'}：
+                      {health?.indexReason ?? '原因不明'}。
+                    </div>
+                  )}
+                  {indexMissing && <div>· 索引文件不在，但磁盘上有报告；列表会按磁盘重建。</div>}
+                </div>
+                <details className="hs-health-more" data-archive-issues>
+                  <summary>逐条看文件名与原因</summary>
+                  <ul className="hs-health-list">
+                    {issues.map((i) => (
+                      <li key={`bad-${i.file}`}>
+                        <span className="hs-health-file">{i.file}</span>
+                        <span className="hs-health-kind">{ISSUE_LABEL[i.kind]}</span>
+                        <span>{i.reason}</span>
+                      </li>
+                    ))}
+                    {missing.map((id) => (
+                      <li key={`gone-${id}`}>
+                        <span className="hs-health-file">{id}.json</span>
+                        <span className="hs-health-kind">索引里的幽灵行</span>
+                        <span>索引有这一行，磁盘上没有这个文件</span>
+                      </li>
+                    ))}
+                    {orphans.map((n) => (
+                      <li key={`orphan-${n}`}>
+                        <span className="hs-health-file">{n}.json</span>
+                        <span className="hs-health-kind">磁盘上的孤儿</span>
+                        <span>文件在，索引里没有这一行</span>
+                      </li>
+                    ))}
+                    {indexBad && (
+                      <li>
+                        <span className="hs-health-file">index.json</span>
+                        <span className="hs-health-kind">索引</span>
+                        <span>{health?.indexReason ?? '读到损坏'}</span>
+                      </li>
+                    )}
+                  </ul>
+                </details>
+                <div className="hs-health-foot">
+                  <button className="hs-link" onClick={() => window.api.archive.reveal()}>
+                    打开报告文件夹
+                  </button>
+                  <span className="hs-fine">
+                    先看清楚再动手。要恢复请从你自己的备份里拷回来；这里不会替你删、也不会替你修。
+                  </span>
+                </div>
+              </div>
+            )}
+
             {!loaded && <p className="hs-empty">正在读…</p>}
             {loaded && !list.length && (
-              <p className="hs-empty">还没有。跑一次分析之后，这里就会出现第一份。</p>
+              <p className="hs-empty" data-archive-empty>
+                {dirError
+                  ? '目录读不出来，现在没法判断有没有报告。'
+                  : issues.length > 0 || orphans.length > 0
+                    ? `列表里一行也没有，但磁盘上还有 ${issues.length + orphans.length} 个报告文件读不出来或没进索引。`
+                    : '还没有。跑一次分析之后，这里就会出现第一份。'}
+              </p>
             )}
 
             <div className="hs-list">

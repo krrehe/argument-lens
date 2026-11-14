@@ -8,8 +8,12 @@ out/
 dist/
 # electron-builder 的旧默认输出目录，已由 dist 取代
 release/
+# 另一次全量构建的落点（同一批产物，518 MB，不该进版本控制）
+dist-v3/
 # 检查脚本用 vite 打出的临时单文件
 scripts/.out/
+# 人工排错用过的一次性探针（`_` 开头，不是关卡）
+scripts/_peek*.ts
 
 # TypeScript 增量构建缓存（删了会重新生成，不进版本控制）
 *.tsbuildinfo

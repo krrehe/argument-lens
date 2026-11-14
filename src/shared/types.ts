@@ -810,7 +810,31 @@ export type ObjectionField =
   /** 命名候选 */
   | 'label'
   /** 此处合法 */
-  | 'legitimate';
+  | 'legitimate'
+  /** 读者自记：工作台里钉在字段或原文句子上的异议，不是模型写下的判定 */
+  | 'anchor';
+
+/**
+ * 异议钉在哪一处。
+ *
+ * 主程序里每处判定自带 field / refId，天然有位置；工作台原先只能写一句
+ * 光秃秃的理由，所有异议都落到同一个 `refId:'workbench'` 上，
+ * 结果同一份报告里第二条会静默覆盖第一条。这里把「位置」补上。
+ *
+ * quote 存原文片段而不是只存一个下标：报告可能被删、句子切分规则也可能变，
+ * 异议要能脱离报告独立读懂。
+ */
+export interface ObjectionAnchor {
+  kind: 'field' | 'sentence' | 'report';
+  /** kind=field 时：报告里的字段路径，如 verdict.statement */
+  path?: string;
+  /** kind=sentence 时：原文第几句，从 1 开始 */
+  sentence?: number;
+  /** 给人看的短标签 */
+  label: string;
+  /** 被钉住那段文字，逐字取自报告 */
+  quote: string;
+}
 
 export interface Objection {
   /**
@@ -831,6 +855,8 @@ export interface Objection {
   excerpt: string;
   /** 理由。可以空着：说「不同意」本身就是信息 */
   reason: string;
+  /** 可选：老记录没有这个字段，一律按「未锚定」显示，绝不改写历史 key */
+  anchor?: ObjectionAnchor;
 }
 
 /** 按判定归并后的统计。用得着它才知道这个工具常年错在哪。 */
@@ -841,6 +867,7 @@ export interface ObjectionStat {
   refId: string;
   refLabel: string;
   excerpt: string;
+  anchor?: ObjectionAnchor;
   count: number;
   /** 最近一次的时间 */
   lastAt: number;
@@ -870,6 +897,59 @@ export interface ReportMeta {
   open: number;
   cost: number | null;
   bytes: number;
+}
+
+/* ─────────── 存档体检（只读） ─────────── */
+
+/**
+ * 一份报告文件为什么读不出来。
+ *
+ * 分这三种不是术语癖好：文件不存在、文件在但写坏了、文件在也能解析但不是报告，
+ * 用户该做的事完全不同（找回备份 / 别再覆盖它 / 换一份打开）。
+ * 以前三者都走 `return null`，界面只能说「还没有」，等于替用户做了「数据没丢」的判断。
+ */
+export type ArchiveIssueKind = 'unreadable' | 'invalid-json' | 'incomplete';
+
+export interface ArchiveIssue {
+  /** 只给文件名，不给绝对路径：面板上够认，也不把本机目录结构透给渲染层 */
+  file: string;
+  kind: ArchiveIssueKind;
+  /** 一句人话原因。解析错误只带位置与错误名，不把文件内容整段带进界面 */
+  reason: string;
+  bytes: number;
+}
+
+/** `rebuilt`：本会话读到过损坏，列表通道已从磁盘重建（体检自己从不重建）。 */
+export type ArchiveIndexState = 'ok' | 'missing' | 'empty' | 'invalid' | 'rebuilt';
+
+/**
+ * 本机存档的一次只读体检。
+ *
+ * 「只读」是硬约束：看一眼面板不能改写任何文件。索引坏了也不在这里重建——
+ * 重建会写 index.json，那是列表通道的事，用户有权知道它发生过但不该被体检顺手做掉。
+ */
+export interface ArchiveHealth {
+  /** 连目录都列不出来。这时任何「0 份」都不可信，界面必须说读不出来 */
+  dirError: string | null;
+  issues: ArchiveIssue[];
+  /** 目录里读得出来的报告数。与索引条目数分开报：两者不一致本身就是线索 */
+  healthyFiles: number;
+  indexState: ArchiveIndexState;
+  indexReason: string | null;
+  indexEntries: number;
+  /** 索引里有、磁盘上没有：列表上那一行点开是空的 */
+  missing: string[];
+  /** 磁盘上有、索引里没有：文件还在，只是列表不提它 */
+  orphans: string[];
+  checkedAt: number;
+}
+
+/** 单份报告的探测结果。`archive:get` 保持返回「报告或 null」，原因由这里补。 */
+export interface ReportProbe {
+  state: 'ok' | 'missing' | ArchiveIssueKind;
+  /** 文件名，不含目录 */
+  file: string;
+  reason: string | null;
 }
 
 /* ─────────── 用量与余额 ─────────── */

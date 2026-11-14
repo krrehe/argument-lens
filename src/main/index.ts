@@ -8,15 +8,25 @@ import { attachSmoke } from './smoke';
 import {
   allPassages,
   archiveDirPath,
+  archiveHealth,
   getReport,
   listReports,
   passageScan,
+  probeReport,
   removeReport,
   reportScan,
   saveReport,
 } from './archive';
-import { exportReportArgdown, exportReportPrg, exportReportMarkdown } from './report-export';
+import {
+  copyReportMarkdown,
+  exportReportArgdown,
+  exportReportPrg,
+  exportReportMarkdown,
+  openExported,
+  revealExported,
+} from './report-export';
 import { captureStatus, registerCapture, unregisterCapture } from './capture';
+import { REPORT_NAV_SCRIPT } from './report-nav';
 import { clearAnchor, exportUsageCsv, setAnchor, setPricing, summarizeUsage, usageDirPath } from './usage';
 import {
   addObjection,
@@ -109,6 +119,50 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => mainWindow?.show());
 
   /*
+   * 工作台入口之一：往原界面挂一个悬浮按钮。
+   *
+   * 为什么不改 React 组件树：Diagnosis.tsx 的组件数被 check:arch 冻结在 18，
+   * 而这一版工作台是另一套信息架构，不该挤进那 18 个里。主进程注入一段
+   * 只负责「开一个窗口」的脚本，原界面一个组件都不动，撤掉也只删这一段。
+   * executeJavaScript 走 CDP，不受页面 CSP 的 script-src 约束。
+   */
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow?.webContents.executeJavaScript(`(function(){
+      if (document.getElementById('__wbLauncher')) return;
+      var b = document.createElement('button');
+      b.id = '__wbLauncher';
+      b.textContent = '▦ 工作台';
+      b.title = '打开工作台：回看已存档的报告（分析新文本请留在当前界面）';
+      /* 配色跟着主界面走：原来是深色浮块，压在米白界面上像贴上去的补丁。 */
+      b.style.cssText = 'position:fixed;right:18px;bottom:16px;z-index:2147483647;padding:6px 11px;border:1px solid #d8d3c8;border-radius:6px;background:rgba(255,255,255,.94);color:#6b6458;font:11.5px system-ui;cursor:pointer;box-shadow:0 2px 8px rgba(45,40,30,.08)';
+      b.onmouseenter = function(){ b.style.background = '#eef1f5'; b.style.color = '#2c3a49'; };
+      b.onmouseout = function(){ b.style.background = 'rgba(255,255,255,.94)'; b.style.color = '#6b6458'; };
+      b.onclick = function(){ window.api && window.api.workbench && window.api.workbench.open(); };
+      document.body.appendChild(b);
+    })();`).catch(() => {
+      // @allow-silent: 悬浮按钮只是两个入口之一，注入失败时仍可用 Ctrl+Shift+W；
+      // 主界面的分析功能与这个按钮无关，不该因为它抛错。
+    });
+
+    /*
+     * 报告目录：一份报告 18 个一级区块、约 20 屏，判读在第七节。
+     * 与前面的工作台入口同一层注入，理由见 ./report-nav.ts。
+     */
+    mainWindow?.webContents.executeJavaScript(REPORT_NAV_SCRIPT).catch(() => {
+      // @allow-silent: 目录是阅读辅助，注入失败时报告本身仍完整可读。
+    });
+  });
+
+  /* 入口之二：应用内快捷键。放在主窗口上，不注册全局键，不抢别的程序。
+     目录的 Ctrl+Shift+D 在注入脚本内绑定（与目录同生共死，撤掉目录不留半截快捷键）。 */
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.control && input.shift && input.key.toLowerCase() === 'w') {
+      event.preventDefault();
+      openWorkbench();
+    }
+  });
+
+  /*
    * 关窗就把还在跑的那一次掐掉。
    *
    * 不掐的后果：窗口没了，fetch 还在跑，最长跑到 120 秒超时；
@@ -133,6 +187,284 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
+}
+
+/*
+ * ─────────── 工作台窗口 ───────────
+ *
+ * 这一层只做两件事：把本机存档读出来、交给工作台界面去摆。
+ * 不解析论证、不改任何判定文字、不调用模型、不写盘。
+ * 工作台里显示的是存档里已经存在的那一份报告，不是新分析出来的结论。
+ */
+let workbenchWindow: BrowserWindow | null = null;
+
+type WorkbenchRow = Record<string, unknown>;
+
+/*
+ * 工作台缓存。buildWorkbenchData() 本来就要把 104 份报告全读一遍算统计，
+ * 顺手留下对象与「同原文对照」映射：左树点某一份时不必再扫一遍磁盘。
+ * 缓存只在刷新存档时重建；不保存路径、不接受任意路径参数。
+ */
+let workbenchDocs: WorkbenchRow[] = [];
+let workbenchPairs: Record<string, string> = {};
+/* 缓存对应的 id 集合。只比「份数」不够：删一份又跑一份，数目没变，
+   缓存里却还是那份已经不存在的报告。检索前拿它和索引对一次。 */
+let workbenchCacheKey = '';
+/* 存档变了（跑完一份新报告 / 删掉一份）就置脏。工作台是「藏起来」而不是关掉，
+   再显示时若还是旧快照，用户会以为刚跑的报告没存上。惰性重建：不在每次写盘时
+   同步扫 104 个文件，等下次真要用工作台数据时才重算。 */
+let workbenchDirty = false;
+function markWorkbenchDirty(): void { workbenchDirty = true; }
+
+function tallyOf(values: unknown[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const v of values) {
+    const k = String(v ?? '—');
+    out[k] = (out[k] ?? 0) + 1;
+  }
+  return out;
+}
+
+function buildWorkbenchData(): Record<string, unknown> {
+  const metas = listReports();
+  const docs: WorkbenchRow[] = [];
+  for (const m of metas) {
+    const d = getReport(m.id);
+    if (d) docs.push(d as unknown as WorkbenchRow);
+  }
+  const report = docs[0] ?? null;
+  const samePassage = report
+    ? docs.filter((d) => d['id'] !== report['id'] && d['passage'] === report['passage'])
+    : [];
+  const compare = samePassage.find((d) => d['mode'] !== report?.['mode']) ?? samePassage[0] ?? report;
+
+  const listOf = (d: WorkbenchRow, key: string): unknown[] =>
+    Array.isArray(d[key]) ? (d[key] as unknown[]) : [];
+  const objOf = (d: WorkbenchRow, key: string): WorkbenchRow => {
+    const v = d[key];
+    return v && typeof v === 'object' ? (v as WorkbenchRow) : {};
+  };
+  const groups = new Map<string, number>();
+  for (const d of docs) {
+    const k = String(d['passage'] ?? '').trim();
+    groups.set(k, (groups.get(k) ?? 0) + 1);
+  }
+  const premises = (d: WorkbenchRow) => listOf(d, 'premises');
+  const refutations = (d: WorkbenchRow) => listOf(d, 'refutations');
+  const stats = {
+    total: docs.length,
+    passages: groups.size,
+    maxGroup: Math.max(0, ...groups.values()),
+    modes: tallyOf(docs.map((d) => d['mode'])),
+    levels: tallyOf(docs.map((d) => objOf(d, 'verdict')['level'])),
+    theories: tallyOf(docs.map((d) => d['theory'])),
+    checks: tallyOf(docs.flatMap((d) => listOf(d, 'checks').map((c) => (c as WorkbenchRow)['answer']))),
+    burdenPremises: `${docs.reduce((n, d) => n + premises(d).filter((p) => (p as WorkbenchRow)['burden'] === 'proponent').length, 0)}/${docs.reduce((n, d) => n + premises(d).length, 0)}`,
+    burdenAfter: `${docs.reduce((n, d) => n + refutations(d).filter((r) => (r as WorkbenchRow)['burdenAfter'] === 'proponent').length, 0)}/${docs.reduce((n, d) => n + refutations(d).length, 0)}`,
+    stage: tallyOf(docs.map((d) => objOf(d, 'context')['stage'])),
+  };
+  /*
+   * 对照映射：同一段原文、不同 id 的另一份优先挑模式不同的，
+   * 这样点开任意历史存档时「对照」页看得出两种问法的差别，而不是同一次复跑的拷贝。
+   * 左树原来只拿到 16 条索引、点了也打不开报告；这里给全量索引 + 按 id 取全文的通道。
+   */
+  const pairs: Record<string, string> = {};
+  for (const d of docs) {
+    const id = String(d['id'] ?? '');
+    const passage = String(d['passage'] ?? '').trim();
+    if (!id || !passage) continue;
+    const same = docs.filter(
+      (x) => String(x['id'] ?? '') !== id && String(x['passage'] ?? '').trim() === passage
+    );
+    const other = same.find((x) => String(x['mode']) !== String(d['mode'])) ?? same[0];
+    if (other) pairs[id] = String(other['id'] ?? '');
+  }
+  workbenchDocs = docs;
+  workbenchPairs = pairs;
+  workbenchCacheKey = metas.map((m) => String(m.id)).sort().join('|');
+  workbenchDirty = false;
+  /* 回看台同样要如实：索引里有几行、文件里有几份、哪些读不出来。
+     以前只用 docs.length 报「本机存档 N 份」，坏文件被跳过时那句话听着完整，其实不完整。 */
+  return { report, compare, archive: metas, pairOf: pairs, stats, health: archiveHealth() };
+}
+
+/* ─────────── 跨报告全文检索（纯读） ───────────
+ *
+ * 放在主进程只有一个理由：全库的字只在这里。工作台手里是当前一份报告全文
+ * 和 72 字的存档摘要；拿摘要搜「全库」会给出看似完整、其实漏掉九成的结果。
+ * 与 archive:portfolio / archive:sameness 同一个口径：不写盘、不调模型、不接路径。
+ *
+ * 只收字符串、只走白名单根字段。raw（模型原文）、prompt、diagnostics、
+ * span（重复引文）、supports（结构连线的 id）都不进索引——它们不是读者会搜的
+ * 「判断」，混进来只会把判读文字淹掉。
+ */
+const SEARCH_ROOTS = [
+  'passage', 'context', 'scope', 'conclusion', 'premises', 'intermediate',
+  'checks', 'lens', 'defeat', 'verdict', 'repair', 'labels',
+  'legitimateMoves', 'refutations', 'selfCheck',
+];
+const SEARCH_SKIP = new Set([
+  'raw', 'prompt', 'diagnostics', 'span', 'supports', 'id', 'at', 'createdAt',
+  'version', 'parentId', 'fingerprint', 'confidence', 'tag', 'meta',
+  'bytes', 'cost', 'open',
+]);
+
+function searchWalk(v: unknown, path: string, out: { path: string; text: string }[], depth: number): void {
+  if (v == null || depth > 6) return;
+  if (typeof v === 'string') {
+    if (v.trim()) out.push({ path, text: v });
+    return;
+  }
+  if (Array.isArray(v)) {
+    v.forEach((x, i) => searchWalk(x, `${path}[${i}]`, out, depth + 1));
+    return;
+  }
+  if (typeof v === 'object') {
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+      if (SEARCH_SKIP.has(k)) continue;
+      searchWalk(x, path ? `${path}.${k}` : k, out, depth + 1);
+    }
+  }
+}
+
+/** 命中处前后各留一点上下文；关键词本身逐字保留，不改写报告用字。 */
+function snippetOf(text: string, q: string): string {
+  const i = text.toLowerCase().indexOf(q);
+  if (i < 0) return '';
+  const from = Math.max(0, i - 36);
+  const to = Math.min(text.length, i + q.length + 60);
+  return (from ? '…' : '') + text.slice(from, to).replace(/\s+/g, ' ') + (to < text.length ? '…' : '');
+}
+
+interface SearchHit {
+  id: string;
+  at: number;
+  mode: string;
+  theory: string;
+  level: string;
+  sec: string;
+  path: string;
+  snippet: string;
+  n: number;
+}
+
+function searchArchive(q: string, filter: Record<string, unknown>) {
+  const query = q.trim().toLowerCase();
+  if (!query) return { ok: true, total: 0, docTotal: 0, capped: false, hits: [] as SearchHit[] };
+  const mode = String(filter.mode ?? 'all');
+  const theory = String(filter.theory ?? 'all');
+  const level = String(filter.level ?? 'all');
+  const rawLimit = Number(filter.limit ?? 120);
+  const limit = Math.max(1, Math.min(200, Number.isFinite(rawLimit) ? rawLimit : 120));
+  /* 每份报告最多列几条。不设这个上限，搜「早读」时 89 份里第一份就能
+     把 120 条占满，界面看起来像只搜到一份报告——那是假的全库。 */
+  const perDoc = 3;
+
+  let total = 0;
+  let docTotal = 0;
+  let matchedEntries = 0;
+  const hits: SearchHit[] = [];
+  for (const d of workbenchDocs) {
+    const id = String(d['id'] ?? '');
+    if (!id) continue;
+    const dMode = String(d['mode'] ?? '');
+    const dTheory = String(d['theory'] ?? '');
+    const vd = d['verdict'];
+    const dLevel = vd && typeof vd === 'object' ? String((vd as Record<string, unknown>)['level'] ?? '') : '';
+    if (mode !== 'all' && dMode !== mode) continue;
+    if (theory !== 'all' && dTheory !== theory) continue;
+    if (level !== 'all' && dLevel !== level) continue;
+
+    const texts: { path: string; text: string }[] = [];
+    for (const root of SEARCH_ROOTS) searchWalk(d[root], root, texts, 0);
+    let docN = 0;
+    for (const t of texts) {
+      const lower = t.text.toLowerCase();
+      let n = 0;
+      let from = 0;
+      for (;;) {
+        const i = lower.indexOf(query, from);
+        if (i < 0) break;
+        n++;
+        from = i + Math.max(1, query.length);
+      }
+      if (!n) continue;
+      total += n;
+      docN++;
+      matchedEntries++;
+      if (hits.length < limit && docN <= perDoc) {
+        hits.push({
+          id,
+          at: Number(d['createdAt'] ?? 0),
+          mode: dMode,
+          theory: dTheory,
+          level: dLevel,
+          sec: t.path.split(/[.[]/)[0],
+          path: t.path,
+          snippet: snippetOf(t.text, query),
+          n,
+        });
+      }
+    }
+    if (docN > 0) docTotal++;
+  }
+  return { ok: true, total, docTotal, capped: hits.length < matchedEntries, hits };
+}
+
+function injectWorkbenchData(win: BrowserWindow): void {
+  const data = buildWorkbenchData();
+  const payload = JSON.stringify(data).replace(/</g, '\\u003c');
+  const script = data.report
+    ? `window.__wbApply && window.__wbApply(${payload});`
+    : `var e=document.getElementById('wbSource');if(e)e.textContent='v2 · 本机暂无存档';`;
+  win.webContents.executeJavaScript(script).catch(() => {
+    // @allow-silent: 工作台是附加视图；注入失败时界面顶栏仍写着「样张数据」，
+    // 不会把内嵌样例冒充成本机存档。主窗口的分析功能不受影响。
+  });
+}
+
+function openWorkbench(): void {
+  if (workbenchWindow && !workbenchWindow.isDestroyed()) {
+    // 「回去分析文本」会把工作台藏起来而不是销毁，这里必须能把它重新显示，
+    // 否则用户再点「▦ 工作台」会毫无反应。
+    /* 主窗口刚跑完一份或删掉一份：藏起来的工作台里还是旧快照，重新注入再显示。 */
+    if (workbenchDirty) injectWorkbenchData(workbenchWindow);
+    if (!workbenchWindow.isVisible()) workbenchWindow.show();
+    if (workbenchWindow.isMinimized()) workbenchWindow.restore();
+    workbenchWindow.focus();
+    return;
+  }
+  const win = new BrowserWindow({
+    width: 1500,
+    height: 940,
+    minWidth: 1100,
+    minHeight: 700,
+    title: '论证镜 · 工作台',
+    backgroundColor: '#0E1216',
+    autoHideMenuBar: true,
+    show: false,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      spellcheck: false,
+    },
+  });
+  workbenchWindow = win;
+  win.on('closed', () => {
+    if (workbenchWindow === win) workbenchWindow = null;
+  });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    openExternalSafely(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('dom-ready', () => injectWorkbenchData(win));
+  win.once('ready-to-show', () => {
+    win.show();
+    win.focus();
+  });
+  win.loadFile(join(__dirname, '../renderer/workbench.html'));
 }
 
 function registerIpc(): void {
@@ -207,6 +539,7 @@ function registerIpc(): void {
         let saveError: string | null = null;
         try {
           saveReport(diagnosis, usage);
+          markWorkbenchDirty();
         } catch (err) {
           saved = false;
           saveError = (err as Error)?.message ?? '写不进存档目录';
@@ -286,6 +619,15 @@ function registerIpc(): void {
    * 它同样不重算任何判定：节点文本逐字来自报告，线只来自 supports / targetId。
    */
   ipcMain.handle('report:exportPrg', (e, d: Diagnosis) => exportReportPrg(BrowserWindow.fromWebContents(e.sender), d));
+  /*
+   * 「拿走之后还能拿回来」的三条：
+   *   · 复制：不落盘，贴到聊天窗口或自己的稿子里；
+   *   · 打开 / 定位：只认本次运行真的导出过的那几个路径（report-export 里那份名单）。
+   * 三条都只读报告、不改报告，也不改写任何判定。
+   */
+  ipcMain.handle('report:copyMarkdown', (_e, d: Diagnosis) => copyReportMarkdown(d));
+  ipcMain.handle('report:openSaved', (_e, path: string) => openExported(typeof path === 'string' ? path : ''));
+  ipcMain.handle('report:revealSaved', (_e, path: string) => revealExported(typeof path === 'string' ? path : ''));
   ipcMain.handle('usage:reveal', () => shell.openPath(usageDirPath()));
 
   ipcMain.handle('kb:schemes', () => SCHEMES);
@@ -324,7 +666,17 @@ function registerIpc(): void {
   /* 存档：报告本身。列表只给元数据，取全文要单独要。 */
   ipcMain.handle('archive:list', () => listReports());
   ipcMain.handle('archive:get', (_e, id: string) => getReport(id));
-  ipcMain.handle('archive:remove', (_e, id: string) => removeReport(id));
+  /*
+   * 存档体检与单份探测：两条都是纯读，不删、不修、不写盘。
+   * 与 archive:get 分开是因为 get 的返回值（报告或 null）被 smoke 当独立真值用，
+   * 不能为了带上一句原因就改它的形状。
+   */
+  ipcMain.handle('archive:health', () => archiveHealth());
+  ipcMain.handle('archive:probe', (_e, id: string) => probeReport(typeof id === 'string' ? id : ''));
+  ipcMain.handle('archive:remove', (_e, id: string) => {
+    markWorkbenchDirty();
+    return removeReport(id);
+  });
   ipcMain.handle('archive:reveal', () => shell.openPath(archiveDirPath()));
   /*
    * 「这段文字跑过没有」。
@@ -423,6 +775,64 @@ function registerIpc(): void {
    * 两种都比直说「这个键被占了，换一个」更坏。
    */
   ipcMain.handle('capture:status', () => captureStatus());
+
+  ipcMain.handle('workbench:open', () => {
+    openWorkbench();
+    return { ok: true };
+  });
+  ipcMain.handle('workbench:refresh', () => {
+    if (workbenchWindow && !workbenchWindow.isDestroyed()) injectWorkbenchData(workbenchWindow);
+    return { ok: true };
+  });
+  /*
+   * 按 id 取一份历史报告全文。id 必须在存档索引里——不接路径、不拼文件名，
+   * 工作台拿不到存档目录之外的东西。缓存里没有这份（例如刚跑完一份新报告）时
+   * 先重建一次，别让用户先去点刷新才看得见自己的新报告。
+   */
+  ipcMain.handle('workbench:report', (_e, id: string) => {
+    if (workbenchDirty || !workbenchDocs.some((d) => String(d['id']) === id)) buildWorkbenchData();
+    const row = workbenchDocs.find((d) => String(d['id']) === id);
+    if (!row) return { ok: false, error: '这份存档不在本机索引里，点右上角「刷新存档」再试。' };
+    const cid = workbenchPairs[id];
+    const cmp = cid ? (workbenchDocs.find((d) => String(d['id']) === cid) ?? row) : row;
+    return { ok: true, report: row, compare: cmp };
+  });
+  /*
+   * 跨报告全文检索。检索前先对一次索引的 id 集合：刚跑完一份新报告，
+   * 或刚删掉一份，缓存还是旧的，直接搜会给出「本机没有」的假结论。
+   * 参数只有关键词和三个枚举过滤，不含路径，也不写任何东西。
+   */
+  ipcMain.handle('workbench:search', (_e, q: unknown, filter: unknown) => {
+    try {
+      const key = listReports().map((m) => String(m.id)).sort().join('|');
+      if (workbenchDirty || key !== workbenchCacheKey || !workbenchDocs.length) buildWorkbenchData();
+      const f = filter && typeof filter === 'object' ? (filter as Record<string, unknown>) : {};
+      return searchArchive(typeof q === 'string' ? q : '', f);
+    } catch (err) {
+      return { ok: false, error: String(err), total: 0, docTotal: 0, capped: false, hits: [] };
+    }
+  });
+  ipcMain.handle('workbench:back', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      /*
+       * 「回去」不只是换个窗口：把光标放进原文输入框，用户落回来就知道下一步做什么。
+       * 这里只做 DOM 聚焦，不写值、不触发分析、不花钱。
+       */
+      mainWindow.webContents.executeJavaScript(`(function(){
+        var t=document.querySelector('.composer textarea')||document.querySelector('textarea');
+        if(t){t.focus();t.scrollIntoView({block:'center'});}
+      })();`).catch(() => {
+        // @allow-silent: 聚焦失败不影响切回主界面；主窗口的导入/分析按钮仍可用。
+      });
+    } else {
+      createWindow();
+    }
+    // 藏起来而不是关掉：再开时保留当前标签与滚动位置，也不留一个空窗口在任务栏。
+    if (workbenchWindow && !workbenchWindow.isDestroyed()) workbenchWindow.hide();
+    return { ok: true };
+  });
 }
 
 
@@ -430,6 +840,13 @@ app.whenReady().then(() => {
   registerIpc();
   createWindow();
   if (mainWindow) attachSmoke(mainWindow);
+
+  /*
+   * 启动默认只开原诊断界面 —— 那里才能粘贴文本、发起分析。
+   * 工作台是「回看已存档报告」的第二窗口，由右下角「▦ 工作台」或
+   * Ctrl+Shift+W 按需打开。之前自动弹出并置前，会把用户熟悉的操作路径挡住，
+   * 打开就面对一张不能干活的字段表；这条已按实测反馈撤回。
+   */
 
   /*
    * 快捷键在窗口之后注册：回调需要拿到窗口。

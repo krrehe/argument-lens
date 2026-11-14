@@ -1,9 +1,9 @@
 import { app } from 'electron';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Objection, ObjectionStat } from '@shared/types';
+import type { Objection, ObjectionAnchor, ObjectionStat } from '@shared/types';
 import type { TheoryId } from '@shared/theories';
-import { objectionKey } from '@shared/objection';
+import { anchorRefId, normalizeAnchor, objectionKey } from '@shared/objection';
 import { appendJsonl, readJsonl, rewriteJsonl } from './jsonl';
 
 /**
@@ -54,6 +54,8 @@ function isObjection(o: any): o is Objection {
 function parseLine(line: string): Objection | null {
   const o = JSON.parse(line);
   if (!isObjection(o)) return null;
+  /* 老记录没有 anchor；坏掉的 anchor 只丢锚点，不丢这一条异议的理由。 */
+  const anchor = normalizeAnchor(o.anchor);
   return {
     key: o.key,
     diagId: o.diagId,
@@ -64,6 +66,7 @@ function parseLine(line: string): Objection | null {
     refLabel: String(o.refLabel ?? ''),
     excerpt: String(o.excerpt ?? ''),
     reason: String(o.reason ?? ''),
+    ...(anchor ? { anchor } : {}),
   };
 }
 
@@ -112,6 +115,8 @@ export interface ObjectionInput {
   refLabel: string;
   excerpt: string;
   reason: string;
+  /** 工作台自记异议带来的位置；主程序里每处判定不传，key 保持原样。 */
+  anchor?: ObjectionAnchor;
 }
 
 /**
@@ -119,9 +124,16 @@ export interface ObjectionInput {
  * 会把「最常被反对」这个统计做成假象。
  *
  * 写失败会抛：由 IPC 层翻成界面上看得见的一句话。
+ *
+ * 带锚点的自记异议：位置由锚点说了算，渲染层传来的 refId/refLabel/excerpt
+ * 不参与定位，免得界面拼错一个字就把同一处判成两处（或反过来把两处并成一处）。
  */
 export function addObjection(input: ObjectionInput): Objection[] {
-  const key = objectionKey(input.theory, input.field, input.refId, input.excerpt);
+  const anchor = normalizeAnchor(input.anchor);
+  const refId = anchor ? anchorRefId(anchor) : input.refId;
+  const refLabel = anchor ? anchor.label : input.refLabel;
+  const excerpt = anchor ? anchor.quote : input.excerpt;
+  const key = objectionKey(input.theory, input.field, refId, excerpt, anchor);
   const all = readAll();
   const dup = all.findIndex((o) => o.diagId === input.diagId && o.key === key);
   const record: Objection = {
@@ -130,10 +142,11 @@ export function addObjection(input: ObjectionInput): Objection[] {
     at: Date.now(),
     theory: input.theory,
     field: input.field,
-    refId: input.refId,
-    refLabel: input.refLabel,
-    excerpt: input.excerpt.slice(0, 200),
+    refId,
+    refLabel,
+    excerpt: excerpt.slice(0, 200),
     reason: input.reason.trim().slice(0, 500),
+    ...(anchor ? { anchor } : {}),
   };
 
   if (dup >= 0) {
@@ -175,6 +188,7 @@ export function objectionStats(): ObjectionStat[] {
         refId: o.refId,
         refLabel: o.refLabel,
         excerpt: o.excerpt,
+        ...(o.anchor ? { anchor: o.anchor } : {}),
         count: 1,
         lastAt: o.at,
         reasons: o.reason ? [o.reason] : [],
