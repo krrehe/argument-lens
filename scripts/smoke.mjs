@@ -231,7 +231,14 @@ if (!existsSync(trace)) {
 
 const log = readFileSync(trace, 'utf-8');
 const resultLine = log.split('\n').find((l) => l.includes('RESULT')) ?? '';
-const domLine = log.split('\n').find((l) => l.includes('DOM')) ?? '';
+/*
+ * 只认以「DOM {」开头的那一行，不用 includes('DOM')。
+ *
+ * 教训：新加的 BRIEFCARD 那行先出现，而它的名字里也含 DOM 三个字母——
+ * 于是 DOM 这一行被抓成了立案卡那一行，五条依赖它的断言一起红，
+ * 报的却是「应用启动并渲染」「无横向溢出」，指向完全不相干的地方。
+ */
+const domLine = log.split('\n').find((l) => /(^|\s)DOM \{/.test(l)) ?? '';
 /** 示例轮换那一行。写在应用里的一条日志，取第一条即可。 */
 const samplesLine = log.split('\n').find((l) => l.includes('SAMPLES ')) ?? '';
 /** 从日志行里取一个字段。取不到给空串——空串会让相关断言自己失败，而不是抛异常把整趟冒烟打断。 */
@@ -579,6 +586,50 @@ const checks = [
         /排序按/.test(String(r.pivNote ?? '')) &&
         String(r.pivNext ?? '').length > 0
       );
+    } catch {
+      return false;
+    }
+  })()],
+  /*
+   * 全流程账：十六步、顺序、以及「立案填没填」与报告那边说的是不是同一件事。
+   *
+   * 最后这一条是这里最值钱的一条：输入区那张卡与报告里那一栏是两处独立的 DOM，
+   * 一边填了另一边没认，界面上不会报任何错——只会显示成「没立案」，
+   * 而「没立案」正是默认状态，看起来完全正常。所以断言必须把两边对着比：
+   * 填了 → A1 必须是「做了」；没填 → A1 必须是「没做」且说出「判在立案之前」。
+   */
+  ['全流程账：十六步都在，顺序与文档 §1 一致', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      const ids = Array.isArray(r.flowIds) ? r.flowIds.join(',') : '';
+      return (
+        Number(r.flowRows ?? 0) === 16 &&
+        ids === 'A1,A2,A3,B1,B2,B3,B4,C1,C2,C3,D1,D2,D3,E1,E2,E3' &&
+        ['quick', 'standard', 'audit'].includes(String(r.flowDepth ?? '')) &&
+        /步/.test(String(r.flowLine ?? ''))
+      );
+    } catch {
+      return false;
+    }
+  })()],
+  ['全流程账：输入区填的立案，报告那边认了没有', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      const filled = String(r.flowBrief ?? '') === '1';
+      if (filled) return r.flowA1 === 'ok' && r.flowA2 === 'ok';
+      /* 没填：A2 在任何一档都是必须的，所以必须是缺；A1 在速判档里本来就不走。 */
+      const a1Wanted = String(r.flowDepth ?? '') === 'quick' ? 'na' : 'gap';
+      return r.flowA1 === a1Wanted && r.flowA2 === 'gap';
+    } catch {
+      return false;
+    }
+  })()],
+  ['全流程账：没立案却给了档位 → 说「判在立案之前」', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      const filled = String(r.flowBrief ?? '') === '1';
+      /* 填了立案就不该有这句；没填就该有（速判档也要求 A2 准入）。 */
+      return filled ? r.flowBreach === false : r.flowBreach === true;
     } catch {
       return false;
     }

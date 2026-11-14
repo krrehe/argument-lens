@@ -44,8 +44,18 @@ function sectionsFor(d: Diagnosis) {
   if (pivotOf(d).rows.length > 0) extra.push({ id: 'sec-pivot', label: '枢纽' });
   const nDisp = disputesIn(d).length;
   const disp = nDisp ? [{ id: 'sec-disputes', label: `争议 ${nDisp}` }] : [];
-  /* 顺序照正文：判读之后依次是账、柱子、争议，然后才是反驳与修补。 */
-  return [...BASE_SECTIONS.slice(0, 3), ...extra, ...disp, ...BASE_SECTIONS.slice(3)];
+  /*
+   * 顺序照正文：全流程账在最前（四句话之后就是它），判读之后依次是账、柱子、争议，
+   * 然后才是透镜产物、反驳与修补。这一格不按数据现算——流程账每份报告都有，
+   * 它是这一页的方位，不是可选栏。
+   */
+  return [
+    { id: 'sec-flow', label: '全流程' },
+    ...BASE_SECTIONS.slice(0, 3),
+    ...extra,
+    ...disp,
+    ...BASE_SECTIONS.slice(3),
+  ];
 }
 
 export function jumpTo(id: string) {

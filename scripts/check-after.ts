@@ -197,7 +197,8 @@ ok(/function sectionsFor\(d: Diagnosis\)/.test(ov), '跳转条按这一份的数
 ok(/if \(propositionsOf\(d\)\.total > 0\) extra\.push\(\{ id: 'sec-props'/.test(ov), '有命题才给「命题账」那一格');
 ok(/if \(pivotOf\(d\)\.rows\.length > 0\) extra\.push\(\{ id: 'sec-pivot'/.test(ov), '有枢纽才给「枢纽」那一格');
 ok(/props\.total > 0/.test(diagTsx) && /pivot\.rows\.length > 0/.test(diagTsx), '正文那边用的是同一个判据（两边判错方向就成了死入口）');
-ok(/BASE_SECTIONS\.slice\(0, 3\), \.\.\.extra, \.\.\.disp, \.\.\.BASE_SECTIONS\.slice\(3\)/.test(ov), '两格插在「判读」之后——与正文从上往下的顺序一致');
+ok(/BASE_SECTIONS\.slice\(0, 3\),\s*\.\.\.extra,\s*\.\.\.disp,\s*\.\.\.BASE_SECTIONS\.slice\(3\)/.test(ov), '两格插在「判读」之后——与正文从上往下的顺序一致');
+ok(/return \[\s*\{ id: 'sec-flow', label: '全流程' \}/.test(ov), '「全流程」那一格排在最前（正文里它也在最前）');
 ok(/data-qnav=\{s\.id\}/.test(ov), '每格带着要跳去的区块 id（探针不靠按钮文字认）');
 
 const chipTargets = [...ov.matchAll(/id: '(sec-[a-z]+)'/g)].map((m) => m[1]);

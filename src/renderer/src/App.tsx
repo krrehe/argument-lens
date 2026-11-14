@@ -4,6 +4,7 @@ import {
   MODE_META,
   type AnalysisMode,
   type AnalysisStage,
+  type Brief,
   type ReportProbe,
   Diagnosis,
   LlmSettings,
@@ -25,6 +26,7 @@ import { DisputeDialog } from './components/Disputes';
 import { ObjectionCtx } from './components/Objection';
 import { UsageChip, UsagePanel } from './components/Usage';
 import { SegmentBar } from './components/SegmentBar';
+import { BriefCard } from './components/BriefCard';
 import { Running, type RunEvent } from './components/Running';
 import { RevisionBar } from './components/Revision';
 import { HistoryPanel, when } from './components/History';
@@ -42,6 +44,7 @@ import type { NextLineView } from '@shared/nextline';
 import { diffRevision } from '@shared/compare';
 import { SAMPLES } from '@shared/samples';
 import { decideCapture, type CaptureStatus } from '@shared/capture';
+import { normalizeBrief } from '@shared/brief';
 
 type Tab = 'analyze' | 'prompt';
 
@@ -75,6 +78,17 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('analyze');
   const [theory, setTheory] = useState<TheoryId>(DEFAULT_THEORY);
   const [passage, setPassage] = useState('');
+  /**
+   * 立案：谁说的 / 哪一版 / 原文还是转述 / 这段话在做什么。
+   *
+   * 为什么它不是「设置」而是每次随原文走：这三问描述的是**这一段文字**，
+   * 不是这个人。上一段是某社论、这一段是朋友圈，沿用上一次的「谁说的」
+   * 会让报告一本正经地评错人——而那种错读起来完全正常，最不容易被发现。
+   *
+   * 所以原文一改，立案作废（见下面的 effect）。宁可让人重填，不留一份
+   * 只对上一段成立的身份。
+   */
+  const [brief, setBrief] = useState<Brief | null>(null);
   /**
    * 下一次按「示例」会填第几段。填完就前进一位，填到末尾回第一段。
    *
@@ -254,6 +268,38 @@ export default function App() {
   const stopRef = useRef(false);
 
   const profile = THEORY_BY_ID[theory];
+
+  /**
+   * 原文一换，立案作废。
+   *
+   * 这一条只有一行，但它是这一块能不能信的全部：三问描述的是「这一段」，
+   * 换了一段还留着上一段的答案，报告会理直气壮地评错人，而界面上看不出任何异常。
+   * 不弹确认、不做「保留 / 清除」二选——多问一句的代价比重新填更烦，
+   * 而填错的代价是整份报告的前提是假的。
+   */
+  useEffect(() => {
+    setBrief((b) => (b ? null : b));
+  }, [passage]);
+
+  /**
+   * 改立案的某一项。
+   *
+   * 收的是「改了哪一项」而不是整份：四个值里有三个是点选的，而人点得很快——
+   * 两次点击落在同一帧里时，各拿一份旧状态去算，后一次就把前一次的选择盖掉。
+   * 端到端第一次跑就是这样：四个值填完只剩三个，界面上不报错。
+   */
+  const patchBrief = useCallback((p: Partial<Brief>) => {
+    setBrief((prev) =>
+      normalizeBrief({
+        speaker: prev?.speaker ?? '',
+        version: prev?.version ?? '',
+        source: prev?.source ?? 'unknown',
+        objectKind: prev?.objectKind ?? 'unknown',
+        at: Date.now(),
+        ...p,
+      })
+    );
+  }, []);
 
   const refreshUsage = useCallback(() => {
     window.api.usage
@@ -554,7 +600,13 @@ export default function App() {
         text,
         theory,
         mode,
-        parentForThis
+        parentForThis,
+        /*
+         * 立案只在「跑的就是框里这段字」时带上。
+         * 重跑上一次失败的那一段、或者换透镜重跑一份旧报告时，框里可能已经是另一段话——
+         * 那种时候带上立案，等于给 A 段文字配 B 段的身份。
+         */
+        text === passage.trim() ? brief : null
       ).catch(
         (err: Error): RunResult => ({
           ok: false,
@@ -629,7 +681,7 @@ export default function App() {
         setError(res.error?.message ?? '分析失败，原因不明。');
       }
     },
-    [passage, theory, mode, loading, hasKey, refreshUsage, pendingParent, waited]
+    [passage, theory, mode, loading, hasKey, refreshUsage, pendingParent, waited, brief]
   );
 
   /**
@@ -1106,6 +1158,14 @@ export default function App() {
                   onRestore={restoreWhole}
                   disabled={loading}
                 />
+                {/*
+                  立案。放在模式之前，顺序就是流程文档的顺序：先答「这是谁的话、
+                  哪一版、原文还是转述、这段话在做什么」，再问「这次想问什么」。
+                  反过来的话，模式先选好了，人会更愿意跳过前面那四问——
+                  而跳过它的代价（结论只能算「就文论文」）要等报告出来才看得见。
+                */}
+                <BriefCard brief={brief} onPatch={patchBrief} disabled={loading} />
+
                 {/*
                   模式切换。放在输入区而不是顶栏：它改的是「这一次问什么」，
                   跟原文贴在一起才看得出它作用在这段话上。

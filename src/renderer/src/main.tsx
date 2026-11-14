@@ -14,6 +14,7 @@ import './styles-rewrite.css';
 import './styles-source.css';
 import './styles-field-terms.css';
 import './styles-coverage.css';
+import './styles-procedure.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

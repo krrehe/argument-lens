@@ -1,0 +1,391 @@
+/*
+ * 立案条（输入区）与全流程账（报告里）。
+ *
+ * 为什么两块的样式放同一个文件：它们说的是同一件事的两头——A 阶段填了什么，
+ * 报告里就随之显示哪几步真走过了。分开放，改口径时容易只改一头。
+ *
+ * 类名前缀 `bf-` / `wf-`：`.pv*` 撞过一次车（原文核对的 .pv 与枢纽卡的 .pv- 打过架，
+ * check:css 只查「有没有定义」不查「定义了几次」，撞了照绿），此后每块都用自己的前缀。
+ *
+ * 颜色：`ok` 用 --strong（做了），`partial` 用 --weak（一半），`gap` 用 --invalid（没做），
+ * `na` 用 --ink-3（这一档不走）。用色只为区分四态，不表示好坏——
+ * 「没做」在这块板子上是信息，不是罪状。
+ */
+
+/* ─────────── 立案条 ─────────── */
+
+.bf {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.bf-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  flex-wrap: wrap;
+}
+
+.bf-k {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+
+.bf-sub {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+}
+
+.bf-line {
+  font-size: 12px;
+  color: var(--ink-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.bf-verdict {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-3);
+  background: var(--muted-bg);
+  white-space: nowrap;
+}
+
+.bf-verdict.ok {
+  color: var(--strong);
+  border-color: var(--strong);
+  background: var(--strong-bg);
+}
+
+.bf-verdict.gap {
+  color: var(--weak);
+  border-color: var(--weak);
+  background: var(--weak-bg);
+}
+
+.bf-toggle {
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--ink-2);
+  border-radius: 4px;
+  font-size: 11.5px;
+  padding: 3px 9px;
+  cursor: pointer;
+  flex: none;
+}
+
+.bf-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.bf-why {
+  margin: 0;
+  padding: 0 11px 9px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.bf-body {
+  border-top: 1px solid var(--line);
+  padding: 9px 11px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bf-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bf-label {
+  width: 96px;
+  flex: none;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.bf-input {
+  flex: 1;
+  min-width: 180px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--ink);
+  font-family: inherit;
+}
+
+.bf-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.bf-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/*
+ * 选择按钮不复用 `.mode-chip`：那个类名是冒烟测试用来数「模式开关五档」的，
+ * 立案卡里再挂两个同类的按钮，那一类断言就会从 5 变成 9——而它报的错会写成
+ * 「模式开关数量不对」，让下一个人去查一个根本没坏的地方。样式抄一份，类名各归各。
+ */
+.bf-chip {
+  padding: 3px 12px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.bf-chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.bf-chip.on {
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+  color: #fff;
+}
+
+.bf-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.bf-warn {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--weak);
+  background: var(--weak-bg);
+  border-left: 3px solid var(--weak);
+  padding: 5px 9px;
+  border-radius: 0 4px 4px 0;
+}
+
+.bf-fine {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+/* ─────────── 全流程账 ─────────── */
+
+.wf {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  padding: 11px 13px;
+}
+
+.wf-line {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+/*
+ * 顺序违规单独一行、整行底色：它说的不是「缺一格」，而是「这份判决的前提没立」。
+ * 混在行里会读成十六格里的又一格。
+ */
+.wf-breach {
+  margin: 0 0 9px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--invalid);
+  background: var(--invalid-bg);
+  border-left: 3px solid var(--invalid);
+  padding: 7px 10px;
+  border-radius: 0 4px 4px 0;
+  word-break: break-word;
+}
+
+.wf-depth {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.wf-depth-note {
+  color: var(--ink-3);
+}
+
+.wf-group {
+  margin-top: 8px;
+}
+
+.wf-ghead {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+
+.wf-gid {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--panel);
+  background: var(--ink-3);
+  border-radius: 3px;
+  padding: 0 5px;
+}
+
+.wf-gname {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+/*
+ * 一行一步。四列固定（标记 / 编号 / 名字 / 正文），最右边一个跳转。
+ * 正文那一列不设宽度上限：这一栏的价值全在「本地看到了什么」那句话上，
+ * 截断它等于把证据藏起来。
+ */
+.wf-row {
+  display: grid;
+  grid-template-columns: 16px 30px 76px minmax(0, 1fr) 62px;
+  gap: 6px;
+  align-items: start;
+  padding: 5px 0;
+  border-bottom: 1px dotted var(--line);
+}
+
+.wf-row:last-child {
+  border-bottom: none;
+}
+
+.wf-mark {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  border-radius: 3px;
+}
+
+.wf-mark.m-ok {
+  color: var(--strong);
+  background: var(--strong-bg);
+}
+
+.wf-mark.m-partial {
+  color: var(--weak);
+  background: var(--weak-bg);
+}
+
+.wf-mark.m-gap {
+  color: var(--invalid);
+  background: var(--invalid-bg);
+}
+
+.wf-mark.m-na {
+  color: var(--ink-3);
+  background: var(--muted-bg);
+}
+
+.wf-id {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.wf-name {
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.wf-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wf-saw {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.wf-row[data-status='na'] .wf-saw,
+.wf-row[data-status='gap'] .wf-saw {
+  color: var(--ink-2);
+}
+
+.wf-note {
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--ink-3);
+  word-break: break-word;
+}
+
+.wf-next {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--accent);
+}
+
+.wf-go {
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--ink-2);
+  border-radius: 4px;
+  font-size: 10.5px;
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wf-go:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.wf-go-none {
+  border: none;
+  background: none;
+  cursor: default;
+}
+
+.wf-fine {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: var(--ink-3);
+}

@@ -267,6 +267,64 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           })}`
         );
         await new Promise((r) => setTimeout(r, 200));
+        /*
+         * AL_BRIEF=1：先把立案三问填了再跑。
+         *
+         * 这一条要验的是「填了之后报告那边认不认」：输入区填的四个值 → preload →
+         * 主进程 → 存进报告 → 报告里那一栏把 A1/A2 记成「做了」。链上任何一环断了，
+         * 界面都不会报错，只会显示成「没立案」——而没立案看起来完全正常（默认就是这样）。
+         * 所以必须有两条跑道：默认不填（报告应说缺），这条填（报告应说做了）。
+         */
+        if (process.env['AL_BRIEF'] === '1') {
+          const filled = await wc.executeJavaScript(`(() => {
+            const t = document.querySelector('[data-brief-toggle]');
+            if (!t) return { found: false };
+            t.click();
+            return { found: true };
+          })()`);
+          await new Promise((r) => setTimeout(r, 200));
+          const typed = await wc.executeJavaScript(`(() => {
+            const setV = (sel, v) => {
+              const el = document.querySelector(sel);
+              if (!el) return false;
+              const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+              setter.call(el, v);
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              return true;
+            };
+            const a = setV('[data-brief-field="speaker"]', '城南小学校办');
+            const b = setV('[data-brief-field="version"]', '2026-11 第一版');
+            document.querySelector('[data-brief-source="original"]')?.click();
+            document.querySelector('[data-brief-object="argument"]')?.click();
+            return { a, b };
+          })()`);
+          await new Promise((r) => setTimeout(r, 250));
+          const briefDom = await wc.executeJavaScript(`(() => {
+            const card = document.querySelector('[data-brief]');
+            return {
+              flag: card?.getAttribute('data-brief') ?? '',
+              gaps: card?.querySelector('[data-brief-gaps]')?.getAttribute('data-brief-gaps') ?? '',
+              line: (card?.querySelector('[data-brief-line]')?.textContent ?? '').trim(),
+            };
+          })()`);
+          add(`BRIEFCARD ${JSON.stringify({ filled, typed, ...briefDom })}`);
+          /*
+           * 立案卡展开的样子：它只在「点开填写」之后出现，而这一屏是流程的入口——
+           * 没人拍过它，就等于没人核对过那四个字段排得下排不下。
+           */
+          const box = (await wc.executeJavaScript(`(() => {
+            const el = document.querySelector('.bf');
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+          })()`)) as { x: number; y: number; width: number; height: number } | null;
+          if (box && box.width > 100 && box.height > 60) {
+            const img = await wc.capturePage(box);
+            const p = join(dirname(shot), 'brief-card.png');
+            writeFileSync(p, img.toPNG());
+            add(`BRIEFSHOT ${p}`);
+          }
+        }
         // 注意：页签也叫「分析」，按文本找会点到页签上。这里按提交按钮的类名定位
         await wc.executeJavaScript(`(() => {
           document.querySelector('button.primary')?.click();
@@ -548,6 +606,23 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
                 }
                 return true;
               })(),
+              /*
+               * 全流程账。三样东西会各自单独坏：
+               *   flowRows  十六步挂没挂上（0 行 = 整块没渲染，而报告别处一切正常）
+               *   flowA1/A2 立案填了没有——它必须与输入区那张卡对得上，否则就是
+               *             「填了没传过去」或「没填却显示做过」，两种都只在报告侧露馅
+               *   breach    A 没做完却给了档位时那句话在不在
+               */
+              flowRows: document.querySelectorAll('[data-flow-row]').length,
+              flowIds: Array.from(document.querySelectorAll('[data-flow-row]')).map(
+                (e) => e.getAttribute('data-flow-row') ?? '',
+              ),
+              flowDepth: document.querySelector('[data-flow]')?.getAttribute('data-depth') ?? '',
+              flowLine: (document.querySelector('[data-flow-line]')?.textContent ?? '').trim().slice(0, 70),
+              flowA1: document.querySelector('[data-flow-row="A1"]')?.getAttribute('data-status') ?? '',
+              flowA2: document.querySelector('[data-flow-row="A2"]')?.getAttribute('data-status') ?? '',
+              flowBreach: !!document.querySelector('[data-flow-breach]'),
+              flowBrief: document.querySelector('[data-brief]')?.getAttribute('data-brief') ?? '',
               sameCount: document.querySelector('.same-bar')?.getAttribute('data-same') ?? '',
               sameText: (document.querySelector('.same-bar .sb-v')?.textContent ?? '').slice(0, 80),
               text: (document.body.innerText || '').replace(/\\s+/g, ' ').slice(0, 240),
@@ -602,6 +677,38 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               line: copyLine,
             })}`
           );
+        }
+
+        /*
+         * 全流程账整块的截图。
+         *
+         * 这一块比报告里任何一栏都长（十六行），一旦某一行被挤成两行、
+         * 状态符号与文字错位，单独一行 DOM 断言是看不出来的——断言只数得到节点。
+         * 拍成一张，人眼一次能看完；而且它是真的从这份报告上截的，不是预览页的构造数据。
+         */
+        if (!canceled) {
+          /* 先滚到这一节：不滚的话截到的是视口外的空白。滚完再取一次坐标。 */
+          await wc.executeJavaScript(
+            `(() => { document.getElementById('sec-flow')?.scrollIntoView({ block: 'start' }); return true; })()`
+          );
+          await sleep(400);
+          const box = (await wc.executeJavaScript(`(() => {
+            const el = document.getElementById('sec-flow');
+            if (!el) return null;
+            const b = el.getBoundingClientRect();
+            return {
+              x: Math.max(0, Math.round(b.left)),
+              y: Math.max(0, Math.round(b.top)),
+              width: Math.round(b.width),
+              height: Math.min(2400, Math.round(b.height)),
+            };
+          })()`)) as { x: number; y: number; width: number; height: number } | null;
+          if (box && box.width > 200 && box.height > 100) {
+            const png = (await wc.capturePage(box)).toPNG();
+            const p = join(dirname(shot), 'flow-section.png');
+            writeFileSync(p, png);
+            add(`FLOWSHOT ${p} ${png.length} bytes`);
+          }
         }
 
         /*

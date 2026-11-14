@@ -18,6 +18,7 @@ import { academicOf, BY_TOOL_LABEL, type AcademicView, type ByTool } from '@shar
 import { limitsOf } from '@shared/limits';
 import { propositionsOf } from '@shared/propositions';
 import { pivotOf } from '@shared/pivot';
+import { flowOf } from '@shared/flow';
 import { graphOf, graphSummary } from '@shared/prg-graph';
 import { prescriptionsOf } from '@shared/prescriptions';
 import { fallacyHits, mapSentences } from '@shared/fallacy-map';
@@ -38,6 +39,7 @@ import { ObjectBtn } from './Objection';
 import { ObjectionDigest } from './ObjectionDigest';
 import { PropositionLedger } from './PropositionLedger';
 import { PivotCard } from './PivotCard';
+import { FlowLedger } from './FlowLedger';
 import { ArsGapMap, PtaLocator, ToulminLayout, WaltonFamilyPath } from './LensDiagrams';
 import { VerdictWhy } from './VerdictWhy';
 import { RereadScreen } from './RereadScreen';
@@ -1570,6 +1572,14 @@ export function DiagnosisView({
    */
   const props = useMemo(() => propositionsOf(d), [d]);
   const pivot = useMemo(() => pivotOf(d), [d]);
+  /**
+   * 全流程账：这十六步做没做。
+   *
+   * 放在最前面（四句话之后）而不是最后：它答的是「这份报告是按流程走的吗」，
+   * 属于读之前的方位感；放到报告末尾，读者已经读完了才知道自己读的那份跳过立案。
+   * 与它同一层的骨架缺口紧接着——一个说「流程走到哪」，一个说「报告哪儿是空的」。
+   */
+  const flow = useMemo(() => flowOf(d), [d]);
   const topicsHit = topics.filter((t) => t.hit).length;
 
   /**
@@ -1787,7 +1797,21 @@ export function DiagnosisView({
       <QuickRead d={d} />
 
       {/*
-        骨架缺口紧跟四句话：读者先知道「这份报告哪儿是空的」，再决定往下深看哪一层。
+        全流程账紧接四句话：四句话说「这份报告说了什么」，这一栏说
+        「它是照流程走出来的，还是跳着走的」。两件事都不改报告一个字，
+        但第二件决定了第一件该被信几分——所以它排在所有正文之前。
+      */}
+      <Block
+        id="sec-flow"
+        title="全流程账"
+        sub={`${flow.depthLabel}档｜十六步走了 ${flow.counts.ok} 步`}
+        plain="这份报告是按「立案 → 重构 → 检验 → 裁决 → 交付」一步步走出来的，还是跳着走的。软件只数做没做，不判做得对不对——哪一步做得准不准，它算不出来。"
+      >
+        <FlowLedger v={flow} />
+      </Block>
+
+      {/*
+        骨架缺口跟在流程账之后：流程账说「步骤走到哪」，它说「报告哪儿是空的」。
         再往后放就成了读到一半才发现的附注，而它恰恰是对整份报告的核对。
       */}
       <SkeletonCard d={d} />
@@ -2291,6 +2315,7 @@ export function DiagnosisView({
       </Block>
 
       <Block
+        id="sec-selfcheck"
         title="自检"
         sub="这份输出用同一套标准检视自己"
         plain="这份分析给自己打的七项分，不是给原文打的。一个只会挑别人毛病的工具，本身就违反了它自己的标准。"

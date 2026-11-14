@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type {
   AnalysisMode,
   ArchiveHealth,
+  Brief,
   Diagnosis,
   ReportProbe,
   Objection,
@@ -52,7 +53,15 @@ const api = {
       passage: string,
       theory: TheoryId,
       mode?: AnalysisMode,
-      parentId?: string | null
+      parentId?: string | null,
+      /**
+       * 立案（A1 取材 / A2 准入）。
+       *
+       * 它**不进提示词**：主进程在解析完成之后把它贴在报告上，一个字都不给模型。
+       * 理由见 `@shared/brief`：这一段是「评的是谁」的记录，不是判断依据；
+       * 混进提示词，模型会顺着用户填的身份说话，那就成了诱导。
+       */
+      brief?: Brief | null
     ): Promise<{
       ok: boolean;
       data?: Diagnosis;
@@ -60,7 +69,7 @@ const api = {
       saved?: boolean;
       saveError?: string | null;
       error?: { code: string; message: string };
-    }> => ipcRenderer.invoke('analysis:run', passage, theory, mode, parentId),
+    }> => ipcRenderer.invoke('analysis:run', passage, theory, mode, parentId, brief),
     /*
      * 停。
      *

@@ -27,6 +27,7 @@ import type {
 } from '@shared/types';
 import { DEFAULT_THEORY, THEORY_BY_ID, isTheoryId, type TheoryId } from '@shared/theories';
 import { auditReport } from '@shared/report-audit';
+import { normalizeBrief } from '@shared/brief';
 import { buildPrompt, renderPrompt, SAMPLING } from './prompt';
 import { chat, extractJson, LlmError, type ChatResult } from './llm';
 import { locate } from './locator';
@@ -1152,6 +1153,14 @@ export async function runAnalysis(
      * 钱还在花，而用户以为自己已经停了。停就要真的停。
      */
     signal?: AbortSignal;
+    /**
+     * 立案（A1 取材 / A2 准入）。由渲染层填，主进程只负责贴到报告上。
+     *
+     * 这里收 `unknown` 而不是 `Brief`：IPC 那头什么都可能传过来（旧版渲染层、
+     * 手滑的调试脚本、被改过的 localStorage），收口放在 `normalizeBrief` 一处，
+     * 它认不出来就返回 null——报告照常产出，只是流程账上写着「没立案」。
+     */
+    brief?: unknown;
   } = {}
 ): Promise<{ diagnosis: Diagnosis; usage: UsageRecord }> {
   const passage = passageRaw.trim();
@@ -1330,6 +1339,16 @@ export async function runAnalysis(
     text: calls[calls.length - 1].text,
     attempts: calls.length,
   };
+
+  /*
+   * 立案：贴上去，但**不改报告一个字**。
+   *
+   * 它放在解析与裁决之后，是个位置声明：这份报告的所有判定都已经做完了，
+   * 这一段只是「评的是谁」的备注。它不参与提示词、不参与重放、不参与同题复跑，
+   * 所以不会让两次分析的差异多出一处来（那正是同题复跑要量东西）。
+   */
+  const brief = normalizeBrief(opts.brief);
+  if (brief) diagnosis.brief = brief;
 
   /* 运行时的工程事实也要留痕：模型调用了几次、温度有没有被裁、提示词是否超预算 */
   if (calls.length > 1) {

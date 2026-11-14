@@ -19,6 +19,8 @@ import { ACCEPT_LABEL, ANSWER_LABEL, BURDEN_LABEL, CONF_LABEL, STRATEGY_LABEL, W
 import { limitsOf } from './limits';
 import { DECID_LABEL, propositionsOf } from './propositions';
 import { pivotOf } from './pivot';
+import { flowOf } from './flow';
+import { briefGaps, briefLine } from './brief';
 import { prescriptionsOf } from './prescriptions';
 import { LEVEL_LABEL, THEORY_BY_ID } from './theories';
 import { MODE_META, type Claim, type Diagnosis } from './types';
@@ -73,6 +75,19 @@ export function reportToMarkdown(d: Diagnosis): string {
       '> 要不要否定结论，是另一回事（削弱 ≠ 反驳）。'
     );
   }
+  /*
+   * 立案：导出件最容易被单独转发，所以「评的是谁」这一行必须跟着走。
+   * 没立案也照写一句——空白会被读成「不用管」，而那句话说的是「结论只能算就文论文」。
+   */
+  if (d.brief) {
+    const gaps = briefGaps(d.brief);
+    head.push(
+      '> ',
+      `> 立案：${briefLine(d.brief)}${gaps.length ? `（还缺 ${gaps.length} 问：${gaps.join(' / ')}）` : ''}`
+    );
+  } else {
+    head.push('> ', '> 立案：没有记录谁说的、哪一版、原文还是转述——这份结论只能算「就文论文」。');
+  }
   head.push('> 每一条判断都附了原文句子；对不上原文的地方，以原文为准，不以本文件为准。');
   out.push(head.join('\n'));
   out.push('');
@@ -99,6 +114,34 @@ export function reportToMarkdown(d: Diagnosis): string {
     );
     return out.join('\n');
   }
+
+  /* ── 全流程：这份报告是照流程走的，还是跳着走的 ── */
+  /*
+   * 放在判定之前，与界面上的位置一致。
+   *
+   * 导出件比界面更容易被当成「一份结论」单独转发，而这一节恰恰是在说：
+   * 这份结论是在什么前提下得出的——立案做了没有、型式过了没有、反方构造了没有。
+   * 把它放到末尾，读者读完结论就走了。
+   */
+  const flow = flowOf(d);
+  out.push('## 全流程走了哪几步');
+  out.push('');
+  out.push(oneLine(flow.line));
+  out.push('');
+  if (flow.breach) {
+    out.push(`> **${oneLine(flow.breach)}**`);
+    out.push('');
+  }
+  out.push(`档位：${flow.depthLabel}（${flow.depthWhy}）`);
+  out.push('');
+  for (const r of flow.rows) {
+    const mark = r.status === 'ok' ? '✓' : r.status === 'partial' ? '~' : r.status === 'gap' ? '×' : '–';
+    const tail = r.note ? `　—— ${oneLine(r.note)}` : '';
+    out.push(`- ${mark} **${r.id} ${r.name}**　${oneLine(r.saw)}${tail}`);
+  }
+  out.push('');
+  out.push(`> ${oneLine(flow.fine)}`);
+  out.push('');
 
   /* ── 判定 ── */
   out.push('## 判定');

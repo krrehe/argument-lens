@@ -511,7 +511,14 @@ function registerIpc(): void {
 
   ipcMain.handle(
     'analysis:run',
-    async (event, passage: string, theory: TheoryId, mode?: AnalysisMode, parentId?: string | null) => {
+    async (
+      event,
+      passage: string,
+      theory: TheoryId,
+      mode?: AnalysisMode,
+      parentId?: string | null,
+      brief?: unknown
+    ) => {
       const sender = event.sender;
       const ctl = new AbortController();
       running.set(sender.id, ctl);
@@ -524,7 +531,7 @@ function registerIpc(): void {
               sender.send('analysis:progress', { stage, label, percent });
             }
           },
-          { mode, parentId, signal: ctl.signal }
+          { mode, parentId, signal: ctl.signal, brief }
         );
         /*
          * 自动存档。放在这里而不是 runAnalysis 里，是因为「跑分析」和「留住结果」

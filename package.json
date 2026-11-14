@@ -74,6 +74,7 @@
     "check:after": "node scripts/run-check-after.mjs",
     "check:props": "node scripts/run-check-props.mjs",
     "check:pivot": "node scripts/run-check-pivot.mjs",
+    "check:flow": "node scripts/run-check-flow.mjs",
     "audit:longtext": "node scripts/run-audit-longtext.mjs",
     "eval:bare": "node scripts/eval/run-bare.mjs",
     "eval:compare": "node scripts/eval/compare.mjs"

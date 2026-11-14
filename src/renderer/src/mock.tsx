@@ -36,6 +36,7 @@ import './styles-rewrite.css';
 import './styles-source.css';
 import './styles-field-terms.css';
 import './styles-coverage.css';
+import './styles-procedure.css';
 import { SAMPLES } from '@shared/samples';
 
 /*
@@ -83,7 +84,33 @@ const LONG_DEMO = new URLSearchParams(location.search).get('coverage') === '1'
       ].join('\n\n'),
     }
   : D0;
-const D = new URLSearchParams(location.search).get('gaps') === 'clean' ? withNoGaps(LONG_DEMO) : LONG_DEMO;
+/*
+ * ?brief=1 / ?brief=partial：给预览数据配一份立案。
+ *
+ * 全流程账上 A1/A2 两格长什么样，取决于这份报告有没有立案记录，而预览页
+ * 没有输入框、也没有主进程——不造一份，那两格「做了」的样子就永远没人看过，
+ * 而「没做」的样子反而天天见（默认 mock 没有 brief）。两种都要能拍。
+ */
+function withBrief(d: Diagnosis, q: string): Diagnosis {
+  if (!q) return d;
+  const partial = q === 'partial';
+  return {
+    ...d,
+    brief: partial
+      ? { speaker: '城南小学校办', version: '', source: 'unknown', objectKind: 'argument', at: Date.now() }
+      : {
+          speaker: '城南小学校办',
+          version: '家长群通知（2026-11 第一版）',
+          source: 'original',
+          objectKind: 'argument',
+          at: Date.now(),
+        },
+  };
+}
+const D = withBrief(
+  new URLSearchParams(location.search).get('gaps') === 'clean' ? withNoGaps(LONG_DEMO) : LONG_DEMO,
+  new URLSearchParams(location.search).get('brief') ?? ''
+);
 const t = THEORY_BY_ID[D.theory];
 const MOCK_DISPUTES = disputesIn(D);
 
