@@ -22,6 +22,11 @@
   overflow: hidden;
 }
 
+/* 这四问比报告里的新：只把边框点亮一点，不整块换色——它仍然是同一张卡。 */
+.bf.bf-pending {
+  border-color: #e6cf94;
+}
+
 .bf-head {
   display: flex;
   align-items: center;
@@ -99,6 +104,28 @@
   font-size: 11.5px;
   line-height: 1.6;
   color: var(--ink-3);
+}
+
+/* 「填了但这份报告还不认」：比常规说明重一档——它不是背景知识，是「你刚才那一下没生效」。 */
+.bf-pend {
+  margin: 0;
+  padding: 7px 11px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  background: #fff8e6;
+  border-top: 1px solid #f0e2bc;
+  border-bottom: 1px solid #f0e2bc;
+}
+
+.bf-pend b {
+  color: var(--ink);
+}
+
+/* 从报告里的「去填立案」跳过来时闪一下：不然人只知道屏幕换了一处，不知道要看哪。 */
+.bf-hit {
+  outline: 2px solid var(--accent, #3b6ea5);
+  outline-offset: 1px;
 }
 
 .bf-body {

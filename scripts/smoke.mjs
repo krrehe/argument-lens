@@ -635,6 +635,55 @@ const checks = [
     }
   })()],
   /*
+   * 每一个「看这一节」都要真有落点。
+   *
+   * 这一条数的是 flowGoDead：报告里那几栏是按数据与模式现算的（命题账要够两条、
+   * 枢纽要算得出来、反驳在新谬误与重构两个模式里整块不出现），账本却给十六步
+   * 一律配了按钮。点下去没反应最像「软件卡了一下」，人不会想到是那一栏根本不存在。
+   */
+  ['全流程账：每个落点都真有东西（没有点了没反应的按钮）', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      const go = Array.isArray(r.flowGo) ? r.flowGo : [];
+      return Number(r.flowGoDead ?? -1) === 0 && go.length >= 8;
+    } catch {
+      return false;
+    }
+  })()],
+  /*
+   * A 那两步：按钮写的是「去填立案」，而且点了真的能到那张卡上。
+   *
+   * 三段：按钮在且指向 brief-card → 卡片被展开 → 卡片在视口里。
+   * 第三段最容易被漏掉：展开了但停在视口外，人只看到屏幕闪了一下。
+   */
+  ['全流程账：A 那两步写「去填立案」，不写「看这一节」', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      const go = Array.isArray(r.flowGo) ? r.flowGo : [];
+      return go.includes('A1>brief-card>去填立案') && go.includes('A2>brief-card>去填立案');
+    } catch {
+      return false;
+    }
+  })()],
+  ['去填立案：点了真的把立案卡展开，并停在视口里', (() => {
+    const line = log.split('\n').find((l) => l.includes('BRIEFJUMP')) ?? '';
+    if (!line) return false;
+    try {
+      const r = JSON.parse(line.slice(line.indexOf('{')));
+      const j = r.jump ?? {};
+      const a = r.after ?? {};
+      return (
+        j.ok === true &&
+        String(j.to ?? '') === 'brief-card' &&
+        a.found === true &&
+        String(a.open ?? '') === '1' &&
+        a.inView === true
+      );
+    } catch {
+      return false;
+    }
+  })()],
+  /*
    * 「跳到」条：新加的两栏进得去，且每一格都落到真有的区块。
    * 这条只有真应用能验：格子是「数据有没有」现算出来的，静态样本可以两边都对，
    * 到了真报告上仍然可能出现一格点了没反应——那看起来像软件卡了一下。

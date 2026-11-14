@@ -23,7 +23,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Brief, CheckItem, Claim, Diagnosis } from '@shared/types';
+import { MODE_META, type Brief, type CheckItem, type Claim, type Diagnosis } from '@shared/types';
 import { MOCK } from '../src/renderer/src/mock-data';
 import {
   BRIEF_FIELD_MAX,
@@ -31,6 +31,7 @@ import {
   briefGaps,
   briefLine,
   briefNote,
+  briefPending,
   normalizeBrief,
   objectRoute,
 } from '@shared/brief';
@@ -385,6 +386,59 @@ ok(/data-flow-line/.test(src('src/renderer/src/components/FlowLedger.tsx')), '�
 ok(/data-flow-row=\$\{?r\.id\}?/.test(src('src/renderer/src/components/FlowLedger.tsx')) || /data-flow-row=\{r\.id\}/.test(src('src/renderer/src/components/FlowLedger.tsx')), '每一步带编号探针');
 ok(/data-status=\{r\.status\}/.test(src('src/renderer/src/components/FlowLedger.tsx')), '每一步带状态探针');
 ok(/\?brief=/.test(mkTsx) || /get\('brief'\)/.test(mkTsx), '预览页有 ?brief= 入口（两种状态都拍得到）');
+
+
+/* ─────────── 八 · 这一步点得过去，填了也算数 ─────────── */
+
+/*
+ * 这一组守的不是「有没有这一栏」，而是「这一栏说的话能不能兑现」。两种不兑现：
+ *   ① 账本说「在输入区填立案」，而输入区在另一块屏上——没有入口，那句话只是事后评语；
+ *   ② 按了「看这一节」，那一栏这一份报告里根本没有（反驳按模式开关、命题账与枢纽按数据）——
+ *      跳转失败最像「软件卡了一下」，人不会想到是那一栏不存在。
+ * 还有第三种，是这一组最要紧的：**填了不算数**。立案只在跑的那一刻进报告，
+ * 填完不重跑，报告一个字都不会变，而人的记忆里是「我明明填了」。
+ */
+const fA1 = fFull.rows.find((r) => r.id === 'A1')!;
+const fA2 = fFull.rows.find((r) => r.id === 'A2')!;
+const fD1 = fFull.rows.find((r) => r.id === 'D1')!;
+ok(fA1.at === 'brief-card' && fA2.at === 'brief-card', 'A 那两步指向输入区的立案卡', `${fA1.at}/${fA2.at}`);
+ok(fA1.goLabel === '去填立案' && fA2.goLabel === '去填立案', '按钮写「去填立案」，不写「看这一节」', fA1.goLabel);
+ok(fD1.goLabel === '看这一节' && fD1.at === 'sec-verdict', '其余各步仍然指向报告里的栏', `${fD1.at}/${fD1.goLabel}`);
+
+const ledgerTs = src('src/renderer/src/components/FlowLedger.tsx');
+ok(/getElementById\(r\.at\)/.test(ledgerTs), '落点在不在，挂载后当场看一眼');
+ok(/here\[r\.at\] \? r\.at : null/.test(ledgerTs), '不在就不给按钮（不留点了没反应的入口）');
+ok(/dispatchEvent\(new CustomEvent\('al:brief'\)\)/.test(ledgerTs), '立案卡走 al:brief，不走报告里的 al:unfold');
+
+const bfTsx = src('src/renderer/src/components/BriefCard.tsx');
+ok(/id="brief-card"/.test(bfTsx), '立案卡有固定 id（账本的落点指它）');
+ok(/data-brief-pend="1"/.test(bfTsx), '「填了还没生效」那一句有探针');
+ok(/再跑一次/.test(bfTsx), '那一句说的是「再跑一次」，不是「已更新」');
+
+const appTs = src('src/renderer/src/App.tsx');
+ok(/addEventListener\('al:brief'/.test(appTs) && /setBriefOpen\(true\)/.test(appTs), '收到 al:brief 就展开并滚过去');
+ok(/pending=\{briefPending\(diag\?\.brief, brief\)\}/.test(appTs), '报告里那份立案与输入区这份比过才提醒');
+ok(/open=\{briefOpen\}/.test(appTs) && /onToggle=/.test(appTs), '展开状态归 App 管（账本要能打开它）');
+
+const bA: Brief = { speaker: '张三', version: '初稿', source: 'original', objectKind: 'argument', at: 1 };
+ok(briefPending(null, bA) === true, '报告里没有立案，而输入区填了 → 要提醒');
+ok(briefPending(bA, null) === false, '报告里有、输入区空着 → 不提醒（输入区管的是下一次）');
+ok(briefPending(bA, { ...bA }) === false, '同一份 → 不说话');
+ok(briefPending(bA, { ...bA, speaker: '李四' }) === true, '改了一个字就是另一份 → 要提醒');
+ok(briefPending({ ...bA, at: 999 }, bA) === false, '时间戳不算差别（比它等于永远不一样）');
+
+/* 反驳栏的开关只能有一个定义处：两处各写一份，加第六个模式时必然只改一处。 */
+const diagTs = src('src/renderer/src/components/Diagnosis.tsx');
+ok(!/showRef/.test(diagTs), '渲染层不再自己写 showRef');
+ok(/MODE_META\[d\.mode\]\.showsRefute/.test(diagTs), '反驳栏读 MODE_META 那一个开关');
+const typesTs = src('src/shared/types.ts');
+ok(/showsRefute: boolean;/.test(typesTs), '开关定义在 ModeMeta 里');
+ok((typesTs.match(/showsRefute: (true|false),/g) || []).length === 5, '五个模式各有一个取值');
+ok(
+  MODE_META.fallacy.showsRefute === false && MODE_META.reconstruct.showsRefute === false,
+  '这两个模式不给反驳栏：E1 的落点因此不存在，账本也不再给按钮',
+);
+ok(MODE_META.diagnose.showsRefute === true && MODE_META.interrogate.showsRefute === true, '另外三个模式仍然有反驳栏');
 
 /* ─────────── 收口 ─────────── */
 

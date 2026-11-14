@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { Brief, BriefObject, BriefSource } from '@shared/types';
 import { BRIEF_OBJECTS, BRIEF_SOURCES, briefGaps, briefLine, objectRoute } from '@shared/brief';
 
@@ -23,6 +22,9 @@ export function BriefCard({
   brief,
   onPatch,
   disabled,
+  open,
+  onToggle,
+  pending,
 }: {
   brief: Brief | null;
   /**
@@ -32,14 +34,27 @@ export function BriefCard({
    */
   onPatch: (p: Partial<Brief>) => void;
   disabled?: boolean;
+  /** 展开状态由外面管：全流程账的「去填立案」要能把它打开。 */
+  open: boolean;
+  onToggle: () => void;
+  /**
+   * 这四问比眼前这份报告里记的新（或者那份报告里根本没有）。
+   * 有这一句，人不会以为「填完报告就跟着改了」。
+   */
+  pending: boolean;
 }) {
-  const [open, setOpen] = useState(false);
   const gaps = brief ? briefGaps(brief) : ['谁说的', '哪一版', '原文还是转述'];
 
   const route = brief ? objectRoute(brief.objectKind) : null;
 
   return (
-    <div className="bf" data-brief={brief ? '1' : '0'} data-open={open ? '1' : '0'}>
+    <div
+      className={`bf${pending ? ' bf-pending' : ''}`}
+      id="brief-card"
+      data-brief={brief ? '1' : '0'}
+      data-open={open ? '1' : '0'}
+      data-brief-pending={pending ? '1' : '0'}
+    >
       <div className="bf-head">
         <span className="bf-k">立案</span>
         <span className="bf-sub">A1 取材 · A2 准入</span>
@@ -52,12 +67,19 @@ export function BriefCard({
         <button
           className="bf-toggle"
           data-brief-toggle="1"
-          onClick={() => setOpen((v) => !v)}
+          onClick={onToggle}
           disabled={disabled}
         >
           {open ? '收起' : '填写'}
         </button>
       </div>
+
+      {pending && (
+        <p className="bf-pend" data-brief-pend="1">
+          这四问比眼前这份报告里记的新（或者那份报告里没有）。
+          <b>立案只在按下「分析」的那一刻进报告</b>——填完要再跑一次，这份报告不会跟着改。
+        </p>
+      )}
 
       {!open && (
         <p className="bf-why">

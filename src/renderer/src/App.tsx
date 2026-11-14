@@ -44,7 +44,7 @@ import type { NextLineView } from '@shared/nextline';
 import { diffRevision } from '@shared/compare';
 import { SAMPLES } from '@shared/samples';
 import { decideCapture, type CaptureStatus } from '@shared/capture';
-import { normalizeBrief } from '@shared/brief';
+import { briefPending, normalizeBrief } from '@shared/brief';
 
 type Tab = 'analyze' | 'prompt';
 
@@ -89,6 +89,14 @@ export default function App() {
    * 只对上一段成立的身份。
    */
   const [brief, setBrief] = useState<Brief | null>(null);
+  /**
+   * 立案卡展开不展开。
+   *
+   * 由这里管、不归卡片自己管，是因为全流程账里那两行「缺」要能指向它：
+   * 报告里的账说「在输入区填立案」，而输入区在另一块屏上——没有一个能按的入口，
+   * 那句话就只是事后评语。所以那段账派 `al:brief` 过来，这里负责展开并滚过去。
+   */
+  const [briefOpen, setBriefOpen] = useState(false);
   /**
    * 下一次按「示例」会填第几段。填完就前进一位，填到末尾回第一段。
    *
@@ -280,6 +288,26 @@ export default function App() {
   useEffect(() => {
     setBrief((b) => (b ? null : b));
   }, [passage]);
+
+  /**
+   * 「去填立案」：全流程账里那两行派的。
+   *
+   * 只做两件事——展开、滚过去。它不改那四问、不替我填一个字：
+   * 这一段账是在说「A 没做」，替人补上等于把「没做」变成「做过」。
+   * 输入区可能正处在别的标签页上，所以滚完还要闪一下，不然人不知道看哪儿。
+   */
+  useEffect(() => {
+    const onBrief = () => {
+      setBriefOpen(true);
+      const el = document.getElementById('brief-card');
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('bf-hit');
+      window.setTimeout(() => el.classList.remove('bf-hit'), 1400);
+    };
+    window.addEventListener('al:brief', onBrief);
+    return () => window.removeEventListener('al:brief', onBrief);
+  }, []);
 
   /**
    * 改立案的某一项。
@@ -1164,7 +1192,15 @@ export default function App() {
                   反过来的话，模式先选好了，人会更愿意跳过前面那四问——
                   而跳过它的代价（结论只能算「就文论文」）要等报告出来才看得见。
                 */}
-                <BriefCard brief={brief} onPatch={patchBrief} disabled={loading} />
+                <BriefCard
+                  brief={brief}
+                  onPatch={patchBrief}
+                  disabled={loading}
+                  open={briefOpen}
+                  onToggle={() => setBriefOpen((v) => !v)}
+                  /* 有报告、而且报告里记的不是这四问：提醒「填完要重跑」。 */
+                  pending={briefPending(diag?.brief, brief)}
+                />
 
                 {/*
                   模式切换。放在输入区而不是顶栏：它改的是「这一次问什么」，

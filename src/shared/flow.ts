@@ -45,6 +45,13 @@ export interface FlowRow {
   next: string;
   /** 报告里的落点（滚动用）。null = 这一栏在报告里没有对应区块。 */
   at: string | null;
+  /**
+   * 那个按钮上写什么。
+   *
+   * A 那两步的落点不在报告里，在输入区的立案卡——所以按钮必须写「去填立案」，
+   * 写「看这一节」会让人以为报告里还有一栏没读到。其余各步都写「看这一节」。
+   */
+  goLabel: string;
 }
 
 export interface FlowView {
@@ -84,11 +91,13 @@ const REQUIRED: Record<FlowDepth, ReadonlySet<string>> = {
 
 /**
  * 十六步的骨架。顺序就是文档 §1 的顺序，不另排。
- * `at` 是报告里的落点：点得过去才算接上了，点不过去就留 null。
+ * `at` 是落点：报告里的哪一栏，或者输入区的立案卡（A 那两步在报告里没有对应区块）。
+ * 落点存不存在由渲染层当场看一眼再说（见 FlowLedger），不在这里猜：
+ * 同一件事在报告里有六七个分支，把分支抄进纯函数，改一处就会让这里说假话。
  */
-const STAGES: { id: string; group: FlowGroup; name: string; at: string | null }[] = [
-  { id: 'A1', group: 'A', name: '取材', at: null },
-  { id: 'A2', group: 'A', name: '准入', at: null },
+const STAGES: { id: string; group: FlowGroup; name: string; at: string | null; go?: string }[] = [
+  { id: 'A1', group: 'A', name: '取材', at: 'brief-card', go: '去填立案' },
+  { id: 'A2', group: 'A', name: '准入', at: 'brief-card', go: '去填立案' },
   { id: 'A3', group: 'A', name: '路由', at: 'sec-props' },
   { id: 'B1', group: 'B', name: '编 P', at: 'sec-structure' },
   { id: 'B2', group: 'B', name: '补 A', at: 'sec-structure' },
@@ -527,7 +536,7 @@ export function flowOf(d: Diagnosis): FlowView {
       note = `「${DEPTH_LABEL[depth]}」这一档不走这一步（§0.1：速判只走 A2 → B1 → B4 → 一句话判据）。`;
       next = '';
     }
-    return { id: s.id, group: s.group, name: s.name, status, saw: e.saw, note, next, at: s.at };
+    return { id: s.id, group: s.group, name: s.name, status, saw: e.saw, note, next, at: s.at, goLabel: s.go ?? '看这一节' };
   });
 
   const counts: Record<FlowStatus, number> = { ok: 0, partial: 0, gap: 0, na: 0 };

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { FlowGroup, FlowRow, FlowStatus, FlowView } from '@shared/flow';
 
 /**
@@ -34,8 +35,29 @@ const STATUS_MARK: Record<FlowStatus, string> = {
 };
 
 export function FlowLedger({ v }: { v: FlowView }) {
+  /*
+   * 哪几个落点这一份报告里真的在。
+   *
+   * 为什么不按数据算：同一栏在渲染层有六七个分支（透镜按 kind 分、反驳按模式开关、
+   * 命题账与枢纽按数据），把那份判断抄进纯函数，改一处分支这边就会说假话——
+   * 而假话的样子是一个点了没反应的按钮，读起来最像「软件卡了一下」。
+   * 所以这里当场看 DOM：挂载后问一遍，答不上来的就不给按钮。
+   */
+  const [here, setHere] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    const next: Record<string, boolean> = {};
+    for (const r of v.rows) if (r.at) next[r.at] = !!document.getElementById(r.at);
+    setHere(next);
+  }, [v]);
+
   const jump = (id: string | null) => {
     if (!id) return;
+    /* 立案卡不在报告里，在输入区：它要先展开，再滚过去。两件事都由 App 做，
+       因为展开状态归它管——这一层只发一句「去看立案」，不替它改状态。 */
+    if (id === 'brief-card') {
+      window.dispatchEvent(new CustomEvent('al:brief'));
+      return;
+    }
     window.dispatchEvent(new CustomEvent('al:unfold', { detail: { id } }));
     const el = document.getElementById(id);
     if (!el) return;
@@ -75,7 +97,7 @@ export function FlowLedger({ v }: { v: FlowView }) {
               <span className="wf-gname">{GROUP_NAME[g]}</span>
             </div>
             {rows.map((r) => (
-              <Row key={r.id} r={r} onJump={jump} />
+              <Row key={r.id} r={r} here={here} onJump={jump} />
             ))}
           </div>
         );
@@ -86,7 +108,17 @@ export function FlowLedger({ v }: { v: FlowView }) {
   );
 }
 
-function Row({ r, onJump }: { r: FlowRow; onJump: (id: string | null) => void }) {
+function Row({
+  r,
+  here,
+  onJump,
+}: {
+  r: FlowRow;
+  here: Record<string, boolean>;
+  onJump: (id: string | null) => void;
+}) {
+  /* 落点不在这一份里就不给按钮：宁可少一个入口，也不留一个点了没反应的。 */
+  const to = r.at && here[r.at] ? r.at : null;
   return (
     <div className="wf-row" data-flow-row={r.id} data-status={r.status}>
       <span className={`wf-mark m-${r.status}`} title={STATUS_LABEL[r.status]}>
@@ -101,9 +133,15 @@ function Row({ r, onJump }: { r: FlowRow; onJump: (id: string | null) => void })
         {r.note && <div className="wf-note">{r.note}</div>}
         {r.next && <div className="wf-next">下一步：{r.next}</div>}
       </div>
-      {r.at ? (
-        <button className="wf-go" onClick={() => onJump(r.at)} data-flow-go={r.id} title="跳到报告里这一栏">
-          看这一节
+      {to ? (
+        <button
+          className="wf-go"
+          onClick={() => onJump(to)}
+          data-flow-go={r.id}
+          data-flow-to={to}
+          title={r.goLabel}
+        >
+          {r.goLabel}
         </button>
       ) : (
         <span className="wf-go wf-go-none" aria-hidden="true" />

@@ -161,3 +161,34 @@ export function briefNote(b: Brief): string {
   }
   return `还缺 ${gaps.length} 问：${gaps.join(' / ')}。三问没答清时，报告的结论只能算「就文论文」。`;
 }
+
+/**
+ * 两份立案是不是同一份：只比四问，不比 `at`。
+ *
+ * 时间戳每敲一个字都会变，比它等于永远「不一样」，那句话就会一直挂着——
+ * 一句永远为真的提醒等于没有提醒。
+ */
+export function sameBrief(a: Brief, b: Brief): boolean {
+  return (
+    a.speaker === b.speaker &&
+    a.version === b.version &&
+    a.source === b.source &&
+    a.objectKind === b.objectKind
+  );
+}
+
+/**
+ * 「输入区这四问，这份报告还不认」。
+ *
+ * 只有一种情况要说：**输入区现在有东西，而这份报告里没有它**（或记的是另一份）。
+ * 反过来的情况（报告里有、输入区空着）不说——输入区管的是下一次，不是这一次；
+ * 那种时候挂一句提醒，只会让人以为自己把报告改坏了。
+ *
+ * 为什么非要说：立案只在跑的那一刻进报告。填完不重跑，报告一个字都不会变，
+ * 而人看到的是「我明明填了」——这是这一栏最容易变成假话的地方。
+ */
+export function briefPending(reportBrief: Brief | null | undefined, current: Brief | null): boolean {
+  if (!current) return false;
+  if (!reportBrief) return true;
+  return !sameBrief(reportBrief, current);
+}

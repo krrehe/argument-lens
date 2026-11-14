@@ -623,6 +623,23 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               flowA2: document.querySelector('[data-flow-row="A2"]')?.getAttribute('data-status') ?? '',
               flowBreach: !!document.querySelector('[data-flow-breach]'),
               flowBrief: document.querySelector('[data-brief]')?.getAttribute('data-brief') ?? '',
+              /*
+               * 每一步那个按钮指向哪里、指过去有没有东西。
+               * 「点了没反应」最像软件卡了一下，而它真正的成因是那一栏这一份报告里
+               * 根本没有（反驳按模式开关、命题账与枢纽按数据）——所以要在真报告上数一遍。
+               */
+              flowGo: Array.from(document.querySelectorAll('[data-flow-go]')).map(function (e) {
+                return (
+                  String(e.getAttribute('data-flow-go')) +
+                  '>' +
+                  String(e.getAttribute('data-flow-to')) +
+                  '>' +
+                  String(e.textContent || '').trim()
+                );
+              }),
+              flowGoDead: Array.from(document.querySelectorAll('[data-flow-go]')).filter(
+                (e) => !document.getElementById(e.getAttribute('data-flow-to') ?? ''),
+              ).length,
               sameCount: document.querySelector('.same-bar')?.getAttribute('data-same') ?? '',
               sameText: (document.querySelector('.same-bar .sb-v')?.textContent ?? '').slice(0, 80),
               text: (document.body.innerText || '').replace(/\\s+/g, ' ').slice(0, 240),
@@ -709,6 +726,46 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             writeFileSync(p, png);
             add(`FLOWSHOT ${p} ${png.length} bytes`);
           }
+        }
+
+        /*
+         * 「去填立案」：报告里那张账说 A 没做，得能一步走到输入区那张卡上。
+         * 三步都要验：点得动 → 卡片展开 → 卡片在视口里。
+         * 少第三步就是「点了有反应，但不知道看哪」——那种失败看起来像软件没反应。
+         */
+        if (!canceled) {
+          const bJump = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify((() => {
+              const b = document.querySelector('[data-flow-go="A2"]');
+              const card = document.getElementById('brief-card');
+              const before = card ? card.getAttribute('data-open') || '' : '';
+              if (!b) return { ok: false, before };
+              b.click();
+              return { ok: true, before, to: b.getAttribute('data-flow-to') || '' };
+            })())`)
+          );
+          await sleep(700);
+          const bAfter = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify((() => {
+              const card = document.getElementById('brief-card');
+              if (!card) return { found: false };
+              const r = card.getBoundingClientRect();
+              return {
+                found: true,
+                open: card.getAttribute('data-open') || '',
+                top: Math.round(r.top),
+                inView: r.top >= -12 && r.top < window.innerHeight * 0.9,
+              };
+            })())`)
+          );
+          add(`BRIEFJUMP ${JSON.stringify({ jump: bJump, after: bAfter })}`);
+          /* 回到报告那一栏：后面几条都在报告上取数，别让它停在半路。 */
+          await wc.executeJavaScript(`(() => {
+            const el = document.getElementById('sec-flow');
+            if (el) el.scrollIntoView({ block: 'start' });
+            return true;
+          })()`);
+          await sleep(320);
         }
 
         /*

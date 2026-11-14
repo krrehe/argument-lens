@@ -492,6 +492,15 @@ export interface ModeMeta {
    * 一个开关管两件事，就会在只需要改一件的时候改错另一件。
    */
   allowsLabels: boolean;
+  /**
+   * 这个模式的报告里有没有「反驳」这一栏。
+   *
+   * 它原来只写在渲染层的 `SEC.showRef` 里，于是有两个地方不知道它：全流程账的
+   * 「反方最强一击」那一行照样给一个「看这一节」的按钮，点下去什么都没有——
+   * 跳转失败最像「软件卡了一下」，人不会想到是那一栏本来就不存在。
+   * 所以把它提到这里：一处定义，渲染层与账本读同一个。
+   */
+  showsRefute: boolean;
   /** 报告顶部横幅的说明；null 表示不显示横幅。 */
   banner: string | null;
 }
@@ -505,6 +514,7 @@ export const MODE_META: Record<AnalysisMode, ModeMeta> = {
     stageVerdict: '判定击败类型与结论档位',
     givesVerdict: true,
     allowsLabels: true,
+    showsRefute: true,
     banner: null,
   },
   redteam: {
@@ -515,6 +525,7 @@ export const MODE_META: Record<AnalysisMode, ModeMeta> = {
     stageVerdict: '按杀伤力排序',
     givesVerdict: true,
     allowsLabels: true,
+    showsRefute: true,
     banner:
       '红队模式。同一套型式库、同一套关键问题，问的方向反过来：不评价这段话好不好，只找对手最容易打穿的位置。',
   },
@@ -526,6 +537,7 @@ export const MODE_META: Record<AnalysisMode, ModeMeta> = {
     stageVerdict: '收口：每条名字都得有位置',
     givesVerdict: false,
     allowsLabels: true,
+    showsRefute: false,
     banner:
       '查谬误模式。这一份不判这段话站不站得住——那是诊断模式的事。这里只做一件事：把可疑的位置对上教材里的名字，每条都要指得出原文哪一句、什么情况下其实合法、最可能错在哪。所以「一个都没找到」是正常结果，不是没干活；而「有名字」也不等于「他的结论是错的」。',
   },
@@ -537,6 +549,7 @@ export const MODE_META: Record<AnalysisMode, ModeMeta> = {
     stageVerdict: '收口：检查 supports 闭合',
     givesVerdict: false,
     allowsLabels: false,
+    showsRefute: false,
     banner:
       '重构模式。只画结构，不给判定——档位一律是「未定」，这是设计不是省略。因为一旦先判了它坏，重构就会把最强的读法悄悄换成最弱的读法。',
   },
@@ -548,6 +561,7 @@ export const MODE_META: Record<AnalysisMode, ModeMeta> = {
     stageVerdict: '按「答不上来的概率 × 答上来的收益」排序',
     givesVerdict: false,
     allowsLabels: false,
+    showsRefute: true,
     banner:
       '提问模式。只给问题，不给判定——档位一律是「未定」。判过之后再问，问出来的都是诱导句；先问，才知道对方手里到底有没有东西。',
   },

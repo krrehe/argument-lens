@@ -1111,7 +1111,6 @@ const MODE_SECTIONS: Record<
     labelPlain: string;
     /** 命名栏空着时说什么。只有查谬误模式用得上——其余模式下空栏整块不出现。 */
     labelEmpty: string;
-    showRef: boolean;
     refTitle: string;
     refSub: (n: number) => string;
     refPlain: string;
@@ -1135,7 +1134,6 @@ const MODE_SECTIONS: Record<
     labelPlain:
       '教材里可能对得上的名字。给名字是有代价的，所以每条都附了「什么时候其实合法」和「这条判断最可能错在哪」。',
     labelEmpty: '',
-    showRef: true,
     refTitle: '反驳',
     refSub: (n) => `${n} 条，均带对方最强回击`,
     refPlain:
@@ -1161,7 +1159,6 @@ const MODE_SECTIONS: Record<
     labelPlain:
       '打完之后可能被叫成的名字。红队模式下这一栏是给你做预判用的：对手大概率会用这个词，你最好先想好怎么接。',
     labelEmpty: '',
-    showRef: true,
     refTitle: '他会怎么说',
     refSub: (n) => `${n} 条，按杀伤力排序`,
     refPlain:
@@ -1189,7 +1186,6 @@ const MODE_SECTIONS: Record<
       '这就是你要的那个词。但每个名字都附了原文位置、成立条件、什么时候其实合法、最可能错在哪——只给名字的清单，会让你拿着一条错的名称去对质，输得比不开口更难看。',
     labelEmpty:
       '本页没有显示任何名字。可能是这三种情况之一：这段文本本来就不在论证的层面上（不必再找）、名字都对不上原文（这一份是干净的）、或者模型没判断出来（换一副透镜再试一次）。下面「边界」一栏写了是哪一种；若名字找到过但被程序丢掉，那里也会说明丢的是哪一条、缺的是哪一样。',
-    showRef: false,
     refTitle: '反驳',
     refSub: (n) => `${n} 条`,
     refPlain: '查谬误模式不给攻击路线。要攻击路线，切到红队模式。',
@@ -1213,7 +1209,6 @@ const MODE_SECTIONS: Record<
     labelSub: '本模式不命名',
     labelPlain: '重构模式不命名：说出「这是循环论证」的那一刻，就已经判过了，而这一份只描述结构。',
     labelEmpty: '',
-    showRef: false,
     refTitle: '反驳',
     refSub: (n) => `${n} 条`,
     refPlain: '重构模式不给攻击路线。',
@@ -1237,7 +1232,6 @@ const MODE_SECTIONS: Record<
     labelSub: '本模式不命名',
     labelPlain: '提问模式不命名：给对方扣一个名字，他就只会回答这个名字，不再回答你的问题。',
     labelEmpty: '',
-    showRef: true,
     refTitle: '你可以问什么',
     refSub: (n) => `${n} 个问题，按「答不上来的概率 × 答上来的收益」排序`,
     refPlain:
@@ -2208,7 +2202,7 @@ export function DiagnosisView({
         )}
       </Block>
 
-      {SEC.showRef && (
+      {MODE_META[d.mode].showsRefute && (
         <Block
           id="sec-refute"
           title={SEC.refTitle}
