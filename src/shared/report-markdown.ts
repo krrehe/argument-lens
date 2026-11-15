@@ -21,6 +21,15 @@ import { DECID_LABEL, propositionsOf } from './propositions';
 import { pivotOf } from './pivot';
 import { flowOf } from './flow';
 import { briefGaps, briefLine } from './brief';
+import {
+  closureLabel,
+  divergenceCaveats,
+  divergenceGaps,
+  divergenceLine,
+  frameLine,
+  sourceLabel,
+  stakeLabel,
+} from './divergence';
 import { prescriptionsOf } from './prescriptions';
 import { LEVEL_LABEL, THEORY_BY_ID } from './theories';
 import { MODE_META, type Claim, type Diagnosis } from './types';
@@ -88,6 +97,19 @@ export function reportToMarkdown(d: Diagnosis): string {
   } else {
     head.push('> ', '> 立案：没有记录谁说的、哪一版、原文还是转述——这份结论只能算「就文论文」。');
   }
+  /*
+   * v1.1 分歧账：导出件最容易被单独转发，判定坐标必须跟着一起走。
+   * 没登记也照写一句——空白会被读成「这次没有分歧」，而实际只是没记。
+   */
+  if (d.divergence) {
+    const gaps = divergenceGaps(d.divergence);
+    head.push(
+      '> ',
+      `> 分歧账：${divergenceLine(d.divergence)}${gaps.length ? `（还缺 ${gaps.length} 格，见下文）` : ''}`
+    );
+  } else {
+    head.push('> ', '> 分歧账：没有记录判定坐标与收束模式——四格填不出，等于不写法律依据就判决（v1.1 §4.1）。');
+  }
   head.push('> 每一条判断都附了原文句子；对不上原文的地方，以原文为准，不以本文件为准。');
   out.push(head.join('\n'));
   out.push('');
@@ -133,6 +155,7 @@ export function reportToMarkdown(d: Diagnosis): string {
     out.push('');
   }
   out.push(`档位：${flow.depthLabel}（${flow.depthWhy}）`);
+  out.push(`默认收束：${flow.defaultClosure}（v1.1 §0.1）`);
   out.push('');
   for (const r of flow.rows) {
     const mark = r.status === 'ok' ? '✓' : r.status === 'partial' ? '~' : r.status === 'gap' ? '×' : '–';
@@ -141,6 +164,48 @@ export function reportToMarkdown(d: Diagnosis): string {
   }
   out.push('');
   out.push(`> ${oneLine(flow.fine)}`);
+  out.push('');
+
+  /* ── 分歧与收束（v1.1 第 4 章 / E4） ── */
+  /*
+   * 与界面同一份纯函数：divergenceLine / divergenceGaps / divergenceCaveats。
+   * 不在这里另写一套「有没有登记」的判断——两边说法分家，是这一类账最常见的坏法。
+   */
+  out.push('## 分歧与收束');
+  out.push('');
+  if (!d.divergence) {
+    out.push('没有分歧账：判定坐标四元组、收束模式与 E4 登记册都没有记录。');
+    out.push('');
+    out.push('> 按 v1.1 §4.1，四格填不出，等于不写法律依据就判决；按 §4.3，先试收敛，收敛不了才分叉。收敛且没有要登记的分歧是合法结果，但这一节空着不等于判定一定对。');
+  } else {
+    const g = d.divergence;
+    const gaps = divergenceGaps(g);
+    out.push(`坐标：${frameLine(g.frame)}　·　收束：${closureLabel(g.closure)}${g.branches ? `　·　并列 ${g.branches} 个方案` : ''}`);
+    out.push('');
+    if (g.entries.length) {
+      out.push('| 位置 | 分歧源 | 影响 |');
+      out.push('|---|---|---|');
+      for (const e of g.entries) {
+        out.push(`| ${oneLine(e.at) || '（没写位置）'} | ${sourceLabel(e.source)} | ${stakeLabel(e.stakes)} |`);
+      }
+      out.push('');
+    }
+    const rows: [string, string][] = [
+      ['共同结论', g.common],
+      ['能裁的部分', g.decidable],
+      [g.closure === 'suspend' ? '不能裁的部分' : '差异位置', g.difference],
+      ['各方案判据', g.basis],
+      [g.closure === 'suspend' ? '定案条件' : '收敛条件 / 什么会推翻此判', g.condition],
+      ['举证责任', g.burden],
+    ];
+    for (const [k, v] of rows) if (v) out.push(`- **${k}**：${oneLine(v)}`);
+    if (rows.some(([, v]) => v)) out.push('');
+    out.push(gaps.length ? `> 还缺 ${gaps.length} 格：${oneLine(gaps.join('；'))}` : '> 该填的都填了。这些是「填齐了」，不是「判对了」——归类与收敛条件准不准，本地算不出来。');
+    out.push('');
+    out.push('文档里的硬规矩：');
+    out.push('');
+    for (const c of divergenceCaveats(g)) out.push(`- ${oneLine(c)}`);
+  }
   out.push('');
 
   /* ── 判定 ── */

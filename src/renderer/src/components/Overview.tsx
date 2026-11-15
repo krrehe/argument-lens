@@ -55,6 +55,9 @@ function sectionsFor(d: Diagnosis) {
     ...extra,
     ...disp,
     ...BASE_SECTIONS.slice(3),
+    /* v1.1 E4：这一栏每份报告都有（没登记时也显示「没有分歧账」及理由），
+       所以是固定格，不按数据现算。正文里排在自检之后，索引就放最后。 */
+    { id: 'sec-divergence', label: '分歧账' },
   ];
 }
 

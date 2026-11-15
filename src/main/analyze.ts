@@ -28,6 +28,7 @@ import type {
 import { DEFAULT_THEORY, THEORY_BY_ID, isTheoryId, type TheoryId } from '@shared/theories';
 import { auditReport } from '@shared/report-audit';
 import { normalizeBrief } from '@shared/brief';
+import { normalizeDivergence } from '@shared/divergence';
 import { buildPrompt, renderPrompt, SAMPLING } from './prompt';
 import { chat, extractJson, LlmError, type ChatResult } from './llm';
 import { locate } from './locator';
@@ -1161,6 +1162,8 @@ export async function runAnalysis(
      * 它认不出来就返回 null——报告照常产出，只是流程账上写着「没立案」。
      */
     brief?: unknown;
+    /** v1.1 分歧账：同 brief，收 unknown，由 normalizeDivergence 一处收口。 */
+    divergence?: unknown;
   } = {}
 ): Promise<{ diagnosis: Diagnosis; usage: UsageRecord }> {
   const passage = passageRaw.trim();
@@ -1349,6 +1352,14 @@ export async function runAnalysis(
    */
   const brief = normalizeBrief(opts.brief);
   if (brief) diagnosis.brief = brief;
+
+  /*
+   * 分歧账：与立案贴在同一处（解析与裁决之后），同一个理由——它不改判定、
+   * 不进提示词、不参与重放与同题复跑。v1.1 要的是「分歧有固定位置」，
+   * 不是让模型多写一段散文；这一段只是那份存档。
+   */
+  const divergence = normalizeDivergence(opts.divergence);
+  if (divergence) diagnosis.divergence = divergence;
 
   /* 运行时的工程事实也要留痕：模型调用了几次、温度有没有被裁、提示词是否超预算 */
   if (calls.length > 1) {

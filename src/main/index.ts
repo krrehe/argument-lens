@@ -518,7 +518,8 @@ function registerIpc(): void {
       theory: TheoryId,
       mode?: AnalysisMode,
       parentId?: string | null,
-      brief?: unknown
+      brief?: unknown,
+      divergence?: unknown
     ) => {
       const sender = event.sender;
       const ctl = new AbortController();
@@ -532,7 +533,7 @@ function registerIpc(): void {
               sender.send('analysis:progress', { stage, label, percent });
             }
           },
-          { mode, parentId, signal: ctl.signal, brief }
+          { mode, parentId, signal: ctl.signal, brief, divergence }
         );
         /*
          * 自动存档。放在这里而不是 runAnalysis 里，是因为「跑分析」和「留住结果」

@@ -231,6 +231,23 @@ ok(same.rows.length === 0, '逐字相同的两份：一处差异都没有', `实
 ok(same.equal === same.fields, '逐字相同的两份：比到的字段全部计入「一样」', `${same.equal}/${same.fields}`);
 ok(same.fields > 20, '分母不是个位数（样本确实摊开了）', String(same.fields));
 
+/*
+ * 人填的 v1.1 分歧账属于输入，不是模型产物。第二遍才补填它时，
+ * 那份账会摊出十几个 `divergence.*` 路径；把它们列进「其他」差异，
+ * 读的人只会以为是模型这次写得不一样。包内自检真撞上过这一处。
+ */
+const B_HUMAN: Diagnosis = {
+  ...A,
+  divergence: {
+    frame: { formal: 'classical', criterion: 'scheme-cq', dimension: 'dialectic', protocol: 'inquiry' },
+    closure: 'fork', branches: 2, entries: [], common: '', difference: '',
+    condition: '给出出处只剩宽读', basis: '两读各自未过的 CQ', decidable: '', burden: '', at: 2,
+  } as NonNullable<Diagnosis['divergence']>,
+};
+const human = sideBySide(A, B_HUMAN)!;
+ok(human.rows.length === 0, '只补填了分歧账：两份对照一处差异都没有（人填的账属于输入）', `实际 ${human.rows.length} 处`);
+ok(!JSON.stringify(human.rows).includes('divergence'), '差异表里不出现 divergence.* 路径');
+
 const reorder = sideBySide(A, B_REORDER)!;
 ok(
   reorder.rows.length === 0,

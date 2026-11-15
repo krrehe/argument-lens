@@ -19,7 +19,7 @@ import { NextLineBar } from './components/NextLine';
 import { ObjectionCtx } from './components/Objection';
 import { portfolioOf } from '@shared/portfolio';
 import { agreementOf } from '@shared/agreement';
-import type { Diagnosis, Objection } from '@shared/types';
+import type { Diagnosis, Divergence, Objection } from '@shared/types';
 import type { ViewId } from '@shared/views';
 import { nextLinesOf } from '@shared/nextline';
 import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type SearchWhere, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
@@ -108,9 +108,70 @@ function withBrief(d: Diagnosis, q: string): Diagnosis {
         },
   };
 }
-const D = withBrief(
-  new URLSearchParams(location.search).get('gaps') === 'clean' ? withNoGaps(LONG_DEMO) : LONG_DEMO,
-  new URLSearchParams(location.search).get('brief') ?? ''
+/*
+ * ?divergence=fork / suspend / converge / partial：给预览数据配一份 v1.1 分歧账。
+ *
+ * 与立案同一个理由：预览页没有输入区，不造一份，F 段与 E4 那四格「做了」的样子
+ * 就永远没人看过；而「没做」的样子天天见。partial 那一份故意缺几格，
+ * 用来拍「填了但没填齐」——那才是这一栏最常出现的状态。
+ */
+function withDivergence(d: Diagnosis, q: string): Diagnosis {
+  if (!q) return d;
+  const base: Divergence = {
+    frame: { formal: 'classical', criterion: 'scheme-cq', dimension: 'dialectic', protocol: 'persuasion' },
+    closure: 'fork',
+    branches: 2,
+    entries: [
+      { at: 'B2 补 A：宽读补最弱、严读补作者最可能的意思', source: 'F2', stakes: 'level' },
+      { at: 'C2 型式：专家意见还是例证', source: 'F3', stakes: 'handling' },
+    ],
+    common: '缺陷都在「早读提高记忆效率」这一步，方向是支持不足，可加固',
+    difference: '补出的 A 与选中的型式（第 2 条前提 / C2 那一格判据）',
+    condition: '作者给出原始研究出处 → 只剩宽读；只给二手转述 → 只剩严读',
+    basis: '宽读：原文第 3 句 + 未过的 CQ「样例是否典型」；严读：原文第 3 句 + 未过的 CQ「转述是否准确」',
+    decidable: '',
+    burden: '',
+    at: Date.now(),
+  };
+  if (q === 'converge') {
+    return { ...d, divergence: { ...base, closure: 'converge' as const, branches: 0, entries: [], common: '', difference: '', basis: '' } };
+  }
+  if (q === 'suspend') {
+    return {
+      ...d,
+      divergence: {
+        ...base,
+        closure: 'suspend' as const,
+        branches: 0,
+        common: '',
+        basis: '',
+        decidable: '「学校去年取消了早读」这一事实主张仍可由校历与通知核定',
+        difference: '「是否应当恢复」是价值选择，不由论证裁定',
+        condition: '需拿到去年的校历与家长群原始通知，并澄清「恢复」指自愿还是强制',
+        burden: '主张恢复的一方',
+      },
+    };
+  }
+  if (q === 'partial') {
+    return {
+      ...d,
+      divergence: {
+        ...base,
+        frame: { ...base.frame, protocol: 'unknown' },
+        common: '',
+        condition: '',
+        entries: [{ at: '', source: 'unknown', stakes: 'unknown' }],
+      },
+    };
+  }
+  return { ...d, divergence: base };
+}
+const D = withDivergence(
+  withBrief(
+    new URLSearchParams(location.search).get('gaps') === 'clean' ? withNoGaps(LONG_DEMO) : LONG_DEMO,
+    new URLSearchParams(location.search).get('brief') ?? ''
+  ),
+  new URLSearchParams(location.search).get('divergence') ?? ''
 );
 const t = THEORY_BY_ID[D.theory];
 const MOCK_DISPUTES = disputesIn(D);

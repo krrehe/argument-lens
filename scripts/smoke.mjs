@@ -211,6 +211,9 @@ const env = {
    * 界面会老实说「没赶上」，而验收会红。红得对：没跑到就是没验。
    */
   ...(process.env.SMOKE_CANCEL === '1' ? { AL_CANCEL: '1', AL_CANCEL_SHOT: cancelShot } : {}),
+  /* SMOKE_DIVERGENCE=1：分析前把 v1.1 分歧账填齐，验「填了真的进了报告」。
+     默认不填那条跑道同样要留着：没填时那一栏必须明说「没有分歧账」。 */
+  ...(process.env.SMOKE_DIVERGENCE === '1' ? { AL_DIVERGENCE: '1' } : {}),
 };
 delete env.ELECTRON_RUN_AS_NODE; // 宿主注入它会让 Electron 退化成 node
 delete env.AL_FORCE_ONBOARD;
@@ -370,6 +373,23 @@ const downCount = Number(/"stripDown":(\d+)/.exec(resultLine)?.[1] ?? 0);
 console.log(`  板块 ${blocks} 块｜倒下的关卡 ${downCount} 处` + String.fromCharCode(10));
 
 const cap = capObj();
+/*
+ * SMOKE_DIVERGENCE=1：真机把 v1.1 的分歧账填齐再跑一次。
+ *
+ * 不设成默认跑道是有意的：默认那份报告必须保持「没登记」的样子——
+ * 「没填」与「填了没传过去」在界面上是同一句话，两条跑道都得留着才能分开。
+ */
+const wantDivergence = process.env.SMOKE_DIVERGENCE === '1';
+const dvLine = log.split('\n').find((l) => l.includes('DIVERGENCECARD ')) ?? '';
+/** 探针读数取不到时给空对象，让相关断言自己红，而不是抛异常打断整趟。 */
+function dvObj(line) {
+  try {
+    return JSON.parse(line.slice(line.indexOf('{')));
+  } catch {
+    return {};
+  }
+}
+const dv = dvObj(dvLine);
 const checks = [
   ['应用启动并渲染', domLine.includes('"topbar":true')],
   ['六副透镜就位', domLine.includes('"lensChips":6')],
@@ -591,20 +611,21 @@ const checks = [
     }
   })()],
   /*
-   * 全流程账：十六步、顺序、以及「立案填没填」与报告那边说的是不是同一件事。
+   * 全流程账：v1.1 二十步、顺序（F 在 D 之后 E 之前，不按字母序）、
+   * 以及「立案填没填」与报告那边说的是不是同一件事。
    *
    * 最后这一条是这里最值钱的一条：输入区那张卡与报告里那一栏是两处独立的 DOM，
    * 一边填了另一边没认，界面上不会报任何错——只会显示成「没立案」，
    * 而「没立案」正是默认状态，看起来完全正常。所以断言必须把两边对着比：
    * 填了 → A1 必须是「做了」；没填 → A1 必须是「没做」且说出「判在立案之前」。
    */
-  ['全流程账：十六步都在，顺序与文档 §1 一致', (() => {
+  ['全流程账：二十步都在，F 段三步与 E4 排在 D 之后、E 之前', (() => {
     try {
       const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
       const ids = Array.isArray(r.flowIds) ? r.flowIds.join(',') : '';
       return (
-        Number(r.flowRows ?? 0) === 16 &&
-        ids === 'A1,A2,A3,B1,B2,B3,B4,C1,C2,C3,D1,D2,D3,E1,E2,E3' &&
+        Number(r.flowRows ?? 0) === 20 &&
+        ids === 'A1,A2,A3,B1,B2,B3,B4,C1,C2,C3,D1,D2,D3,F-a,F-b,F-c,E1,E2,E3,E4' &&
         ['quick', 'standard', 'audit'].includes(String(r.flowDepth ?? '')) &&
         /步/.test(String(r.flowLine ?? ''))
       );
@@ -612,6 +633,97 @@ const checks = [
       return false;
     }
   })()],
+  /* v1.1 §0.1 给三档各加了一列「默认收束」。它是一句话，不是一个开关，
+     漏掉时那一栏不报错，只是少一行——只有真机把文本读出来才看得出。 */
+  ['v1.1：账上写得出这一档的「默认收束」', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      const c = String(r.flowClosure ?? '');
+      return c.includes('默认收束') && c.length > 14;
+    } catch {
+      return false;
+    }
+  })()],
+  /* 没填分歧账时的正确样子：那一栏存在，而且明说「没有」。
+     留白会被读成「这一栏坏了」，而更坏的「填了没带过去」也长得一模一样。 */
+  ['分歧账：没登记时那一栏在，并明说「没有分歧账」', (() => {
+    if (wantDivergence) return true; /* 填了的那条跑道另有断言 */
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      return r.dvView === '0' && r.dvSection === true && /没有分歧账/.test(String(r.dvAbsent ?? ''));
+    } catch {
+      return false;
+    }
+  })()],
+  /* 没登记时，F 三段与 E4 都得是「缺」，不能假装做过。速判档按 §0.1 本来就不走 F 段，
+     那时四格是 na；把 na 也算进「做过」是这类断言最容易写错的一处。 */
+  ['分歧账：没登记时 F 三步与 E4 一律记缺，不虚设', (() => {
+    if (wantDivergence) return true;
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      const w = String(r.flowDepth ?? '') === 'quick' ? 'na' : 'gap';
+      return String(r.flowF ?? '') === `F-a:${w},F-b:${w},F-c:${w},E4:${w}`;
+    } catch {
+      return false;
+    }
+  })()],
+  /*
+   * SMOKE_DIVERGENCE=1 的填齐跑道。这四条把「输入区 → preload → 主进程 → 报告」
+   * 整条链对着比：任何一环断了，报告都只会写「没有分歧账」，看起来完全正常。
+   */
+  ...(wantDivergence
+    ? [
+        ['分歧账跑道：探针真的把卡展开、把值填进去了（没跑也算失败）',
+          dvLine !== '' && dv.opened?.found === true && String(dv.card?.open ?? '') === '1'],
+        ['分歧账：输入区卡上下两半、报告那一栏都拍到了（下半张看「再跑一次」提醒）',
+          log.includes('DIVCARDSHOT ') && log.includes('DIVCARDBOTTOM ') && log.includes('DIVSHOT ')],
+        ['v1.1 坐标四格：同步连选四下，四格都留住（不按 props 快照互相盖）',
+          String(dv.card?.frames ?? '') === 'classical,scheme-cq,dialectic,inquiry'],
+        ['分歧账：分叉全套填齐，输入区数出 0 格缺口、登记 1 条',
+          String(dv.card?.flag ?? '') === '1' &&
+            String(dv.card?.closure ?? '') === 'fork' &&
+            String(dv.card?.gaps ?? '') === '0' &&
+            Number(dv.card?.entries ?? 0) === 1 &&
+            Object.values(dv.texts ?? {}).every(Boolean) &&
+            Object.values(dv.entry ?? {}).every(Boolean)],
+        ['分歧账：跑之前提醒「再跑一次」，报告认了之后提醒消失',
+          dv.card?.pend === true &&
+            (() => {
+              try {
+                return JSON.parse(resultLine.slice(resultLine.indexOf('{'))).dvPend === false;
+              } catch {
+                return false;
+              }
+            })()],
+        ['分歧账：报告只读栏读的是同一份（分叉 · 1 条 · 0 格缺口）',
+          (() => {
+            try {
+              const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+              return (
+                r.dvView === '1' &&
+                r.dvClosure === 'fork' &&
+                String(r.dvVGaps ?? '') === '0' &&
+                Number(r.dvEntries ?? 0) === 1 &&
+                r.dvSection === true &&
+                /分叉/.test(String(r.dvVLine ?? ''))
+              );
+            } catch {
+              return false;
+            }
+          })()],
+        /* §0.1 说速判默认单判、不走 F 段；但「默认」不等于「不许人填」。
+           账上是先看证据、没做才轮到档位说话：真登记了，档位不能把做过的事抹成 na。 */
+        ['分歧账：填齐后 F 三步与 E4 都记「做了」（速判档也不抹掉做过的事）',
+          (() => {
+            try {
+              const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+              return String(r.flowF ?? '') === 'F-a:ok,F-b:ok,F-c:ok,E4:ok';
+            } catch {
+              return false;
+            }
+          })()],
+      ]
+    : []),
   ['全流程账：输入区填的立案，报告那边认了没有', (() => {
     try {
       const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
@@ -638,7 +750,7 @@ const checks = [
    * 每一个「看这一节」都要真有落点。
    *
    * 这一条数的是 flowGoDead：报告里那几栏是按数据与模式现算的（命题账要够两条、
-   * 枢纽要算得出来、反驳在新谬误与重构两个模式里整块不出现），账本却给十六步
+   * 枢纽要算得出来、反驳在新谬误与重构两个模式里整块不出现），账本却给二十步
    * 一律配了按钮。点下去没反应最像「软件卡了一下」，人不会想到是那一栏根本不存在。
    */
   ['全流程账：每个落点都真有东西（没有点了没反应的按钮）', (() => {

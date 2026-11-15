@@ -28,6 +28,7 @@ import { REWRITE_NOTE, rewriteOf } from '@shared/rewrite';
 import { type RescalePair } from '@shared/rescale';
 import { type ConditionInput } from '@shared/conditions';
 import { CheckStrip, StructureMap, VerdictGauge } from './Diagram';
+import { DivergenceView } from './DivergenceCard';
 import { RefuteMap, RepairMap } from './DiagramMore';
 import { ViewBar, readStoredViews, writeStoredViews } from './ViewBar';
 import { crossNote, toneAudit } from '@shared/modal';
@@ -1567,7 +1568,7 @@ export function DiagnosisView({
   const props = useMemo(() => propositionsOf(d), [d]);
   const pivot = useMemo(() => pivotOf(d), [d]);
   /**
-   * 全流程账：这十六步做没做。
+   * 全流程账：这二十步做没做（v1.1 新增 F 段与 E4）。
    *
    * 放在最前面（四句话之后）而不是最后：它答的是「这份报告是按流程走的吗」，
    * 属于读之前的方位感；放到报告末尾，读者已经读完了才知道自己读的那份跳过立案。
@@ -1798,8 +1799,8 @@ export function DiagnosisView({
       <Block
         id="sec-flow"
         title="全流程账"
-        sub={`${flow.depthLabel}档｜十六步走了 ${flow.counts.ok} 步`}
-        plain="这份报告是按「立案 → 重构 → 检验 → 裁决 → 交付」一步步走出来的，还是跳着走的。软件只数做没做，不判做得对不对——哪一步做得准不准，它算不出来。"
+        sub={`${flow.depthLabel}档｜${flow.rows.length} 步走了 ${flow.counts.ok} 步`}
+        plain="这份报告是按「立案 → 重构 → 检验 → 裁决 → 分歧收口 → 交付」一步步走出来的，还是跳着走的。软件只数做没做，不判做得对不对——哪一步做得准不准，它算不出来。"
       >
         <FlowLedger v={flow} />
       </Block>
@@ -2386,6 +2387,20 @@ export function DiagnosisView({
             </ul>
           </>
         )}
+      </Block>
+
+      {/*
+        分歧账（v1.1 E4）。放在自检之后、程序裁定之前：它是给读者看的最后一段
+        「这份判定在什么坐标下成立、判不出的部分在哪」，不是又一条程序诊断。
+        没登记时这一栏照样在，并明说空着不等于判定对——空白才是最容易被误读的。
+      */}
+      <Block
+        id="sec-divergence"
+        title="分歧账"
+        sub="判定坐标 · 收束模式 · E4 登记"
+        plain="按 v1.1 第 4 章，判不出唯一答案时不许假装判得出，也不许用「多元」逃掉该判的那部分。这一栏由人填，软件只保管；它不判分歧归哪一类，只把没填齐的格数出来。"
+      >
+        <DivergenceView value={d.divergence} />
       </Block>
 
       {d.diagnostics.length > 0 && (

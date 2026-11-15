@@ -5,6 +5,9 @@ import {
   type AnalysisMode,
   type AnalysisStage,
   type Brief,
+  type Divergence,
+  type DivergenceEntry,
+  type DivergencePatch,
   type ReportProbe,
   Diagnosis,
   LlmSettings,
@@ -27,6 +30,7 @@ import { ObjectionCtx } from './components/Objection';
 import { UsageChip, UsagePanel } from './components/Usage';
 import { SegmentBar } from './components/SegmentBar';
 import { BriefCard } from './components/BriefCard';
+import { DivergenceCard } from './components/DivergenceCard';
 import { Running, type RunEvent } from './components/Running';
 import { RevisionBar } from './components/Revision';
 import { HistoryPanel, when } from './components/History';
@@ -45,6 +49,7 @@ import { diffRevision } from '@shared/compare';
 import { SAMPLES } from '@shared/samples';
 import { decideCapture, type CaptureStatus } from '@shared/capture';
 import { briefPending, normalizeBrief } from '@shared/brief';
+import { divergencePending, normalizeDivergence } from '@shared/divergence';
 
 type Tab = 'analyze' | 'prompt';
 
@@ -97,6 +102,12 @@ export default function App() {
    * 那句话就只是事后评语。所以那段账派 `al:brief` 过来，这里负责展开并滚过去。
    */
   const [briefOpen, setBriefOpen] = useState(false);
+  /**
+   * v1.1 第 4 章的分歧账。与立案同构：人填、软件只保管、原文一改即作废。
+   * 展开状态也归这里管——流程账 F 段那三行「去登记分歧」要能真的走到这张卡。
+   */
+  const [divergence, setDivergence] = useState<Divergence | null>(null);
+  const [divergenceOpen, setDivergenceOpen] = useState(false);
   /**
    * 下一次按「示例」会填第几段。填完就前进一位，填到末尾回第一段。
    *
@@ -287,6 +298,8 @@ export default function App() {
    */
   useEffect(() => {
     setBrief((b) => (b ? null : b));
+    /* 分歧账里的「位置」「收敛条件」也都指着这一段字，换段留着同样会评错对象。 */
+    setDivergence((v) => (v ? null : v));
   }, [passage]);
 
   /**
@@ -309,6 +322,20 @@ export default function App() {
     return () => window.removeEventListener('al:brief', onBrief);
   }, []);
 
+  /** 「去登记分歧」：F 段三步派的。只展开、滚过去、闪一下，不替人填一个字。 */
+  useEffect(() => {
+    const onDivergence = () => {
+      setDivergenceOpen(true);
+      const el = document.getElementById('divergence-card');
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('bf-hit');
+      window.setTimeout(() => el.classList.remove('bf-hit'), 1400);
+    };
+    window.addEventListener('al:divergence', onDivergence);
+    return () => window.removeEventListener('al:divergence', onDivergence);
+  }, []);
+
   /**
    * 改立案的某一项。
    *
@@ -325,6 +352,47 @@ export default function App() {
         objectKind: prev?.objectKind ?? 'unknown',
         at: Date.now(),
         ...p,
+      })
+    );
+  }, []);
+
+  /**
+   * 改分歧账的某一项。全部走函数式更新：坐标四格是四个下拉、收束与 F 类是芯片，
+   * 连点两下若各拿一份旧状态算，后一次会把前一次盖掉（立案卡上已经吃过一次）。
+   *
+   * `frame` 尤其要单独合一次：四个下拉各自只交「改了哪一格」，若谁交整份坐标，
+   * 那一份仍然是渲染时的快照，四个连点还是会互相盖。
+   */
+  const patchDivergence = useCallback((p: DivergencePatch) => {
+    setDivergence((prev) =>
+      normalizeDivergence({
+        ...(prev ?? {}),
+        ...p,
+        frame: { ...(prev?.frame ?? {}), ...(p.frame ?? {}) },
+        at: Date.now(),
+      })
+    );
+  }, []);
+  const addDivergenceEntry = useCallback(() => {
+    setDivergence((prev) =>
+      normalizeDivergence({
+        ...(prev ?? {}),
+        entries: [...(prev?.entries ?? []), { at: '', source: 'unknown', stakes: 'unknown' }],
+        at: Date.now(),
+      })
+    );
+  }, []);
+  const removeDivergenceEntry = useCallback((i: number) => {
+    setDivergence((prev) =>
+      normalizeDivergence({ ...(prev ?? {}), entries: (prev?.entries ?? []).filter((_, j) => j !== i), at: Date.now() })
+    );
+  }, []);
+  const patchDivergenceEntry = useCallback((i: number, p: Partial<DivergenceEntry>) => {
+    setDivergence((prev) =>
+      normalizeDivergence({
+        ...(prev ?? {}),
+        entries: (prev?.entries ?? []).map((e, j) => (j === i ? { ...e, ...p } : e)),
+        at: Date.now(),
       })
     );
   }, []);
@@ -634,7 +702,9 @@ export default function App() {
          * 重跑上一次失败的那一段、或者换透镜重跑一份旧报告时，框里可能已经是另一段话——
          * 那种时候带上立案，等于给 A 段文字配 B 段的身份。
          */
-        text === passage.trim() ? brief : null
+        text === passage.trim() ? brief : null,
+        /* 与立案同一条规矩：只有跑的就是框里这段字，才带走这份分歧账。 */
+        text === passage.trim() ? divergence : null
       ).catch(
         (err: Error): RunResult => ({
           ok: false,
@@ -709,7 +779,7 @@ export default function App() {
         setError(res.error?.message ?? '分析失败，原因不明。');
       }
     },
-    [passage, theory, mode, loading, hasKey, refreshUsage, pendingParent, waited, brief]
+    [passage, theory, mode, loading, hasKey, refreshUsage, pendingParent, waited, brief, divergence]
   );
 
   /**
@@ -1200,6 +1270,23 @@ export default function App() {
                   onToggle={() => setBriefOpen((v) => !v)}
                   /* 有报告、而且报告里记的不是这四问：提醒「填完要重跑」。 */
                   pending={briefPending(diag?.brief, brief)}
+                />
+
+                {/*
+                  分歧账。放在立案之后、模式之前：三张人填的卡连在一起，
+                  顺序就是文档的 A（评的是谁）→ F（判不出时怎么办）→ 这次问什么。
+                  默认收起，展开后才占地方；报告里那栏是它的只读版。
+                */}
+                <DivergenceCard
+                  value={divergence}
+                  onPatch={patchDivergence}
+                  onAddEntry={addDivergenceEntry}
+                  onRemoveEntry={removeDivergenceEntry}
+                  onPatchEntry={patchDivergenceEntry}
+                  disabled={loading}
+                  open={divergenceOpen}
+                  onToggle={() => setDivergenceOpen((v) => !v)}
+                  pending={divergencePending(diag?.divergence, divergence)}
                 />
 
                 {/*

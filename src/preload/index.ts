@@ -5,6 +5,7 @@ import type {
   ArchiveHealth,
   Brief,
   Diagnosis,
+  Divergence,
   ReportProbe,
   Objection,
   ObjectionAnchor,
@@ -62,7 +63,13 @@ const api = {
        * 理由见 `@shared/brief`：这一段是「评的是谁」的记录，不是判断依据；
        * 混进提示词，模型会顺着用户填的身份说话，那就成了诱导。
        */
-      brief?: Brief | null
+      brief?: Brief | null,
+      /**
+       * v1.1 第 4 章的分歧账。与立案同一条边界：不进提示词，只在解析与裁决之后
+       * 贴到报告上。它是「判不出唯一答案时说了什么」的存档，不是给模型的判定依据；
+       * 混进提示词，模型会顺着用户选的收束模式说话，那就成了诱导。
+       */
+      divergence?: Divergence | null
     ): Promise<{
       ok: boolean;
       data?: Diagnosis;
@@ -70,7 +77,7 @@ const api = {
       saved?: boolean;
       saveError?: string | null;
       error?: { code: string; message: string };
-    }> => ipcRenderer.invoke('analysis:run', passage, theory, mode, parentId, brief),
+    }> => ipcRenderer.invoke('analysis:run', passage, theory, mode, parentId, brief, divergence),
     /*
      * 停。
      *

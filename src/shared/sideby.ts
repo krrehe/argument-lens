@@ -79,8 +79,15 @@ export const SECTION_ORDER: { id: SideSectionId; label: string; key: string }[] 
   { id: 'other', label: '其他', key: '' },
 ];
 
-/** 不进比对、只在表头出现的顶层字段：身份、输入、以及「谁跑的」。 */
-const HEAD_KEYS = new Set(['version', 'id', 'parentId', 'mode', 'theory', 'createdAt', 'passage', 'prompt', 'engine', 'raw']);
+/** 不进比对、只在表头出现的顶层字段：身份、输入、以及「谁跑的」。
+ *  `brief` / `divergence` 是人填的立案与分歧账：只在按「分析」那一刻被带走，
+ *  不进提示词、不参与判定。把它们列进「其他」差异，会把「人补填了一份账」
+ *  读成「模型这次写得不一样」；与 passage / mode 同一条口径，排除。
+ */
+const HEAD_KEYS = new Set([
+  'version', 'id', 'parentId', 'mode', 'theory', 'createdAt', 'passage', 'prompt', 'engine', 'raw',
+  'brief', 'divergence',
+]);
 
 /**
  * 字段名 → 人话。

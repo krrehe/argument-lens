@@ -416,3 +416,351 @@
   line-height: 1.65;
   color: var(--ink-3);
 }
+
+/* ─────────── v1.1 分歧账（输入区 + 报告只读栏） ─────────── */
+/*
+ * 第三套前缀 `dv-`。理由同上：`.pv*` / `.bf-*` / `.wf-*` 各管一块，
+ * 混用会在 check:css 照样绿的情况下把两套布局叠在一起。
+ * 收束模式、F1–F5、影响三类都用按钮而不是 mode-chip——冒烟有一条在数模式条五档。
+ */
+
+.wf-closure {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  padding: 5px 8px;
+  border-left: 2px solid var(--accent);
+  background: var(--accent-bg);
+}
+
+.dv {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.dv[data-dv='1'] {
+  border-color: var(--accent);
+}
+
+.dv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 11px;
+  flex-wrap: wrap;
+}
+
+.dv-head-t {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.dv-title {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: 3px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+.dv-sum {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  line-height: 1.45;
+  /*
+   * 不省略：侧栏只有三百多像素宽，「坐标｜收束｜并列｜登记」一行放不下，
+   * 省略号恰好把 v1.1 最要紧的「收束模式」截成「收…」。
+   * 让它折成两行；完整一句仍放在 title 里，鼠标移上去能逐字核。
+   */
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.dv-toggle {
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dv-why,
+.dv-hint,
+.dv-lead {
+  margin: 0;
+  padding: 0 11px 9px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.dv-lead {
+  padding-top: 9px;
+  color: var(--ink-2);
+}
+
+.dv-body {
+  padding: 0 11px 10px;
+}
+
+.dv-sec-h {
+  margin: 10px 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 3px;
+}
+
+.dv-frames {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+}
+
+.dv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  margin-bottom: 6px;
+}
+
+.dv-field > span {
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.dv-field select,
+.dv-in {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 11.5px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+/* §7.4 多方案矩阵：只有「各方案判据」要求每方案一行，用可拉高的多行框；
+   其余各格仍是单行 input（长句靠 title 逐字核），免得整张卡被撑成几屏。
+   `.composer textarea` 有个 190px 的全局高度，这里必须特异性更高才盖得住。 */
+.dv textarea.dv-in {
+  height: auto;
+  min-height: 52px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.dv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+
+.dv-chip {
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dv-chip.sm {
+  font-size: 10.5px;
+  padding: 2px 7px;
+}
+
+.dv-chip.on {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.dv-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.dv-entry > .dv-in {
+  grid-column: 1;
+}
+
+.dv-entry > .dv-del {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: start;
+}
+
+.dv-entry > .dv-chips {
+  grid-column: 1;
+  margin: 0;
+}
+
+.dv-del,
+.dv-add {
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.dv-add {
+  margin-top: 6px;
+}
+
+.dv-gaps {
+  margin-top: 9px;
+  padding: 7px 9px;
+  border-left: 2px solid var(--weak);
+  background: var(--panel);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.dv-gaps ul,
+.dv-rules ul {
+  margin: 5px 0 0;
+  padding-left: 18px;
+  font-size: 11px;
+  color: var(--ink-3);
+  line-height: 1.65;
+}
+
+.dv-rules {
+  margin-top: 9px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.dv-rules summary {
+  cursor: pointer;
+}
+
+.dv-pending {
+  margin: 9px 0 0;
+  padding: 6px 9px;
+  border-left: 2px solid #e6cf94;
+  background: var(--panel);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+/* ── 报告里的只读栏 ── */
+
+.dv-view {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.dv-absent {
+  margin: 0 0 6px;
+}
+
+.dv-vline {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.dv-vgrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.dv-vgrid > div {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 5px 7px;
+  min-width: 0;
+}
+
+.dv-vgrid span {
+  display: block;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.dv-vgrid b {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.dv-vframe {
+  margin: 0 0 9px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.dv-vtable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 9px;
+  font-size: 11.5px;
+}
+
+.dv-vtable th,
+.dv-vtable td {
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  padding: 4px 6px;
+  vertical-align: top;
+}
+
+.dv-vtable th {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+
+.dv-vdl {
+  margin: 0 0 9px;
+}
+
+.dv-vdl dt {
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.dv-vdl dd {
+  margin: 1px 0 6px;
+  font-size: 11.5px;
+  white-space: pre-wrap;
+}
+
+.dv-vnote {
+  margin: 0 0 6px;
+  padding: 6px 9px;
+  border-left: 2px solid var(--weak);
+  background: var(--panel);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}

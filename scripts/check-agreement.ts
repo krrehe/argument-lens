@@ -161,6 +161,34 @@ ok(A.same === 11 && A.spreads.length === 0, '三份完全一样：11 条字段�
 ok(X.spreads.length === 0, '只差 id / createdAt 时不算差异（否则每份报告都「不一样」）');
 ok(X.fields === 11, '身份字段没有被算进字段总数，数字才可比', String(X.fields));
 
+/*
+ * 人填的两份账（A 立案 / v1.1 分歧账）是**输入**，不是模型产物。
+ * 用户第二遍才补填分歧账时把它算进差异，界面会说「16 处不一样」，
+ * 读的人只会以为是模型抖了——包内自检真撞上过：那些差异全是 divergence.*，
+ * 连 at 时间戳都算了一处。与 passage / mode 同一条口径，排除。
+ */
+const HUMAN = agreementOf([
+  it('u1', 48, { fingerprint: 'u' }),
+  it('u2', 47, {
+    fingerprint: 'u',
+    report: R({
+      brief: { speaker: '校办', version: '第二版', source: 'original', objectKind: 'argument', at: 1 },
+      divergence: {
+        frame: { formal: 'classical', criterion: 'scheme-cq', dimension: 'dialectic', protocol: 'inquiry' },
+        closure: 'fork', branches: 2, entries: [], common: '', difference: '',
+        condition: '给出出处只剩宽读', basis: '两读各自未过的 CQ', decidable: '', burden: '', at: 2,
+      },
+    }),
+  }),
+]);
+const U = HUMAN.repeat.find((c) => c.fingerprint === 'u')!;
+ok(U.fields === 11, '第二遍才补填立案与分歧账：可比字段数不变（人填的账不进分母）', String(U.fields));
+ok(U.spreads.length === 0, '第二遍才补填立案与分歧账：一处「模型差异」都不多报', String(U.spreads.length));
+ok(
+  LITERALS.split('\n').includes('brief') && LITERALS.split('\n').includes('divergence'),
+  '排除名单里写着两份人填的账（不是靠 flatten 那一层顺手跳过）'
+);
+
 const B = byFp('yy');
 ok(B.spreads.length === 1, '只改了一个说法：只报一处差异', String(B.spreads.length));
 ok(B.spreads[0].path === 'verdict.whatIsRefuted', '差异有名字，不是一个笼统的「不一样」', B.spreads[0].path);

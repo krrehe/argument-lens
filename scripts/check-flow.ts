@@ -1,5 +1,5 @@
 /**
- * 全流程账：十六步，做没做。
+ * 全流程账：二十步（v1.1 新增 F 段与 E4），做没做。
  *
  * 这一关守的不是「多了一栏」，是七种会让这一栏变成装饰的坏法：
  *
@@ -8,7 +8,7 @@
  *   2. 反过来，速判档就拿它当挡箭牌——明明做了的步骤被写成「这一档不走」，
  *      把做过的活也一起抹掉（所以判据是「先看证据，再看档位」）；
  *   3. 只看档位不看顺序——A 阶段没做完就给了档位，这是文档 §1 写死的失格，
- *      不能混在「十六格里缺一格」里说；
+ *      不能混在「二十格里缺一格」里说；
  *   4. 「没做」与「做不到」不分——本地没有依据的步骤（修辞审计三项）写「没做」，
  *      读者会以为再跑一次就能有；
  *   5. 只写状态不写证据——读者只能信这块板子，没法反驳；
@@ -23,7 +23,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { MODE_META, type Brief, type CheckItem, type Claim, type Diagnosis } from '@shared/types';
+import { MODE_META, type Brief, type CheckItem, type Claim, type Diagnosis, type Divergence } from '@shared/types';
 import { MOCK } from '../src/renderer/src/mock-data';
 import {
   BRIEF_FIELD_MAX,
@@ -220,10 +220,11 @@ ok(fFull.depth === 'standard', '六百字 → 标准档', fFull.depth);
 ok(flowOf({ ...FULL, passage: '早'.repeat(3000) }).depth === 'audit', '三千字 → 全场审计档');
 ok(flowOf({ ...FULL, intermediate: [cl('M1', 'm1', { role: 'intermediate' }), cl('M2', 'm2', { role: 'intermediate' })] }).depth === 'audit', '三个独立主张 → 全场审计档（§0.1 的「≥3 个主张」）');
 
-ok(fTiny.rows.length === 16, '一共十六步', String(fTiny.rows.length));
-ok(fTiny.rows.map((r) => r.id).join(',') === 'A1,A2,A3,B1,B2,B3,B4,C1,C2,C3,D1,D2,D3,E1,E2,E3', '顺序就是文档 §1 的顺序', fTiny.rows.map((r) => r.id).join(','));
-ok(fTiny.rows[0].group === 'A' && fTiny.rows[15].group === 'E', '分组落位');
-ok(Object.values(fTiny.counts).reduce((a, b) => a + b, 0) === 16, '四态相加等于总步数');
+ok(fTiny.rows.length === 20, 'v1.1 一共二十步（F 段三步 + E4）', String(fTiny.rows.length));
+ok(fTiny.rows.map((r) => r.id).join(',') === 'A1,A2,A3,B1,B2,B3,B4,C1,C2,C3,D1,D2,D3,F-a,F-b,F-c,E1,E2,E3,E4', '顺序就是 v1.1 §1 的顺序（F 在 D 之后 E 之前）', fTiny.rows.map((r) => r.id).join(','));
+ok(fTiny.rows[0].group === 'A' && fTiny.rows[19].group === 'E', '分组落位');
+ok(fTiny.rows[13].group === 'F' && fTiny.rows[16].group === 'E', 'F 段三步排在 D 之后、E 之前（不是按字母序排最后）');
+ok(Object.values(fTiny.counts).reduce((a, b) => a + b, 0) === 20, '四态相加等于总步数');
 
 const tinyC1 = fTiny.rows.find((r) => r.id === 'C1');
 ok(tinyC1?.status === 'na', '速判档没做 C1 → 「这一档不走」，不是「缺」', tinyC1?.status);
@@ -236,6 +237,38 @@ ok(fTiny.rows.find((r) => r.id === 'D3')?.status === 'na', '速判档也不要�
  */
 const tinyRepair: Diagnosis = { ...TINY, repair: { ...TINY.repair, repairedForm: '改写成：若不同期比较，则不能说因果' } };
 ok(flowOf(tinyRepair).rows.find((r) => r.id === 'E2')?.status === 'ok', '速判档里真给了加固版 → 仍算做了（档位不抹掉做过的事）');
+
+/*
+ * v1.1 同一条边界，换到 F 段再验一次：§0.1 说速判「默认收束＝单判、不走 F 段」，
+ * 但那说的是**没登记时**不拿多方案矩阵去为难一份 128 字的短报告；
+ * 人真填了判定坐标与收敛条件，档位就不能把做过的四格抹成「这一档不走」。
+ * 真机跑道上这条曾写反过（拿 quick 去要求 na），两边一起钉死。
+ */
+const FULL_DIVERGENCE: Divergence = {
+  frame: { formal: 'classical', criterion: 'scheme-cq', dimension: 'dialectic', protocol: 'inquiry' },
+  closure: 'fork',
+  branches: 2,
+  entries: [{ at: 'B2 补 A：宽读与严读', source: 'F2', stakes: 'level' }],
+  common: '两读都同意：支撑不足',
+  difference: '补出的 A 与选中的型式',
+  condition: '给出原始出处只剩宽读；只给二手转述只剩严读',
+  basis: '宽读：第 3 句 + 未过 CQ；严读：第 3 句 + 未过 CQ',
+  decidable: '',
+  burden: '',
+  at: 1,
+};
+const tinyFork = flowOf({ ...TINY, divergence: FULL_DIVERGENCE });
+const fIds = ['F-a', 'F-b', 'F-c', 'E4'];
+ok(
+  fIds.every((id) => tinyFork.rows.find((r) => r.id === id)?.status === 'ok'),
+  '速判档里真登记了分歧账 → F 三步与 E4 仍算做了（默认不抹掉人填的）',
+  fIds.map((id) => `${id}:${tinyFork.rows.find((r) => r.id === id)?.status}`).join(',')
+);
+ok(
+  fIds.every((id) => fTiny.rows.find((r) => r.id === id)?.status === 'na'),
+  '速判档没登记时 F 三步与 E4 是「这一档不走」，不是「缺」',
+  fIds.map((id) => `${id}:${fTiny.rows.find((r) => r.id === id)?.status}`).join(',')
+);
 
 /* 标准档：同样的 C1 就没做，于是是缺。 */
 ok(fFull.rows.find((r) => r.id === 'C1')?.status === 'gap', '标准档没做 C1 → 缺', fFull.rows.find((r) => r.id === 'C1')?.status);
@@ -326,7 +359,7 @@ ok(flowOf(onlyA).breach === null, '后面一步都没走 → 不说「抢跑」'
 
 /* ─────────── 六 · 总述与fine print：数出来的，不是评出来的 ─────────── */
 
-ok(fFull.line.includes('标准') && fFull.line.includes('16 步'), '总述带档位与步数', fFull.line);
+ok(fFull.line.includes('标准') && fFull.line.includes('20 步'), '总述带档位与步数', fFull.line);
 ok(fFull.line.includes(String(fFull.counts.ok)), '总述里的「走了 N 步」与计数一致');
 ok(fFull.fine.includes('做没做'), '边界说明写明只数做没做');
 ok(fFull.fine.includes('算不出来'), '边界说明写明不判做得对不对（判得准不准本地算不出来）');
@@ -376,7 +409,7 @@ ok(briefTsx.includes('data-brief-field="speaker"') && briefTsx.includes('data-br
 ok(briefTsx.includes('data-brief-source=') && briefTsx.includes('data-brief-object='), '两组选择带探针属性');
 
 ok(/ipcRenderer\.invoke\('analysis:run'[\s\S]{0,140}brief/.test(preloadTs), 'preload 把立案传过去');
-ok(/brief\?: unknown/.test(mainTs) && /brief \}/.test(mainTs), '主进程收下它');
+ok(/brief\?: unknown/.test(mainTs) && /brief, divergence \}/.test(mainTs), '主进程收下立案与分歧账');
 ok(/normalizeBrief\(opts\.brief\)/.test(analyzeTs), '主进程用同一个收口函数');
 ok(
   analyzeTs.indexOf('diagnosis.raw = {') < analyzeTs.indexOf('normalizeBrief(opts.brief)'),

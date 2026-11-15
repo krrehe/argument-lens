@@ -706,6 +706,12 @@ export interface Diagnosis {
    * 旧存档没有这一栏，按「没立案」处理，不回填。
    */
   brief?: Brief;
+  /**
+   * v1.1 第 4 章的分歧账：判定坐标四元组、收束模式、E4 登记册。
+   * 同 `brief`：人填、软件只保管，贴在解析与裁决之后，不改报告一个字。
+   * 旧存档没有这一栏，按「没登记」处理，不回填、不推断。
+   */
+  divergence?: Divergence;
 }
 
 /* ─────────── 立案（A 阶段，人填，软件只保管） ─────────── */
@@ -731,6 +737,88 @@ export interface Brief {
   objectKind: BriefObject;
   at: number;
 }
+
+/* ─────────── 分歧与收束（v1.1 第 4 章，人填，软件只保管） ─────────── */
+
+/** §4.1 判定坐标：形式系统。 */
+export type FrameFormal = 'classical' | 'inductive' | 'defeasible' | 'none' | 'unknown';
+/** §4.1 判据来源。 */
+export type FrameCriterion = 'hamblin' | 'ars' | 'rule' | 'scheme-cq' | 'rhetoric' | 'unknown';
+/** §4.1 分析维度。 */
+export type FrameDimension = 'logic' | 'dialectic' | 'rhetoric' | 'pragmatic' | 'unknown';
+/**
+ * §4.1 对话协议。文档说「最有用的一格是第四格」：填成「争吵」时，
+ * 整套求真标准降级；把学术讨论当「各有立场」处理，同样失格。
+ */
+export type FrameProtocol =
+  | 'persuasion'
+  | 'inquiry'
+  | 'deliberation'
+  | 'court'
+  | 'negotiation'
+  | 'quarrel'
+  | 'unknown';
+
+export interface JudgementFrame {
+  formal: FrameFormal;
+  criterion: FrameCriterion;
+  dimension: FrameDimension;
+  protocol: FrameProtocol;
+}
+
+/** §4.2 五类分歧源。unknown 是故意留的初值：不预设「这处是标准分歧」。 */
+export type DivergenceSource = 'F1' | 'F2' | 'F3' | 'F4' | 'F5' | 'unknown';
+/** §E4 只登记这三类，内容层面「这个词用得怪」不进册。 */
+export type DivergenceStake = 'level' | 'handling' | 'ledger' | 'unknown';
+/** §4.3 收束三模式。判定顺序不能反：先试收敛，收敛不了才分叉。 */
+export type ClosureMode = 'converge' | 'fork' | 'suspend' | 'unknown';
+
+export interface DivergenceEntry {
+  /** 拿不准的位置：第几条前提、哪一环、哪一格判据。 */
+  at: string;
+  source: DivergenceSource;
+  stakes: DivergenceStake;
+}
+
+/**
+ * 一份报告的分歧账。
+ *
+ * 与立案一样：只在按下「分析」时贴进报告，不参与模型调用，旧存档按「没登记」处理。
+ * 软件不判「这处分歧属于 F2 还是 F3」，也不判「收敛条件可不可观察」——
+ * 它只数**填没填齐**；判得对不对是评估者的事（§4 全章都是评估者的方法）。
+ */
+export interface Divergence {
+  frame: JudgementFrame;
+  closure: ClosureMode;
+  /** 分叉时并列几个方案。§4.5 硬规则：≤3，超过回来重做 B1–B2。 */
+  branches: number;
+  /** §E4 登记册。空数组是合法且正确的：没有那三类犹豫就不该硬凑。 */
+  entries: DivergenceEntry[];
+  /** 分叉：共同结论（各方案都同意的部分） */
+  common: string;
+  /** 分叉：差异位置；悬置：不能裁的部分 + 原因 */
+  difference: string;
+  /** 分叉：收敛条件；收敛：什么会推翻此判；悬置：定案条件 */
+  condition: string;
+  /** 分叉：各方案判据（原文位置 + 未过的 CQ，每方案一行） */
+  basis: string;
+  /** 悬置：能裁的部分。§7.5 写明「必须非空；为空则退回重做 A–C」。 */
+  decidable: string;
+  /** 悬置：举证责任落在哪一方 */
+  burden: string;
+  at: number;
+}
+
+/**
+ * 输入区「改了哪几格」的一次改动，不是整份新账。
+ *
+ * `frame` 允许只给一格：坐标四格是四个下拉，连着选下来时若各自拿一份
+ * 渲染时的旧 `value.frame` 展开，后一次会把前一次盖掉（立案卡上吃过一次）。
+ * 交给状态层按 `prev.frame` 函数式合并，四格才留得住。
+ */
+export type DivergencePatch = Omit<Partial<Divergence>, 'frame'> & {
+  frame?: Partial<JudgementFrame>;
+};
 
 export interface Diagnostic {
   level: 'info' | 'warn' | 'error';

@@ -1,10 +1,14 @@
 /**
- * 全流程账：把《论证分析全流程 v1.0》的十六步，在这份报告上逐条对一遍。
+ * 全流程账：把《论证分析全流程 v1.1》的二十步，在这份报告上逐条对一遍。
+ *
+ * v1.1 相对 v1.0 的结构变化：§1 总图新增 **F 分歧** 段（F-a / F-b / F-c，排在 D 之后
+ * E 之前）与 **E4 分歧登记**，共二十步；§0.1 三档各加一列「默认收束」；B4 的枢纽前提
+ * 改记 K（原来与「隐含前提 A₁」撞名）。这一栏按新编号重排，不另造第十七格。
  *
  * 这一层要回答的不是「这段论证好不好」——那是报告本身的事——而是
  * **「这份报告是按流程走出来的，还是跳着走的」**。这是一个纯本地问题：
  * 每一步做没做，报告里都有痕迹（命题账有没有分栏、有没有标型式、有没有过 CQ、
- * 有没有可推翻条件……），数得出来，也不必问模型。
+ * 有没有可推翻条件、有没有分歧登记……），数得出来，也不必问模型。
  *
  * 三条设计约束，都是为了让这一栏不至于变成又一块「到处都是红」的板子：
  *
@@ -13,6 +17,7 @@
  *      会被要求交出修辞审计与自审四问——那不是严格，是拿标准档的尺子量速判。
  *   2. **只数做没做，不判做得对不对。** 「型式标了」与「型式标对了」是两件事，
  *      后者本地算不出来。混在一起写，读者会把「走了 12 步」读成「这份报告对了 12 处」。
+ *      F 段尤其如此：坐标填齐了 ≠ 判据选对了，收敛条件写了 ≠ 它真的可观察。
  *   3. **顺序是硬约束，单独说。** 文档 §1 写着「A 阶段任何一个环节没做完，不得进入 B」。
  *      一份没有立案记录却给了档位的报告，缺的不是一格，是前提——这句话必须自己一行。
  *
@@ -24,11 +29,19 @@ import { THEORY_BY_ID } from './theories';
 import { propositionsOf } from './propositions';
 import { pivotOf } from './pivot';
 import { briefGaps, objectLabel, objectRoute, sourceLabel } from './brief';
+import {
+  closureLabel as divergenceClosure,
+  divergenceGaps,
+  divergenceLine,
+  normalizeDivergence,
+  sourceLabel as divergenceSource,
+} from './divergence';
 import { toneAudit } from './modal';
 
 export type FlowDepth = 'quick' | 'standard' | 'audit';
 export type FlowStatus = 'ok' | 'partial' | 'gap' | 'na';
-export type FlowGroup = 'A' | 'B' | 'C' | 'D' | 'E';
+/** F 是 v1.1 新增的一段：分歧在 D 之后统一收口，排在交付 E 之前。 */
+export type FlowGroup = 'A' | 'B' | 'C' | 'D' | 'F' | 'E';
 
 export interface FlowRow {
   /** 文档里的编号：A1 / B3 / C2 …… */
@@ -58,6 +71,8 @@ export interface FlowView {
   depth: FlowDepth;
   depthLabel: string;
   depthWhy: string;
+  /** v1.1 §0.1 新增的「默认收束」列：这一档该给单判，还是才配出多方案。 */
+  defaultClosure: string;
   rows: FlowRow[];
   counts: Record<FlowStatus, number>;
   /** 总述一行 */
@@ -77,21 +92,41 @@ const DEPTH_LABEL: Record<FlowDepth, string> = {
 };
 
 /**
- * 档位要哪几步。
+ * v1.1 §0.1 新增的「默认收束」列。
  *
- * 速判四步照抄文档：A2 准入 → B1 编主张 → B4 找枢纽 → 一句话判据（本软件里是 D1 的档位）。
- * 标准与全场审计都是 A–E 全程；全场审计多出来的那件事是**主张台账**，
- * 而台账不在这十六步里（它在 §0.1），所以只在那句档位说明里提，不虚设一格。
+ * 它管的是「这一档该给单判，还是才配出多方案」，不是评分，也不是达标线。
+ * 速判档因此**不走 F 段与 E4**：文档写明速判默认单判，真有第二种读法只加一行「另读」；
+ * 让 128 字的短报告交一份多方案矩阵，是把「没做完」包装成「很复杂」（§4.3）。
  */
-const REQUIRED: Record<FlowDepth, ReadonlySet<string>> = {
-  quick: new Set(['A2', 'B1', 'B4', 'D1']),
-  standard: new Set(['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'D1', 'D2', 'D3', 'E1', 'E2', 'E3']),
-  audit: new Set(['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'D1', 'D2', 'D3', 'E1', 'E2', 'E3']),
+const DEPTH_DEFAULT: Record<FlowDepth, string> = {
+  quick: '单判。真有第二种读法，只加一行「另读：…」',
+  standard: '优先收敛；档位跨两档才出多方案',
+  audit: '台账内逐条标「单判 / 分叉 / 悬置」',
 };
 
 /**
- * 十六步的骨架。顺序就是文档 §1 的顺序，不另排。
- * `at` 是落点：报告里的哪一栏，或者输入区的立案卡（A 那两步在报告里没有对应区块）。
+ * 档位要哪几步。
+ *
+ * 速判四步照抄文档：A2 准入 → B1 编主张 → B4 找枢纽 K → 一句话判据（本软件里是 D1 的档位）。
+ * 标准与全场审计都是 A–D + F + E 全程；全场审计多出来的那件事是**主张台账**，
+ * 而台账不在这二十步里（它在 §0.1），所以只在那句档位说明里提，不虚设第 21 格。
+ */
+const ALL_STAGES = [
+  'A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'D1', 'D2', 'D3',
+  'F-a', 'F-b', 'F-c', 'E1', 'E2', 'E3', 'E4',
+];
+const REQUIRED: Record<FlowDepth, ReadonlySet<string>> = {
+  quick: new Set(['A2', 'B1', 'B4', 'D1']),
+  standard: new Set(ALL_STAGES),
+  audit: new Set(ALL_STAGES),
+};
+
+/**
+ * 二十步的骨架。顺序就是 v1.1 §1 的顺序，**按段排**：A → B → C → D → F → E。
+ * 注意 F 不排在字母序最后：文档把它放在 D 之后 E 之前，而分组顺序本身就是
+ * 这一栏要说的事之一（「D 之后统一收口，再交付」）。
+ *
+ * `at` 是落点：报告里的哪一栏，或者输入区的卡片（A 两步 / F 三步在报告里没有可填的区块）。
  * 落点存不存在由渲染层当场看一眼再说（见 FlowLedger），不在这里猜：
  * 同一件事在报告里有六七个分支，把分支抄进纯函数，改一处就会让这里说假话。
  */
@@ -102,16 +137,21 @@ const STAGES: { id: string; group: FlowGroup; name: string; at: string | null; g
   { id: 'B1', group: 'B', name: '编 P', at: 'sec-structure' },
   { id: 'B2', group: 'B', name: '补 A', at: 'sec-structure' },
   { id: 'B3', group: 'B', name: '判结构', at: 'sec-structure' },
-  { id: 'B4', group: 'B', name: '定枢纽', at: 'sec-pivot' },
+  /* 术语消歧（v1.1 §0.3）：枢纽前提改记 K，隐含前提仍是 A₁…Aₙ 并标「补出」。 */
+  { id: 'B4', group: 'B', name: '定枢纽 K', at: 'sec-pivot' },
   { id: 'C1', group: 'C', name: '三问 ARS', at: 'sec-checks' },
   { id: 'C2', group: 'C', name: '标型式', at: 'sec-lens' },
   { id: 'C3', group: 'C', name: '逐 CQ', at: 'sec-checks' },
   { id: 'D1', group: 'D', name: '分档', at: 'sec-verdict' },
   { id: 'D2', group: 'D', name: '命题账', at: 'sec-props' },
   { id: 'D3', group: 'D', name: '修辞审计', at: 'sec-verdict' },
+  { id: 'F-a', group: 'F', name: '定位分歧源', at: 'divergence-card', go: '去登记分歧' },
+  { id: 'F-b', group: 'F', name: '定收束', at: 'divergence-card', go: '去登记分歧' },
+  { id: 'F-c', group: 'F', name: '写收敛条件', at: 'divergence-card', go: '去登记分歧' },
   { id: 'E1', group: 'E', name: '反方最强一击', at: 'sec-refute' },
   { id: 'E2', group: 'E', name: '加固版', at: 'sec-repair' },
   { id: 'E3', group: 'E', name: '自审', at: 'sec-selfcheck' },
+  { id: 'E4', group: 'E', name: '分歧登记', at: 'sec-divergence' },
 ];
 
 /* ─────────── B3：结构判定（本地读 supports） ─────────── */
@@ -500,14 +540,108 @@ function evidenceOf(id: string, d: Diagnosis): Evidenced {
         return {
           status: 'gap',
           saw: '自审这一块是空的：没有可推翻条件，也没写自己不知道什么。',
-          note: '§8 说得很直：写不出降级条件的判定，说明它只是感觉。',
+          note: '§9 与 §E3 说得很直：写不出降级条件的判定，说明它只是感觉。',
           ...empty,
         };
       }
       return {
         status: 'partial',
         saw: `可推翻条件 ${w} 条、明确不知道的事 ${u} 条${other ? '、换透镜说明一段' : ''}。`,
-        note: '§E3 的第四问（换一个更严苛的评估者，最可能被升档的是哪一条）报告没有答——这一问要人来问，软件答不了。',
+        note: '§E3 的第 3 问（换一个更严苛的评估者，最可能被升档的是哪一条）报告没有答——这一问要人来问，软件答不了；第 4 问「什么会推翻它」由 F-c 与 E4 那一栏接。',
+        ...empty,
+      };
+    }
+    /* ── v1.1 新增的 F 段与 E4 ── */
+    case 'F-a': {
+      const v = normalizeDivergence(d.divergence);
+      if (!v) {
+        return {
+          status: 'gap',
+          saw: '报告里没有分歧账：判定坐标、收束模式、登记册一格都没记。',
+          note: '§1：分歧在任何环节都可能冒出来（A1 拿不准版本、B2 补法两可、C2 型式两头都像），当场记一笔，到 D 之后统一裁决；攒到最后临时决定「要不要给两套答案」，是这份流程最容易崩的地方。',
+          next: '在输入区登记判定坐标与拿不准的位置，再跑一次。',
+        };
+      }
+      /* 收敛且没有登记，是**做对了**，不是漏了：§E4 只登记三类，登记表不是给心虚用的。 */
+      if (v.closure === 'converge' && !v.entries.length) {
+        return {
+          status: 'ok',
+          saw: '先试了收敛，没有要登记的「影响档位 / 处置 / 命题账」那三类分歧。',
+          note: '§E4 明说：把所有犹豫都塞进登记表，最后会交出一份「什么都可能」的报告。',
+          ...empty,
+        };
+      }
+      if (!v.entries.length) {
+        return {
+          status: 'gap',
+          saw: `收束记成了「${divergenceClosure(v.closure)}」，登记册却一条都没有。`,
+          note: '§1 要求分歧落在具体位置：第几条前提、哪一环、哪一格判据。',
+          next: '在输入区把拿不准的位置逐条登记，并标 F1–F5。',
+        };
+      }
+      const unclassified = v.entries.filter((e) => e.source === 'unknown').length;
+      return {
+        status: unclassified ? 'partial' : 'ok',
+        saw: `登记了 ${v.entries.length} 处：${v.entries.map((e) => `${e.at || '（没写位置）'}·${divergenceSource(e.source)}`).join('；')}。`,
+        note: unclassified
+          ? `${unclassified} 处没定位到 F1–F5。§4.2 的一句话判据：F1/F2/F4 是评估者的活，F3/F5 是对象的性质；把 F3/F5 当 F1 去消灭，是无止境地补材料。`
+          : '这里数的是「登记了、归类了」，不判归类对不对——那是评估者的事。',
+        ...empty,
+      };
+    }
+    case 'F-b': {
+      const v = normalizeDivergence(d.divergence);
+      if (!v || v.closure === 'unknown') {
+        return {
+          status: 'gap',
+          saw: '没有声明收束模式（收敛 / 分叉 / 悬置）。',
+          note: '§4.3 判定顺序不能反：先试收敛，收敛不了才分叉；上来就分叉，是把「没做完」包装成「很复杂」。',
+          next: '在输入区选一种收束，再跑一次。',
+        };
+      }
+      return {
+        status: 'ok',
+        saw: `收束记为「${divergenceClosure(v.closure)}」${v.branches ? `，并列 ${v.branches} 个方案` : ''}。`,
+        note: v.closure === 'suspend'
+          ? '§4.3：悬置不是弃权，必须同时给出争在哪一层、哪部分仍能裁、还需要什么才能定案。'
+          : '',
+        ...empty,
+      };
+    }
+    case 'F-c': {
+      const v = normalizeDivergence(d.divergence);
+      if (!v || !v.condition) {
+        return {
+          status: 'gap',
+          saw: '没有写「什么出现就淘汰哪个方案」。',
+          note: '§4.4：矩阵尾部三行里没有收敛条件，这份多方案永远不会收敛；§9：写不出降级条件的判定，说明它只是感觉。',
+          next: '在输入区写清可观察的收敛条件，再跑一次。',
+        };
+      }
+      return {
+        status: 'ok',
+        saw: `收敛条件：${v.condition.slice(0, 46)}${v.condition.length > 46 ? '…' : ''}`,
+        note: '本地只数写没写，不判这个条件可不可观察——§4.4 要求它可观察，那得由人核。',
+        ...empty,
+      };
+    }
+    case 'E4': {
+      const v = normalizeDivergence(d.divergence);
+      if (!v) {
+        return {
+          status: 'gap',
+          saw: '报告里没有分歧登记那一栏。',
+          note: '§E4：把全程「拿不准」的位置入册，防最后一份报告什么都可能。只登记影响档位 / 处置 / 命题账的三类。',
+          next: '在输入区填分歧账，再跑一次。',
+        };
+      }
+      const gaps = divergenceGaps(v);
+      return {
+        status: gaps.length ? 'partial' : 'ok',
+        saw: `${divergenceLine(v)}；该填的${gaps.length ? `还缺 ${gaps.length} 格` : '都填了'}。`,
+        note: gaps.length
+          ? `第一处缺的是：${gaps[0]}`
+          : '「填齐了」不等于「判对了」：归类与收敛条件准不准，本地算不出来。',
         ...empty,
       };
     }
@@ -533,7 +667,7 @@ export function flowOf(d: Diagnosis): FlowView {
     let next = e.next;
     if ((status === 'gap' || status === 'partial') && !REQUIRED[depth].has(s.id)) {
       status = 'na';
-      note = `「${DEPTH_LABEL[depth]}」这一档不走这一步（§0.1：速判只走 A2 → B1 → B4 → 一句话判据）。`;
+      note = `「${DEPTH_LABEL[depth]}」这一档不走这一步（§0.1：速判只走 A2 → B1 → B4 → 一句话判据，默认${DEPTH_DEFAULT.quick}）。`;
       next = '';
     }
     return { id: s.id, group: s.group, name: s.name, status, saw: e.saw, note, next, at: s.at, goLabel: s.go ?? '看这一节' };
@@ -554,7 +688,7 @@ export function flowOf(d: Diagnosis): FlowView {
     .concat('。');
 
   /*
-   * 顺序：A 没做完就进了 B–E。
+   * 顺序：A 没做完就进了后面各段。
    *
    * 只在**当前档位要求 A** 的时候说（速判本来就不走 A1，不能拿它算失格）。
    * 而且必须真的已经往后走了才说——一份只走到 A3 的报告没有「抢跑」这回事。
@@ -563,19 +697,27 @@ export function flowOf(d: Diagnosis): FlowView {
   const firstA = rows.find((r) => r.group === 'A' && r.status !== 'ok' && REQUIRED[depth].has(r.id));
   const breach =
     firstA && later.length > 0
-      ? `判在立案之前：${firstA.id}「${firstA.name}」没有做完，而 B–E 已经走了 ${later.length} 步。按 §1，A 阶段没做完不得进入 B；按 §2 A1，三问没答清时结论须标「基于转述的评估」，并整体按低一档的信任度读。`
+      ? `判在立案之前：${firstA.id}「${firstA.name}」没有做完，而后面各段已经走了 ${later.length} 步。按 §1，A 阶段没做完不得进入 B；按 §2 A1，三问没答清时结论须标「基于转述的评估」，并整体按低一档的信任度读。`
       : null;
 
   const fine = [
-    '这一栏只数「做没做」，不判「做得对不对」——每一步做得准不准，本地算不出来。',
-    `档位是本地按长度与独立主张数估的（${chars} 字 / ${claims} 个主张；文档 §0.1：速判 <200 字单主张，标准 500–3000 字，全场审计为长文多主张）${depth === 'audit' ? '；全场审计还要求先建主张台账，报告里没有这一层' : ''}。`,
+    '这一栏只数「做没做」，不判「做得对不对」——每一步做得准不准，本地算不出来；F 段尤其如此：坐标填齐了不等于判据选对了，收敛条件写了不等于它真可观察。',
+    `档位是本地按长度与独立主张数估的（${chars} 字 / ${claims} 个主张；文档 §0.1：速判 <200 字单主张，标准 500–3000 字，全场审计为长文多主张）。`,
+    depth === 'audit'
+      ? 'v1.1 §0.1 规定 ≥300 字或 ≥3 个独立主张时必须先建主张台账（逐条标「单判 / 分叉 / 悬置」）；报告的数据结构里没有这张表，这里只提一句，不虚设第 21 格。'
+      : '',
+    'F 段在文档里「贯穿全程、D 之后统一收口」：这一栏只看得到最后收口那一份账，数不出全程「当场记一笔」有没有发生。',
     '「分流」（一个主张撑多个子结论）在报告的数据结构里无从体现——这里不假装判了它。',
-  ].join(' ');
+    '档位区间（§4.6 四条件）、并列四条禁止（§4.5）与反假阳性 13–15 条属于判定口径，本地不替评估者判。',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return {
     depth,
     depthLabel: DEPTH_LABEL[depth],
     depthWhy: `${chars} 字，${claims} 个独立主张`,
+    defaultClosure: DEPTH_DEFAULT[depth],
     rows,
     counts,
     line,

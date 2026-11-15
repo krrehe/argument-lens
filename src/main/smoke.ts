@@ -325,6 +325,183 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             add(`BRIEFSHOT ${p}`);
           }
         }
+        /*
+         * AL_DIVERGENCE=1：把 v1.1 的分歧账填齐，再按「分析」。
+         *
+         * 比立案更险的一处：分歧账没带进报告时，界面既不报错也不空白，
+         * 只是老老实实写「没有分歧账」——而那正是**没填**时的正确样子。
+         * 「填了没传过去」与「本来就没填」在截图上一模一样，只有把输入区那张卡
+         * 与报告里那一栏对着读才分得开。
+         *
+         * 填的是 §4.3「分叉」的全套：四格坐标、并列 2 个方案、矩阵四行、
+         * E4 一条（位置 + F2 + 影响档位）。填齐了 F-a/F-b/F-c/E4 四格才该是「做了」。
+         * 四格下拉故意**同步连点**：坐标曾按渲染时的快照整份展开，连着选四下
+         * 只会留下最后一格；这一跑要证明它真的改成函数式合并了。
+         */
+        if (process.env['AL_DIVERGENCE'] === '1') {
+          const dvOpen = await wc.executeJavaScript(`(() => {
+            const t = document.querySelector('[data-dv-toggle]');
+            if (!t) return { found: false };
+            t.click();
+            return { found: true };
+          })()`);
+          await sleep(220);
+
+          const dvFrames = await wc.executeJavaScript(`(() => {
+            const setSel = (sel, v) => {
+              const el = document.querySelector(sel);
+              if (!el) return false;
+              const s = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+              s.call(el, v);
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+              return true;
+            };
+            return {
+              formal: setSel('[data-dv-frame="formal"] select', 'classical'),
+              criterion: setSel('[data-dv-frame="criterion"] select', 'scheme-cq'),
+              dimension: setSel('[data-dv-frame="dimension"] select', 'dialectic'),
+              protocol: setSel('[data-dv-frame="protocol"] select', 'inquiry'),
+              fork: !!document.querySelector('[data-dv-mode="fork"]'),
+            };
+          })()`);
+          await wc.executeJavaScript(`(() => {
+            document.querySelector('[data-dv-mode="fork"]')?.click();
+            return true;
+          })()`);
+          await sleep(300);
+
+          const dvTexts = await wc.executeJavaScript(`(() => {
+            const setSel = (sel, v) => {
+              const el = document.querySelector(sel);
+              if (!el) return false;
+              const s = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+              s.call(el, v);
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+              return true;
+            };
+            const setIn = (sel, v) => {
+              const el = document.querySelector(sel);
+              if (!el) return false;
+              const proto = el.tagName === 'TEXTAREA'
+                ? window.HTMLTextAreaElement.prototype
+                : window.HTMLInputElement.prototype;
+              const s = Object.getOwnPropertyDescriptor(proto, 'value').set;
+              s.call(el, v);
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              return true;
+            };
+            return {
+              branches: setSel('[data-dv-branches]', '2'),
+              basis: setIn('[data-dv-text="basis"]', '宽读：第 3 句 + 未过 CQ「样例是否典型」；严读：第 3 句 + 未过 CQ「转述是否准确」'),
+              common: setIn('[data-dv-text="common"]', '两读都同意：早读与记忆效率之间的支撑不足'),
+              difference: setIn('[data-dv-text="difference"]', 'B2 补出的 A，以及 C2 选中的型式'),
+              condition: setIn('[data-dv-text="condition"]', '给出原始研究出处只剩宽读；只给二手转述只剩严读'),
+              add: !!document.querySelector('[data-dv-add="1"]'),
+            };
+          })()`);
+          await wc.executeJavaScript(`(() => {
+            document.querySelector('[data-dv-add="1"]')?.click();
+            return true;
+          })()`);
+          await sleep(300);
+
+          const dvEntry = await wc.executeJavaScript(`(() => {
+            const setIn = (sel, v) => {
+              const el = document.querySelector(sel);
+              if (!el) return false;
+              const proto = el.tagName === 'TEXTAREA'
+                ? window.HTMLTextAreaElement.prototype
+                : window.HTMLInputElement.prototype;
+              const s = Object.getOwnPropertyDescriptor(proto, 'value').set;
+              s.call(el, v);
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              return true;
+            };
+            const at = setIn('[data-dv-entry-at="0"]', 'B2 补 A：宽读与严读各补一个 A');
+            const s = document.querySelector('[data-dv-entry-source="F2"]');
+            const k = document.querySelector('[data-dv-entry-stakes="level"]');
+            if (s) s.click();
+            if (k) k.click();
+            return { at: at, source: !!s, stakes: !!k };
+          })()`);
+          await sleep(320);
+
+          const dvCard = await wc.executeJavaScript(`(() => {
+            const card = document.querySelector('[data-dv]');
+            const frames = ['formal', 'criterion', 'dimension', 'protocol'].map(function (k) {
+              return document.querySelector('[data-dv-frame="' + k + '"] select')?.value ?? '';
+            });
+            return {
+              flag: card?.getAttribute('data-dv') ?? '',
+              open: card?.getAttribute('data-open') ?? '',
+              frames: frames.join(','),
+              closure: document.querySelector('.dv-chips[data-dv-closure]')?.getAttribute('data-dv-closure') ?? '',
+              gaps: card?.querySelector('[data-dv-gaps]')?.getAttribute('data-dv-gaps') ?? '',
+              line: (card?.querySelector('[data-dv-line]')?.textContent ?? '').trim().slice(0, 100),
+              entries: card?.querySelectorAll('[data-dv-entry]').length ?? 0,
+              pend: !!card?.querySelector('[data-dv-pend]'),
+            };
+          })()`);
+          add(
+            `DIVERGENCECARD ${JSON.stringify({ opened: dvOpen, frames: dvFrames, texts: dvTexts, entry: dvEntry, card: dvCard })}`
+          );
+
+          /*
+           * 展开后的卡比视口高，一张截不完。上半张看四格坐标与矩阵，
+           * 下半张看缺口、硬规矩与「填完要再跑一次」——最后那句尤其容易被挤到
+           * 屏幕外，而它一旦看不见，人根本不知道填完还得重跑一次。
+           *
+           * 矩形一律夹在视口内：capturePage 拿到视口外的 rect 会抛
+           * UnknownVizError，整趟自检断在这里，后面几十条断言会一起红到
+           * 「应用没启动」那种不相干的地方。
+           */
+          const dvRectExpr = `(() => {
+            const el = document.getElementById('divergence-card');
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            const y = Math.max(0, Math.round(r.top));
+            const height = Math.min(Math.round(r.bottom) - y, window.innerHeight - y);
+            return {
+              x: Math.max(0, Math.round(r.left)),
+              y: y,
+              width: Math.round(r.width),
+              height: Math.max(0, Math.min(height, 1800)),
+            };
+          })()`;
+          const dvRect = async () =>
+            (await wc.executeJavaScript(dvRectExpr)) as {
+              x: number;
+              y: number;
+              width: number;
+              height: number;
+            } | null;
+
+          await wc.executeJavaScript(`(() => {
+            document.getElementById('divergence-card')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+            return true;
+          })()`);
+          await sleep(250);
+          const dvBox = await dvRect();
+          if (dvBox && dvBox.width > 100 && dvBox.height > 60) {
+            const img = await wc.capturePage(dvBox);
+            const p = join(dirname(shot), 'divergence-card.png');
+            writeFileSync(p, img.toPNG());
+            add(`DIVCARDSHOT ${p}`);
+          }
+
+          await wc.executeJavaScript(`(() => {
+            document.getElementById('divergence-card')?.scrollIntoView({ block: 'end', behavior: 'instant' });
+            return true;
+          })()`);
+          await sleep(280);
+          const dvBox2 = await dvRect();
+          if (dvBox2 && dvBox2.width > 100 && dvBox2.height > 60) {
+            const img = await wc.capturePage(dvBox2);
+            const p = join(dirname(shot), 'divergence-card-bottom.png');
+            writeFileSync(p, img.toPNG());
+            add(`DIVCARDBOTTOM ${p}`);
+          }
+        }
         // 注意：页签也叫「分析」，按文本找会点到页签上。这里按提交按钮的类名定位
         await wc.executeJavaScript(`(() => {
           document.querySelector('button.primary')?.click();
@@ -608,7 +785,7 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               })(),
               /*
                * 全流程账。三样东西会各自单独坏：
-               *   flowRows  十六步挂没挂上（0 行 = 整块没渲染，而报告别处一切正常）
+               *   flowRows  二十步挂没挂上（0 行 = 整块没渲染，而报告别处一切正常）
                *   flowA1/A2 立案填了没有——它必须与输入区那张卡对得上，否则就是
                *             「填了没传过去」或「没填却显示做过」，两种都只在报告侧露馅
                *   breach    A 没做完却给了档位时那句话在不在
@@ -623,6 +800,30 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               flowA2: document.querySelector('[data-flow-row="A2"]')?.getAttribute('data-status') ?? '',
               flowBreach: !!document.querySelector('[data-flow-breach]'),
               flowBrief: document.querySelector('[data-brief]')?.getAttribute('data-brief') ?? '',
+              /*
+               * v1.1：默认收束那一行，与 F 三步 / E4 四格的状态。
+               *
+               * 分歧账最阴的坏法是「填了却没带进报告」：界面不报错、不空白，
+               * 只是写一句「没有分歧账」——而那正是没填时的正确样子。
+               * 所以除了四格状态，还得把报告里那一栏本身读出来对着比。
+               */
+              flowClosure: (document.querySelector('[data-flow-closure]')?.textContent ?? '').trim().slice(0, 90),
+              flowF: Array.from(document.querySelectorAll('[data-flow-row]'))
+                .filter(function (e) {
+                  return ['F-a', 'F-b', 'F-c', 'E4'].indexOf(e.getAttribute('data-flow-row') ?? '') >= 0;
+                })
+                .map(function (e) {
+                  return String(e.getAttribute('data-flow-row')) + ':' + String(e.getAttribute('data-status'));
+                })
+                .join(','),
+              dvView: document.querySelector('[data-dv-view]')?.getAttribute('data-dv-view') ?? '',
+              dvClosure: document.querySelector('[data-dv-view]')?.getAttribute('data-dv-closure') ?? '',
+              dvVLine: (document.querySelector('[data-dv-vline]')?.textContent ?? '').trim().slice(0, 100),
+              dvVGaps: document.querySelector('[data-dv-vgaps]')?.getAttribute('data-dv-vgaps') ?? '',
+              dvEntries: document.querySelectorAll('[data-dv-ventry]').length,
+              dvPend: !!document.querySelector('[data-dv] [data-dv-pend]'),
+              dvSection: !!document.getElementById('sec-divergence'),
+              dvAbsent: (document.querySelector('.dv-absent')?.textContent ?? '').trim().slice(0, 80),
               /*
                * 每一步那个按钮指向哪里、指过去有没有东西。
                * 「点了没反应」最像软件卡了一下，而它真正的成因是那一栏这一份报告里
@@ -699,7 +900,7 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         /*
          * 全流程账整块的截图。
          *
-         * 这一块比报告里任何一栏都长（十六行），一旦某一行被挤成两行、
+         * 这一块比报告里任何一栏都长（二十行），一旦某一行被挤成两行、
          * 状态符号与文字错位，单独一行 DOM 断言是看不出来的——断言只数得到节点。
          * 拍成一张，人眼一次能看完；而且它是真的从这份报告上截的，不是预览页的构造数据。
          */
@@ -1137,6 +1338,21 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
          * 这里连 `.composer` 都不够——它有一千多像素高，那一行是里面最窄的一条。
          * 所以按 `.same-bar` 自己的矩形裁，四周各留 10px，看它有没有溢出、有没有被压成两行。
          */
+        /*
+         * 裁切矩形必须落在**视口内**。输入区的分歧卡展开时，composer 被撑高，
+         * `.same-bar` 会被推到一千多像素下方；Electron 的 capturePage 拿到
+         * 视口外的 rect 会抛 UnknownVizError，整趟自检就断在这里，后面几十条
+         * 断言一起红在「应用没启动」这种完全不相干的地方。
+         * 先把那一行滚进视口截，截完把滚动还回去——不是放宽标准，是让截图站对地方。
+         */
+        const sameScroll = (await wc.executeJavaScript(`(() => {
+          const el = document.querySelector('.same-bar');
+          if (!el) return null;
+          const before = Math.round(window.scrollY);
+          el.scrollIntoView({ block: 'center', behavior: 'instant' });
+          return { before };
+        })()`)) as { before: number } | null;
+        await sleep(220);
         const sameRect = await wc.executeJavaScript(`(() => {
           const el = document.querySelector('.same-bar');
           if (!el) return null;
@@ -1146,9 +1362,18 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             y: Math.max(0, Math.round(b.top) - 10),
             width: Math.min(Math.round(b.width) + 20, 1200),
             height: Math.round(b.height) + 20,
+            vh: window.innerHeight,
           };
         })()`);
+        add(`SAMERECT ${JSON.stringify(sameRect)}`);
         const samePng = (await wc.capturePage(sameRect ?? undefined)).toPNG();
+        if (sameScroll) {
+          await wc.executeJavaScript(`(() => {
+            window.scrollTo({ top: ${sameScroll.before}, behavior: 'instant' });
+            return true;
+          })()`);
+          await sleep(150);
+        }
         const sameShot = join(dirname(shot), 'same-bar.png');
         writeFileSync(sameShot, samePng);
           add(
@@ -2120,6 +2345,46 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         });
       })()`);
       add(`DOM ${probe}`);
+
+      /*
+       * 分歧账那一栏的整块截图：默认拍「没登记」，AL_DIVERGENCE=1 拍「填齐了」。
+       *
+       * 位置必须放在这里，不能放在刚出报告那会儿：截图要先 scrollIntoView，
+       * 而滚动会往「接着读」写一条位置记录；放在前面会把「新报告没有记录」
+       * 那条断言弄成假红——红的是自检自己制造的痕迹，不是产品坏了。
+       * 放在 DOM 探针之后、各面板探针之前，那时该读的位置都已经读完了。
+       *
+       * 两张都要看：没登记时那一栏不能是一片空白（人会以为报告少了半页），
+       * 填齐时四格坐标、矩阵尾部三行、E4 登记册得排得下。
+       *
+       * 这里不在 `canceled` 的作用域里（那是最前面分析循环里的局部变量）。
+       * 按停与空态跑道本来就没有报告：getElementById 取不到，dvBox 为 null，自然不截。
+       */
+      if (!process.env['AL_CANCEL']) {
+        await wc.executeJavaScript(`(() => {
+          document.getElementById('sec-divergence')?.scrollIntoView({ block: 'start' });
+          return true;
+        })()`);
+        await sleep(400);
+        const dvBox = (await wc.executeJavaScript(`(() => {
+          const el = document.getElementById('sec-divergence');
+          if (!el) return null;
+          const b = el.getBoundingClientRect();
+          return {
+            x: Math.max(0, Math.round(b.left)),
+            y: Math.max(0, Math.round(b.top)),
+            width: Math.round(b.width),
+            height: Math.min(2000, Math.round(b.height)),
+          };
+        })()`)) as { x: number; y: number; width: number; height: number } | null;
+        if (dvBox && dvBox.width > 200 && dvBox.height > 60) {
+          const png = (await wc.capturePage(dvBox)).toPNG();
+          const name = process.env['AL_DIVERGENCE'] === '1' ? 'divergence-filled.png' : 'divergence-empty.png';
+          const p = join(dirname(shot), name);
+          writeFileSync(p, png);
+          add(`DIVSHOT ${p} ${png.length} bytes`);
+        }
+      }
 
       // AL_PANEL=usage：点开用量面板再截。面板靠 IPC 取数，纯静态预览页跑不了它。
       if (process.env['AL_PANEL'] === 'usage') {

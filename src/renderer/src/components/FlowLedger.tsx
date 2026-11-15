@@ -6,8 +6,9 @@ import type { FlowGroup, FlowRow, FlowStatus, FlowView } from '@shared/flow';
  *
  * 排版上的三个决定：
  *
- *   1. **按 A–E 分组，不按状态排。** 状态排序（把「没做」全提到最上面）看起来更抓眼，
- *      但它会把这十六步的顺序打乱——而顺序本身就是这一栏要说的事之一。
+ *   1. **按 A–D–F–E 分组，不按状态排，也不按字母序。** 状态排序（把「没做」全提到
+ *      最上面）看起来更抓眼，但它会把这二十步的顺序打乱；v1.1 把 F 分歧段放在 D 之后
+ *      E 之前，按字母排会把它挪到最后——而顺序本身就是这一栏要说的事之一。
  *   2. **每一步都写「本地看到了什么」。** 只写「没做」而不写看到了什么，读者没法核对，
  *      只能相信这块板子；写了证据，他可以不同意。
  *   3. **不出现分数、百分比、及格线。** 「走了 9 步」是数出来的，「这报告 60 分」是编出来的。
@@ -17,6 +18,7 @@ const GROUP_NAME: Record<FlowGroup, string> = {
   B: '重构',
   C: '检验',
   D: '裁决',
+  F: '分歧 · D 之后收口',
   E: '交付',
 };
 
@@ -58,6 +60,11 @@ export function FlowLedger({ v }: { v: FlowView }) {
       window.dispatchEvent(new CustomEvent('al:brief'));
       return;
     }
+    /* F 三步同理：分歧卡在输入区，先展开再滚过去。 */
+    if (id === 'divergence-card') {
+      window.dispatchEvent(new CustomEvent('al:divergence'));
+      return;
+    }
     window.dispatchEvent(new CustomEvent('al:unfold', { detail: { id } }));
     const el = document.getElementById(id);
     if (!el) return;
@@ -66,7 +73,8 @@ export function FlowLedger({ v }: { v: FlowView }) {
     window.setTimeout(() => el.classList.remove('al-jump-hit'), 1400);
   };
 
-  const groups: FlowGroup[] = ['A', 'B', 'C', 'D', 'E'];
+  /* v1.1 §1：A → B → C → D → F（分歧收口）→ E（交付）。F 不排最后。 */
+  const groups: FlowGroup[] = ['A', 'B', 'C', 'D', 'F', 'E'];
 
   return (
     <div className="wf" data-flow={v.rows.length} data-depth={v.depth}>
@@ -85,6 +93,11 @@ export function FlowLedger({ v }: { v: FlowView }) {
         <span className="wf-depth-note">
           —— 这一档要走哪几步由文档 §0.1 定；不在这档里的步骤，没做也不算缺。
         </span>
+      </p>
+
+      {/* v1.1 §0.1 新增的「默认收束」列：先说清这一档该给单判还是配出多方案。 */}
+      <p className="wf-closure" data-flow-closure>
+        默认收束：<b>{v.defaultClosure}</b>
       </p>
 
       {groups.map((g) => {

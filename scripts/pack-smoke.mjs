@@ -256,6 +256,9 @@ const env = {
   // 包内也真的调一次历史检索：它跨 preload 桥 / IPC / scanDir 三层，
   // 任一层没进 asar，症状都是「搜什么都没有」而不是报错
   AL_FIND: '1',
+  // 包内也把 v1.1 分歧账填一遍：它跨 preload 桥 / IPC / 报告只读栏三层。
+  // 任一层没进 asar，症状都是那一栏照常写「没有分歧账」——和本来就没填一模一样。
+  AL_DIVERGENCE: '1',
   AL_PANEL: 'usage',
   // 提示词页顺带验。它要验的不是「提示词显示出来了」，而是**版本号与指纹显示出来了**——
   // 提示词一改判定口径就可能变，那行小字是判断两份报告能不能对照的唯一凭据，
@@ -277,6 +280,7 @@ console.log(pick('DOM').replace(/^.*DOM /, '首屏探针：'));
 console.log(pick('RESULT').replace(/^.*RESULT /, '分析结果：'));
 console.log(pick('PANELDOM').replace(/^.*PANELDOM /, '用量面板：'));
 console.log(pick('FINDRESULT').replace(/^.*FINDRESULT /, '包内检索：'));
+console.log(pick('DIVERGENCECARD').replace(/^.*DIVERGENCECARD /, '包内分歧账：'));
 console.log(existsSync(shot) ? `截图：${shot}` : '没有产出截图');
 
 /* 隔离目录里到底有没有这次分析留下的东西——这是「隔离生效」的正面证据，
@@ -864,6 +868,40 @@ const checks = [
           String(r.firstSnippet ?? '').includes(r.q) &&
           Number(r.missHits) === 0 &&
           Number(r.missScanned) === Number(r.scanned)
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
+   * v1.1 分歧账在包里也填一遍，验的是「填了真的进了报告」这条整链。
+   *
+   * 只 grep asar 里有没有字符串证明不了路通：任一层没进包，界面都不报错，
+   * 只是报告里那栏照常写「没有分歧账」——那正是没填时的正确样子。
+   * 四格连点那条尤其要留着：坐标曾按渲染快照整份展开，源码态与包内都可能
+   * 一起退回旧写法，而它坏起来只丢三格，肉眼完全看不出来。
+   */
+  [
+    '打包产物里 v1.1 分歧账整条链都通（二十步、四格连点、F/E4 都记做了）',
+    (() => {
+      const card = log.split('\n').find((l) => l.includes('DIVERGENCECARD ')) ?? '';
+      const rLine = log.split('\n').find((l) => l.includes('RESULT {')) ?? '';
+      if (!card || !rLine) return false;
+      try {
+        const c = JSON.parse(card.slice(card.indexOf('{')));
+        const r = JSON.parse(rLine.slice(rLine.indexOf('{')));
+        return (
+          String(c.card?.frames ?? '') === 'classical,scheme-cq,dialectic,inquiry' &&
+          String(c.card?.gaps ?? '') === '0' &&
+          Number(r.flowRows ?? 0) === 20 &&
+          r.dvView === '1' &&
+          r.dvClosure === 'fork' &&
+          String(r.dvVGaps ?? '') === '0' &&
+          Number(r.dvEntries ?? 0) === 1 &&
+          r.dvPend === false &&
+          String(r.flowF ?? '') === 'F-a:ok,F-b:ok,F-c:ok,E4:ok' &&
+          /默认收束/.test(String(r.flowClosure ?? ''))
         );
       } catch {
         return false;
