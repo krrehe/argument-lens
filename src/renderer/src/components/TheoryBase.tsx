@@ -18,6 +18,7 @@ import {
   type TheoryClaim,
 } from '@shared/theory-base';
 import { LANDING, LAND_KIND_LABEL } from '@shared/landing';
+import { HB_VERDICT_HINT, HB_VERDICT_LABEL, hbLocator, hbOf } from '@shared/theory-handbook';
 
 /**
  * 理论主张库。
@@ -47,6 +48,7 @@ export function TierBadge({ tier }: { tier: EvidenceTier }) {
 function ClaimRow({ c, focus }: { c: TheoryClaim; focus: boolean }) {
   const [open, setOpen] = useState(false);
   const lands = LANDING[c.id] ?? [];
+  const hb = hbOf(c.id);
 
   /*
    * 从报告边界栏点 id 跳过来时，那一条会自动展开。
@@ -83,6 +85,27 @@ function ClaimRow({ c, focus }: { c: TheoryClaim; focus: boolean }) {
             <div className="tb-contested">
               <span className="tb-contested-k">谁反对</span>
               {c.contested}
+            </div>
+          )}
+          {/*
+            手册核对：把「我知道有这回事」换成「你去这一页看」。
+            四种结论分开写，尤其是「文献有反对」与「只说一半」——
+            原先库里只写「出处：某教材」，读者核不到一句话，也就没机会发现自己被说满了。
+            这一块不升级任何档位：核对过一次不等于升了一档。
+          */}
+          {hb && (
+            <div className="tb-hb" data-hb={c.id} data-hb-verdict={hb.verdict}>
+              <span className="tb-refs-k">手册核对</span>
+              <div className="tb-hb-body">
+                <div className="tb-hb-line">
+                  <span className={`tb-hb-v tb-hb-${hb.verdict}`} title={HB_VERDICT_HINT[hb.verdict]}>
+                    {HB_VERDICT_LABEL[hb.verdict]}
+                  </span>
+                  <span className="tb-hb-loc">{hbLocator(hb)}</span>
+                </div>
+                <p className="tb-hb-says">{hb.says}</p>
+                <p className="tb-hb-gap">{hb.gap}</p>
+              </div>
             </div>
           )}
           <div className="tb-refs">

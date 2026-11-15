@@ -334,6 +334,73 @@
 }
 
 /*
+  手册核对。
+  这块不是装饰：库里原先只有「出处：某教材」，「文献有反对」与「只说一半」两种情况
+  根本看不出来。所以两种「不够硬」的结论各给一点颜色，让它自己跳出来——
+  dispute（有反对）用警示色、narrow（只说一半）用存疑色，confirm 保持中性。
+  颜色只标「这条不够硬」，不标「这条错」：文献反对不等于本工具判错，分开放。
+*/
+.tb-hb {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.tb-hb-body {
+  padding: 5px 9px 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.tb-hb-line {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.tb-hb-v {
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-2);
+  background: var(--muted-bg);
+  white-space: nowrap;
+}
+.tb-hb-confirm {
+  color: var(--strong);
+  background: var(--strong-bg);
+  border-color: var(--strong);
+}
+.tb-hb-narrow {
+  color: var(--weak);
+  background: var(--weak-bg);
+  border-color: var(--weak);
+}
+.tb-hb-dispute {
+  color: var(--invalid);
+  background: var(--invalid-bg);
+  border-color: var(--invalid);
+}
+.tb-hb-loc {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.tb-hb-says {
+  margin: 4px 0 0;
+  line-height: 1.62;
+}
+.tb-hb-gap {
+  margin: 3px 0 0;
+  line-height: 1.62;
+  color: var(--ink-3);
+}
+.tb-hb-gap::before {
+  content: '与本库的差：';
+  color: var(--ink-3);
+}
+
+/*
  * 落点栏。与「出处」并排，但两者管的不是一回事：
  * 出处说这条主张凭什么，落点说它在软件里变成了什么。
  * 排版刻意区分——出处的引用是人名与书名（等宽字不适合），落点的地址是标识符（必须等宽）。

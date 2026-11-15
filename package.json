@@ -34,6 +34,7 @@
     "check:archive": "node scripts/check-archive-health.mjs",
     "check:academic": "node scripts/run-check-academic.mjs",
     "check:theory": "node scripts/run-check-theory.mjs",
+    "check:theory-handbook": "node scripts/run-check-theory-handbook.mjs",
     "check:landing": "node scripts/run-check-landing.mjs",
     "check:usage": "node scripts/run-check-usage.mjs",
     "eval": "node scripts/eval/run.mjs",
