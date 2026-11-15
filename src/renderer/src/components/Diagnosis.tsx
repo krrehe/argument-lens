@@ -50,6 +50,8 @@ import { ConditionScreen } from './ConditionScreen';
 import { SourceBar } from './SourceBar';
 import { CoverageBar } from './CoverageBar';
 import { FieldTermsBar } from './FieldTermsBar';
+import { DensityBar, useDensity } from './Density';
+import { isLedgerSection, sectionKey } from '@shared/ui-density';
 
 /* ═══════ 通用小件 ═══════ */
 
@@ -74,9 +76,31 @@ function Block({
   children: ReactNode;
 }) {
   const p = usePlain();
+  const { density, isRevealed, toggle } = useDensity();
+  const ledger = isLedgerSection(id, title);
+  const key = sectionKey(id, title);
+  /* 收起只加 class：children 照常渲染，探针、导出同源、端到端读数都不动。 */
+  const collapsed = ledger && density === 'compact' && !isRevealed(key);
   return (
-    <section className="block" id={id}>
+    <section
+      className={`block ${ledger ? 'tier-ledger' : 'tier-core'} ${collapsed ? 'is-collapsed' : ''}`}
+      id={id}
+      data-density-tier={ledger ? 'ledger' : 'core'}
+      data-collapsed={collapsed ? '1' : '0'}
+    >
       <div className="block-head">
+        {ledger && density === 'compact' && (
+          <button
+            type="button"
+            className="block-fold"
+            data-fold={key}
+            aria-expanded={!collapsed}
+            title={collapsed ? '展开这一栏' : '收起这一栏'}
+            onClick={() => toggle(key)}
+          >
+            {collapsed ? '展开' : '收起'}
+          </button>
+        )}
         <span className="t">{title}</span>
         {sub && <span className="s">{sub}</span>}
         {disputes && disputes.length > 0 && (
@@ -1659,6 +1683,12 @@ export function DiagnosisView({
           </div>
         </div>
       )}
+
+      {/*
+        阅读层级放第一行：一进报告就得知道「还有一整层核对栏被收着」，
+        也知道怎么一次叫回来。它不替代导出条，不占导出条的位置。
+      */}
+      <DensityBar />
 
       {/*
         导出条放在最前，理由不是显眼，是它服务于「读完就走」的那一半用法：

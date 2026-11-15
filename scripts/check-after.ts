@@ -220,11 +220,37 @@ ok(chipTargets.includes('sec-props') && chipTargets.includes('sec-pivot'), '这�
  */
 ok(/var POS_KEY = 'alPos\.v1'/.test(nav), '位置记录有固定的键名');
 ok(/MARKS\[LAST_ID\] = \{\s*i: i,\s*t: Date\.now\(\)/.test(nav), '按这一份报告的 id 分开记（不沿用上一份的位置）');
-ok(/if \(i <= 0 \|\| i >= HEADS\.length\) return;/.test(nav), '停在第一节不记（记下来等于抹掉上一次真读到的地方）');
+ok(
+  /if \(i <= 0 \|\| i >= HEADS\.length\) \{[\s\S]{0,700}?return;/.test(nav),
+  '停在第一节不记（记下来等于抹掉上一次真读到的地方）',
+);
+/* 只「不记」还不够：中途跳一下立案卡再滚回开头，途中那一帧已经写成一条记录了。
+   回到第 1 节时把它撤掉，否则重开时那句「上次读到第 2 节」是一句查不出的假话。 */
+ok(
+  /if \(i === 0 && LAST_ID\)[\s\S]{0,400}?delete MARKS\[LAST_ID\][\s\S]{0,120}?syncResume\(\)/.test(nav),
+  '回到开头就撤掉那条记录，并当场把「接着读」收起来',
+);
+/* 新报告沿用上一屏的 scrollTop，一打开就停在中间，还会顺手写一条「读到第 2 节」。 */
+ok(
+  /if \(fresh\) \{[\s\S]{0,300}?m\.scrollTop = 0;[\s\S]{0,240}?window\.scrollTo\(0, 0\);/.test(nav),
+  '新报告从开头读起（.main 与窗口两处都归零，不沿用上一屏的滚动位置）',
+);
 ok(/var i = GOTO_I >= 0 && Date\.now\(\) < GOTO_UNTIL \? GOTO_I : CUR;/.test(nav), '刚点过目录就以点的哪一节为准（平滑滚动途中不记中间站）');
 ok(/m\.i > 0\) \|\| m\.i >= HEADS\.length/.test(nav), '记录越界时不说话（报告只有 9 节就别说第 12 节）');
 ok(/POS_MAX = 40/.test(nav) && /MARKS\[a\]\.t \|\| 0\) - \(MARKS\[b\]\.t \|\| 0\)/.test(nav), '只留最近 40 份，按时间丢最旧');
 ok(/setTimeout\(recordPos, 350\)/.test(nav), '滚动穿过几节时只落一次盘（不把中间站记成「读到哪」）');
+/* 简洁态把一个区块压成一行标题，两三个标题能一起挤进顶线以内——
+   刚打开报告时「当前是第几节」就已经是第 2 节，照那一帧记下去就是一封假信。
+   所以打开时只摆高亮，第一次滚动只当基线。 */
+ok(
+  /var ARMED = false;/.test(nav) && /update\(!first\)/.test(nav),
+  '打开报告后的第一次滚动只当基线，不记账',
+);
+ok(
+  (nav.match(/if \(record !== false\) schedulePos\(\);/g) || []).length >= 2 &&
+    /update\(false\);/.test(nav),
+  '摆高亮（打开报告、重扫）时不写位置，滚动才写',
+);
 
 /** 只截 syncResume 这一段：它紧接在 setFold 之前，边界稳定。 */
 const resumeAt = nav.indexOf('function syncResume(');
@@ -254,7 +280,7 @@ ok(/seg: byClick \? \(GOTO_SEG \? segMarkOf\(GOTO_SEG, i\) : segMark\(i, 1\)\) :
 ok(/if \(k < 0 \|\| k < \(minK \|\| 0\)\) return null;/.test(segBody), '「第一块不算」是这条判据，不是把整段位置一起抹掉');
 ok(/var SEG_TXT = 24;/.test(segBody) && /var SEG_SHOW = 12;/.test(segBody), '认的比给人看的长（面板 250px 宽，24 字要占两行）');
 ok(/那一段这次没找到/.test(resumeBody), '记过却找不到时说出来，不悄悄退回节首');
-ok(/if \(sk !== LAST_SEG\) \{ LAST_SEG = sk; schedulePos\(\); \}/.test(nav), '同一节里换块也记（只看节号变化会整节都不更新）');
+ok(/if \(sk !== LAST_SEG\) \{ LAST_SEG = sk; if \(record !== false\) schedulePos\(\); \}/.test(nav), '同一节里换块也记（只看节号变化会整节都不更新）');
 ok(/function topLine\(\)/.test(nav) && !/MAIN\.getBoundingClientRect\(\)\.top \+ 72/.test(nav.slice(nav.indexOf('function update('))), '判节与判块用同一条顶线（两处各写一个 72 迟早会分家）');
 const focusAt = nav.indexOf('function focusSection(');
 const focusEnd = nav.indexOf('function enterRead(', focusAt);

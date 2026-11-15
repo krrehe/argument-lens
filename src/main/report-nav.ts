@@ -319,7 +319,21 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
        照那一刻的 CUR 记下去，就成了「你停在第五节」，而人明明点的是第七节——
        下一次重开，那句话会把他带到错的地方（第一次跑冒烟就是这么红的）。 */
     var i = GOTO_I >= 0 && Date.now() < GOTO_UNTIL ? GOTO_I : CUR;
-    if (i <= 0 || i >= HEADS.length) return;
+    if (i <= 0 || i >= HEADS.length) {
+      /*
+       * 回到开头，就是「上次读到第 2 节」作废了。
+       *
+       * 只停在这里不写还不够：跳一下立案卡、再滚回报告开头，中途那一帧压在第 2 节上
+       * 就写进了一条记录；人明明回到开头，重开时却被告知「上次读到第 2 节」。
+       * 这条记录没有第二处能核对，说错了就是一句查不出的假话，所以回到第 1 节时
+       * 把它撤掉——第一节本来就不记，作废的旧记录也不该留着。
+       */
+      if (i === 0 && LAST_ID) {
+        loadMarks();
+        if (MARKS[LAST_ID]) { delete MARKS[LAST_ID]; saveMarks(); syncResume(); }
+      }
+      return;
+    }
     loadMarks();
     /* 刚点过目录时落到的是节首，第一块没被读过，所以只从第二块起才记；
        同一次里读者往下滚到某一块，那是真读了，照记。
@@ -484,6 +498,26 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     if (READING) exitRead(false);
     var m = document.querySelector('.main');
     var hs = m ? [].slice.call(m.querySelectorAll('.block-head')) : [];
+    /*
+     * 新报告从「开头」读起。
+     *
+     * .main 的 scrollTop 会跟着内容一起留下来：上一次分析前滚到哪一屏，报告一渲染
+     * 就停在那个高度，看起来像有人已经把这份报告翻到中间了。更糟的是位置记录——
+     * 落点正好压在第 2 节上，350ms 后就写下一句「上次读到第 2 节」，而这份报告
+     * 一秒前才生成，没人读过。这句谎话以后每次重开都会重复一遍。
+     *
+     * 只在新报告（fresh）时清零；同一份报告里的重扫（面板开合、结构变动）不动
+     * 读者的位置——那是他正在读的地方。
+     */
+    if (fresh) {
+      if (m) m.scrollTop = 0;
+      /* 滚动容器可能是 .main，也可能是窗口本身（窄窗口时整页滚）。两处都归零：
+         只归一处，另一种布局下这句话就不算数，而且不会有任何报错。 */
+      window.scrollTo(0, 0);
+      /* 换了一份报告：上一份还在半路的记账作废，并且重新从「摆高亮、不记账」开始。 */
+      clearTimeout(posTimer);
+      ARMED = false;
+    }
     MAIN = m; HEADS = hs; LAST_COUNT = hs.length; CUR = -1; VERDICT = -1; LAST_SEG = -2;
     if (!hs.length) {
       panel.style.display = 'none';
@@ -528,12 +562,13 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
       ? '→ 先看判读（第 ' + (VERDICT + 1) + ' 节）'
       : '→ 跳到判读';
     syncReadUI();
-    update();
+    update(false);
     /* 位置记录最后读：它要给的是「打开这一份时该说什么」，不是随滚动变的一句话。 */
     syncResume();
   }
 
-  function update(){
+  /* record=false：这一次只摆高亮，不记账。见 update 的说明与 ARMED。 */
+  function update(record){
     if (!MAIN || !HEADS.length) return;
     var line = topLine();
     var cur = 0;
@@ -546,7 +581,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
       CUR = cur;
       LAST_SEG = segIndexAt(cur);
       /* 滚过一节就记一次（350ms 后落盘）。停在第一节不记，见 recordPos 里那条理由。 */
-      schedulePos();
+      if (record !== false) schedulePos();
       for (var j = 0; j < list.children.length; j++) {
         list.children[j].className = (j === cur ? 'ni on' : 'ni') + (FOLDED[j] ? ' fold' : '');
       }
@@ -562,7 +597,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
       /* 同一节里往下读不发节号变化，只看 cur !== CUR 会整节都不更新。
          块变了也记一次——这正是「读到节内哪一段」要记的那件事。 */
       var sk = segIndexAt(CUR);
-      if (sk !== LAST_SEG) { LAST_SEG = sk; schedulePos(); }
+      if (sk !== LAST_SEG) { LAST_SEG = sk; if (record !== false) schedulePos(); }
     }
     var max = MAIN.scrollHeight - MAIN.clientHeight;
     progI.style.width = (max > 0 ? (MAIN.scrollTop / max * 100) : 0).toFixed(1) + '%';
@@ -620,13 +655,43 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
   /* 冒烟专用：把目录当成「刚打开这份报告」重走一遍 scan（换报告时真应用派发
      al:report-change 走的是同一条路，只是带 fresh）。只重读、不替读者点任何东西。 */
   window.__alNavRescan = function(){ scan(); return true; };
+  /* 冒烟专用、只读：位置记录与当前高亮节各是什么。用来分清一条记录是谁写的
+     （软件写错了，还是自检自己滚出来的），不写盘、不改任何状态。 */
+  window.__alNavDebug = function(){
+    loadMarks();
+    return {
+      cur: CUR,
+      lastId: LAST_ID,
+      ids: Object.keys(MARKS),
+      scrollTop: MAIN ? Math.round(MAIN.scrollTop) : -1,
+      winY: Math.round(window.scrollY || 0),
+      heads: HEADS.length,
+      line: Math.round(topLine()),
+      tops: HEADS.slice(0, 4).map(function(h){
+        var s = sectionOf(h);
+        return { id: s ? (s.id || '') : '', t: Math.round(h.getBoundingClientRect().top), n: textOf(h) };
+      }),
+    };
+  };
 
   /* scroll 不冒泡，用捕获阶段监听所有滚动容器；rAF 合帧，别拖慢长报告。 */
   var queued = false;
+  /*
+   * 打开报告后的**第一次滚动只当基线**，不记账。
+   *
+   * 报告第一栏并不在容器的 0 像素处（上面还有输入区），而简洁态里一个区块只有
+   * 一行标题——两三个标题能一起挤进 72px 的顶线以内，「当前是第几节」在刚打开时
+   * 就会算成第 2 节。照这一帧记下去，一份一秒前才生成、谁都没读过的报告，重开时
+   * 会端出一句「上次读到第 2 节」。这句话没有第二处能核对，只能保证它不在
+   * 没发生阅读的时候写下来：先让视口落定一次，之后的滚动才算读过。
+   */
+  var ARMED = false;
   document.addEventListener('scroll', function(){
     if (queued) return;
     queued = true;
-    requestAnimationFrame(function(){ queued = false; update(); });
+    var first = !ARMED;
+    ARMED = true;
+    requestAnimationFrame(function(){ queued = false; update(!first); });
   }, true);
   window.addEventListener('resize', update);
 

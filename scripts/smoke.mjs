@@ -214,6 +214,8 @@ const env = {
   /* SMOKE_DIVERGENCE=1：分析前把 v1.1 分歧账填齐，验「填了真的进了报告」。
      默认不填那条跑道同样要留着：没填时那一栏必须明说「没有分歧账」。 */
   ...(process.env.SMOKE_DIVERGENCE === '1' ? { AL_DIVERGENCE: '1' } : {}),
+  /* SMOKE_DENSITY=compact：简洁态跑道。默认跑道一律点「完整」，见应用里那段说明。 */
+  ...(process.env.SMOKE_DENSITY === 'compact' ? { AL_DENSITY: 'compact' } : {}),
 };
 delete env.ELECTRON_RUN_AS_NODE; // 宿主注入它会让 Electron 退化成 node
 delete env.AL_FORCE_ONBOARD;
@@ -2047,6 +2049,36 @@ if (process.env.SMOKE_NEXTLINE === '1') {
       '下一句：删掉一句，账回到只多一句；再删一句，回到写之前',
       nl.deleted === true && Number(nl.afterDel1) === before + 1 && Number(nl.afterDel2) === before,
       `${nl.afterDel1} / ${nl.afterDel2}`,
+    ],
+  );
+}
+
+/*
+ * 默认跑道必须真的点回「完整」。少这一条，上面那些按展开态写的断言会
+ * 在简洁态里悄悄失真——第一版就是这么栽的：按钮在报告渲染前不存在，
+ * 整趟其实一直收着，只有末尾两处量高度的断言红了。
+ */
+if (resultLine.includes('"grid":true') && process.env.SMOKE_DENSITY !== 'compact') {
+  checks.push(['默认跑道点回了「完整」', log.includes('DENSITY full clicked')]);
+}
+
+/*
+ * 简洁态专用断言。只在 SMOKE_DENSITY=compact 那趟里加，别的跑道条数不变——
+ * 这条跑道要证明的是「收起只动了显示」：栏还在、字还在、点开就回来。
+ */
+if (process.env.SMOKE_DENSITY === 'compact') {
+  const db = jOfLine('DENSITYDOM before ');
+  const da = jOfLine('DENSITYDOM after ');
+  checks.push(
+    ['简洁态：根上标了 compact，工具条也在', db.density === 'compact' && db.bar === true],
+    ['简洁态：核对层真的收起了', Number(db.collapsed) >= 8, `收起 ${db.collapsed} 栏`],
+    ['简洁态：主线栏一栏没收', Number(db.core) >= 6 && Number(db.ledger) >= 8],
+    ['简洁态：左栏透镜说明收成一行', Number(db.brief) === 0],
+    ['简洁态：点栏名之后那一栏展开了', Number(da.collapsed) < Number(db.collapsed)],
+    [
+      '简洁态：收起前后正文一个字没少',
+      Number(db.textLen) > 0 && Number(da.textLen) === Number(db.textLen),
+      `${db.textLen} → ${da.textLen}`,
     ],
   );
 }

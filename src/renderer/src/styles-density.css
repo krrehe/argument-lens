@@ -1,0 +1,297 @@
+/*
+ * 阅读层级（简洁 / 完整）的显示层样式。
+ *
+ * 这里只做两件事：把核对层收成一行标题，以及把满屏等权重的边框、小字、
+ * 说明条压回背景。它**不改任何文字**：折叠靠 class + display，节点连同
+ * data-* 探针都留在 DOM 里，导出、复算与端到端读数走的是同一份内容。
+ *
+ * 完整态刻意不套这些规则：既有几十张截图、按 DOM 取数的检查器都按那一态写的。
+ */
+
+/* ═══════ 报告第一行：阅读层级 ═══════ */
+
+.density-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 7px 13px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+}
+
+.db-k {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+}
+
+.db-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.db-btn {
+  border: 0;
+  padding: 3px 13px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  background: transparent;
+  cursor: pointer;
+}
+
+.db-btn + .db-btn {
+  border-left: 1px solid var(--line);
+}
+
+.db-btn.db-on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.db-btn:hover:not(.db-on) {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.db-note {
+  flex: 1 1 260px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.db-bounds {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.db-bounds > summary {
+  list-style: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.db-bounds > summary::-webkit-details-marker {
+  display: none;
+}
+
+.db-bounds > summary::before {
+  content: 'ⓘ';
+  margin-right: 4px;
+}
+
+.db-bounds > summary:hover {
+  color: var(--accent);
+}
+
+.db-bound {
+  position: absolute;
+  right: 0;
+  top: 22px;
+  z-index: 30;
+  width: 330px;
+  padding: 9px 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--panel);
+  box-shadow: 0 6px 20px rgba(35, 32, 27, 0.12);
+  list-style: none;
+}
+
+.db-bound li {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  padding: 3px 0;
+}
+
+/* ═══════ 折叠的核对层 ═══════ */
+
+/* 两级标记：既是可读的层级，也是跳转时留出的一点余白。 */
+.tier-core,
+.tier-ledger {
+  scroll-margin-top: 12px;
+}
+
+.block.is-collapsed {
+  margin-bottom: 6px;
+  background: var(--panel-2);
+}
+
+.block.is-collapsed > .block-head {
+  align-items: center;
+  padding: 5px 12px;
+  border-bottom: 0;
+}
+
+.block.is-collapsed > .block-head .s {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 62%;
+}
+
+/* 只藏显示，不卸载节点：children 仍渲染，探针、导出同源都不动。 */
+.block.is-collapsed > .block-body,
+.block.is-collapsed > .block-plain {
+  display: none;
+}
+
+.block-fold {
+  flex: 0 0 auto;
+  order: -1;
+  padding: 1px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: 10.5px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.block-fold:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+/* ═══════ 左栏：透镜说明收成一行 ═══════ */
+
+.brief-fold {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.brief-fold > .brief {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.bf-sum {
+  list-style: none;
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.bf-sum::-webkit-details-marker {
+  display: none;
+}
+
+.bf-sum::before {
+  content: '▸';
+  margin-right: 7px;
+  color: var(--ink-3);
+}
+
+.brief-fold[open] > .bf-sum::before {
+  content: '▾';
+}
+
+.bf-sum:hover {
+  color: var(--accent);
+}
+
+/* 完整态不额外多一行：预览页与旧截图看到的仍是原来那面说明。 */
+:root[data-density='full'] .brief-fold > .bf-sum {
+  display: none;
+}
+
+:root[data-density='compact'] .brief-fold:not([open]) {
+  flex: 0 0 auto;
+}
+
+:root[data-density='compact'] .brief-fold[open] > .brief {
+  max-height: 46vh;
+}
+
+/* ═══════ 简洁态：把等权重的噪音压回背景 ═══════ */
+
+:root[data-density='compact'] .topbar {
+  gap: 10px;
+  height: 42px;
+}
+
+:root[data-density='compact'] .lens-bar {
+  gap: 6px;
+  padding: 5px 18px;
+}
+
+:root[data-density='compact'] .lens-chip {
+  width: 142px;
+  flex: 0 0 142px;
+  min-height: 0;
+  flex-direction: row;
+  align-items: center;
+  padding: 5px 9px;
+}
+
+:root[data-density='compact'] .lens-chip .n {
+  font-size: 11.5px;
+}
+
+:root[data-density='compact'] .lens-chip .u {
+  display: none;
+}
+
+:root[data-density='compact'] .block {
+  margin-bottom: 10px;
+}
+
+:root[data-density='compact'] .block-body {
+  padding: 11px 13px;
+}
+
+/* 四条长说明不再各占两三行，字还在，悬停/选中仍可读。 */
+:root[data-density='compact'] .exp-hint,
+:root[data-density='compact'] .rr-bar-why {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10.5px;
+  opacity: 0.72;
+}
+
+:root[data-density='compact'] .exp-hint {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+:root[data-density='compact'] .rr-bar {
+  margin: 8px 0 10px;
+  padding: 6px 10px;
+}
+
+:root[data-density='compact'] .quick-nav {
+  gap: 4px;
+  padding: 5px 13px 7px;
+}
+
+:root[data-density='compact'] .qn-chip {
+  font-size: 10.5px;
+  padding: 1px 8px;
+}
+
+:root[data-density='compact'] .block-plain {
+  font-size: 11px;
+  line-height: 1.55;
+}

@@ -40,6 +40,9 @@ import './styles-field-terms.css';
 import './styles-coverage.css';
 import './styles-procedure.css';
 import { SAMPLES } from '@shared/samples';
+import { DensityProvider, BriefFold } from './components/Density';
+import { PREVIEW_DENSITY } from '@shared/ui-density';
+import './styles-density.css';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。
@@ -919,6 +922,8 @@ function Preview() {
   const [focusClaim, setFocusClaim] = useState<string | undefined>(undefined);
 
   return (
+    /* 预览页默认完整：几十张既有截图是这一态拍的。?density=compact 单独拍简洁态。 */
+    <DensityProvider initial={QS.get('density') === 'compact' ? 'compact' : PREVIEW_DENSITY}>
     <PlainCtx.Provider value>
     <div className="app">
       <header className="topbar">
@@ -973,11 +978,13 @@ function Preview() {
             {/* ?agreement=1：同样默认收起，留个入口把展开后的差异明细也拍下来。 */}
             <AgreementBar view={MOCK_AGREE} dirError={null} fmt={when} initialOpen={QS.get('agreement') === '1'} />
           </div>
-          <TheoryBrief
-            theory={D.theory}
-            onSwitch={() => {}}
-            onOpenClaim={() => setTheoryOpen(true)}
-          />
+          <BriefFold>
+            <TheoryBrief
+              theory={D.theory}
+              onSwitch={() => {}}
+              onOpenClaim={() => setTheoryOpen(true)}
+            />
+          </BriefFold>
         </aside>
         <main className="main">
           <ScrollToAnchor />
@@ -1084,6 +1091,7 @@ function Preview() {
       )}
     </div>
     </PlainCtx.Provider>
+    </DensityProvider>
   );
 }
 

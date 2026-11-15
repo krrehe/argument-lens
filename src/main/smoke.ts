@@ -88,6 +88,12 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
       // 给 React 一帧时间挂载，再验证关键节点确实存在
       await new Promise((r) => setTimeout(r, 1600));
 
+      /*
+       * 阅读层级的切换放在**报告落屏之后**（见下面那个等 .grid 的循环）：
+       * 这一刻窗口里只有输入区，报告第一行那条工具条还不存在，点了也是空点。
+       * 第一版就栽在这儿——日志写着 no-report-bar，整趟其实一直在简洁态跑，
+       * 于是末尾两处按元素高度取数的断言悄悄红了。
+       */
       // AL_ACTION=test：点一次「测试连接」，验证这条 IPC 与错误分类真的走得通
       if (process.env['AL_ACTION'] === 'test') {
         await wc.executeJavaScript(`(() => {
@@ -632,9 +638,32 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
          * 于是「把这一行整个删掉」和「它正常渲染」得到同一个结果。
          */
         let tookSame = false;
+        let densityFlipped = false;
+        const wantCompact = process.env['AL_DENSITY'] === 'compact';
 
         for (let i = 0; i < 60 && !canceled; i++) {
           await new Promise((r) => setTimeout(r, 500));
+          /*
+           * 真应用默认「简洁」（核对层收起），而这一百多条端到端断言是按
+           * 「所有栏都展开」写的：有的按 DOM 取数，有的量元素高度，有的拍整页图。
+           * 所以默认跑道在报告真落屏之后点一下界面上真人也会点的「完整」按钮——
+           * 顺带验了它一栏不少。点完让这一轮跳过读数，下一轮从展开态重新取。
+           * AL_DENSITY=compact 不点，那条跑道专验收起本身（见 DENSITYDOM）。
+           */
+          if (!wantCompact && !densityFlipped) {
+            const flip = await wc.executeJavaScript(`(() => {
+              if (!document.querySelector('.grid')) return 'no-report-yet';
+              const b = document.querySelector('[data-density="full"]');
+              if (!b) return 'no-bar';
+              b.click();
+              return 'clicked';
+            })()`);
+            if (flip === 'clicked') {
+              densityFlipped = true;
+              add('DENSITY full clicked');
+              continue;
+            }
+          }
           const state = await wc.executeJavaScript(
             `JSON.stringify({
               grid: !!document.querySelector('.grid'),
@@ -1014,6 +1043,15 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               return {
                 shown: !!b && getComputedStyle(b).display !== 'none',
                 marks: Object.keys(all).length,
+                /* 「简洁态多出一条记录」这类红，光看条数判不出是谁写的：
+                   把每条的节号与标题一起带出来，才看得出是这一份的哪一节。 */
+                markList: Object.keys(all).map((k) => ({
+                  id: String(k).slice(0, 10),
+                  i: all[k] ? all[k].i : -1,
+                  title: all[k] ? String(all[k].title || '').slice(0, 12) : '',
+                })),
+                /* 谁写的那条记录：当前高亮节、滚动位置、报告 id 各是多少。 */
+                nav: window.__alNavDebug ? window.__alNavDebug() : null,
                 jumpLabel: (j ? j.textContent : '') || '',
               };
             })())`)
@@ -2366,6 +2404,25 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
       add(`DOM ${probe}`);
 
       /*
+       * 简洁态里「分歧账」「这把尺子」两栏按核对层收着（只剩标题一行）。
+       * 截图前要先展开，否则量到的高度只有二三十像素，整块图静默地不产出——
+       * 而断言只查「有没有 PHSHOT / DIVSHOT」，不查「为什么没有」，红得没头没脑。
+       *
+       * 展开走界面自己那条路：报告里每一处「跳到 X」用的就是派发 al:reveal，
+       * 由阅读层级接住并展开那一栏（见 Density.tsx）。改 data-al-fold 没用——
+       * 简洁态的收起在 React 那一层（is-collapsed），目录那一层是另一套。
+       * 返回读数是为了让日志分得清「本来就展开」与「这次才展开」。
+       */
+      const revealBlock = async (id: string): Promise<string> =>
+        (await wc.executeJavaScript(`(() => {
+          const el = document.getElementById(${JSON.stringify(id)});
+          if (!el) return 'absent';
+          const folded = el.classList.contains('is-collapsed');
+          window.dispatchEvent(new CustomEvent('al:reveal', { detail: ${JSON.stringify(id)} }));
+          return folded ? 'revealed' : 'open';
+        })()`)) as string;
+
+      /*
        * 分歧账那一栏的整块截图：默认拍「没登记」，AL_DIVERGENCE=1 拍「填齐了」。
        *
        * 位置必须放在这里，不能放在刚出报告那会儿：截图要先 scrollIntoView，
@@ -2380,11 +2437,14 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
        * 按停与空态跑道本来就没有报告：getElementById 取不到，dvBox 为 null，自然不截。
        */
       if (!process.env['AL_CANCEL']) {
+        const dvReveal = await revealBlock('sec-divergence');
+        await sleep(120);
         await wc.executeJavaScript(`(() => {
           document.getElementById('sec-divergence')?.scrollIntoView({ block: 'start' });
           return true;
         })()`);
         await sleep(400);
+        add(`DIVREVEAL ${dvReveal}`);
         const dvBox = (await wc.executeJavaScript(`(() => {
           const el = document.getElementById('sec-divergence');
           if (!el) return null;
@@ -2412,11 +2472,15 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
        * 会抛 UnknownVizError，然后几十条断言一起假红到「应用没启动」。
        */
       if (!process.env['AL_CANCEL']) {
+        /* 同上一栏：简洁态里它是收着的，先展开再量、再拍。 */
+        const phReveal = await revealBlock('sec-prompt-history');
+        await sleep(120);
         await wc.executeJavaScript(`(() => {
           document.getElementById('sec-prompt-history')?.scrollIntoView({ block: 'start' });
           return true;
         })()`);
         await sleep(350);
+        add(`PHREVEAL ${phReveal}`);
         const phBox = (await wc.executeJavaScript(`(() => {
           const el = document.getElementById('sec-prompt-history');
           if (!el) return null;
@@ -2685,6 +2749,42 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
       if (shotH) {
         mainWindow.setContentSize(Number(process.env['AL_SHOT_W'] ?? 1380), shotH);
         await new Promise((r) => setTimeout(r, 800));
+      }
+
+      /*
+       * AL_DENSITY=compact：简洁态自己的跑道。
+       * 验三件机器能判的事：核对层真的收起了、点栏名真的展开了、以及收起前后
+       * .block-body 的文字一个字没少——收起只改显示，不卸载节点，也不动导出。
+       */
+      if (process.env['AL_DENSITY'] === 'compact') {
+        const bodyProbe = `JSON.stringify((() => {
+          const bodies = [...document.querySelectorAll('.block-body')];
+          return {
+            density: document.documentElement.dataset.density || '',
+            bar: !!document.querySelector('[data-density-bar]'),
+            collapsed: document.querySelectorAll('.block.is-collapsed').length,
+            ledger: document.querySelectorAll('[data-density-tier="ledger"]').length,
+            core: document.querySelectorAll('[data-density-tier="core"]').length,
+            bodies: bodies.length,
+            textLen: bodies.reduce((n, e) => n + (e.textContent || '').length, 0),
+            brief: document.querySelector('[data-brief-fold]')?.open ? 1 : 0,
+          };
+        })())`;
+        add(`DENSITYDOM before ${await wc.executeJavaScript(bodyProbe)}`);
+        await wc.executeJavaScript(`(() => {
+          document.querySelector('[data-fold]')?.click();
+          return true;
+        })()`);
+        await new Promise((r) => setTimeout(r, 250));
+        add(
+          `DENSITYDOM after ${await wc.executeJavaScript(`JSON.stringify((() => {
+            const bodies = [...document.querySelectorAll('.block-body')];
+            return {
+              collapsed: document.querySelectorAll('.block.is-collapsed').length,
+              textLen: bodies.reduce((n, e) => n + (e.textContent || '').length, 0),
+            };
+          })())`)}`
+        );
       }
 
       // AL_EXPAND=选择器：把页面上的折叠区展开，可选 AL_EXPAND_SCROLL=1 滚过去。

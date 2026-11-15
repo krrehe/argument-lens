@@ -67,9 +67,20 @@ function sectionsFor(d: Diagnosis) {
 export function jumpTo(id: string) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  el.classList.add('flash');
-  window.setTimeout(() => el.classList.remove('flash'), 1500);
+  /*
+   * 简洁态里这一栏可能是收起的：先派发「展开」，等 React 把正文放出来再滚，
+   * 否则 scrollIntoView 会落在一行 0 高度的标题上。完整态一律同步滚动——
+   * 端到端「点目录跳到某节」按这个时序验，不该被新层级拖慢或改坏。
+   */
+  const reveal = el.getAttribute('data-collapsed') === '1';
+  if (reveal) window.dispatchEvent(new CustomEvent('al:reveal', { detail: id }));
+  const land = () => {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('flash');
+    window.setTimeout(() => el.classList.remove('flash'), 1500);
+  };
+  if (reveal) window.setTimeout(land, 40);
+  else land();
 }
 
 function clip(s: string, n: number) {

@@ -48,6 +48,7 @@ import type { NextLineView } from '@shared/nextline';
 import { diffRevision } from '@shared/compare';
 import { SAMPLES } from '@shared/samples';
 import { decideCapture, type CaptureStatus } from '@shared/capture';
+import { DensityProvider, BriefFold } from './components/Density';
 import { briefPending, normalizeBrief } from '@shared/brief';
 import { divergencePending, normalizeDivergence } from '@shared/divergence';
 
@@ -1057,6 +1058,7 @@ export default function App() {
   }, [diag]);
 
   return (
+    <DensityProvider persist>
     <PlainCtx.Provider value={plain}>
       <div className="app">
         <header className="topbar">
@@ -1407,14 +1409,17 @@ export default function App() {
                 )}
               </div>
 
-              <TheoryBrief
-                theory={theory}
-                onSwitch={switchTheory}
-                onOpenClaim={(id) => {
-                  setFocusClaim(id);
-                  setTheoryOpen(true);
-                }}
-              />
+              {/* 透镜说明收成一行：想核尺度、失效条件与出处的人点开，字一个没少。 */}
+              <BriefFold>
+                <TheoryBrief
+                  theory={theory}
+                  onSwitch={switchTheory}
+                  onOpenClaim={(id) => {
+                    setFocusClaim(id);
+                    setTheoryOpen(true);
+                  }}
+                />
+              </BriefFold>
             </aside>
 
             <main className="main">
@@ -1806,5 +1811,6 @@ export default function App() {
         )}
       </div>
     </PlainCtx.Provider>
+    </DensityProvider>
   );
 }
