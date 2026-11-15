@@ -12,7 +12,8 @@
  *
  * 这里的做法不是「重新生成一遍再比」——那等于自己验自己。检查器只读磁盘，
  * 把三十份 md 里的 system / user 代码块与抬头字段抽出来，和现场装配逐字对；
- * 再对索引表的指纹、BASELINE.json 的指纹与版本注记行数。它一个字节都不写。
+ * 再对索引表的指纹、BASELINE.json 的指纹、版本注记行数与注记全文
+ * （报告里「这把尺子」那一栏直接读基线里的注记，所以它也得逐字等于源码）。它一个字节都不写。
  *
  * 反证见本轮记录：改坏一个块、一份落盘 md、锁里一个指纹、删一行注记、
  * 只改版本不加注记、直接重跑 lock 绕过版本号，各自都要红在对应的那条上。
@@ -27,6 +28,7 @@ import {
   INDEX_PATH,
   NOTE_COUNT,
   NOTE_HEAD,
+  NOTES,
   VERSION,
   currentFacts,
   type Baseline,
@@ -159,6 +161,17 @@ try {
 if (base) {
   ok(base.version === VERSION, '基线版本号 == 当前版本号', `${base.version} vs ${VERSION}`);
   ok(base.noteCount === NOTE_COUNT, '基线注记行数 == 当前注记行数', `${base.noteCount} vs ${NOTE_COUNT}`);
+  /*
+   * 注记全文逐字比源码：报告里「这把尺子」那一栏读的是 BASELINE.notes，
+   * 不是 registry.ts。少这一组断言，有人手改了基线里的一句话，界面照常显示，
+   * 而「当时为什么这么改」的记录已经被换掉了——这是最安静的一种失真。
+   */
+  ok(Array.isArray(base.notes), '基线带注记全文（界面读的就是这一份）');
+  ok(base.notes?.length === NOTE_COUNT, '基线注记全文的行数 == 源码注记行数', String(base.notes?.length ?? -1));
+  for (let i = 0; i < NOTE_COUNT; i++) {
+    ok(base.notes?.[i] === NOTES[i], `基线注记第 ${i + 1} 行与源码逐字相同`);
+  }
+  ok(base.notes?.[0]?.startsWith(VERSION) === true, '基线注记首行以当前版本号开头');
   ok(!!base.fingerprints && typeof base.fingerprints === 'object', '基线里有一张指纹表');
   const keys = Object.keys(base.fingerprints ?? {});
   ok(keys.length === 30, '基线正好 30 个键', String(keys.length));
@@ -228,7 +241,7 @@ if (existsSync(first)) {
  * 少了它，某个循环因为文件读不到而整段跳过时，输出仍是一句「✓ 通过 N 项」，
  * 数字悄悄缩水没人会发现——那和断言被静默跳过是同一件事。
  */
-ok(passed >= 300, '断言总数兜底（至少 300 项）', String(passed));
+ok(passed >= 340, '断言总数兜底（至少 340 项）', String(passed));
 
 if (failed.length) {
   console.error(`\n✗ 提示词导出件新鲜度：${failed.length} 条没过\n`);

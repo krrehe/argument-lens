@@ -31,6 +31,7 @@ import {
   stakeLabel,
 } from './divergence';
 import { prescriptionsOf } from './prescriptions';
+import { promptHistoryMarkdown, promptHistoryOf } from './prompt-history';
 import { LEVEL_LABEL, THEORY_BY_ID } from './theories';
 import { MODE_META, type Claim, type Diagnosis } from './types';
 
@@ -478,6 +479,14 @@ export function reportToMarkdown(d: Diagnosis): string {
     for (const w of d.selfCheck.withdrawIf) out.push(`- ${oneLine(w)}`);
   }
   out.push('');
+
+  /*
+   * ── 这把尺子：版本、指纹与变更史 ──
+   * 界面那一栏与这里调同一个纯函数，不另拼一段话。
+   * 导出件是会被转发、贴进群聊的那一份，所以「旧版全文没存档、不能在这里重算」
+   * 这条边界必须跟着一起走，不能只留在窗口里。
+   */
+  out.push(...promptHistoryMarkdown(promptHistoryOf(d)));
 
   /* ── 程序裁定：只在真有问题时写 ── */
   const warns = d.diagnostics.filter((x) => x.level !== 'info');

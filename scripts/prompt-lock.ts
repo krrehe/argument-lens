@@ -18,6 +18,7 @@ import {
   BASELINE_PATH,
   NOTE_COUNT,
   NOTE_HEAD,
+  NOTES,
   VERSION,
   currentFacts,
   fingerprintMap,
@@ -43,7 +44,7 @@ if (!existsSync(BASELINE_PATH)) {
   if (!init) {
     refuse('基线文件不存在。它是版本史的一部分，不能凭空重建；确属首次建立请显式加 --init。');
   }
-  const fresh: Baseline = { version: VERSION, noteCount: NOTE_COUNT, fingerprints: now };
+  const fresh: Baseline = { version: VERSION, noteCount: NOTE_COUNT, notes: NOTES, fingerprints: now };
   writeFileSync(BASELINE_PATH, `${JSON.stringify(fresh, null, 2)}\n`, 'utf-8');
   console.log(`✓ 首次建立基线：v${VERSION}、${facts.length} 份指纹、注记 ${NOTE_COUNT} 行`);
   console.log('  再跑一次 npm run prompts 与 npm run check:prompt-drift，确认全文、索引表与基线三处对得上。');
@@ -58,10 +59,29 @@ try {
 }
 
 if (!old || typeof old.version !== 'string' || !old.fingerprints || typeof old.noteCount !== 'number') {
-  refuse('基线形状不对（要 version / noteCount / fingerprints 三项）。不要手改这个文件，用命令生成。');
+  refuse('基线形状不对（要 version / noteCount / notes / fingerprints 四项）。不要手改这个文件，用命令生成。');
 }
 
 const changed = facts.filter((f) => old.fingerprints[f.key] !== now[f.key]);
+
+/*
+ * 旧格式迁移：第一版基线只存了 noteCount，没存注记全文。
+ * 报告里「这把尺子」那一栏现在要读 notes，所以这里允许补写一次。
+ *
+ * 只加字段，不放行任何内容变更：必须版本相同且 30 份指纹逐字全同，
+ * 否则「顺手重跑一次生成器」就会变成绕过版本锁的捷径。
+ * 也不许删掉基线再 --init——那条路等于把版本史凭空重建，是上一轮明令禁止的。
+ */
+const legacy = !Array.isArray(old.notes);
+if (legacy && (changed.length || old.version !== VERSION)) {
+  refuse(
+    '基线是旧格式（缺 notes 字段），但版本号或指纹也和现场不一致。' +
+      ' 先按正常三步走完留痕，不要借迁移把内容改动一起洗掉。'
+  );
+}
+if (legacy) {
+  console.log('  旧格式基线补写 notes 字段：版本与 30 份指纹逐字未变，只加注记全文。');
+}
 
 if (changed.length) {
   if (VERSION === old.version) {
@@ -84,7 +104,7 @@ if (changed.length) {
   }
 }
 
-const next: Baseline = { version: VERSION, noteCount: NOTE_COUNT, fingerprints: now };
+const next: Baseline = { version: VERSION, noteCount: NOTE_COUNT, notes: NOTES, fingerprints: now };
 writeFileSync(BASELINE_PATH, `${JSON.stringify(next, null, 2)}\n`, 'utf-8');
 
 if (changed.length) {

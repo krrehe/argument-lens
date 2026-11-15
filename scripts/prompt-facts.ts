@@ -81,12 +81,22 @@ export function currentFacts(): PromptFact[] {
 }
 
 export const VERSION = PROMPT_VERSION;
-export const NOTE_COUNT = PROMPT_VERSION_NOTE.length;
-export const NOTE_HEAD = PROMPT_VERSION_NOTE[0] ?? '';
+/*
+ * 注记全文也要进基线，不只是行数。
+ *
+ * 行数只能证明「留了痕」，证明不了「界面上读到的就是源码里那一行」。
+ * 报告里「这把尺子」那一栏直接读 BASELINE.json（不新开 IPC、不给预览页造夹具），
+ * 所以这里的 notes 是用户真正会读到的文本；check:prompt-drift 逐字比对源码。
+ */
+export const NOTES: string[] = PROMPT_VERSION_NOTE.map((s) => s);
+export const NOTE_COUNT = NOTES.length;
+export const NOTE_HEAD = NOTES[0] ?? '';
 
 export interface Baseline {
   version: string;
   noteCount: number;
+  /** 与 PROMPT_VERSION_NOTE 逐字相同；界面读的是这一份，不是源码里的另一份抄写。 */
+  notes: string[];
   fingerprints: Record<string, string>;
 }
 

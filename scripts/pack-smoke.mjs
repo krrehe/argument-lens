@@ -908,6 +908,38 @@ const checks = [
       }
     })(),
   ],
+  /*
+   * 「这把尺子」在包里读的也是同一份落盘基线。纯函数层是 import 的 JSON，
+   * 打包时若被 electron-vite 摇掉、或 BASELINE.json 没进 asar，界面不报错：
+   * 只是版本号对不回去、注记查不到——而「查不到」正是旧报告的正确样子。
+   * 所以这里把关系、指纹状态、边界条数、展开行数四样对着比。
+   */
+  [
+    '包里「这把尺子」对回当前装机版、三条边界与八行变更史都在',
+    (() => {
+      const rLine = log.split('\n').find((l) => l.includes('RESULT {')) ?? '';
+      const phLine = log.split('\n').find((l) => l.includes('PHOPEN ')) ?? '';
+      if (!rLine || !phLine || !log.includes('PHSHOT ')) return false;
+      try {
+        const r = JSON.parse(rLine.slice(rLine.indexOf('{')));
+        const o = JSON.parse(phLine.slice(phLine.indexOf('{')));
+        return (
+          r.phSection === true &&
+          r.phRelation === 'same' &&
+          r.phFp === 'match' &&
+          String(r.phVersion ?? '') === '2.5.0' &&
+          String(r.phNoteState ?? '') === 'found' &&
+          Number(r.phCaveats ?? 0) === 3 &&
+          /更早版本的全文没有存档/.test(String(r.phCaveatText ?? '')) &&
+          String(r.phToggle ?? '') === '0' &&
+          String(o.toggle ?? '') === '1' &&
+          Number(o.rows ?? 0) >= 8
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
   ['流程无报错', /\bOK\b/.test(log)],
   ['截图产出', existsSync(shot)],
 ];

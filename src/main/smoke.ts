@@ -825,6 +825,25 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               dvSection: !!document.getElementById('sec-divergence'),
               dvAbsent: (document.querySelector('.dv-absent')?.textContent ?? '').trim().slice(0, 80),
               /*
+               * 这把尺子：真机这份报告一定是「当前装机版」（假模型也走 buildPrompt 落字段），
+               * 所以关系该是 same、指纹该是 match、注记该查得到、三条边界该一条不少。
+               *
+               * 只读 DOM，不从源码反推：界面要是自己抄了一份注记、或把基线读丢了，
+               * 这栏照样渲染得出来，只是内容与事实脱节——那正是要对着比的那类坏法。
+               */
+              phSection: !!document.getElementById('sec-prompt-history'),
+              phRelation: document.querySelector('[data-ph]')?.getAttribute('data-ph') ?? '',
+              phFp: document.querySelector('[data-ph]')?.getAttribute('data-ph-fp') ?? '',
+              phVersion: document.querySelector('[data-ph-version]')?.getAttribute('data-ph-version') ?? '',
+              phLine: (document.querySelector('[data-ph-line]')?.textContent ?? '').trim().slice(0, 130),
+              phNoteState: document.querySelector('[data-ph-note-state]')?.getAttribute('data-ph-note-state') ?? '',
+              phNote: (document.querySelector('[data-ph-note]')?.textContent ?? '').trim().slice(0, 90),
+              phCaveats: Number(document.querySelector('[data-ph-caveats]')?.getAttribute('data-ph-caveats') ?? -1),
+              phCaveatText: (document.querySelector('.ph-caveats')?.textContent ?? '').replace(/\\s+/g, ' ').slice(0, 220),
+              phToggle: document.querySelector('[data-ph-toggle]')?.getAttribute('data-ph-toggle') ?? '',
+              phRows: document.querySelectorAll('[data-ph-row]').length,
+              phIndex: !!document.querySelector('[data-qnav="sec-prompt-history"]'),
+              /*
                * 每一步那个按钮指向哪里、指过去有没有东西。
                * 「点了没反应」最像软件卡了一下，而它真正的成因是那一栏这一份报告里
                * 根本没有（反驳按模式开关、命题账与枢纽按数据）——所以要在真报告上数一遍。
@@ -2384,6 +2403,48 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           writeFileSync(p, png);
           add(`DIVSHOT ${p} ${png.length} bytes`);
         }
+      }
+
+      /*
+       * 「这把尺子」整块截图。与上面同一个位置：DOM 读数都已取完，滚动不会再
+       * 污染「接着读」的初始状态。裁切高度必须扣掉视口剩余空间——这一栏在
+       * 报告末尾，scrollIntoView 之后底边仍可能超出 864 高的窗口，capturePage
+       * 会抛 UnknownVizError，然后几十条断言一起假红到「应用没启动」。
+       */
+      if (!process.env['AL_CANCEL']) {
+        await wc.executeJavaScript(`(() => {
+          document.getElementById('sec-prompt-history')?.scrollIntoView({ block: 'start' });
+          return true;
+        })()`);
+        await sleep(350);
+        const phBox = (await wc.executeJavaScript(`(() => {
+          const el = document.getElementById('sec-prompt-history');
+          if (!el) return null;
+          const b = el.getBoundingClientRect();
+          return {
+            x: Math.max(0, Math.round(b.left)),
+            y: Math.max(0, Math.round(b.top)),
+            width: Math.round(b.width),
+            height: Math.max(0, Math.min(Math.round(b.height), window.innerHeight - Math.round(b.top))),
+          };
+        })()`)) as { x: number; y: number; width: number; height: number } | null;
+        if (phBox && phBox.width > 200 && phBox.height > 80) {
+          const png = (await wc.capturePage(phBox)).toPNG();
+          const p = join(dirname(shot), 'prompt-history-real.png');
+          writeFileSync(p, png);
+          add(`PHSHOT ${p} ${png.length} bytes`);
+        }
+        /* 展开一次变更史，读数交给 DOM 探针；这一步只验按钮真的挂了并且能点。 */
+        await wc.executeJavaScript(`(() => {
+          const b = document.querySelector('[data-ph-toggle]');
+          if (b) b.click();
+          return !!b;
+        })()`);
+        await sleep(150);
+        add(`PHOPEN ${await wc.executeJavaScript(`JSON.stringify({
+          toggle: document.querySelector('[data-ph-toggle]')?.getAttribute('data-ph-toggle') ?? '',
+          rows: document.querySelectorAll('[data-ph-row]').length,
+        })`)}`);
       }
 
       // AL_PANEL=usage：点开用量面板再截。面板靠 IPC 取数，纯静态预览页跑不了它。

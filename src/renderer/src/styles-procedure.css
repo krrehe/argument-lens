@@ -764,3 +764,125 @@
   font-size: 11.5px;
   color: var(--ink-2);
 }
+
+/* ─────────── 这把尺子（提示词版本与变更史） ───────────
+   注记全文比报告里任何一条都长，所以默认只露「这一版」那一条，
+   八行完整变更史折叠；边界三条与版本行同屏，避免读者只看见注记、
+   漏掉「旧版全文没存档」这句最重要的话。 */
+
+.ph {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.ph-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 9px;
+}
+
+.ph-k,
+.ph-cur,
+.ph-combo {
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.ph-v {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ph-fp {
+  font-size: 11px;
+  color: var(--ink-2);
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.ph-combo {
+  margin-left: auto;
+}
+
+.ph-line {
+  margin: 0 0 7px;
+  padding: 6px 9px;
+  border-left: 2px solid var(--accent);
+  background: var(--accent-bg);
+  font-size: 12px;
+}
+
+.ph-lead {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.ph-note {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--weak);
+  background: var(--panel);
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+
+.ph-caveats {
+  margin: 0 0 9px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+
+.ph-caveat-head {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+
+.ph-caveats p {
+  margin: 2px 0;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.ph-toggle {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.ph-toggle:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.ph-rows {
+  margin: 9px 0 0;
+  padding-left: 20px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.ph-rows li {
+  margin-bottom: 7px;
+}
+
+.ph-rows b {
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--ink);
+  font-weight: 600;
+}

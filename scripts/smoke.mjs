@@ -242,6 +242,8 @@ const resultLine = log.split('\n').find((l) => l.includes('RESULT')) ?? '';
  * 报的却是「应用启动并渲染」「无横向溢出」，指向完全不相干的地方。
  */
 const domLine = log.split('\n').find((l) => /(^|\s)DOM \{/.test(l)) ?? '';
+/** 「这把尺子」展开变更史之后的读数。RESULT 里是收起态，这一行是点过按钮之后。 */
+const phOpenLine = log.split('\n').find((l) => l.includes('PHOPEN ')) ?? '';
 /** 示例轮换那一行。写在应用里的一条日志，取第一条即可。 */
 const samplesLine = log.split('\n').find((l) => l.includes('SAMPLES ')) ?? '';
 /** 从日志行里取一个字段。取不到给空串——空串会让相关断言自己失败，而不是抛异常把整趟冒烟打断。 */
@@ -640,6 +642,72 @@ const checks = [
       const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
       const c = String(r.flowClosure ?? '');
       return c.includes('默认收束') && c.length > 14;
+    } catch {
+      return false;
+    }
+  })()],
+  /*
+   * 这把尺子：真机这份报告一定带着当前装机版的版本与指纹（假模型也走 buildPrompt）。
+   * 两条跑道都要验，不随 SMOKE_DIVERGENCE 切换——版本追溯与分歧账毫无关系。
+   *
+   * 这一组最要紧的是「别假装能复核历史」：三条边界里那句「旧版全文没有存档、
+   * 不能重算旧指纹」少一条，这一栏就从追溯变成了背书；而只读 DOM 查不出「少了一条」，
+   * 所以断言直接读 [data-ph-caveats] 的个数与文字两样。
+   */
+  ['这把尺子：报告里有这一栏、首屏有索引、整块截图拍到了', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      return r.phSection === true && r.phIndex === true && log.includes('PHSHOT ');
+    } catch {
+      return false;
+    }
+  })()],
+  ['这把尺子：真机这份报告与当前装机版对得上（same / match）', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      return (
+        String(r.phRelation ?? '') === 'same' &&
+        String(r.phFp ?? '') === 'match' &&
+        String(r.phVersion ?? '') === '2.5.0' &&
+        /当前装机版/.test(String(r.phLine ?? '')) &&
+        /逐字对得上/.test(String(r.phLine ?? ''))
+      );
+    } catch {
+      return false;
+    }
+  })()],
+  ['这把尺子：注记是查得到的一行，不是编出来的', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      return String(r.phNoteState ?? '') === 'found' && /2\.5\.0/.test(String(r.phNote ?? ''));
+    } catch {
+      return false;
+    }
+  })()],
+  ['这把尺子：三条边界都在，明说旧版全文没存档、不能重算旧指纹', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      const t = String(r.phCaveatText ?? '');
+      return (
+        Number(r.phCaveats ?? 0) === 3 &&
+        /更早版本的全文没有存档/.test(t) &&
+        /不能把旧指纹重算一遍/.test(t) &&
+        /不是对那一版效果的评价/.test(t)
+      );
+    } catch {
+      return false;
+    }
+  })()],
+  ['这把尺子：变更史默认收起，点一下真的展开八行', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      const o = JSON.parse(phOpenLine.slice(phOpenLine.indexOf('{')));
+      return (
+        String(r.phToggle ?? '') === '0' &&
+        Number(r.phRows ?? -1) === 0 &&
+        String(o.toggle ?? '') === '1' &&
+        Number(o.rows ?? 0) >= 8
+      );
     } catch {
       return false;
     }

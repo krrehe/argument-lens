@@ -29,6 +29,7 @@ import { type RescalePair } from '@shared/rescale';
 import { type ConditionInput } from '@shared/conditions';
 import { CheckStrip, StructureMap, VerdictGauge } from './Diagram';
 import { DivergenceView } from './DivergenceCard';
+import { PromptHistoryCard } from './PromptHistory';
 import { RefuteMap, RepairMap } from './DiagramMore';
 import { ViewBar, readStoredViews, writeStoredViews } from './ViewBar';
 import { crossNote, toneAudit } from '@shared/modal';
@@ -2401,6 +2402,21 @@ export function DiagnosisView({
         plain="按 v1.1 第 4 章，判不出唯一答案时不许假装判得出，也不许用「多元」逃掉该判的那部分。这一栏由人填，软件只保管；它不判分歧归哪一类，只把没填齐的格数出来。"
       >
         <DivergenceView value={d.divergence} />
+      </Block>
+
+      {/*
+        这把尺子：提示词版本、指纹与变更注记。
+        放在分歧账之后、程序裁定之前——它是给读者回看用的追溯信息，
+        不是又一条判定，也不是程序诊断。每份报告都有这一栏：
+        旧存档没记版本时，空白最容易被读成「都一样」，所以必须明说「没记」。
+      */}
+      <Block
+        id="sec-prompt-history"
+        title="这把尺子"
+        sub="版本 · 指纹 · 变更注记"
+        plain="报告里那串版本号，说的是当时用哪一套话问的。这一栏把那一版改过什么、和现在这套是不是同一把尺子摆给你看。更早版本的全文本机没有存，所以这里不会假装能把当时的指纹重算一遍。"
+      >
+        <PromptHistoryCard d={d} />
       </Block>
 
       {d.diagnostics.length > 0 && (

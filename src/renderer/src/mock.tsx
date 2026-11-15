@@ -24,6 +24,7 @@ import type { ViewId } from '@shared/views';
 import { nextLinesOf } from '@shared/nextline';
 import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type SearchWhere, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
 import { parseTerms } from '@shared/archive-search';
+import { PROMPT_BASELINE } from '@shared/prompt-history';
 import './styles.css';
 import './styles-usage.css';
 import './styles-disputes.css';
@@ -166,12 +167,36 @@ function withDivergence(d: Diagnosis, q: string): Diagnosis {
   }
   return { ...d, divergence: base };
 }
-const D = withDivergence(
-  withBrief(
-    new URLSearchParams(location.search).get('gaps') === 'clean' ? withNoGaps(LONG_DEMO) : LONG_DEMO,
-    new URLSearchParams(location.search).get('brief') ?? ''
+/*
+ * ?ph=old / unknown / none / mismatch：给预览数据配一份「这把尺子」的状态。
+ *
+ * 预览样例本身没有 prompt 字段（MOCK 是判读用的，不是追溯用的），不补就是「没记版本」，
+ * 于是这一栏最完整、最该被人看一眼的样子永远拍不到。默认补当前基线里这一组合的
+ * 真实版本与指纹——数字不是写死的，基线换了预览自动跟上。
+ *   old      另一版，且变更史里找得到那一行注记
+ *   unknown  另一版，但本机没有它的注记（「不能凭版本号推断」那句话的样子）
+ *   none     旧存档没记版本
+ *   mismatch 版本号对、指纹不对（同一版号下有过不止一套内容）
+ */
+function withPromptHistory(d: Diagnosis, q: string): Diagnosis {
+  const combo = `${d.theory}.${d.mode}`;
+  const fp = PROMPT_BASELINE.fingerprints[combo] ?? PROMPT_BASELINE.fingerprints['walton.diagnose'];
+  const current = { version: PROMPT_BASELINE.version, fingerprint: fp };
+  if (q === 'none') return { ...d, prompt: undefined };
+  if (q === 'old') return { ...d, prompt: { version: '2.0.0', fingerprint: 'aaaaaaaaaaaa' } };
+  if (q === 'unknown') return { ...d, prompt: { version: '9.9.9', fingerprint: 'bbbbbbbbbbbb' } };
+  if (q === 'mismatch') return { ...d, prompt: { ...current, fingerprint: 'ffffffffffff' } };
+  return { ...d, prompt: current };
+}
+const D = withPromptHistory(
+  withDivergence(
+    withBrief(
+      new URLSearchParams(location.search).get('gaps') === 'clean' ? withNoGaps(LONG_DEMO) : LONG_DEMO,
+      new URLSearchParams(location.search).get('brief') ?? ''
+    ),
+    new URLSearchParams(location.search).get('divergence') ?? ''
   ),
-  new URLSearchParams(location.search).get('divergence') ?? ''
+  new URLSearchParams(location.search).get('ph') ?? ''
 );
 const t = THEORY_BY_ID[D.theory];
 const MOCK_DISPUTES = disputesIn(D);
