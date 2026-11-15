@@ -954,6 +954,50 @@ export interface ReportMeta {
   bytes: number;
 }
 
+/* ─────────── 存档检索（只读） ─────────── */
+
+/**
+ * 一处命中落在报告里的哪一类文字上。
+ *
+ * 只有这七类，是刻意的：它们是本地能稳定取到的字段。模型写的其余部分
+ * （自检、诊断、命名候选、反驳）不在其中——不搜它们不是判过轻重，
+ * 是本地没有稳定取法，混进来会让「命中」这件事说不清。
+ */
+export type SearchWhere =
+  | 'passage'
+  | 'conclusion'
+  | 'premise'
+  | 'intermediate'
+  | 'repair'
+  | 'check'
+  | 'verdict';
+
+/** 一份报告的检索结果：一条，不是每处各一条——列表里放不下十几段片段。 */
+export interface ArchiveFindHit {
+  id: string;
+  at: number;
+  /** 命中总处数。同一段里出现两次算两处，不重叠计数。 */
+  count: number;
+  /** 命中的类别，按固定顺序（原文在前），不按发现先后 */
+  where: SearchWhere[];
+  /** 第一处命中前后各留几个字，逐字来自报告（只把连续空白折成一个空格） */
+  snippet: string;
+  /** 这段片段取自哪一类文字 */
+  snippetWhere: SearchWhere;
+}
+
+export interface ArchiveFind {
+  /** 这一次真的在搜的词（折小写、去重后）。界面对着它加亮，不另算一遍。 */
+  terms: string[];
+  /** 参与搜索的份数 */
+  scanned: number;
+  /** 读不出来的份数。它们不在结果里——「没匹配」不能把这几份也算进去。 */
+  unreadable: number;
+  /** 目录打不开时的原因；null 表示目录读到了 */
+  dirError: string | null;
+  hits: ArchiveFindHit[];
+}
+
 /* ─────────── 存档体检（只读） ─────────── */
 
 /**

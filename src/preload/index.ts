@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
   AnalysisMode,
+  ArchiveFind,
   ArchiveHealth,
   Brief,
   Diagnosis,
@@ -212,6 +213,13 @@ const api = {
     health: (): Promise<ArchiveHealth> => ipcRenderer.invoke('archive:health'),
     /** 单份报告为什么打不开。get() 给 null 时用它问一句具体原因。 */
     probe: (id: string): Promise<ReportProbe> => ipcRenderer.invoke('archive:probe', id),
+    /**
+     * 在存档里按字面找：原文、结论、前提、中间结论、修补、检查依据、判读。
+     *
+     * 只读。返回的 `scanned` / `unreadable` 一并带回来，是因为「没搜到」与
+     * 「有几份读不出来」必须是两句话——合成一句就等于替用户断定「确实没有」。
+     */
+    find: (q: string): Promise<ArchiveFind> => ipcRenderer.invoke('archive:find', q),
     remove: (id: string): Promise<ReportMeta[]> => ipcRenderer.invoke('archive:remove', id),
     reveal: (): Promise<string> => ipcRenderer.invoke('archive:reveal'),
     /**

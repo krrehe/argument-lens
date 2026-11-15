@@ -19,8 +19,9 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Objection } from '@shared/types';
+import type { Diagnosis, Objection } from '@shared/types';
 import { digestLine, digestOf } from '@shared/objection-digest';
+import { findInReport, highlightParts, parseTerms, WHERE_LABEL } from '@shared/archive-search';
 
 let passed = 0;
 const failed: string[] = [];
@@ -259,6 +260,131 @@ const focusAt = nav.indexOf('function focusSection(');
 const focusEnd = nav.indexOf('function enterRead(', focusAt);
 const focusBody = focusAt >= 0 && focusEnd > focusAt ? nav.slice(focusAt, focusEnd) : '';
 ok((focusBody.match(/\.scrollIntoView\(\{/g) || []).length === 1, '只滚一次就落到终点（先跳节首再跳段会「滑过去又滑回来」）');
+
+/* ─────────── 十 · 历史检索：按字面找，别把「没找到」说成「没有」 ─────────── */
+
+/*
+ * 一百多份报告之后，滚动条已经不是找东西的办法。这一组守四件事：
+ *   ① 多词是「都要有」，且不许把两条前提的接缝当成一句话（拼接串会让「乙丙」命中）；
+ *   ② 一份报告只出一条结果，片段必须**带得走**（含命中词、截断处有省略号、空白折过、
+ *      字没改）；`count` 与片段是两件事，只出现一次与出现九次不是同一条线索；
+ *   ③ 顺序不按相关度：相关度本地算不出来，按它排等于替用户判断「这份更像」；
+ *   ④ 「没搜到」与「有 N 份读不出来」必须是两句话——合成一句就变成「确实没有」。
+ */
+const rep = (o: Record<string, unknown>): Diagnosis =>
+  ({ id: 'r1', createdAt: 1, passage: '', ...o }) as unknown as Diagnosis;
+
+const S0 = rep({
+  passage: '学校上周取消了早读。家长们认为这会影响成绩，因为早读能提高记忆。',
+  conclusion: { text: '成绩会下降' },
+  premises: [{ text: '早读能提高记忆' }],
+  intermediate: [],
+  repair: { missingPremise: null, repairedForm: null },
+  checks: [{ basis: '原文只给了一个因果断言，没有数据。' }],
+  verdict: { statement: '论证被削弱。', qualification: '仅就文中所给' },
+});
+
+/* 词法与切分 */
+ok(JSON.stringify(parseTerms('  预算  ')) === '["预算"]', '首尾空白不算词');
+ok(JSON.stringify(parseTerms('A a A')) === '["a"]', '折小写之后去重（同一个词敲两遍不改变语义）');
+ok(JSON.stringify(parseTerms('预算　前提')) === '["预算","前提"]', '全角空格也切词（中文输入法下常打出来的是它）');
+ok(JSON.stringify(parseTerms('')) === '[]' && JSON.stringify(parseTerms('   ')) === '[]', '空查询切成空数组，不切成一个空词');
+
+/* 命中与计数 */
+const twice = rep({ passage: '早读有用。早读能提高记忆。' });
+const h0 = findInReport(twice, ['早读'])!;
+ok(h0.count === 2, '同一个词出现两次就数两处', String(h0?.count));
+ok(JSON.stringify(h0.where) === '["passage"]', '两次都在原文里');
+ok(h0.snippet.includes('早读'), '片段里必须带着搜的那个词，否则它带不走');
+ok(h0.snippetWhere === 'passage', '片段取自原文');
+const hS0 = findInReport(S0, ['早读'])!;
+ok(hS0.count === 3 && JSON.stringify(hS0.where) === '["passage","premise"]', '跨原文与前提命中时，处数相加、类别按固定顺序', `${hS0.count}/${JSON.stringify(hS0.where)}`);
+ok(findInReport(S0, ['早读', '预算']) === null, '多词是「都要有」：有一个词全篇没有就不算命中');
+const hC = findInReport(S0, ['成绩会下降'])!;
+ok(hC.snippetWhere === 'conclusion' && hC.count === 1, '只落在结论里时说得出来是结论', hC.snippetWhere);
+const hBoth = findInReport(S0, ['成绩'])!;
+ok(hBoth.snippetWhere === 'passage', '两处都有时片段取原文（先让人认出自己的字）');
+ok(hBoth.where.length === 2 && hBoth.count >= 2, '命中的类别与处数分开数', `${hBoth.where}/${hBoth.count}`);
+const hv = findInReport(S0, ['削弱'])!;
+ok(JSON.stringify(hv.where) === '["verdict"]', '只落在判读里时也能找到', JSON.stringify(hv?.where));
+ok(JSON.stringify(findInReport(S0, ['上周', '学校'])?.where) === '["passage"]', '两个词落同一类时 where 不重复');
+ok(findInReport(rep({ passage: '早读提高成绩' }), ['早读', '成绩'])?.count === 2, '两个词各数一次（同一段里两个词各出现一次）');
+
+/* 不许把两条前提的接缝当成一句话 */
+const seam = rep({ passage: '无关', premises: [{ text: '甲乙' }, { text: '丙丁' }] });
+ok(findInReport(seam, ['乙丙']) === null, '两条前提的接缝不算命中（拼接串会把「乙丙」认成一句话）');
+ok(findInReport(seam, ['丙丁'])?.snippetWhere === 'premise', '单条前提照常找得到');
+
+/* 片段 */
+const far = rep({ passage: `${'甲'.repeat(60)}目标${'乙'.repeat(60)}` });
+const hf = findInReport(far, ['目标'])!;
+ok(hf.snippet.startsWith('…') && hf.snippet.endsWith('…'), '两头都截断时两头都要有省略号');
+ok(hf.snippet.includes('目标') && hf.snippet.length < 60, '片段是片段，不是整段原文', String(hf.snippet.length));
+const hStart = findInReport(rep({ passage: '目标在开头' }), ['目标'])!;
+ok(!hStart.snippet.startsWith('…'), '命中就在开头时不加前省略号');
+const hWs = findInReport(rep({ passage: '第一行\n\n   第二行有目标' }), ['目标'])!;
+ok(!/[\n\r]/.test(hWs.snippet) && hWs.snippet.includes('第二行'), '片段里的连续空白折成一个空格（列表才不会被撑成五行）');
+ok(findInReport(rep({ passage: 'GDP 增长' }), ['gdp'])?.count === 1, '英文不分大小写');
+
+/* 旧存档缺字段时不许抛 */
+const bare = rep({ passage: '', conclusion: undefined, premises: undefined, intermediate: undefined, repair: undefined, checks: undefined, verdict: undefined });
+let threw = false;
+try {
+  if (findInReport(bare, ['甲']) !== null) threw = true;
+} catch {
+  threw = true;
+}
+ok(!threw, '缺 conclusion / verdict 的旧存档不抛异常，只是搜不到');
+ok(findInReport(S0, []) === null, '没有词就没有结果（空查询不返回「全部命中」）');
+
+/* 加亮 */
+const parts = highlightParts('早读能提高成绩', ['早读']);
+ok(parts.map((p) => p.t).join('') === '早读能提高成绩', '加亮不许改字：切完拼回去必须与原文逐字相同');
+ok(parts.filter((p) => p.hit).length === 1 && parts.find((p) => p.hit)?.t === '早读', '只加亮命中的那一截');
+const longer = highlightParts('早读能提高成绩', ['早', '早读']);
+ok(longer.find((p) => p.hit)?.t === '早读', '长词先试（同时出现「早」与「早读」时别只亮一个字）');
+ok(highlightParts('GDP 增长', ['gdp']).some((p) => p.hit && p.t === 'GDP'), '英文加亮不分大小写，但亮的仍是原文那三个字母');
+ok(highlightParts('无关文字', ['目标']).every((p) => !p.hit), '找不到就不加亮，也不返回空数组');
+ok(JSON.stringify(highlightParts('', ['甲'])) === '[{"t":"","hit":false}]', '空片段不炸');
+ok(Object.keys(WHERE_LABEL).length === 7, '七类文字的说明各有一条', String(Object.keys(WHERE_LABEL).length));
+
+/* 接线：纯函数算的东西，界面必须真的在用 */
+const hist = src('src/renderer/src/components/History.tsx');
+ok(/data-hs-q/.test(hist) && /onChange=\{\(e\) => setQ\(e\.target\.value\)\}/.test(hist), '搜索框是受控的，敲进去就算数（没有「搜索」按钮）');
+ok(/parseTerms\(q\)/.test(hist), '切词调纯函数，界面不自己 split');
+ok(/\}, 220\);/.test(hist), '延后 220ms 再读盘（每按一键扫一百个文件会顿）');
+ok(/alive = false;/.test(hist) && /clearTimeout/.test(hist), '慢的那次回来时不许盖掉快的那次');
+ok(/setFinding\(true\);\s*setFound\(null\);/.test(hist), '新查询一出现就清掉旧结果（否则「0 份」可能属于上一句话）');
+ok(/list\.filter\(\(m\) => hitById\.has\(m\.id\)\)/.test(hist), '结果只在原列表里筛，不重排');
+ok(!/\.sort\(/.test(hist), '界面不排序：先后仍是时间，不是相关度');
+ok(/hit \? <Snippet text=\{hit\.snippet\} terms=\{terms\} \/> : m\.excerpt/.test(hist), '命中那一行换成片段，没命中仍是摘要');
+ok(/data-hs-excerpt=\{hit \? 'hit' : 'head'\}/.test(hist), '片段与摘要有探针分得开');
+ok(/data-hs-line/.test(hist) && /data-hs-state=\{findState\}/.test(hist), '状态条有稳定的读数，不靠猜文案');
+ok(/findState[\s\S]{0,400}'none'/.test(hist) && /'pending'/.test(hist), '「还没回来」与「一份都没有」是两个状态');
+ok(/不认同义词/.test(hist) && /多个词要都有/.test(hist), '界面上写明按字面找、多词是都要有');
+ok(/检查依据/.test(hist) && /中间结论/.test(hist), '界面上写明搜的是哪几类文字');
+ok(/words|拼音/.test(hist) === false, '不承诺没做的事（没有拼音检索）');
+ok(/outOfList/.test(hist) && /不在列表里/.test(hist), '命中了但列表里没有时说出来（不把两处数字凑成一个）');
+ok(!/m\.excerpt\.toLowerCase/.test(hist), '界面不另写一套匹配规则（两套规则迟早给出两种加亮）');
+
+const pre = src('src/preload/index.ts');
+ok(/invoke\('archive:find'/.test(pre), 'preload 通了 archive:find');
+const mainIndexTs = src('src/main/index.ts');
+ok(/ipcMain\.handle\('archive:find'/.test(mainTs) && /typeof q === 'string'/.test(mainTs), '主进程只认字符串（渲染层传来什么都要挡一下）');
+
+const arch = src('src/main/archive.ts');
+const findAt = arch.indexOf('export function findReports(');
+const findEnd = arch.indexOf('export function getReport(', findAt);
+const findBody = findAt >= 0 && findEnd > findAt ? arch.slice(findAt, findEnd) : '';
+ok(findBody.length > 300, '截到了 findReports（截不到时下面的断言不许静默通过）');
+ok(/const scan = scanDir\(\)/.test(findBody) && !/readdirSync/.test(findBody), '与样本账共用同一次目录扫描（不另写一份循环，否则坏文件份数会两处不一样）');
+ok(/unreadable: scan\.issues\.length/.test(findBody), '读不出来的份数照实带回去');
+ok(/if \(scan\.dirError\) return \{ \.\.\.empty, dirError: scan\.dirError \}/.test(findBody), '目录打不开时给原因，不给一张「没有」的空表');
+ok(/hits\.sort\(\(a, b\) => b\.at - a\.at \|\| a\.id\.localeCompare\(b\.id\)\)/.test(findBody), '按时间倒序，时间相同时按 id 定序（顺序不能随目录读取顺序变）');
+ok(/if \(!terms\.length\) return empty/.test(findBody), '空查询不扫盘');
+
+const mockTs = src('src/renderer/src/mock.tsx');
+ok(/find: async \(q: string\)/.test(mockTs), '预览页也接了替身，否则一敲字就报错');
 
 /* ─────────── 收口 ─────────── */
 

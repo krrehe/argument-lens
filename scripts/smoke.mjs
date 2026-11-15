@@ -918,7 +918,42 @@ const checks = [
   // 同上：这里也必须读 SMOKE_PANEL。读错的话这一项是「静默不跑」，
   // 输出里既没有通过也没有失败，看上去像全过了——那是最坏的一种假绿。
   ...(process.env.SMOKE_PANEL === 'history'
-    ? [['历史列表读到存档', /"rows":([1-9]\d*)/.test(panelLine())]]
+    ? [
+        ['历史列表读到存档', /"rows":([1-9]\d*)/.test(panelLine())],
+        /*
+         * 检索这一组验的是「说了就要真搜」：状态是 hit 而不是 pending、
+         * 行数真的变了、片段里带着搜的那几个字并加了亮、清空之后回到原样、
+         * 搜一个一定没有的词时说的是「一份都没有匹配」而不是一片空白。
+         * 最后一条最要紧：空白会被读成「还没开始搜」。
+         */
+        ['检索框在历史面板里', /"ok":true/.test(findLine())],
+        ['搜一个真有的词 → 状态是命中', /"state":"hit"/.test(findLine())],
+        ['命中之后列表真的变了', /"rows":([1-9]\d*)/.test(findLine())],
+        ['片段里加了亮', /"marks":([1-9]\d*)/.test(findLine())],
+        [
+          '片段逐字带着那一行的开头（不是另拼一句）',
+          (() => {
+            const o = findObj();
+            return !!o && typeof o.excerpt === 'string' && String(o.q ?? '').length >= 2
+              ? o.excerpt.includes(o.q)
+              : false;
+          })(),
+        ],
+        ['状态条说的是「几份命中」', /命中/.test(findObj()?.line ?? '')],
+        [
+          '清空之后回到原来的行数',
+          (() => {
+            const a = findObj();
+            const b = findAfterObj();
+            return typeof a.before === 'number' && b.after === a.before;
+          })(),
+        ],
+        [
+          '搜一个没有的词 → 说「一份都没有匹配」',
+          /"state2":"none"/.test(findAfterLine()) && /"rows2":0/.test(findAfterLine()),
+        ],
+        ['没找到时那句话里不是一片空白', /一份都没有匹配/.test(findAfterObj()?.line2 ?? '')],
+      ]
     : []),
   ...(process.env.SMOKE_PANEL === 'prompt'
     ? [
@@ -960,6 +995,43 @@ const checks = [
 
 function panelLine() {
   return log.split('\n').find((l) => l.includes('PANELDOM')) ?? '';
+}
+
+function findLine() {
+  return log.split('\n').find((l) => l.includes('FINDDOM')) ?? '';
+}
+
+/** 清空与「搜一个没有的词」那一段的读数。分成两行是因为中间要截图。 */
+function findAfterLine() {
+  return log.split('\n').find((l) => l.includes('FINDAFTER')) ?? '';
+}
+
+/**
+ * 检索探针读回来的那一个对象；读不出来就是空对象（不是 null）。
+ *
+ * 不返回 null 是有意的：断言会各自红成「没有这个字段」，
+ * 而不是在评测脚本里抛 TypeError——脚本崩掉与断言失效在输出上长得一样。
+ */
+function findObj() {
+  const line = findLine();
+  const at = line.indexOf('{');
+  if (at < 0) return {};
+  try {
+    return JSON.parse(line.slice(at));
+  } catch {
+    return {};
+  }
+}
+
+function findAfterObj() {
+  const line = findAfterLine();
+  const at = line.indexOf('{');
+  if (at < 0) return {};
+  try {
+    return JSON.parse(line.slice(at));
+  } catch {
+    return {};
+  }
 }
 
 function reviseLine() {

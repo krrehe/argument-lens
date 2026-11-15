@@ -22,7 +22,8 @@ import { agreementOf } from '@shared/agreement';
 import type { Diagnosis, Objection } from '@shared/types';
 import type { ViewId } from '@shared/views';
 import { nextLinesOf } from '@shared/nextline';
-import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
+import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type SearchWhere, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
+import { parseTerms } from '@shared/archive-search';
 import './styles.css';
 import './styles-usage.css';
 import './styles-disputes.css';
@@ -380,7 +381,45 @@ const MOCK_OBJECTIONS: ObjectionStat[] = [
 
 if (new URLSearchParams(location.search).get('dlg') === 'history') {
   (window as unknown as { api: unknown }).api = {
-    archive: { list: async () => MOCK_HISTORY, remove: async () => MOCK_HISTORY, reveal: () => {} },
+    archive: {
+      list: async () => MOCK_HISTORY,
+      /* 体检的替身：三份都读得出来、索引与磁盘一致。缺了它预览页会先闪一条红条。 */
+      health: async () => ({
+        dirError: null,
+        issues: [],
+        healthyFiles: MOCK_HISTORY.length,
+        indexState: 'ok' as const,
+        indexReason: null,
+        indexEntries: MOCK_HISTORY.length,
+        missing: [],
+        orphans: [],
+        checkedAt: Date.now(),
+      }),
+      /*
+       * 检索的替身。预览页手上没有真报告，只有三行摘要——所以它只在摘要里找，
+       * 搜不到正文里的字。这不是缺陷：预览页是看版面用的，
+       * 「搜得到」由真机冒烟在真存档上验（见 `AL_PANEL=history`）。
+       */
+      find: async (q: string) => {
+        const terms = parseTerms(q);
+        const hits = MOCK_HISTORY.filter((m) =>
+          terms.every((t) => m.excerpt.toLowerCase().includes(t)),
+        ).map((m) => ({
+          id: m.id,
+          at: m.at,
+          count: terms.reduce(
+            (n, t) => n + m.excerpt.toLowerCase().split(t).length - 1,
+            0,
+          ),
+          where: ['passage'] as SearchWhere[],
+          snippet: m.excerpt,
+          snippetWhere: 'passage' as const,
+        }));
+        return { terms, scanned: MOCK_HISTORY.length, unreadable: 0, dirError: null, hits };
+      },
+      remove: async () => MOCK_HISTORY,
+      reveal: () => {},
+    },
     objections: { stats: async () => MOCK_OBJECTIONS, reveal: () => {} },
   };
 }

@@ -2,6 +2,8 @@ import { app } from 'electron';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import type {
+  ArchiveFind,
+  ArchiveFindHit,
   ArchiveHealth,
   ArchiveIndexState,
   ArchiveIssue,
@@ -12,6 +14,7 @@ import type {
 } from '@shared/types';
 import type { PriorPassage } from '@shared/sameness';
 import type { AgreementItem } from '@shared/agreement';
+import { findInReport, parseTerms } from '@shared/archive-search';
 
 /**
  * 报告存档。
@@ -315,6 +318,39 @@ export function reportScan(): ReportScan {
 
 export function allPassages(): PriorPassage[] {
   return passageScan().items;
+}
+
+/**
+ * 在存档里按字面找。
+ *
+ * 与样本账、同题复跑共用同一次目录扫描（`scanDir`）——三处各写一份循环，
+ * 迟早有一处忘了数坏文件，于是同一台机器上两处说出的份数不一样，而两处都看着正常。
+ *
+ * 排序按时间倒序，与历史列表同序。**不按相关度**：相关度本地算不出来，
+ * 按它排等于替用户判断「这份更像你要找的」。
+ */
+export function findReports(raw: string): ArchiveFind {
+  const terms = parseTerms(raw);
+  const empty: ArchiveFind = { terms, scanned: 0, unreadable: 0, dirError: null, hits: [] };
+  /* 空查询不扫盘：拖一下滚动条不该读一百个文件。 */
+  if (!terms.length) return empty;
+
+  const scan = scanDir();
+  if (scan.dirError) return { ...empty, dirError: scan.dirError };
+
+  const hits: ArchiveFindHit[] = [];
+  for (const d of scan.diagnoses) {
+    const h = findInReport(d, terms);
+    if (h) hits.push(h);
+  }
+  hits.sort((a, b) => b.at - a.at || a.id.localeCompare(b.id));
+  return {
+    terms,
+    scanned: scan.diagnoses.length,
+    unreadable: scan.issues.length,
+    dirError: null,
+    hits,
+  };
 }
 
 export function getReport(id: string): Diagnosis | null {

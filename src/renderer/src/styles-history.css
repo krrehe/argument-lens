@@ -104,6 +104,83 @@
 .hs-note b {
   color: var(--ink);
 }
+/* ─────────── 检索 ─────────── */
+
+/*
+ * 输入框与状态条分开摆，不并成一行：状态那句会随结果变长（「3 份命中 · 共 7 处；
+ * 另有 2 份读不出来」），挤在输入框右边会把框压窄，而框宽决定用户能一眼看完多少个字。
+ */
+.hs-find {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hs-q {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 6px 9px;
+}
+.hs-q:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
+.hs-q::placeholder {
+  color: var(--ink-3);
+}
+.hs-q-clear {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 9px;
+  cursor: pointer;
+}
+.hs-q-clear:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.hs-find-line {
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  margin-top: -4px;
+}
+.hs-find-line b {
+  color: var(--ink);
+  font-weight: 600;
+}
+/* 「另有 N 份读不出来」这类旁注：必须在，但不能抢主句。 */
+.hs-find-soft {
+  color: var(--ink-3);
+}
+.hs-find-note {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-3);
+  margin-top: -4px;
+}
+/* 命中在哪儿：一个短标签，跟字数、费用同一行。 */
+.hs-where {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+/* 加亮用底色，不改字色：片段里的字是原文，改色会让它读起来像另一个词。 */
+.hs-hit {
+  background: #f3e4a8;
+  border-radius: 2px;
+}
+
 .hs-empty {
   font-size: 12.5px;
   color: var(--ink-3);

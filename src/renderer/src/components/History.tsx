@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   MODE_META,
   normalizeMode,
+  type ArchiveFind,
   type ArchiveHealth,
   type ArchiveIssueKind,
   type ObjectionStat,
   type ReportMeta,
 } from '@shared/types';
+import { highlightParts, parseTerms, WHERE_LABEL } from '@shared/archive-search';
 import { LEVEL_LABEL, THEORY_BY_ID } from '@shared/theories';
 import { objectionFieldName } from '@shared/objection';
 import { formatMoney } from '@shared/tokens';
@@ -67,6 +69,12 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
   const [listError, setListError] = useState<string | null>(null);
   /** 正在等待二次确认的那一份。删除不可逆，且会切断修订对照。 */
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  /** 搜索框里的原文。查询串本身不做任何加工，切词与折大小写都在纯函数里。 */
+  const [q, setQ] = useState('');
+  /** 检索结果。null = 没在搜（或正在搜）；与 `list` 分开，因为来源不同、可能一棵是空的。 */
+  const [found, setFound] = useState<ArchiveFind | null>(null);
+  const [finding, setFinding] = useState(false);
+  const [findError, setFindError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -101,6 +109,43 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
     };
   }, []);
 
+  /*
+   * 检索。三处细节都有理由：
+   *   · 延后 220ms 才读盘——每按一次键就扫一百个文件，输入会一顿一顿的；
+   *   · 新查询一开始就清掉上一次的结果：留着它，界面会拿旧结果配新查询，
+   *     那个「0 份」可能属于上一句话；
+   *   · `alive` 挡乱序返回：慢的那次回来时不许盖掉快的那次。
+   */
+  useEffect(() => {
+    if (!parseTerms(q).length) {
+      setFound(null);
+      setFinding(false);
+      setFindError(null);
+      return;
+    }
+    let alive = true;
+    setFinding(true);
+    setFound(null);
+    setFindError(null);
+    const timer = window.setTimeout(() => {
+      window.api.archive
+        .find(q)
+        .then((r) => {
+          if (alive) setFound(r);
+        })
+        .catch((err: unknown) => {
+          if (alive) setFindError((err as Error)?.message ?? '原因不明');
+        })
+        .finally(() => {
+          if (alive) setFinding(false);
+        });
+    }, 220);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [q]);
+
   const issues = health?.issues ?? [];
   const missing = health?.missing ?? [];
   const orphans = health?.orphans ?? [];
@@ -133,6 +178,38 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
       .catch(() => setConfirmId(null));
   };
 
+  /* ── 检索的派生值 ── */
+
+  const terms = useMemo(() => parseTerms(q), [q]);
+  /** 命中按 id 索引。列表顺序不因检索而重排：先后仍是时间。 */
+  const hitById = useMemo(() => new Map((found?.hits ?? []).map((h) => [h.id, h])), [found]);
+  const shown = useMemo(
+    () => (terms.length ? list.filter((m) => hitById.has(m.id)) : list),
+    [list, terms.length, hitById],
+  );
+  const hitTotal = useMemo(() => (found?.hits ?? []).reduce((n, h) => n + h.count, 0), [found]);
+  /**
+   * 命中、但列表里没有这一份——索引与磁盘不同步时会出现。
+   * 不把它藏掉：两处数字对不上，比少显示一行更像出了事。
+   */
+  const outOfList = found ? Math.max(0, found.hits.length - shown.length) : 0;
+  const searching = terms.length > 0;
+  /**
+   * 状态条的一个稳定读数。文案会改，状态不该改——所以探针读它，不读那句话。
+   * `pending` 是「查询换了、结果还没回来」，这个瞬间既不是命中也不是没有。
+   */
+  const findState: 'off' | 'error' | 'dir' | 'hit' | 'none' | 'pending' = !searching
+    ? 'off'
+    : findError
+      ? 'error'
+      : found?.dirError
+        ? 'dir'
+        : found
+          ? found.hits.length
+            ? 'hit'
+            : 'none'
+          : 'pending';
+
   return (
     <div className="mask" onClick={onClose}>
       <div className="dialog hs-dialog" role="dialog" aria-label="历史与我的判断" onClick={(e) => e.stopPropagation()}>
@@ -144,7 +221,10 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
               title={hasProblem ? `列表里能读到的 ${list.length} 份；另有 ${problemCount} 处对不上，见下方体检` : undefined}
               onClick={() => setTab('reports')}
             >
-              报告 <span className="hs-n">{list.length}</span>
+              报告{' '}
+              <span className="hs-n">
+                {searching && finding ? `…/${list.length}` : searching ? `${shown.length}/${list.length}` : list.length}
+              </span>
             </button>
             <button className={`hs-tab ${tab === 'objections' ? 'on' : ''}`} onClick={() => setTab('objections')}>
               我不同意过 <span className="hs-n">{stats.length}</span>
@@ -162,6 +242,76 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
               每跑一次分析都会自动存在这里，报告全文连同原文一起，只在本机。
               <b>它的主要用途不是存档，是验收</b>——补完再判一次，两份就能摆在一起看。
             </p>
+
+            {/*
+              检索放在最上面：一百多份之后，滚动条已经不是找东西的办法。
+              输入框不加「搜索」按钮——它每敲一个字就搜一次（延后 220ms），
+              按钮会让人以为不按就不搜。
+            */}
+            <div className="hs-find">
+              <input
+                className="hs-q"
+                type="search"
+                value={q}
+                data-hs-q
+                aria-label="在存档里按字面找"
+                placeholder="在原文与报告里找字…（多个词用空格分开，都要有）"
+                title="按字面找，不认同义词。范围：原文、结论、前提、中间结论、修补、检查依据、判读。"
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setQ('');
+                }}
+              />
+              {searching && (
+                <button className="hs-q-clear" data-hs-q-clear onClick={() => setQ('')}>
+                  清空
+                </button>
+              )}
+            </div>
+
+            {searching && (
+              <div className="hs-find-line" data-hs-line data-hs-state={findState}>
+                {finding ? (
+                  '正在读存档…'
+                ) : findError ? (
+                  `搜不了：${findError}`
+                ) : found?.dirError ? (
+                  `存档目录读不出来：${found.dirError}。这时不能断定「没有匹配」。`
+                ) : found ? (
+                  found.hits.length ? (
+                    <>
+                      <b>{found.hits.length} 份命中</b> · 共 {hitTotal} 处
+                      {found.unreadable > 0 && (
+                        <span className="hs-find-soft">
+                          ；另有 {found.unreadable} 份读不出来，它们不在结果里
+                        </span>
+                      )}
+                      {outOfList > 0 && (
+                        <span className="hs-find-soft">
+                          ；另有 {outOfList} 份命中的文件不在列表里（见体检）
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <b>一份都没有匹配</b>
+                      <span className="hs-find-soft">
+                        （在 {found.scanned} 份里按字面找的
+                        {found.unreadable > 0 ? `；另有 ${found.unreadable} 份读不出来，没法搜` : ''}）
+                      </span>
+                    </>
+                  )
+                ) : null}
+              </div>
+            )}
+
+            {searching && (
+              <p className="hs-find-note">
+                按字面找：不认同义词（搜「晨读」找不到「早读」），多个词要都有。
+                范围是原文、结论、前提、中间结论、修补、检查依据、判读——模型写的其余解释不在其中。
+                片段里的连续空白被折成一个空格，字没有改。
+              </p>
+            )}
 
             {hasProblem && (
               <div className="hs-health" data-archive-health>
@@ -246,12 +396,13 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
             )}
 
             <div className="hs-list">
-              {list.map((m) => {
+              {shown.map((m) => {
                 const parent = m.parentId ? byId.get(m.parentId) : null;
                 const kids = revisedCount.get(m.id) ?? 0;
                 const mode = normalizeMode(m.mode);
                 const level = LEVEL_LABEL[m.level] ?? m.level;
                 const theory = THEORY_BY_ID[m.theory]?.name ?? m.theory;
+                const hit = hitById.get(m.id) ?? null;
                 return (
                   <div key={m.id} className={`hs-row lv-${m.level}`}>
                     <button className="hs-main" onClick={() => onOpen(m.id)}>
@@ -273,8 +424,18 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
                         )}
                         {kids > 0 && <span className="hs-parent">此后改了 {kids} 版</span>}
                       </div>
-                      <div className="hs-excerpt">{m.excerpt}</div>
+                      <div className="hs-excerpt" data-hs-excerpt={hit ? 'hit' : 'head'}>
+                        {hit ? <Snippet text={hit.snippet} terms={terms} /> : m.excerpt}
+                      </div>
                       <div className="hs-meta">
+                        {hit && (
+                          <span
+                            className="hs-where"
+                            title={`命中在：${hit.where.map((w) => WHERE_LABEL[w]).join('、')}（共 ${hit.count} 处）`}
+                          >
+                            {WHERE_LABEL[hit.snippetWhere]} · {hit.count} 处
+                          </span>
+                        )}
                         <span>{m.chars} 字</span>
                         {m.open > 0 && <span className="open">{m.open} 项没答</span>}
                         {m.cost !== null && <span>{formatMoney(m.cost, '¥')}</span>}
@@ -352,5 +513,24 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * 片段与加亮。
+ *
+ * 切词、找词都由纯函数做，这里只把「是不是命中」翻成一个 span：
+ * 界面上不再有一套自己的匹配规则——两套规则迟早会在同一个片段上给出两种加亮，
+ * 而图上看不出哪一套错了。
+ */
+function Snippet({ text, terms }: { text: string; terms: string[] }) {
+  return (
+    <>
+      {highlightParts(text, terms).map((p, i) => (
+        <span key={i} className={p.hit ? 'hs-hit' : undefined}>
+          {p.t}
+        </span>
+      ))}
+    </>
   );
 }

@@ -253,6 +253,9 @@ const env = {
   // 包内也写一句「下一句」：@shared/nextline 与 nextlines.jsonl 的落盘通道
   // 没进 asar 时，表现不是报错，是「点了记下、账上没动」
   AL_NEXTLINE: '1',
+  // 包内也真的调一次历史检索：它跨 preload 桥 / IPC / scanDir 三层，
+  // 任一层没进 asar，症状都是「搜什么都没有」而不是报错
+  AL_FIND: '1',
   AL_PANEL: 'usage',
   // 提示词页顺带验。它要验的不是「提示词显示出来了」，而是**版本号与指纹显示出来了**——
   // 提示词一改判定口径就可能变，那行小字是判断两份报告能不能对照的唯一凭据，
@@ -273,6 +276,7 @@ console.log(`隔离目录：${userData}`);
 console.log(pick('DOM').replace(/^.*DOM /, '首屏探针：'));
 console.log(pick('RESULT').replace(/^.*RESULT /, '分析结果：'));
 console.log(pick('PANELDOM').replace(/^.*PANELDOM /, '用量面板：'));
+console.log(pick('FINDRESULT').replace(/^.*FINDRESULT /, '包内检索：'));
 console.log(existsSync(shot) ? `截图：${shot}` : '没有产出截图');
 
 /* 隔离目录里到底有没有这次分析留下的东西——这是「隔离生效」的正面证据，
@@ -828,10 +832,58 @@ const checks = [
       }
     })(),
   ],
+  /*
+   * 打包产物里的历史检索：真调一次 window.api.archive.find。
+   *
+   * 为什么不在包里 grep 一个字符串：这个功能跨 preload → ipcMain → scanDir
+   * 三层，任何一层没进 asar，界面上都是「搜什么都没有」，而源码态全绿。
+   * 查询词取自存档原文中段（摘要只有开头 72 字），所以对得上才可以断言
+   * 「摘要之外的字也找得到」。再搜一个不存在的词，scanned 必须一样——
+   * 证明「0 份」是扫过盘之后说的，不是根本没扫。
+   */
+  [
+    '打包产物里历史检索三层接线都通（原文中段的字找得到，0 份是扫过之后说的）',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('FINDRESULT')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        return (
+          r.ok === true &&
+          typeof r.q === 'string' &&
+          r.q.length === 4 &&
+          Number(r.listLen) > 0 &&
+          Number(r.scanned) > 0 &&
+          Number.isFinite(r.unreadable) &&
+          Array.isArray(r.terms) &&
+          r.terms.length === 1 &&
+          Array.isArray(r.ids) &&
+          r.ids.length > 0 &&
+          r.hasFirst === true &&
+          r.inList === true &&
+          String(r.firstSnippet ?? '').includes(r.q) &&
+          Number(r.missHits) === 0 &&
+          Number(r.missScanned) === Number(r.scanned)
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
   ['流程无报错', /\bOK\b/.test(log)],
   ['截图产出', existsSync(shot)],
 ];
 
+/*
+ * 一条已知的假阳性，别拿它去放宽断言：
+ * 若同一时刻还有一个**不带 --user-data-dir 的实例**开着（例如桌面快捷方式
+ * 打开的那一份），Chromium 会自己轮换 Local Storage / Session Storage 下的
+ * leveldb 日志与 LOG.old，快照就把「另一个进程在写」记成了「这次自检污染了
+ * 用户数据」。2026-11-15 遇到过一次：那次「前置探针确认隔离生效」与
+ * 「分析写进了隔离目录」都通过，唯独这一条红；等那个实例退出后原样重跑即全绿。
+ * 所以正确的动作是**确认没有并行实例再重跑**，不是把缓存目录从快照里排除——
+ * 排除之后，真正的隔离失效可能只剩缓存变化这一条线索，正好被抹掉。
+ */
 if (touched.length) {
   console.log(`\n真实目录被动过（${touched.length} 处，最多列 5 条）：`);
   for (const t of touched.slice(0, 5)) console.log(`  ${t}`);

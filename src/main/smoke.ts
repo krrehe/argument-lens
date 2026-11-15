@@ -2214,6 +2214,112 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         })`);
         add(`PANELDOM ${panelProbe}`);
         await new Promise((r) => setTimeout(r, 400));
+
+        /*
+         * 检索：拿刚读到的那一行摘要的开头当查询。
+         *
+         * 为什么不用写死的词：存档是用户自己的。写死一个「早读」，在有人的机器上一次也搜不到，
+         * 而断言会红成「检索坏了」——那是把夹具的错记在功能头上。用列表里真有的字，
+         * 验的才是同一条路：输入框 → 主进程扫盘 → 结果行 → 片段加亮。
+         *
+         * 分成两段是因为中间要截图：命中那一屏只在「词还在框里」时存在，
+         * 清空之后就再也拍不到了。
+         */
+        const findReady = await wc.executeJavaScript(`(() => {
+          const row0 = document.querySelector('.dialog.hs-dialog .hs-row .hs-excerpt');
+          const q = (row0?.innerText || '').trim().slice(0, 4);
+          const inp = document.querySelector('[data-hs-q]');
+          if (!inp || !q) return null;
+          const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+          window.__alFind = { q, set, inp, before: document.querySelectorAll('.dialog.hs-dialog .hs-row').length };
+          set.call(inp, q);
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+          return window.__alFind.before;
+        })()`);
+        add(`FINDBEFORE ${findReady}`);
+        const findProbe = await wc.executeJavaScript(`(async () => {
+          const st = window.__alFind;
+          if (!st) return JSON.stringify({ ok: false, why: 'no-input-or-no-row' });
+          const wait = async () => {
+            for (let i = 0; i < 30; i++) {
+              await new Promise((r) => setTimeout(r, 100));
+              const v = document.querySelector('[data-hs-state]')?.getAttribute('data-hs-state') || '';
+              if (v && v !== 'pending') return v;
+            }
+            return '';
+          };
+          const state = await wait();
+          const rows = document.querySelectorAll('.dialog.hs-dialog .hs-row').length;
+          const marks = document.querySelectorAll('.dialog.hs-dialog .hs-hit').length;
+          const excerpt = (document.querySelector('.dialog.hs-dialog .hs-row .hs-excerpt')?.innerText || '').replace(/\s+/g, ' ');
+          const line = (document.querySelector('[data-hs-line]')?.innerText || '').replace(/\s+/g, ' ');
+          return JSON.stringify({ ok: true, q: st.q, before: st.before, state, rows, marks, excerpt, line });
+        })()`);
+        add(`FINDDOM ${findProbe}`);
+        {
+          const box = (await wc.executeJavaScript(`(() => {
+            const el = document.querySelector('.dialog.hs-dialog');
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+          })()`)) as { x: number; y: number; width: number; height: number } | null;
+          if (box && box.width > 200 && box.height > 120) {
+            const img = await wc.capturePage(box);
+            const p = join(dirname(shot), 'history-find.png');
+            writeFileSync(p, img.toPNG());
+            add(`FINDSHOT ${p}`);
+          }
+        }
+        const findAfter = await wc.executeJavaScript(`(async () => {
+          const st = window.__alFind;
+          if (!st) return JSON.stringify({ ok: false });
+          const wait = async () => {
+            for (let i = 0; i < 30; i++) {
+              await new Promise((r) => setTimeout(r, 100));
+              const v = document.querySelector('[data-hs-state]')?.getAttribute('data-hs-state') || '';
+              if (v && v !== 'pending') return v;
+            }
+            return '';
+          };
+          document.querySelector('[data-hs-q-clear]')?.click();
+          let after = 0;
+          for (let i = 0; i < 20; i++) {
+            await new Promise((r) => setTimeout(r, 100));
+            after = document.querySelectorAll('.dialog.hs-dialog .hs-row').length;
+            if (after === st.before) break;
+          }
+          st.set.call(st.inp, 'zzzqqq');
+          st.inp.dispatchEvent(new Event('input', { bubbles: true }));
+          const state2 = await wait();
+          return JSON.stringify({
+            ok: true,
+            after,
+            state2,
+            rows2: document.querySelectorAll('.dialog.hs-dialog .hs-row').length,
+            line2: (document.querySelector('[data-hs-line]')?.innerText || '').replace(/\s+/g, ' '),
+          });
+        })()`);
+        add(`FINDAFTER ${findAfter}`);
+        /*
+         * 「一份都没有匹配」那一屏也要拍：列表空着的时候，如果状态那句话被挤掉或没渲染，
+         * 整块会是一片空白——而空白的读法是「还没开始搜」，不是「没有」。
+         * 这个失败方式任何断言都抓不到，只有图能看出来。
+         */
+        {
+          const box = (await wc.executeJavaScript(`(() => {
+            const el = document.querySelector('.dialog.hs-dialog');
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+          })()`)) as { x: number; y: number; width: number; height: number } | null;
+          if (box && box.width > 200 && box.height > 120) {
+            const img = await wc.capturePage(box);
+            const p = join(dirname(shot), 'history-none.png');
+            writeFileSync(p, img.toPNG());
+            add(`FINDSHOT ${p}`);
+          }
+        }
+        await new Promise((r) => setTimeout(r, 300));
       }
 
       /*
@@ -2513,6 +2619,50 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
 
         add(`CAPTURE ${JSON.stringify(out)}`);
         }
+      }
+
+      /*
+       * AL_FIND=1：打包产物里的历史检索。
+       *
+       * 这一功能跨三层（preload 桥 → 主进程 IPC → scanDir / @shared/archive-search）。
+       * 任一层没进 asar，症状都不是报错，而是「搜什么都没有」或「输入框点不动」——
+       * 光在包里 grep 一个字符串证明不了路是通的，所以这里直接调一次桥。
+       *
+       * 查询词取原文**中段**四个字，不取开头：列表摘要本来就带开头 72 字，
+       * 用开头验等于证明不了「摘要之外的字也找得到」，而那正是这一轮要补的事。
+       * 词也不写死：存档是用户自己的，写死一个词在有人的机器上一次也搜不到，
+       * 断言会红成「检索坏了」——那是把夹具的错记在功能头上。
+       */
+      if (process.env['AL_FIND'] === '1') {
+        const findPack = await wc.executeJavaScript(`(async () => {
+          const api = window.api?.archive;
+          if (!api || typeof api.find !== 'function') return JSON.stringify({ ok: false, why: 'no-bridge' });
+          const list = await api.list();
+          if (!list.length) return JSON.stringify({ ok: false, why: 'no-list' });
+          const d = await api.get(list[0].id);
+          const passage = String(d?.passage ?? '').replace(/\\s+/g, '');
+          if (passage.length < 8) return JSON.stringify({ ok: false, why: 'no-passage' });
+          const mid = Math.floor(passage.length / 2);
+          let q = passage.slice(mid, mid + 4);
+          /* 首字是标点就往右挪一格：搜「，学生就」也能命中，但读数里
+             看着像搜了个标点，说不清「找的是字」。不用正则，免得模板串再转义一次。 */
+          const punct = '，。、；：？！“”‘’《》（）,.!?;:';
+          for (let i = mid; i + 4 <= passage.length; i++) {
+            if (!punct.includes(passage[i])) { q = passage.slice(i, i + 4); break; }
+          }
+          const hit = await api.find(q);
+          const miss = await api.find('zzzqqq没有这个词');
+          return JSON.stringify({
+            ok: true, q, listLen: list.length,
+            scanned: hit.scanned, unreadable: hit.unreadable, terms: hit.terms,
+            ids: hit.hits.map((h) => h.id),
+            hasFirst: hit.hits.some((h) => h.id === list[0].id),
+            inList: hit.hits.every((h) => list.some((m) => m.id === h.id)),
+            firstSnippet: hit.hits.find((h) => h.id === list[0].id)?.snippet ?? '',
+            missHits: miss.hits.length, missScanned: miss.scanned,
+          });
+        })()`);
+        add(`FINDRESULT ${findPack}`);
       }
 
       add('OK');

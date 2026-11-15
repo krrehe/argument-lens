@@ -9,6 +9,7 @@ import {
   allPassages,
   archiveDirPath,
   archiveHealth,
+  findReports,
   getReport,
   listReports,
   passageScan,
@@ -685,6 +686,13 @@ function registerIpc(): void {
     return removeReport(id);
   });
   ipcMain.handle('archive:reveal', () => shell.openPath(archiveDirPath()));
+  /*
+   * 存档检索：按字面在原文与报告正文里找。
+   *
+   * 纯读：不写盘、不改索引、不调模型。它出错时最坏也只是「搜不出来」，
+   * 不会让任何一份报告变样——这一点与 `remove` 相反，所以两者不能共用一条通道。
+   */
+  ipcMain.handle('archive:find', (_e, q: string) => findReports(typeof q === 'string' ? q : ''));
   /*
    * 「这段文字跑过没有」。
    *
