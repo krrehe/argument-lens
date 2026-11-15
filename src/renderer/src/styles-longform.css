@@ -1,0 +1,308 @@
+/*
+ * 长文逐段分析的样式：切分条里的「逐段跑」入口，与报告顶部的台账。
+ *
+ * 两个位置合起来表达同一件事：**这是几份并列的报告，不是一份总判决**。
+ * 所以台账每一行都留着段号与它自己的档位，汇总句只数个数——
+ * 样式上也要把「并列」画出来：等宽的段号列、同一行高、没有大小之分。
+ */
+
+/* ═══════ 切分条里的批量入口 ═══════ */
+
+.sg-batch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 9px 11px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 7px;
+  background: var(--panel-2);
+}
+
+.sg-run {
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11.5px;
+}
+
+.sg-run:hover {
+  filter: brightness(1.08);
+}
+
+.sg-run-go {
+  background: var(--strong);
+  border-color: var(--strong);
+}
+
+.sg-batch-why {
+  flex: 1 1 150px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+}
+
+.sg-batch-warn {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--weak);
+  line-height: 1.55;
+}
+
+.sg-batch-warn-line {
+  flex: 1 1 100%;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--ink-3);
+}
+
+.sg-batch-note {
+  flex: 1 1 100%;
+  font-size: 11.5px;
+  color: var(--accent);
+  font-family: var(--mono);
+}
+
+.sg-again {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--ink-2);
+  background: var(--panel);
+}
+
+.sg-again:hover {
+  border-color: var(--ink-3);
+}
+
+/* 「这次不跑」的标记：跳过要看得见，否则读者会以为这几段没被切出来。 */
+.sg-skip {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--muted-bg);
+  color: var(--ink-3);
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+/* ═══════ 报告顶部的台账 ═══════ */
+
+.lf-panel {
+  margin-bottom: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.lf-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 8px 13px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.lf-t {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.lf-sub {
+  flex: 1 1 320px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  font-family: var(--mono);
+}
+
+.lf-spacer {
+  flex: 1 1 auto;
+}
+
+.lf-act {
+  flex: 0 0 auto;
+  padding: 3px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--panel);
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.lf-act:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.lf-stop {
+  border-color: var(--invalid);
+  color: var(--invalid);
+}
+
+.lf-bounds-btn {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--ink-3);
+  border-radius: 5px;
+}
+
+.lf-bounds-btn:hover,
+.lf-bounds-btn.on {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.lf-bounds {
+  list-style: none;
+  padding: 8px 13px;
+  border-bottom: 1px solid var(--line);
+  background: var(--accent-bg);
+}
+
+.lf-bounds li {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  padding: 2px 0;
+}
+
+.lf-rows {
+  list-style: none;
+}
+
+/* 每段等权：段号列定宽，其余按内容走。没有「重要的那段」这种排版。 */
+.lf-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 13px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.lf-row:last-child {
+  border-bottom: 0;
+}
+
+.lf-n {
+  flex: 0 0 62px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.lf-prev {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink-2);
+}
+
+.lf-chars {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.lf-level {
+  flex: 0 0 auto;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.lf-level.lv-withstands {
+  color: var(--strong);
+  background: var(--strong-bg);
+}
+
+.lf-level.lv-weakened {
+  color: var(--weak);
+  background: var(--weak-bg);
+}
+
+.lf-level.lv-fails {
+  color: var(--invalid);
+  background: var(--invalid-bg);
+}
+
+.lf-level.lv-undetermined,
+.lf-level.lv-none {
+  color: var(--ink-2);
+  background: var(--muted-bg);
+}
+
+.lf-why {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+/* 失败与「没跑」要看得出来，但不能红得像报警：这不是故障，是一段没成。 */
+.lf-row.s-failed .lf-why {
+  color: var(--invalid);
+}
+
+.lf-row.s-idle .lf-prev,
+.lf-row.s-stopped .lf-prev {
+  opacity: 0.62;
+}
+
+.lf-open {
+  flex: 0 0 auto;
+  padding: 1px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  font-size: 11px;
+  color: var(--ink-2);
+  background: var(--panel);
+}
+
+.lf-open:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.lf-open-off {
+  border-color: transparent;
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.lf-foot {
+  padding: 8px 13px 9px;
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+/* 跳过或没排进来的段：预览位没有原文，写一句「（这一段没排进来）」，不留空白。
+   空白会被读成「这一段没问题」，而真实情况是「这一段根本没跑」。 */
+.lf-prev-empty {
+  color: var(--ink-3);
+  font-style: normal;
+}

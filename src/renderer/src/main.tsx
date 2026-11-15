@@ -16,6 +16,7 @@ import './styles-field-terms.css';
 import './styles-coverage.css';
 import './styles-procedure.css';
 import './styles-density.css';
+import './styles-longform.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

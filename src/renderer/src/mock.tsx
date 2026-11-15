@@ -40,9 +40,13 @@ import './styles-field-terms.css';
 import './styles-coverage.css';
 import './styles-procedure.css';
 import { SAMPLES } from '@shared/samples';
+import { planLongform, type LongItem, type LongLedger } from '@shared/longform';
+import { LongformLedger } from './components/LongformLedger';
+import { SegmentBar } from './components/SegmentBar';
 import { DensityProvider, BriefFold } from './components/Density';
 import { PREVIEW_DENSITY } from '@shared/ui-density';
 import './styles-density.css';
+import './styles-longform.css';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。
@@ -748,6 +752,71 @@ const RUN_WAIT = Number(QS.get('wait') ?? 0);
  */
 const RUN_STOPPING = QS.get('stopping') === '1';
 
+/**
+ * 长文台账夹具。
+ *
+ * 只供预览页看版式：六段里四段跑成（三种档位各一份，另有一段「判不了」）、
+ * 一段失败、一段没跑。三种状态必须同屏出现——只拍「全都跑成」的那一版，
+ * 失败与没跑这两行长什么样就永远没人核过，而它们恰恰是最容易被画成空白的两行。
+ *
+ * 真应用里这张表由 `runBatch` 一段一段填，`?longform=busy` 拍的是「正在跑」那一态。
+ */
+const LONGFORM = QS.get('longform') ?? '';
+const LF_SEG_TEXT = [
+  '我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。',
+  '王校长在公开材料里说，早读能提高记忆效率，学生就该早起读书。但他没有给出任何数据。',
+  '如果连早读都保证不了，将来上课、自习、考试还能保证什么？',
+  '另外，很多家长也反对取消早读，可见取消早读不得人心。',
+  '学校的作息安排应当听取家长意见，这一点在教育部文件里有明确规定。',
+  '总之，早读必须立刻恢复，否则教学质量会继续下滑。',
+];
+const MOCK_LEDGER: LongLedger = {
+  version: 1,
+  id: 'lf-preview-0001',
+  createdAt: Date.now(),
+  passageChars: 1683,
+  passageHash: 'preview1',
+  items: LF_SEG_TEXT.map((text, i) => {
+    const levels: (LongItem['level'])[] = ['weakened', 'weakened', 'undetermined', 'fails', null, 'undetermined'];
+    /* 第 3 段是问句：默认不排进来。台账里它照样占一行，否则段号会从 2 跳到 4。 */
+    const status: LongItem['status'] =
+      i === 2
+        ? 'skipped'
+        : LONGFORM === 'busy'
+          ? i < 4
+            ? 'ok'
+            : i === 4
+              ? 'running'
+              : 'idle'
+          : i < 4
+            ? 'ok'
+            : i === 4
+              ? 'failed'
+              : 'idle';
+    return {
+      job: {
+        index: i,
+        chars: 96 + i * 37,
+        kind: i === 2 ? 'aside' : 'argument',
+        cutBasis: 'blank',
+        text,
+        preview: text.slice(0, 40),
+        previewTruncated: text.length > 40,
+      },
+      status,
+      reportId: status === 'ok' ? `preview-report-${i}` : null,
+      level: status === 'ok' ? levels[i] : null,
+      error:
+        status === 'failed'
+          ? '请求被限流（429）。请稍后重试。'
+          : status === 'skipped'
+            ? '这一段是问句，单独分析多半是一份空报告'
+            : null,
+    };
+  }),
+};
+
+
 if (QS.get('dlg') === 'settings') {
   const saved = {
     baseUrl: 'https://api.deepseek.com/v1',
@@ -973,8 +1042,23 @@ function Preview() {
             <p className="hint">
               按「{t.name}」分析。换一副透镜，同一处地方会被判成不同的东西——这不是错误，是这个工具的立场。
             </p>
-            {/* ?portfolio=1：这一栏默认收起，留个入口把展开后的明细也拍下来。 */}
-            <PortfolioBar view={MOCK_FOLIO} dirError={null} fmt={when} initialOpen={QS.get('portfolio') === '1'} />
+            {/*
+              ?seg=1：切分条展开的那一版，用来看「逐段跑」入口的版式。
+              夹具是六段拼起来的同一篇——真应用里这一段文字来自用户粘贴。
+            */}
+            {QS.get('seg') === '1' && (
+              <SegmentBar
+                text={LF_SEG_TEXT.join('\n\n')}
+                pickedIndex={null}
+                wholeChars={LF_SEG_TEXT.join('\n\n').length}
+                onPick={() => {}}
+                onRestore={() => {}}
+                plan={planLongform(LF_SEG_TEXT.join('\n\n'))}
+                onRunBatch={() => {}}
+                initialOpen
+              />
+            )}
+            {/* ?portfolio=1：这一栏默认收起，留个入口把展开后的明细也拍下来。 */}            <PortfolioBar view={MOCK_FOLIO} dirError={null} fmt={when} initialOpen={QS.get('portfolio') === '1'} />
             {/* ?agreement=1：同样默认收起，留个入口把展开后的差异明细也拍下来。 */}
             <AgreementBar view={MOCK_AGREE} dirError={null} fmt={when} initialOpen={QS.get('agreement') === '1'} />
           </div>
@@ -987,6 +1071,16 @@ function Preview() {
           </BriefFold>
         </aside>
         <main className="main">
+          {/* ?longform=1：长文台账。夹具里有跑成 / 失败 / 没跑三种行，缺一种就等于没核过。 */}
+          {LONGFORM && (
+            <LongformLedger
+              ledger={MOCK_LEDGER}
+              running={LONGFORM === 'busy'}
+              onOpen={() => {}}
+              onResume={LONGFORM === 'busy' ? undefined : () => {}}
+              onStop={() => {}}
+            />
+          )}
           <ScrollToAnchor />
           <DigestAnchor />
           <ToneAnchor />

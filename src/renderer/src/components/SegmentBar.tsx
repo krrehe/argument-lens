@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { cutIsGrounded, describeSegments, segmentPassage, worthSegmenting, type Segment } from '@shared/segment';
+import { planLine, type LongPlan } from '@shared/longform';
 
 /**
  * 切分条：把长文切成候选的「一段论证」。
@@ -35,12 +36,44 @@ interface Props {
   /** 原文总长，用于「恢复全文」按钮 */
   wholeChars: number;
   disabled?: boolean;
+  /** 逐段跑的计划。与列表用的是同一份切分（同一次调用算出来的），不另算一遍。 */
+  plan?: LongPlan;
+  onRunBatch?: () => void;
+  /** 正在跑：按钮换成进度，且不许再点 */
+  batchBusy?: boolean;
+  batchNote?: string | null;
+  /** 预览页用：一进来就展开列表，好把「逐段跑」的入口拍下来 */
+  initialOpen?: boolean;
 }
 
-export function SegmentBar({ text, pickedIndex, onPick, onRestore, wholeChars, disabled }: Props) {
+export function SegmentBar({
+  text,
+  pickedIndex,
+  onPick,
+  onRestore,
+  wholeChars,
+  disabled,
+  plan,
+  onRunBatch,
+  batchBusy,
+  batchNote,
+  initialOpen,
+}: Props) {
   const segs = useMemo(() => segmentPassage(text), [text]);
   const long = useMemo(() => worthSegmenting(text), [text]);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen ?? false);
+  /*
+   * 跑批要花钱，所以点一次不够：第一次点开的是「几次调用、多少字」，
+   * 第二次才是「确认跑」。用页面里的确认行而不是系统弹窗——弹窗会拦住
+   * 正在读的东西，且在这个工具里显得像报错。
+   */
+  const [confirm, setConfirm] = useState(false);
+
+  const skipMap = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const s of plan?.skipped ?? []) m.set(s.index, s.why);
+    return m;
+  }, [plan]);
 
   if (pickedIndex !== null) {
     return (
@@ -75,6 +108,51 @@ export function SegmentBar({ text, pickedIndex, onPick, onRestore, wholeChars, d
             下面是按空行、句末标点和「所以 / 因此 / 可见」这类词切出来的。
             <b>这是切分，不是理解</b>——它不知道每段在讲什么。点一段就只分析那一段。
           </p>
+          {/*
+            批量入口放在列表最上面，不放在末尾。
+            放在末尾时，六段以上就要滚过整张列表才看得见它——而它才是这条切分条的主动作；
+            列表是用来看「切得对不对」的，不是用来找按钮的。
+          */}
+          {plan && plan.calls > 0 && onRunBatch && (
+            <div className="sg-batch" data-sg-batch={plan.calls}>
+              {batchBusy ? (
+                <p className="sg-batch-note" data-sg-batch-busy="1">
+                  {batchNote ?? '正在逐段跑…'}
+                </p>
+              ) : !confirm ? (
+                <>
+                  <button className="sg-run" onClick={() => setConfirm(true)} data-sg-run={plan.calls}>
+                    逐段跑这 {plan.calls} 段
+                  </button>
+                  <span className="sg-batch-why">{planLine(plan)}</span>
+                </>
+              ) : (
+                <>
+                  <span className="sg-batch-warn" data-sg-confirm="1">
+                    会发起 {plan.calls} 次调用，花的是你自己的额度；每段各存一份报告，不会合并成一份。
+                  </span>
+                  <button
+                    className="sg-run sg-run-go"
+                    onClick={() => {
+                      setConfirm(false);
+                      onRunBatch();
+                    }}
+                    data-sg-run-go="1"
+                  >
+                    确认跑
+                  </button>
+                  <button className="sg-again" onClick={() => setConfirm(false)}>
+                    算了
+                  </button>
+                </>
+              )}
+              {(plan.warnings ?? []).map((w) => (
+                <p className="sg-batch-warn-line" key={w}>
+                  {w}
+                </p>
+              ))}
+            </div>
+          )}
           {segs.map((s) => (
             <button
               key={s.index}
@@ -82,6 +160,7 @@ export function SegmentBar({ text, pickedIndex, onPick, onRestore, wholeChars, d
               onClick={() => !disabled && onPick(s)}
               disabled={disabled}
               title={KIND_HINT[s.kind]}
+              data-sg-item={s.index}
             >
               <span className="sg-n">{s.index + 1}</span>
               <span className="sg-body">
@@ -89,6 +168,11 @@ export function SegmentBar({ text, pickedIndex, onPick, onRestore, wholeChars, d
                   <span className={`sg-kind k-${s.kind}`}>{KIND_LABEL[s.kind]}</span>
                   <span className="sg-chars">{s.chars} 字</span>
                   {!cutIsGrounded(s.cutBasis) && <span className="sg-warn">切点无依据</span>}
+                  {skipMap.has(s.index) && (
+                    <span className="sg-skip" title={skipMap.get(s.index)}>
+                      逐段跑时跳过
+                    </span>
+                  )}
                 </span>
                 <span className="sg-text">{s.text.replace(/\s+/g, ' ').slice(0, 64)}</span>
                 <span className="sg-why">{s.why}</span>

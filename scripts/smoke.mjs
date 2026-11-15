@@ -216,6 +216,11 @@ const env = {
   ...(process.env.SMOKE_DIVERGENCE === '1' ? { AL_DIVERGENCE: '1' } : {}),
   /* SMOKE_DENSITY=compact：简洁态跑道。默认跑道一律点「完整」，见应用里那段说明。 */
   ...(process.env.SMOKE_DENSITY === 'compact' ? { AL_DENSITY: 'compact' } : {}),
+  /* SMOKE_LONGFORM=1：长文逐段跑整条链（五次调用、台账落盘、点开某一段）。
+     这一段会把输入框换成一篇六段的文字，所以它排在常规探针之后单独跑。 */
+  ...(process.env.SMOKE_LONGFORM === '1'
+    ? { AL_LONGFORM: '1', AL_LONGFORM_SHOT: resolve(root, 'scripts/.out/longform-real.png') }
+    : {}),
 };
 delete env.ELECTRON_RUN_AS_NODE; // 宿主注入它会让 Electron 退化成 node
 delete env.AL_FORCE_ONBOARD;
@@ -2080,6 +2085,38 @@ if (process.env.SMOKE_DENSITY === 'compact') {
       Number(db.textLen) > 0 && Number(da.textLen) === Number(db.textLen),
       `${db.textLen} → ${da.textLen}`,
     ],
+  );
+}
+
+/*
+ * 长文逐段跑跑道。
+ *
+ * 只在 SMOKE_LONGFORM=1 时加。它跑的是一百多条常规断言之后的那一段：
+ * 输入框换成六段文字 → 打开切分条 → 点「逐段跑」→ 确认 → 等台账跑完 →
+ * 点第一行「打开」→ 拿报告 id 反查台账。
+ *
+ * 为什么必须真跑：这条链跨了四处（渲染层排队、IPC 分析、存档、台账落盘），
+ * 任何一处断了，界面上都不会报错——只会出现「台账在，报告点不开」或
+ * 「报告在，台账里没有它」这种半截状态。
+ */
+if (process.env.SMOKE_LONGFORM === '1') {
+  const lf = jOfLine('LFRESULT ');
+  const ids = Array.isArray(lf.ids) ? lf.ids : [];
+  const levels = Array.isArray(lf.levels) ? lf.levels : [];
+  const four = ['withstands', 'weakened', 'fails', 'undetermined'];
+  checks.push(
+    ['长文：逐段跑跑起来了', lf.ok === true, String(lf.why ?? '')],
+    ['长文：六段里排了五段（问句那段默认不跑）', String(lf.calls) === '5', `calls=${lf.calls}`],
+    ['长文：台账六行都在（跳过的段也占一行，段号不断）', Number(lf.rows) === 6, `rows=${lf.rows}`],
+    ['长文：问句那段标着 skipped，不是消失', Number(lf.skipped) === 1, `skipped=${lf.skipped}`],
+    ['长文：五段全部跑成', Number(lf.done) === 5, `done=${lf.done}`],
+    ['长文：没有一行卡在「正在跑」', Number(lf.busyLeft) === 0, `busyLeft=${lf.busyLeft}`],
+    ['长文：每段各有一份报告，id 互不相同', ids.filter(Boolean).length === 5 && Number(lf.uniq) === 5],
+    ['长文：每份报告都读出了档位', levels.filter(Boolean).length === 5 && levels.filter(Boolean).every((l) => four.includes(l))],
+    ['长文：汇总句说的是「几段几份报告」', /6 段/.test(String(lf.line)) && /份报告/.test(String(lf.line)) && /没排进来/.test(String(lf.line)), String(lf.line)],
+    ['长文：台账真的落盘了（按报告 id 反查得回六行）', Number(lf.back) === 6, `back=${lf.back}`],
+    ['长文：点某一段能把它那份报告调回来', lf.opened === true && String(lf.openedPassage).length >= 6, String(lf.openedPassage)],
+    ['长文：台账截图产出了', existsSync(resolve(root, 'scripts/.out/longform-real.png'))],
   );
 }
 

@@ -3091,6 +3091,132 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         add(`FINDRESULT ${findPack}`);
       }
 
+      /*
+       * AL_LONGFORM=1：长文逐段跑整条链。
+       *
+       * 放在最后（所有常规探针都读完、`add('OK')` 之前），因为它会把输入框换成
+       * 一篇六段的文字，之后屏幕上是「第 5 段」那一份报告——一百多条按示例文本
+       * 写的断言都会被它带偏。所以在**同一条跑道里**先跑常规部分，再跑这一段。
+       *
+       * 要验的是四件不能靠静态断言的事：
+       *   1. 那五次调用真的发出去了，而且每一段各存下一份报告（id 互不相同）；
+       *   2. 台账真的写进了磁盘：拿报告 id 反查得回同一批（back === 段数）；
+       *   3. 点某一行的「打开」真的能把那一段的报告调回来；
+       *   4. 跑完之后没有卡在「正在跑」的行——批次会结束，这是最容易坏的一处。
+       */
+      if (process.env['AL_LONGFORM'] === '1') {
+        const lf = await wc.executeJavaScript(`(async () => {
+          const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+          const segs = [
+            '我们学校去年取消了早读，今年高考一本率下降了 6 个百分点。这说明取消早读是错的。',
+            '王校长在公开材料里说，早读能提高记忆效率，学生就该早起读书。但他没有给出任何数据。',
+            '如果连早读都保证不了，将来上课、自习、考试还能保证什么？',
+            '另外，很多家长也反对取消早读，可见取消早读不得人心。',
+            '学校的作息安排应当听取家长意见，这一点在教育部文件里有明确规定。',
+            '总之，早读必须立刻恢复，否则教学质量会继续下滑。'
+          ];
+          const ta = document.querySelector('.composer textarea') || document.querySelector('textarea');
+          if (!ta) return JSON.stringify({ ok: false, why: 'no-textarea' });
+          const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+          setter.call(ta, segs.join('\\n\\n'));
+          ta.dispatchEvent(new Event('input', { bubbles: true }));
+          await sleep(400);
+
+          const head = document.querySelector('.sg-head');
+          if (!head) return JSON.stringify({ ok: false, why: 'no-segbar' });
+          head.click();
+          await sleep(300);
+          const runBtn = document.querySelector('[data-sg-run]');
+          if (!runBtn) return JSON.stringify({ ok: false, why: 'no-run-btn' });
+          const calls = runBtn.getAttribute('data-sg-run');
+          runBtn.click();
+          await sleep(250);
+          const go = document.querySelector('[data-sg-run-go]');
+          if (!go) return JSON.stringify({ ok: false, why: 'no-confirm' });
+          go.click();
+
+          let rows = 0, done = 0, running = 0, waiting = 0, spins = 0;
+          for (let i = 0; i < 100; i++) {
+            await sleep(300);
+            spins = i + 1;
+            const list = [...document.querySelectorAll('[data-lf-row]')];
+            rows = list.length;
+            const st = list.map((el) => el.getAttribute('data-lf-status'));
+            running = st.filter((s) => s === 'running').length;
+            waiting = st.filter((s) => s === 'idle' || s === 'stopped').length;
+            done = st.filter((s) => s === 'ok').length;
+            if (rows && !running && !waiting) break;
+          }
+          const list = [...document.querySelectorAll('[data-lf-row]')];
+          const ids = list.map((el) => el.getAttribute('data-lf-id') || '');
+          const levels = list.map((el) => el.getAttribute('data-lf-level') || '');
+          const line = (document.querySelector('[data-lf-line]') || {}).textContent || '';
+          const busyLeft = document.querySelectorAll('[data-lf-status="running"]').length;
+
+          const opener = document.querySelector('[data-lf-open]');
+          let opened = false, openedPassage = '';
+          if (opener) {
+            opener.click();
+            await sleep(1200);
+            opened = !!document.querySelector('.grid');
+            const box = document.querySelector('.composer textarea') || document.querySelector('textarea');
+            openedPassage = ((box && box.value) || '').slice(0, 12);
+          }
+
+          let back = null;
+          if (ids[0]) {
+            try {
+              const l = await window.api.longform.ofReport(ids[0]);
+              back = l && l.items ? l.items.length : null;
+            } catch (e) { back = 'err'; }
+          }
+          return JSON.stringify({
+            ok: true, calls, rows, done, running, waiting, spins, ids, levels,
+            line: String(line).slice(0, 120), busyLeft, opened, openedPassage, back,
+            skipped: [...document.querySelectorAll('[data-lf-status="skipped"]')].length,
+            uniq: new Set(ids.filter(Boolean)).size,
+          });
+        })()`);
+        add(`LFRESULT ${lf}`);
+
+        const lfShot = process.env['AL_LONGFORM_SHOT'];
+        if (lfShot) {
+          /*
+           * 只拍台账那一块，不拍整页。
+           *
+           * 整页截在这个窗口下是 7800 像素高——图能出，但没人能在一张长条上
+           * 看清六行字，而这一张的用途正是「让人看一眼这批账长什么样」。
+           * 矩形夹在视口内：capturePage 拿到视口外的 rect 会抛，一抛就会把
+           * 后面几十条断言一起带到「应用没启动」上去。
+           */
+          try {
+            const box = (await wc.executeJavaScript(`(() => {
+              const el = document.querySelector('[data-longform]');
+              if (!el) return null;
+              const main = el.closest('.main');
+              if (main) main.scrollTop = 0;
+              const r = el.getBoundingClientRect();
+              const top = Math.max(0, r.top);
+              const height = Math.min(r.height + 10, window.innerHeight - top - 6);
+              return {
+                x: Math.max(0, r.left),
+                y: top,
+                width: Math.min(r.width, window.innerWidth - Math.max(0, r.left)),
+                height: Math.max(30, height),
+              };
+            })()`)) as { x: number; y: number; width: number; height: number } | null;
+            if (box) {
+              const img = await wc.capturePage(box);
+              writeFileSync(lfShot, img.toPNG());
+            } else {
+              add('LFSHOT_FAIL 台账不在页面上');
+            }
+          } catch (err) {
+            add(`LFSHOT_FAIL ${(err as Error).message}`);
+          }
+        }
+      }
+
       add('OK');
     } catch (err) {
       add(`ERR ${(err as Error).message}`);

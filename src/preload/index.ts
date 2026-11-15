@@ -252,6 +252,29 @@ const api = {
     agreement: (): Promise<{ view: AgreementView; dirError: string | null }> =>
       ipcRenderer.invoke('archive:agreement'),
   },
+  /**
+   * 长文台账。
+   *
+   * 存的只是索引：每段一条，记着它跑成的那份报告的 id。报告本体在 archive/ 里，
+   * 这里不复制——复制两份，迟早有一份是旧的，而读者分不清看到的是哪一份。
+   */
+  longform: {
+    /**
+     * 写一条账。整个批次跑完写一次，中途每跑完一段也写一次：
+     * 用户按停或断电时，已经跑成的那几段不能连「它们属于同一篇」这件事一起丢掉。
+     */
+    save: (ledger: unknown): Promise<{ ok: boolean; id?: string; error?: string }> =>
+      ipcRenderer.invoke('longform:save', ledger),
+    /**
+     * 按报告 id 反查它属于哪一条账。
+     *
+     * 为什么从报告这一头找：用户是从历史里点开第 3 段那份报告的，
+     * 他手上只有报告 id；让他先去翻台账再点回来，是把顺序倒过来用。
+     */
+    ofReport: (reportId: string): Promise<unknown | null> =>
+      ipcRenderer.invoke('longform:ofReport', reportId),
+    reveal: (): Promise<void> => ipcRenderer.invoke('longform:reveal'),
+  },
   prompt: {
     get: (
       theory: TheoryId,

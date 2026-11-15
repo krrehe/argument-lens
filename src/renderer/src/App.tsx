@@ -29,6 +29,7 @@ import { DisputeDialog } from './components/Disputes';
 import { ObjectionCtx } from './components/Objection';
 import { UsageChip, UsagePanel } from './components/Usage';
 import { SegmentBar } from './components/SegmentBar';
+import { LongformLedger } from './components/LongformLedger';
 import { BriefCard } from './components/BriefCard';
 import { DivergenceCard } from './components/DivergenceCard';
 import { Running, type RunEvent } from './components/Running';
@@ -37,6 +38,20 @@ import { HistoryPanel, when } from './components/History';
 import { formatMoney, formatTokens } from '@shared/tokens';
 import { disputesIn } from '@shared/disputes';
 import type { Segment } from '@shared/segment';
+import {
+  LEDGER_VERSION,
+  ledgerId,
+  levelOf,
+  makeItems,
+  nextJob,
+  passageHash,
+  patchItem,
+  planLongform,
+  resumeIdle,
+  stopIdle,
+  type LongItem,
+  type LongLedger,
+} from '@shared/longform';
 import { samenessLine, type Sameness } from '@shared/sameness';
 import type { PortfolioView } from '@shared/portfolio';
 import type { AgreementView } from '@shared/agreement';
@@ -132,6 +147,18 @@ export default function App() {
    */
   const [whole, setWhole] = useState<string | null>(null);
   const [pickedIndex, setPickedIndex] = useState<number | null>(null);
+  /**
+   * 长文台账：一次逐段跑出来的那几份报告，摆在一起。
+   *
+   * 只存**索引**（每段一条，记着报告 id 与档位），不存报告本体——
+   * 报告在历史里各有一份，两处各存一遍迟早会有一处是旧的。
+   * 打开历史里属于某条台账的报告时，这条账会跟着回来（按报告 id 反查）。
+   */
+  const [lfLedger, setLfLedger] = useState<LongLedger | null>(null);
+  const [lfBusy, setLfBusy] = useState(false);
+  const [lfNote, setLfNote] = useState<string | null>(null);
+  /** 用户按了停。顺序跑的下一次循环看到它就收手，并把没跑的段标成 stopped。 */
+  const lfStopRef = useRef(false);
   /** 五种问法。给不给档位、给不给名字，都由 MODE_META 的两个开关决定——它是唯一的定义处。 */
   const [mode, setMode] = useState<AnalysisMode>('diagnose');
   const [diag, setDiag] = useState<Diagnosis | null>(null);
@@ -666,6 +693,14 @@ export default function App() {
         return;
       }
       const parentForThis = override?.parentId ?? pendingParent ?? null;
+      /*
+       * 单独跑一次新的分析，就把上一批的长文台账撤掉。
+       *
+       * 留着它，屏幕上会同时出现「这批 8 段的账」和一份与它无关的新报告——
+       * 而台账的汇总是按那 8 段算的，读者会把它当成本次分析的总结。
+       * 从历史里打开属于某条台账的报告时，那条账会按报告 id 重新取回来。
+       */
+      if (!override) setLfLedger(null);
       abortRef.current = false;
       stopRef.current = false;
       setStopping(false);
@@ -782,6 +817,163 @@ export default function App() {
     },
     [passage, theory, mode, loading, hasKey, refreshUsage, pendingParent, waited, brief, divergence]
   );
+
+  /** 逐段跑的计划。切分条与台账读的是同一份计划（都在这里算一次），不各算一份。 */
+  const longformPlan = useMemo(() => planLongform(passage), [passage]);
+
+  /**
+   * 落账。
+   *
+   * 失败必须说出来：这条账是「这几份报告来自同一篇文章」的唯一凭据。
+   * 没写进去而界面照常显示，用户下次从历史里点开第 3 段时会发现它孤零零的，
+   * 而那时已经没有任何东西能说明它属于哪一批——也修不回来了。
+   */
+  const saveLedger = useCallback(async (ledger: LongLedger) => {
+    const tail = '屏幕上的这一批还在，但关掉窗口之后，那几份报告就只剩历史里各自孤立的记录。';
+    try {
+      const r = await window.api.longform.save(ledger);
+      if (!r.ok) setNotice(`台账没能存下来（${r.error ?? '原因不明'}）。${tail}`);
+    } catch (err) {
+      setNotice(`台账没能存下来（${(err as Error)?.message ?? '与主进程通信失败'}）。${tail}`);
+    }
+  }, []);
+
+  /**
+   * 长文逐段跑。
+   *
+   * 与单次 `run` 的三处不同，都要说清：
+   *
+   * 1. **每段各存一份报告**，各自进历史。这不是「一份报告的多个章节」，
+   *    因为判定单元本来就是一条论证——把三条论证的档位合成一个，是编出来的数。
+   * 2. **一段失败不一定停**：余额、限流、网络、鉴权这几种，后面的段必然同样失败，
+   *    继续跑只是把同一句错话写 N 遍，还多花 N 次等待，所以就地收手并说出来。
+   * 3. **中途每跑完一段就落一次账**：按停或断电之后，已经跑成的那几段
+   *    不能连「它们属于同一篇」这件事一起丢掉。
+   */
+  const runBatch = useCallback(
+    async (how: 'fresh' | 'resume') => {
+      if (lfBusy || loading) return;
+      if (!hasKey) {
+        setOnboard(true);
+        return;
+      }
+      const plan = longformPlan;
+      if (!plan.calls) return;
+
+      const startedAt = Date.now();
+      const ledger: LongLedger =
+        how === 'resume' && lfLedger
+          ? { ...lfLedger, items: resumeIdle(lfLedger.items) }
+          : {
+              version: LEDGER_VERSION,
+              id: ledgerId(passage, startedAt),
+              createdAt: startedAt,
+              passageChars: plan.chars,
+              passageHash: passageHash(passage),
+              items: makeItems(plan),
+            };
+      if (!nextJob(ledger.items)) return;
+
+      lfStopRef.current = false;
+      setLfBusy(true);
+      setError(null);
+      setNotice(null);
+      setStopNote(null);
+      setLfLedger(ledger);
+
+      let items = ledger.items;
+      /* 进度分母只数「要跑的段」：跳过的段一直在那儿，算进分母会让进度永远到不了头 */
+      const runnable = items.filter((x) => x.status !== 'skipped').length;
+      let ended: string | null = null;
+      const setBoth = (next: LongItem[]) => {
+        items = next;
+        setLfLedger((prev) => (prev ? { ...prev, items } : prev));
+      };
+
+      for (;;) {
+        if (lfStopRef.current) {
+          ended = '你按了停';
+          break;
+        }
+        const job = nextJob(items);
+        if (!job) break;
+
+        setBoth(patchItem(items, job.job.index, { status: 'running', error: null }));
+        setLfNote(
+          `正在跑第 ${job.job.index + 1} 段（${job.job.chars} 字）… 已完成 ${
+            items.filter((x) => x.status === 'ok').length
+          } / ${runnable}`
+        );
+
+        const res = await window.api.analysis
+          .run(job.job.text, theory, mode, null, null, null)
+          .catch((err: Error) => ({
+            ok: false as const,
+            error: { code: 'IPC_FAILED', message: `与主进程通信失败：${err?.message ?? '原因不明'}` },
+          }));
+
+        if (res.ok && res.data) {
+          setBoth(
+            patchItem(items, job.job.index, {
+              status: 'ok',
+              reportId: res.data.id,
+              level: levelOf(res.data),
+              error: null,
+            })
+          );
+          /* 跑完一段就把那一段的报告摆出来：用户看得到它不是「整篇的结论」 */
+          setDiag(res.data);
+          setLastUsage(res.usage ?? null);
+          setRanFor({ id: res.data.id, text: job.job.text });
+        } else if (res.error?.code === 'CANCELED') {
+          setBoth(patchItem(items, job.job.index, { status: 'stopped', error: null }));
+          ended = '你按了停';
+          break;
+        } else {
+          const msg = res.error?.message ?? '原因不明';
+          setBoth(patchItem(items, job.job.index, { status: 'failed', error: msg }));
+          /*
+           * 只有这几种是「再跑下去也一样」：没 Key、鉴权失败、这一段本身过长或为空、
+           * 网络不通、被限流。别的错误（比如模型返回结构不对）只是这一段没成，
+           * 后面几段照样值得跑。
+           */
+          const fatal = ['NO_KEY', 'AUTH', 'TOO_LONG', 'EMPTY_INPUT', 'NETWORK', 'RATE_LIMIT'].includes(
+            res.error?.code ?? ''
+          );
+          if (fatal) {
+            ended = `第 ${job.job.index + 1} 段没跑成（${msg}），后面的没再跑`;
+            break;
+          }
+        }
+        await saveLedger({ ...ledger, items });
+        refreshUsage();
+      }
+
+      if (ended) setBoth(stopIdle(items));
+      setLfBusy(false);
+      setLfNote(null);
+      await saveLedger({ ...ledger, items });
+      refreshUsage();
+      if (ended) {
+        setNotice(
+          `${ended}。已经跑成的几份报告都在台账里，没跑的标着「按停后没跑」——台账上有「接着跑」，会从这里继续。`
+        );
+      }
+    },
+    [lfBusy, loading, hasKey, longformPlan, lfLedger, passage, theory, mode, saveLedger, refreshUsage]
+  );
+
+  const stopBatch = useCallback(() => {
+    if (!lfBusy) return;
+    lfStopRef.current = true;
+    window.api.analysis.cancel().catch((err: Error) => {
+      /*
+       * 停不下来必须说出来。静默的话，用户会以为没点中，再点一次、再等一整段，
+       * 而真正发生的事是「它还在跑，只是停不了」。
+       */
+      setNotice(`没停住：${err?.message ?? '与主进程通信失败'}。这一段还在跑。`);
+    });
+  }, [lfBusy]);
 
   /**
    * 停。
@@ -1001,6 +1193,21 @@ export default function App() {
         setWhole(null);
         setPickedIndex(null);
         setHistOpen(false);
+        /*
+         * 这一份是不是某一批里的一段？是就把整条账取回来。
+         *
+         * 反查的方向是「报告 → 台账」，因为这正是用户手里的东西：
+         * 他从历史里点开第 3 段那份报告，手上只有报告 id。
+         * 取不到不是错误——绝大多数报告本来就不属于任何一批。
+         */
+        window.api.longform
+          .ofReport(d.id)
+          .then((l) => setLfLedger((l as LongLedger | null) ?? null))
+          .catch(() => {
+            // @allow-silent: 反查失败只会让台账不出现，报告本身照常显示；
+            // 在报告页上再弹一条「台账读不出来」会盖住真正要看的东西。
+            setLfLedger(null);
+          });
       })
       /*
        * 读不出来要说出来。以前这里接住异常却什么都不做：
@@ -1256,7 +1463,11 @@ export default function App() {
                   wholeChars={whole?.length ?? 0}
                   onPick={pickSegment}
                   onRestore={restoreWhole}
-                  disabled={loading}
+                  disabled={loading || lfBusy}
+                  plan={longformPlan}
+                  onRunBatch={() => void runBatch('fresh')}
+                  batchBusy={lfBusy}
+                  batchNote={lfNote}
                 />
                 {/*
                   立案。放在模式之前，顺序就是流程文档的顺序：先答「这是谁的话、
@@ -1345,7 +1556,8 @@ export default function App() {
                   <button
                     className="primary"
                     onClick={() => run()}
-                    disabled={loading || !passage.trim()}
+                    disabled={loading || lfBusy || !passage.trim()}
+                    title={lfBusy ? '逐段跑还没结束。等它跑完，或者先按台账上的「停」。' : undefined}
                   >
                     {/*
                       这里只写短词，不写阶段名。
@@ -1423,6 +1635,20 @@ export default function App() {
             </aside>
 
             <main className="main">
+              {/*
+                长文台账放在报告之前：它是这一批报告的身份——「下面这份是第 5 段」。
+                放在报告之后，读者会先读到一份完整的报告，再被告知它其实只是一段。
+                没有台账时整块不渲染（绝大多数分析都是一段文字、一份报告）。
+              */}
+              {lfLedger && (
+                <LongformLedger
+                  ledger={lfLedger}
+                  running={lfBusy}
+                  onOpen={(id) => openReport(id)}
+                  onResume={() => void runBatch('resume')}
+                  onStop={stopBatch}
+                />
+              )}
               {error && (
                 <div className="banner bad">
                   <div>

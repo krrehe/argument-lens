@@ -27,6 +27,7 @@ import {
   revealExported,
 } from './report-export';
 import { captureStatus, registerCapture, unregisterCapture } from './capture';
+import { ledgerOfReport, longformDirPath, saveLedger } from './longform';
 import { REPORT_NAV_SCRIPT } from './report-nav';
 import { clearAnchor, exportUsageCsv, setAnchor, setPricing, summarizeUsage, usageDirPath } from './usage';
 import {
@@ -753,9 +754,20 @@ function registerIpc(): void {
     }
   });
 
+  /*
+   * 长文台账：只存索引，不复制报告。
+   *
+   * 写失败一律翻成 ok:false + 原因：台账是「这 N 份报告来自同一篇文章」的唯一凭据，
+   * 没写进去而界面照常显示，用户下次从历史里点开第 3 段时会发现它孤零零的，
+   * 而那时已经没有任何东西能说明它属于哪一批。
+   */
+  ipcMain.handle('longform:save', (_e, ledger: unknown) => saveLedger(ledger));
+  /* 按报告 id 反查台账：用户从历史里点开某一段的报告时，整批的账要跟着回来。 */
+  ipcMain.handle('longform:ofReport', (_e, reportId: string) => ledgerOfReport(String(reportId ?? '')));
+  ipcMain.handle('longform:reveal', () => shell.openPath(longformDirPath()));
+
   // 提示词可读，是这个产品必须满足的一条：用户有权看到自己被什么标准在衡量
-  ipcMain.handle('prompt:get', (_e, theory: TheoryId, mode?: AnalysisMode) => {
-    const t = isTheoryId(theory) ? theory : DEFAULT_THEORY;
+  ipcMain.handle('prompt:get', (_e, theory: TheoryId, mode?: AnalysisMode) => {    const t = isTheoryId(theory) ? theory : DEFAULT_THEORY;
     // 归一化而不是 `mode === 'redteam' ? …`：那种写法在四个模式下会把新模式静默变成诊断，
     // 提示词页于是显示诊断版，而用户以为自己在看重构版。
     const m = normalizeMode(mode);
