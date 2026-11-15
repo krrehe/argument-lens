@@ -1587,6 +1587,14 @@ export function DiagnosisView({
    */
   const prgLine = useMemo(() => graphSummary(graphOf(d)), [d]);
   /**
+   * 两句说明只写一份：简洁态会把它们截成一行省略号（见 styles-density.css），
+   * 所以字的出处必须是同一处——视觉上截断，title 上补全。分成两份写，
+   * 哪天改了可见的那份，悬停看到的还是旧话，而没人会发现。
+   */
+  const expHint = `Markdown 给人读；Argdown 是纯文本结构图，可进 git diff；画布工程 ${prgLine}（位置是草稿，打开后可自己摆）； 复制不落盘，贴到聊天窗口或自己的稿子里用`;
+  const rrWhy =
+    '三件都是你按了才发生的操作：把条目搬回原文旁边；只换你给的那几个词；或自己写下「要站住得先有什么」， 再回原文逐句找。第三件里不出现报告里的任何一句话。';
+  /**
    * 命题账：每条主张该由什么来定（证据 / 现在没证据 / 体系内 / 不由论证裁定）。
    * 全本地推导，只读报告字段，不改任何判定——所以它和判读永远不会互相矛盾。
    */
@@ -1748,9 +1756,8 @@ export function DiagnosisView({
         {exp.kind === 'fail' && <span className="exp-fail">{exp.msg}</span>}
         {actErr && <span className="exp-fail">{actErr}</span>}
         {exp.kind === 'idle' && (
-          <span className="exp-hint">
-            Markdown 给人读；Argdown 是纯文本结构图，可进 git diff；画布工程 {prgLine}（位置是草稿，打开后可自己摆）；
-            复制不落盘，贴到聊天窗口或自己的稿子里用
+          <span className="exp-hint" title={expHint} data-exp-hint="1">
+            {expHint}
           </span>
         )}
       </div>
@@ -1771,9 +1778,8 @@ export function DiagnosisView({
         <button className="rr-open" data-conditions-open onClick={() => setConditions(true)}>
           自己列成立条件
         </button>
-        <span className="rr-bar-why">
-          三件都是你按了才发生的操作：把条目搬回原文旁边；只换你给的那几个词；或自己写下「要站住得先有什么」，
-          再回原文逐句找。第三件里不出现报告里的任何一句话。
+        <span className="rr-bar-why" title={rrWhy} data-rr-why="1">
+          {rrWhy}
         </span>
       </div>
 

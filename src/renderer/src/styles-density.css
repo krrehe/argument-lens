@@ -261,7 +261,9 @@
   padding: 11px 13px;
 }
 
-/* 四条长说明不再各占两三行，字还在，悬停/选中仍可读。 */
+/* 四条长说明不再各占两三行，字还在，悬停可读。
+   截断必须配 title——字被省略号吃掉、又没有 title，等于把话删了。
+   两处 title 由 Diagnosis.tsx 的 expHint / rrWhy 提供，check:density 钉住这一对。 */
 :root[data-density='compact'] .exp-hint,
 :root[data-density='compact'] .rr-bar-why {
   white-space: nowrap;

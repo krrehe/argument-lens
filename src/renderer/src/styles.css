@@ -425,6 +425,21 @@ select {
   padding: 18px 24px 60px;
 }
 
+/*
+ * 宽屏上限：报告栏的宽度跟着窗口走，1920 全屏时整栏会铺到近 1500px，
+ * 卡片被拉成一条横带、栏头的说明与右边缘隔出一大段空白。
+ * 窗口够宽时把内容收在 1240px 以内，留一条稳定的阅读列。
+ *
+ * 说清它做不到什么：这不是「行长刚好」。12.5px 字号下 1240px 仍能排九十来字，
+ * 正文偏长是全局排版的问题（窄屏一样偏长），要动得连几十张截图基准一起动——
+ * 记在路线图里，不在这里假装解决。窄屏不受影响：这条只在 ≥1680px 生效。
+ */
+@media (min-width: 1680px) {
+  .main > * {
+    max-width: 1240px;
+  }
+}
+
 .empty {
   min-height: 100%;
   display: flex;
@@ -947,11 +962,17 @@ select {
   background: var(--panel-2);
 }
 .block-head .t {
+  /* 栏名是这一栏的坐标，断成两行就认不出来了（窄窗口里「四句话看懂这份报 / 告」
+     真的发生过）。宁可让副标题去让位，也不让标题折行。 */
+  flex: 0 0 auto;
+  white-space: nowrap;
   font-size: 12.5px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
 .block-head .s {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 11px;
   color: var(--ink-3);
   font-family: var(--mono);

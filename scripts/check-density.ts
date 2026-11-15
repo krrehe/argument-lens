@@ -209,6 +209,49 @@ ok(readme.includes('SMOKE_DENSITY=compact'), 'README 写了简洁态跑道怎么
 const agents = src('AGENTS.md');
 ok(agents.includes('check:density'), '交接书点名了这一关');
 
+/* ─────────── 5. 版式：窄窗口不折栏名，宽窗口不拉长正文 ─────────── */
+
+/*
+ * 取「某条选择器开头的规则体」。用 indexOf 而不是整块正则，
+ * 是因为这些规则会被别的规则包住（媒体查询）或与别的选择器并列。
+ */
+function ruleBody(text: string, selector: string): string {
+  const i = text.indexOf(selector);
+  if (i < 0) return '';
+  const open = text.indexOf('{', i);
+  const close = open < 0 ? -1 : text.indexOf('}', open);
+  return open < 0 || close < 0 ? '' : text.slice(open + 1, close);
+}
+
+const styles = src('src/renderer/src/styles.css');
+/*
+ * 窄窗口里真出现过「四句话看懂这份报 / 告」：标题是这一栏的坐标，断成两行就认不出来。
+ * 所以标题不许折行、副标题必须能收缩去让位——两条要一起钉，只钉一条会把栏头撑破。
+ */
+const headT = ruleBody(styles, '.block-head .t');
+ok(/white-space:\s*nowrap/.test(headT), '栏名不折行（窄窗口下也不许断成两行）');
+const headS = ruleBody(styles, '.block-head .s');
+ok(
+  /flex:\s*1 1 auto/.test(headS) && /min-width:\s*0/.test(headS),
+  '副标题去让位（能收缩，不把栏头撑破）',
+);
+/* 1920 全屏时整栏铺到近 1500px，卡片被拉成横带——宽屏收成一条阅读列，但只许在宽屏生效。 */
+const wide = /@media \(min-width: 1680px\)[\s\S]{0,400}?max-width: 1240px/.test(styles);
+ok(wide, '宽屏把内容收在 1240px 以内');
+/* 只数声明，注释里提到同一个数字不算数——否则注释删了断言就红。 */
+ok((styles.match(/max-width:\s*1240px/g) ?? []).length === 1, '行长上限只有一处，不散落在别处');
+ok(
+  !/^\.main > \* \{\s*max-width/m.test(styles),
+  '行长上限不许无条件生效（窄窗口会跟着缩）',
+);
+
+/* 截断必须配 title：字被省略号吃掉又没有 title，等于把话删了。 */
+const hintRule = ruleBody(css, ":root[data-density='compact'] .exp-hint");
+ok(/text-overflow:\s*ellipsis/.test(hintRule) && /white-space:\s*nowrap/.test(hintRule), '简洁态把长说明收成一行');
+ok(diag.includes('title={expHint}') && diag.includes('data-exp-hint="1"'), '导出说明截断后悬停能读全');
+ok(diag.includes('title={rrWhy}') && diag.includes('data-rr-why="1"'), '重读说明截断后悬停能读全');
+ok(/const expHint = `[^`]*\$\{prgLine\}/.test(diag), '导出说明里的节点数是算出来的，不是写死的');
+
 if (failed.length) {
   for (const f of failed) console.error(`✗ ${f}`);
   console.error(`\n✗ 阅读层级有 ${failed.length} 处不对（共 ${passed + failed.length} 项）`);
