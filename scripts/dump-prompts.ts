@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { THEORIES } from '@shared/theories';
 import { ANALYSIS_MODES, MODE_META } from '@shared/types';
 import { buildPrompt, renderPrompt, BUDGET, SAMPLING, missingBlocks, PROMPT_VERSION } from '../src/main/prompt';
+import { DOC_DIR, SAMPLE_PASSAGE, DELIM_PLACEHOLDER } from './prompt-facts';
 
 /**
  * 把六副透镜 × 五种模式装配后的完整提示词导出为文件，便于逐份核对。
@@ -16,7 +17,12 @@ import { buildPrompt, renderPrompt, BUDGET, SAMPLING, missingBlocks, PROMPT_VERS
  *   3. 预算——提示词长到会挤掉输出空间
  */
 
-const OUT = resolve(import.meta.dirname, '../../docs/prompts');
+/*
+ * 目录、占位文本、分隔符替身都从 prompt-facts 取。
+ * 导出件与 check:prompt-drift 必须用同一套约定，否则「重新导出一遍」
+ * 反而会把检查器要验的那句话改掉，两边各自都对、合起来错。
+ */
+const OUT = DOC_DIR;
 
 /**
  * 每副透镜的身份标记：索引段的标题。用于检查是否有交叉污染。
@@ -56,14 +62,14 @@ let hasOverBudget = false;
 for (const t of THEORIES) {
   for (const m of MODES) {
     const b = buildPrompt(t.id, m);
-    const built = renderPrompt(b, '（示例文本占位）');
+    const built = renderPrompt(b, SAMPLE_PASSAGE);
     /*
      * 导出时把随机分隔符换回字面 `<文本>`。
      * 不换的话，每次导出分隔符都不同，git diff 会被这一行淹没——
      * 而这份文件的唯一用途就是让人看 diff。
      * 文件里注明「实际运行时随机」，避免读文档的人以为边界是固定的。
      */
-    const user = built.user.split(built.delim).join('文本');
+    const user = built.user.split(built.delim).join(DELIM_PLACEHOLDER);
 
     const hits = Object.entries(MARKERS)
       .filter(([, mk]) => b.system.includes(mk))

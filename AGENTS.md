@@ -58,7 +58,7 @@ npm run verify
 | 命令 | 红了说明什么 |
 |---|---|
 | `typecheck` | 双端类型对不上（先修它，后面的报错会失真） |
-| `prompt:lint` | 提示词块缺失/多余、跨模式串味、禁语、指纹漂移、输入未隔离、schema 与代码不一致 |
+| `prompt:lint` | 提示词块缺失/多余、跨模式串味、禁语、指纹漂移、输入未隔离、schema 与代码不一致；导出件新鲜度与版本锁另由 `check:prompt-drift` 单守（三十份全文／索引表／基线不是现场那把尺子、改了内容没换 `PROMPT_VERSION` 或没加注记、三处共用一份错路径时整套假绿），`npm run prompt:lock` 在写基线前拦下跳过留痕，两个生成命令互为替代都会红 |
 | `check:contract` | 喂越界模型输出，确定性裁决没抓住——**这是最危险的一类**，界面会显示不该显示的东西 |
 | `check:replay` | 拿冻结的模型原文重跑「解析 → 十一道裁决 → 自检」，产物与基准存档不一致了。**改判定之后最快的一道预警**（0.8 秒，不联网） |
 | `check:compare` | 修订对照把「变好」说成「变坏」（方向说错比不说更糟） |
@@ -108,7 +108,7 @@ npm run verify
 
 | 改的东西 | 必跑 | 还要做 |
 |---|---|---|
-| 提示词 / 知识库 | `prompt:lint`、`check:contract`、`prompts` | 有余额时跑 `eval`；比对新旧指纹 |
+| 提示词 / 知识库 | `prompt:lint`、`check:contract`、`prompts`、`prompt:lock`、`check:prompt-drift` | 内容变了必须换版本号 + 注记首行写新版本号，三步缺一 `prompt:lock` 会拒绝写入；有余额时跑 `eval`；比对新旧指纹 |
 | 判定 / 裁决 | `check:contract`、`check:replay`、`check:prescriptions`、`check:report`、`smoke` | 反向验证：把规则改坏必须红 |
 | 只改「报告里已经写下的东西」 | `check:replay`、`replay` | 有真存档时 `npm run replay` 比 `check:replay` 覆盖面大**但样本是你的真实文本**，它验的是你手里那些份 |
 | 界面 / 样式 | `check:css`、`check:lens`、`ui:preview` 截图 | 人眼看截图；新的一屏必须有入口拍得到 |
