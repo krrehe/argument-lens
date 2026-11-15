@@ -18,7 +18,7 @@ import {
   type TheoryClaim,
 } from '@shared/theory-base';
 import { LANDING, LAND_KIND_LABEL } from '@shared/landing';
-import { HB_VERDICT_HINT, HB_VERDICT_LABEL, hbLocator, hbOf } from '@shared/theory-handbook';
+import { HB_VERDICT_HINT, HB_VERDICT_LABEL, hbCoverage, hbLine, hbLocator, hbOf } from '@shared/theory-handbook';
 
 /**
  * 理论主张库。
@@ -101,7 +101,12 @@ function ClaimRow({ c, focus }: { c: TheoryClaim; focus: boolean }) {
                   <span className={`tb-hb-v tb-hb-${hb.verdict}`} title={HB_VERDICT_HINT[hb.verdict]}>
                     {HB_VERDICT_LABEL[hb.verdict]}
                   </span>
-                  <span className="tb-hb-loc">{hbLocator(hb)}</span>
+                  {/*
+                    只有「有那一页」的结论才写位置。判「本书范围外」「无文献可核」时，
+                    位置话与结论是同一句——并排写两遍是「本书范围外 本书范围外」，
+                    看着像没写完。这两条的信息全在那行转述里。
+                  */}
+                  {hb.section !== null && <span className="tb-hb-loc">{hbLocator(hb)}</span>}
                 </div>
                 <p className="tb-hb-says">{hb.says}</p>
                 <p className="tb-hb-gap">{hb.gap}</p>
@@ -173,13 +178,23 @@ export function TheoryBaseDialog({
   const [tier, setTier] = useState<EvidenceTier | null>(null);
   /** 只看某一细分域。编是按「理论在回答什么」分的；细分域按「话题」分——举证责任散在两编里，这里一屏看全。 */
   const [sub, setSub] = useState<ClaimSub | null>(null);
+  /**
+   * 只看核过的。
+   *
+   * 不是为了筛选方便，是因为「没核」这件事在列表里看不出来：一百多条主张里
+   * 只有二十几条挂着「手册核对」，其余那些既不显示「未核」也不显示别的，
+   * 读者很容易把「没挂东西」读成「核过没问题」。给一个能只看已核的开关，
+   * 「剩下的都没核」这句话才有地方显形。
+   */
+  const [hbOnly, setHbOnly] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const hits = useMemo(() => {
     let list = searchClaims(q);
     if (tier) list = list.filter((c) => c.tier === tier);
     if (sub) list = list.filter((c) => c.sub === sub);
+    if (hbOnly) list = list.filter((c) => hbOf(c.id) !== null);
     return list;
-  }, [q, tier, sub]);
+  }, [q, tier, sub, hbOnly]);
 
   /*
    * 从侧栏点某一条进来时，把它滚进视野。
@@ -206,7 +221,9 @@ export function TheoryBaseDialog({
   }, [initial]);
 
   const stats = tierStats();
-  const searching = q.trim().length > 0 || tier !== null || sub !== null;
+  const searching = q.trim().length > 0 || tier !== null || sub !== null || hbOnly;
+  /** 手册核对的账。分母是整库，不是「有核对的那部分」——这才是读者要知道的那个数。 */
+  const cov = hbCoverage(THEORY_CLAIMS.length);
 
   return (
     <div className="mask" onClick={onClose}>
@@ -242,18 +259,18 @@ export function TheoryBaseDialog({
                 {TIER_LABEL[t]} <b>{stats[t]}</b>
               </button>
             ))}
-            {(tier || sub) && (
+            {(tier || sub || hbOnly) && (
               <button
                 className="tbl-clear"
                 onClick={() => {
                   setTier(null);
                   setSub(null);
+                  setHbOnly(false);
                 }}
               >
                 取消筛选
               </button>
-            )}
-          </div>
+            )}          </div>
         </div>
 
         {/*
@@ -273,6 +290,27 @@ export function TheoryBaseDialog({
               </button>
             );
           })}
+        </div>
+
+        {/*
+          手册核对那一行账。
+
+          为什么非摆在头部不可：下面的主张里只有二十几条挂着「手册核对」，
+          其余那些什么也没挂。不把「全库一百多条，七八十条没核」写在明面上，
+          读者会把「没挂」读成「没问题」。这一行就是替那些空白说话。
+        */}
+        <div className="tbl-hb">
+          <span className="tbl-hb-l">{hbLine()}</span>
+          <span className="tbl-hb-g">
+            全库 {cov.total} 条，{cov.unchecked} 条没核
+          </span>
+          <button
+            className={`tbl-hb-b ${hbOnly ? 'on' : ''}`}
+            onClick={() => setHbOnly((v) => !v)}
+            title="手册核过的那些条；关掉看全库"
+          >
+            {hbOnly ? '看全部' : '只看核过的'}
+          </button>
         </div>
 
         {!searching && (

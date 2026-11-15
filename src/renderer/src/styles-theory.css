@@ -133,6 +133,48 @@
   font-weight: 600;
 }
 
+/*
+ * 手册核对那一行账。比 tbl-note 更轻：它是「有多少条没核」，
+ * 不是「这批主张有多硬」——两件事的口气不该一样。
+ * 数字用等宽字，扫一眼能比。
+ */
+.tbl-hb {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 0 20px 10px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+.tbl-hb-l {
+  color: var(--ink-2);
+}
+.tbl-hb-g {
+  font-family: var(--mono);
+  font-size: 10px;
+}
+.tbl-hb-b {
+  height: 20px;
+  padding: 0 7px;
+  font-size: 10px;
+  font-family: inherit;
+  color: var(--ink-2);
+  background: none;
+  border: 1px dashed var(--line-strong);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.tbl-hb-b:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+.tbl-hb-b.on {
+  color: var(--ink);
+  border-style: solid;
+  background: var(--panel-2);
+}
+
 .tbl-body {
   flex: 1 1 auto;
   overflow-y: auto;
@@ -380,6 +422,17 @@
   color: var(--invalid);
   background: var(--invalid-bg);
   border-color: var(--invalid);
+}
+/*
+ * 两种「没有那一页」的结论。刻意不给颜色：它们不是「这条不够硬」，
+ * 是「这本书答不了这个问题」——给颜色会被读成又一种警告。
+ * 虚线边就是「这儿是空的」的意思，比任何颜色都准。
+ */
+.tb-hb-outside,
+.tb-hb-own {
+  color: var(--ink-3);
+  background: transparent;
+  border-style: dashed;
 }
 .tb-hb-loc {
   font-family: var(--mono);

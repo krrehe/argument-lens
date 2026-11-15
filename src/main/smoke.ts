@@ -2846,6 +2846,9 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
                   inView: b.top >= 0 && b.bottom <= window.innerHeight + 1,
                   top: Math.round(b.top),
                   flash: el.classList.contains('dp-flash'),
+                  // 带上它的字：验「开关真的翻面了」这类交互，有没有这个类不够，
+                  // 得看它自己写出了什么——「只看核过的」翻成「看全部」才是真翻面。
+                  text: (el.textContent ?? '').trim().slice(0, 30),
                 });
               })()`
             )

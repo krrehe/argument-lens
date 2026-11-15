@@ -6,9 +6,11 @@ import {
   HB_CHECKS,
   HB_SCOPE,
   HB_VERDICT_LABEL,
+  HB_VERDICT_ORDER,
+  hbCoverage,
   hbLocator,
+  hbMissing,
   hbStats,
-  type HbVerdict,
 } from '@shared/theory-handbook';
 
 /**
@@ -35,7 +37,9 @@ let n = 0;
 const ok = () => {
   n += 1;
 };
-const VERDICTS: HbVerdict[] = ['confirm', 'narrow', 'dispute', 'absent'];
+const VERDICTS = HB_VERDICT_ORDER;
+/** 这两种结论的意思是「没有那一页」——指着节号就自相矛盾 */
+const NO_SECTION: string[] = ['outside', 'own'];
 const claims = THEORY_CLAIMS;
 const known = new Set(claims.map((c) => c.id));
 
@@ -74,12 +78,28 @@ for (const c of HB_CHECKS) {
   if (seen.has(c.claimId)) warn(`${c.claimId} 核对了两次`);
   seen.add(c.claimId);
 
-  const sec = HANDBOOK_SECTIONS.find((s) => s.id === c.section);
+  const sec = c.section === null ? undefined : HANDBOOK_SECTIONS.find((s) => s.id === c.section);
   ok();
-  if (!sec) warn(`${c.claimId} 指到 §${c.section}，但章节表里没有这一节`);
+  if (c.section !== null && !sec) warn(`${c.claimId} 指到 §${c.section}，但章节表里没有这一节`);
+
+  /*
+    节号与结论必须对得上：
+      「本书范围外」「无文献可核」说的是「没有这一页」，指着节号就是自相矛盾；
+      其余四种说的是「有这一页，情况如此」，不指节号等于没给地址。
+    这条断言是上一版没有的——上一版只有「没读到」一种否定，于是谁都可以把
+    「这书不管」写成「这次没读」，读者永远等不到那一天。
+  */
+  ok();
+  if (NO_SECTION.includes(c.verdict) && c.section !== null) {
+    warn(`${c.claimId} 判「${HB_VERDICT_LABEL[c.verdict]}」却指着 §${c.section}——没有那一页可指`);
+  }
+  ok();
+  if (!NO_SECTION.includes(c.verdict) && c.section === null) {
+    warn(`${c.claimId} 判「${HB_VERDICT_LABEL[c.verdict]}」却没有节号——读者照什么去翻`);
+  }
 
   ok();
-  if (!VERDICTS.includes(c.verdict)) warn(`${c.claimId} 的结论 ${c.verdict} 不在四种之内`);
+  if (!VERDICTS.includes(c.verdict)) warn(`${c.claimId} 的结论 ${c.verdict} 不在六种之内`);
 
   ok();
   if (!c.says.trim()) warn(`${c.claimId} 没写手册说了什么`);
@@ -120,6 +140,30 @@ for (const c of HB_CHECKS) {
     }
   }
 
+  /*
+    「本书范围外」比「没读到」更强：它断言这本书里根本没有这一块。
+    既然断言的是「书里没有」，依据只能是目录——所以转述里必须出现「目录」二字。
+    写不出这两个字的，多半是没翻目录就判了，而这种判法读者没法复核。
+  */
+  if (c.verdict === 'outside') {
+    ok();
+    if (!/目录/.test(c.says)) {
+      warn(`${c.claimId} 判成「${HB_VERDICT_LABEL.outside}」，但没写依据（目录里没有）——凭什么说书里没有`);
+    }
+    ok();
+    if (/没读到|未核到/.test(c.says)) {
+      warn(`${c.claimId} 判「${HB_VERDICT_LABEL.outside}」，转述里却写「没读到」——把「书里没有」和「这次没读」混成一件，读者会一直等`);
+    }
+  }
+
+  // 「无文献可核」是唯一一条「这主张没有出处」的结论，必须自己认下来，不能读成有出处的。
+  if (c.verdict === 'own') {
+    ok();
+    if (!/本工具/.test(c.says)) {
+      warn(`${c.claimId} 判「${HB_VERDICT_LABEL.own}」，却没说这是本工具自己的判断——读者会当成有人这么写过`);
+    }
+  }
+
   // 空话。核对栏里出现「研究表明」这种没有地址的话，比不写还坏。
   ok();
   if (/研究表明|众所周知|学界普遍认为|普遍认为|大量研究/.test(c.says + c.gap)) {
@@ -136,19 +180,57 @@ for (const c of HB_CHECKS) {
 /* ── 三 · 半途而废与覆盖 ── */
 const handbookRefClaims = claims.filter((c) => c.refs.some((r) => r.includes('手册')));
 ok();
-if (handbookRefClaims.length !== seen.size) {
-  const missing = handbookRefClaims.filter((c) => !seen.has(c.id)).map((c) => c.id);
-  const extra = [...seen].filter((id) => !handbookRefClaims.some((c) => c.id === id));
-  if (missing.length) warn(`refs 里已写「手册」却没进核对表：${missing.join('、')}`);
-  if (extra.length && handbookRefClaims.length) {
-    // 进了核对表但 refs 里没写手册，不算错（核对可以补上 refs 没提的那本书），只提示。
-  }
+const halfDone = handbookRefClaims.filter((c) => !seen.has(c.id)).map((c) => c.id);
+if (halfDone.length) {
+  warn(`refs 里已写「手册」却没进核对表：${halfDone.join('、')}——核了一半就收手，界面会显示半个事实`);
 }
 ok();
 if (HB_CHECKS.length < 10) warn(`核对只有 ${HB_CHECKS.length} 条，低于 10——这张表是不是被删过`);
 ok();
 const booksCovered = new Set([...seen].map((id) => CLAIM_BY_ID[id]?.book).filter(Boolean));
 if (booksCovered.size < 4) warn(`核对只覆盖了 ${booksCovered.size} 编，低于 4——说明只核了顺手的那一编`);
+
+/*
+  最要紧的一条：**凡写进提示词的主张，必须有一条核对**。
+
+  为什么单挑这一组：主张库一百多条，全核完不是这个工具该做的事；但其中有一小撮
+  会变成提示词里的一句话，直接决定模型怎么读文本。那一小撮如果只有「我知道有这回事」，
+  整份报告的每个判断就都压在印象上。所以这一组不按数量要求，按名单要求——
+  一条没有核对，这里就红。
+
+  名单不手抄：从 landing.ts 里把落在 `k: 'block'` 的主张捡出来。手抄一份清单，
+  下次有人往提示词里加一条主张而忘了改清单，这条断言就成了摆设。
+*/
+const landingPath = join(process.cwd(), 'src/shared/landing.ts');
+const landing = existsSync(landingPath) ? readFileSync(landingPath, 'utf-8') : '';
+ok();
+if (!landing) warn('landing.ts 不存在——查不出哪些主张写进了提示词');
+const promptClaimIds: string[] = [];
+if (landing) {
+  for (const m of landing.matchAll(/'T(\d{1,2}-\d{2})':\s*\[([\s\S]*?)\n  \]/g)) {
+    if (/\{ k: 'block'/.test(m[2])) promptClaimIds.push(`T${m[1]}`);
+  }
+}
+ok();
+if (promptClaimIds.length < 5) {
+  warn(`落进提示词块的主张只数到 ${promptClaimIds.length} 条，少得可疑——landing.ts 的写法是不是变了`);
+}
+const promptMissing = hbMissing(promptClaimIds);
+ok();
+if (promptMissing.length) {
+  warn(`写进提示词却没核过的主张：${promptMissing.join('、')}——报告里每个判断都压在这几条上`);
+}
+
+/* 账目：核对表覆盖全库多少，必须算得出来、且不加总成一句空话。 */
+const cov = hbCoverage(claims.length);
+ok();
+if (cov.total !== claims.length) warn(`覆盖账的总数 ${cov.total} 与主张库 ${claims.length} 条对不上`);
+ok();
+if (cov.checked + cov.unchecked !== cov.total) warn('覆盖账：核过的加没核的，不等于全库');
+ok();
+if (cov.unchecked <= 0) {
+  warn('覆盖账说全库都核过了——这张表只有二十几条，说全核完一定是算错了');
+}
 
 /* ── 四 · 落点：这一层必须真出现在界面上 ── */
 const uiPath = join(process.cwd(), 'src/renderer/src/components/TheoryBase.tsx');
@@ -173,9 +255,9 @@ if (!/\{hb && \(\s*<div className="tb-hb"/.test(ui)) {
 }
 const cssPath = join(process.cwd(), 'src/renderer/src/styles-theory.css');
 const css = existsSync(cssPath) ? readFileSync(cssPath, 'utf-8') : '';
-for (const cls of ['.tb-hb', '.tb-hb-confirm', '.tb-hb-narrow', '.tb-hb-dispute']) {
+for (const cls of ['.tb-hb', '.tb-hb-confirm', '.tb-hb-narrow', '.tb-hb-dispute', '.tb-hb-outside', '.tb-hb-own']) {
   ok();
-  if (!css.includes(cls)) warn(`styles-theory.css 里没有 ${cls}——四种结论在界面上分不出来`);
+  if (!css.includes(cls)) warn(`styles-theory.css 里没有 ${cls}——六种结论在界面上分不出来`);
 }
 
 /* ── 五 · 文档与命令 ── */
@@ -255,7 +337,7 @@ for (const v of VERDICTS) {
 }
 ok();
 const sum = VERDICTS.reduce((a, v) => a + stats.byVerdict[v], 0);
-if (sum !== stats.total) warn(`四种结论加起来 ${sum}，与总数 ${stats.total} 对不上`);
+if (sum !== stats.total) warn(`六种结论加起来 ${sum}，与总数 ${stats.total} 对不上`);
 if (n < 30) warn(`断言只跑了 ${n} 条，少得可疑——检查器是不是被整段跳过`);
 
 if (errors.length) {
@@ -263,7 +345,8 @@ if (errors.length) {
   for (const e of errors) console.error('  ' + e);
   process.exit(1);
 }
+const brief = VERDICTS.map((v) => `${HB_VERDICT_LABEL[v]} ${stats.byVerdict[v]}`).join('、');
 console.log(
-  `✓ 手册核对 ${n} 条：${stats.total} 条主张核过（确认 ${stats.byVerdict.confirm}、只说一半 ${stats.byVerdict.narrow}、` +
-    `有反对 ${stats.byVerdict.dispute}、未核到 ${stats.byVerdict.absent}），引用 ${HANDBOOK_SECTIONS.length} 节`
+  `✓ 手册核对 ${n} 条：${stats.total} 条主张核过（${brief}），全库 ${claims.length} 条中 ${cov.unchecked} 条没核，` +
+    `写进提示词的 ${promptClaimIds.length} 条全覆盖，引用 ${HANDBOOK_SECTIONS.length} 节`
 );

@@ -8,11 +8,18 @@ import type { TheoryClaim } from './theory-base';
  * （中译本，中国社会科学出版社 2020，上下册）有章有节、目录带起页，能把一条主张
  * 指到「第 7.3 节，页 452 起」这种可以当面翻开的地址。
  *
- * 这一层只做一件事：**手册怎么看这条主张**。四种结论分开写——
+ * 这一层只做一件事：**手册怎么看这条主张**。六种结论分开写——
  *   confirm 文献确认（意思对得上）
  *   narrow  文献只说一半（另一半是本工具的整理，得认下来）
  *   dispute 文献有反对（这条被批评顶着，必须让读者知道）
- *   absent  本次没核到（不在读到的范围内，不猜）
+ *   absent  本次没核到（书里有这一节，但没读到，不猜）
+ *   outside 本书范围外（这书的目录里没有这一块，翻也翻不到）
+ *   own     无文献可核（refs 写的就是「本工具的判断」，没有一本书在说这个）
+ *
+ * 后两种是第一版没有的，补的理由很具体：第一版把「这本书不管」和「这次没读到」都写成了
+ * 「本次未核到」。读者看到的都是「还没核」，其实前者翻遍全书也没有，后者等下轮就能补上。
+ * 一句话把两件事说成一件，就不算说真话。第五条（outside）通常还带着一句更难受的话：
+ * 那条主张在库里是有档位的，可这本书帮不上忙——读者得知道这一点。
  *
  * 它不改判定、不改分档、不改提示词，也不替主张库说话。库里那条该是什么档还是什么档；
  * 核对表里没有 tier 字段，就是为了让「核对过一次」不等于「升了一档」。
@@ -22,21 +29,28 @@ import type { TheoryClaim } from './theory-base';
  * 这一条由 check:theory-handbook 把关：核对条目里的页码必须与 HANDBOOK_SECTIONS 逐字相同。
  */
 
-export type HbVerdict = 'confirm' | 'narrow' | 'dispute' | 'absent';
+export type HbVerdict = 'confirm' | 'narrow' | 'dispute' | 'absent' | 'outside' | 'own';
 
 export const HB_VERDICT_LABEL: Record<HbVerdict, string> = {
   confirm: '文献确认',
   narrow: '文献只说一半',
   dispute: '文献有反对',
   absent: '本次未核到',
+  outside: '本书范围外',
+  own: '无文献可核',
 };
 
 export const HB_VERDICT_HINT: Record<HbVerdict, string> = {
   confirm: '手册这一节说的和本条主张对得上',
   narrow: '手册只支持一半，另一半是本工具的整理',
   dispute: '手册记载的批评正面顶着本条主张',
-  absent: '这一节不在本次读到的范围里，没有核',
+  absent: '书里有这一节，但这次没读到，没有核',
+  outside: '这本书的十二章目录里没有这一块，翻也翻不到',
+  own: '这一条不是文献命题，没有一本书在说这个',
 };
+
+/** 统计与界面按这个顺序排。数组而不是 Object.keys——顺序也是内容。 */
+export const HB_VERDICT_ORDER: HbVerdict[] = ['confirm', 'narrow', 'dispute', 'absent', 'outside', 'own'];
 
 /** 手册里被引用到的节。page 为 null 表示目录只列到上一级，没给这一节的起页。 */
 export interface HbSection {
@@ -50,21 +64,26 @@ export interface HbSection {
 }
 
 export const HANDBOOK_SECTIONS: HbSection[] = [
+  { id: '1.1', title: '作为研究主题的论证', volume: 1, page: 1 },
   { id: '1.3.3', title: '用于描述论证类型的论证型式', volume: 1, page: null },
   { id: '1.3.4', title: '作为逻辑实体与功能实体的论证结构', volume: 1, page: null },
   { id: '2.4.2', title: '亚里士多德的谬误清单', volume: 1, page: null },
   { id: '3.5', title: '标准谬误处理', volume: 1, page: 190 },
+  { id: '3.6', title: '汉布林对标准处理的批评', volume: 1, page: 195 },
+  { id: '4.5', title: '领域不变性与领域依赖性', volume: 1, page: 247 },
+  { id: '5.4', title: '听众的主导作用', volume: 1, page: 309 },
   { id: '7.3', title: '布莱尔和约翰逊对非形式逻辑的贡献', volume: 1, page: 452 },
   { id: '7.5', title: '戈维尔对非形式逻辑核心议题的理论探讨', volume: 1, page: 465 },
   { id: '10.5', title: '批判性讨论规则', volume: 2, page: 642 },
+  { id: '12.18', title: '中国的论证研究', volume: 2, page: 913 },
 ];
 
 export interface HbCheck {
   /** 主张库里的 id。必须真存在，否则这条核对挂在空处 */
   claimId: string;
-  /** 手册节号，必须在 HANDBOOK_SECTIONS 里 */
-  section: string;
-  /** 结论。四种，没有第五种 */
+  /** 手册节号。判 outside / own 时必须是 null——没有那一节可指，指着节号就是自相矛盾 */
+  section: string | null;
+  /** 结论。六种，没有第七种 */
   verdict: HbVerdict;
   /** 手册在这一节说了什么（转述，不是原文摘录） */
   says: string;
@@ -74,11 +93,29 @@ export interface HbCheck {
 
 /**
  * 覆盖范围。写在界面上，也写在文档里——同一句话，两处不许各写一份。
+ *
+ * 第一版这句写的是「上册第 1—7 章（页 1—470）」，顺带只说下册第十章没读到。
+ * 查目录才发现：上册第 8 章（页 515）、第 9 章（页 578）也在 470 之后，同样没读到。
+ * 一句话少说两章，读者会以为只有第十章空着。
  */
 export const HB_SCOPE =
-  '这次核到的是中译本上册第 1—7 章（页 1—470）。下册第 10 章（语用论辩，页 625 起）没读到，凡指到那里的条目一律标「本次未核到」，不猜。';
+  '读到的是上册第 1—7 章，止于页 470（§7.5 中途）。上册第 8、9 章（页 515、578 起）与下册第 10—12 章（页 625 起）都没读到。';
 
 export const HB_CHECKS: HbCheck[] = [
+  {
+    claimId: 'T1-01',
+    section: '1.1',
+    verdict: 'confirm',
+    says: '论证既是过程也是结果：既是消除意见分歧的交际行为复合体，又是为立场提出的一组命题（页 1—5）。',
+    gap: '两层都认。「不重合」手册也写明了：论证不含立场本身，只管为立场提出的那组命题（页 4）。',
+  },
+  {
+    claimId: 'T1-02',
+    section: '1.1',
+    verdict: 'narrow',
+    says: '论证须针对真实或预期的意见分歧、由说话者担责、诉诸理性裁判；不指向消除分歧的交际活动不算论证。',
+    gap: '判据有；抒情、提问、命令、口号逐项点名没有——那五类是工具照判据归纳的清单。',
+  },
   {
     claimId: 'T1-07',
     section: '1.3.4',
@@ -115,6 +152,13 @@ export const HB_CHECKS: HbCheck[] = [
     gap: '三类与本库三问对得上；弗里曼原书那一节（§7.7，页 477 起）在本次范围外，没逐字核。',
   },
   {
+    claimId: 'T2-06',
+    section: '4.5',
+    verdict: 'confirm',
+    says: '图尔敏分「领域不变要素」与「领域依赖要素」：程序与形式跨领域，具体要素随领域而变（页 247）。',
+    gap: '与库里一致。手册说的是要素与可靠性随领域变，没有给阈值；库里也没给，只把阈值交给论证负担。',
+  },
+  {
     claimId: 'T2-07',
     section: '10.5',
     verdict: 'absent',
@@ -129,6 +173,13 @@ export const HB_CHECKS: HbCheck[] = [
     gap: '这条被文献正面顶着。本工具仍坚持三关分开作答，理由是「补哪一关」的行动指引，不是文献结论。',
   },
   {
+    claimId: 'T3-01',
+    section: '1.3.3',
+    verdict: 'narrow',
+    says: '论证型式是对论证类型的抽象描述，靠与它配套的批判性问题来评价；它是形式有效标准的补充，不取代它。',
+    gap: '「两个不同型式可以有同一逻辑形式」手册没这么表述——那是库里的推论，手册只说型式不是形式标准。',
+  },
+  {
     claimId: 'T3-07',
     section: '1.3.3',
     verdict: 'narrow',
@@ -136,11 +187,32 @@ export const HB_CHECKS: HbCheck[] = [
     gap: '手册只到「型式 + 批判性问题」这一层；「相似点必须落在担保上」在沃尔顿那一节（§7.8，页 483 起），本次没核。',
   },
   {
+    claimId: 'T4-03',
+    section: '5.4',
+    verdict: 'confirm',
+    says: '新修辞学从听众讲起：说服与信服之分由听众类型（特殊／普遍）定，可靠性最终取决于目标听众（页 309）。',
+    gap: '意思一致。手册把听众说成论证者的「建构」；库里说「判定参数」，是同一件事的另一种说法。',
+  },
+  {
     claimId: 'T4-06',
     section: '3.5',
     verdict: 'confirm',
     says: '复杂问语：要回答这个问题，必须同时回答另一个问题；这种谬误只有放到对话里才分析得清（页 190）。',
     gap: '与库里的处理一致；「先改成陈述句再谈」这一步手册没给，那是本工具的做法。',
+  },
+  {
+    claimId: 'T4-10',
+    section: '3.5',
+    verdict: 'narrow',
+    says: '毛病在预设：答是或否都认下了那个预设；手册给的办法是指出相互纠缠的预设，亚里士多德还允许把问拆开（页 190）。',
+    gap: '「先改成陈述句、看双方接不接受」这一步手册没有；它给的是拆问与指出预设。',
+  },
+  {
+    claimId: 'T5-01',
+    section: '3.6',
+    verdict: 'narrow',
+    says: '汉布林：我们根本没有谬误理论；「看似有效而实际无效」这个标准定义与它要处理的谬误对不上（页 196）。',
+    gap: '定义受质疑有原文；「三个必要条件逐条被质疑」是库里的整理，手册给的是这个定义的反例。',
   },
   {
     claimId: 'T5-07',
@@ -155,6 +227,48 @@ export const HB_CHECKS: HbCheck[] = [
     verdict: 'narrow',
     says: '亚里士多德的清单只分两种：语词层的歧义（一词多义）与语句层的模棱两可。',
     gap: '本库分三种（歧义／模糊／笼统），比手册多一层；多出来的那层是本工具的整理，手册没有对应的三分。',
+  },
+  {
+    claimId: 'T6-02',
+    section: null,
+    verdict: 'own',
+    says: '不是文献命题：refs 那一栏写的就是「本工具的判断」，手册里没有对应的一节。',
+    gap: '所以这条没有文献兜着。它管的是可信度判断要不要走边界检查，属于本工具的行为约定。',
+  },
+  {
+    claimId: 'T8-03',
+    section: null,
+    verdict: 'outside',
+    says: '十二章目录里没有批判性思维教育这一支，保罗—埃尔德八要素不在其中。',
+    gap: '要核只能回原书（Paul & Elder 2006）。界面标「本书范围外」，不标「本次未核到」——两件事不一样。',
+  },
+  {
+    claimId: 'T8-09',
+    section: null,
+    verdict: 'outside',
+    says: '批判性思维里「问题框架本身是立场」这一支（question-at-issue）不在十二章目录里。',
+    gap: '同上：要核得回去看保罗与埃尔德、恩尼斯；这本书讲的是论证理论各家，不是批判性思维课程。',
+  },
+  {
+    claimId: 'T9-04',
+    section: null,
+    verdict: 'outside',
+    says: '十二章目录里讲的是论辩理论各家，没有解释学这一支，加达默尔的前见不在其中。',
+    gap: '最接近的是第 9 章语言学进路，但那讲的是语义语用，不是解释学。这条的页码只能回原书找。',
+  },
+  {
+    claimId: 'T9-12',
+    section: null,
+    verdict: 'outside',
+    says: '韦伯的「说明」与「理解」之分不在十二章目录里，这本书不处理那条德国传统。',
+    gap: '所以「本工具只做说明」这一步没有本书的页码可指，出处仍是韦伯与狄尔泰的原书。',
+  },
+  {
+    claimId: 'T10-02',
+    section: '12.18',
+    verdict: 'absent',
+    says: '下册 §12.18「中国的论证研究」（页 913 起）是本书唯一可能谈到墨家的地方；正文没读到。',
+    gap: '所以墨家三层对得上手册哪一页，现在答不了，只能说这本书里有一节叫这个名字——未核。',
   },
 ];
 
@@ -173,8 +287,11 @@ export function hbSectionOf(id: string): HbSection | null {
 /**
  * 一句位置话：有目录页码的写页码，没有的只写节号。
  * 不在这里凑数字——页码缺一个，读者最多少看一个数；编一个，他就核不了。
+ *
+ * 判「本书范围外」「无文献可核」时不写节号：那两种结论的意思恰恰是「没有这一页」。
  */
 export function hbLocator(c: HbCheck): string {
+  if (c.section === null) return c.verdict === 'own' ? '无文献可核' : '本书范围外';
   const s = SECTION_BY_ID.get(c.section);
   if (!s) return `§${c.section}`;
   const vol = s.volume === 1 ? '上册' : '下册';
@@ -182,15 +299,48 @@ export function hbLocator(c: HbCheck): string {
 }
 
 export function hbStats(): { total: number; byVerdict: Record<HbVerdict, number> } {
-  const byVerdict: Record<HbVerdict, number> = { confirm: 0, narrow: 0, dispute: 0, absent: 0 };
+  const byVerdict = {
+    confirm: 0,
+    narrow: 0,
+    dispute: 0,
+    absent: 0,
+    outside: 0,
+    own: 0,
+  } as Record<HbVerdict, number>;
   for (const c of HB_CHECKS) byVerdict[c.verdict] += 1;
   return { total: HB_CHECKS.length, byVerdict };
+}
+
+/**
+ * 账目：全库多少条、核过多少条、还差多少条。
+ *
+ * 为什么要把「没核的」也写出来：界面上一百多条主张，只有二十几条挂着「手册核对」。
+ * 其余那些不是「核过没问题」，是「根本没核」——不把这句话说清楚，那一块的颜色
+ * 就会被当成对全书的态度。
+ */
+export function hbCoverage(totalClaims: number): {
+  total: number;
+  checked: number;
+  unchecked: number;
+  byVerdict: Record<HbVerdict, number>;
+} {
+  const { total: checked, byVerdict } = hbStats();
+  const total = Math.max(totalClaims, checked);
+  return { total, checked, unchecked: Math.max(0, total - checked), byVerdict };
+}
+
+/** 给一组主张 id，返回其中还没有核对条目的。检查组拿它守「写进提示词的必须核过」。 */
+export function hbMissing(claimIds: string[]): string[] {
+  return claimIds.filter((id) => !BY_ID.has(id));
 }
 
 /** 界面与导出共用的一句话，避免两处各写一份数字。 */
 export function hbLine(): string {
   const { total, byVerdict } = hbStats();
-  return `已用手册核过 ${total} 条：确认 ${byVerdict.confirm}、只说一半 ${byVerdict.narrow}、有反对 ${byVerdict.dispute}、未核到 ${byVerdict.absent}`;
+  const parts = HB_VERDICT_ORDER.filter((v) => v !== 'confirm').map(
+    (v) => `${HB_VERDICT_LABEL[v]} ${byVerdict[v]}`
+  );
+  return `已用手册核过 ${total} 条（${HB_VERDICT_LABEL.confirm} ${byVerdict.confirm}、${parts.join('、')}）`;
 }
 
 /** 类型守卫：库里有没有这条。给检查器与界面共用。 */
