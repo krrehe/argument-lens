@@ -31,8 +31,10 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
   var ID = '__alNav';
   var st = document.createElement('style');
   st.textContent = [
-    'body.al-nav-open .main{padding-right:238px}',
-    '#__alNav{position:fixed;right:18px;top:56px;bottom:54px;width:204px;z-index:2147483000;display:flex;flex-direction:column;background:rgba(255,255,255,.97);border:1px solid #ded9cd;border-radius:8px;box-shadow:0 6px 22px rgba(45,40,30,.10);font:11.5px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#4a453c;overflow:hidden}',
+    /* 目录 232px + right 18px + 间隙 16px = 266px：正文补偿必须跟着宽度走，
+       改宽度不改补偿会遮住正文最后几个字。这条等式由 check:density 守着。 */
+    'body.al-nav-open .main{padding-right:266px}',
+    '#__alNav{position:fixed;right:18px;top:56px;bottom:54px;width:232px;z-index:2147483000;display:flex;flex-direction:column;background:rgba(255,255,255,.97);border:1px solid #ded9cd;border-radius:8px;box-shadow:0 6px 22px rgba(45,40,30,.10);font:11.5px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#4a453c;overflow:hidden}',
     '#__alNav .nh{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid #ece7dc;flex:none}',
     '#__alNav .nh b{font-weight:600;font-size:11.5px;letter-spacing:.03em;flex:1;white-space:nowrap}',
     '#__alNav .nh button{border:0;background:none;cursor:pointer;color:#8a8275;font:13px system-ui;padding:2px 5px;line-height:1}',
@@ -44,14 +46,14 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     '#__alNav .nresume{margin:8px 8px 0;padding:7px 9px;border:1px solid #cfdde9;border-radius:5px;background:#eff5fa;color:#2c3a49;cursor:pointer;font:11.5px/1.45 system-ui;text-align:left;flex:none}',
     '#__alNav .nresume:hover{background:#e3eef7}',
     '#__alNav .nresume b{display:block;font-weight:600;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-    '#__alNav .nresume span{display:block;color:#6d7b89;font-size:10px;margin-top:2px}',
+    '#__alNav .nresume span{display:block;color:#6d7b89;font-size:10.5px;margin-top:2px}',
     '#__alNav .njump{margin:8px 8px 4px;padding:7px 9px;border:1px solid #d8cdb6;border-radius:5px;background:#faf6ee;color:#5a4b32;cursor:pointer;font:11.5px system-ui;text-align:left;flex:none}',
     '#__alNav .njump:hover{background:#f1e7d3}',
     '#__alNav .nlist{overflow-y:auto;flex:1;min-height:0;padding:2px 6px 6px;scrollbar-width:thin}',
-    '#__alNav .ni{display:flex;gap:7px;align-items:baseline;width:100%;text-align:left;border:0;background:none;padding:5px 6px;border-radius:4px;cursor:pointer;color:#6b6458;font:11px/1.4 system-ui}',
+    '#__alNav .ni{display:flex;gap:7px;align-items:baseline;width:100%;text-align:left;border:0;background:none;padding:5px 6px;border-radius:4px;cursor:pointer;color:#6b6458;font:11.5px/1.4 system-ui}',
     '#__alNav .ni:hover{background:#f3f0e9}',
     '#__alNav .ni.on{background:#e9eff5;color:#2c3a49;font-weight:600}',
-    '#__alNav .ni i{font-style:normal;color:#a9a294;font:10px/1.6 ui-monospace,monospace;flex:none;width:16px}',
+    '#__alNav .ni i{font-style:normal;color:#a9a294;font:10.5px/1.6 ui-monospace,monospace;flex:none;width:16px}',
     '#__alNav .ni span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
     '#__alNav .nf{padding:6px 10px;border-top:1px solid #ece7dc;color:#9a9284;font:10.5px system-ui;display:flex;justify-content:space-between;gap:6px;flex:none}',
     '#__alNav .nf button{border:0;background:none;color:#7a8b9c;cursor:pointer;font:10.5px system-ui;padding:0}',

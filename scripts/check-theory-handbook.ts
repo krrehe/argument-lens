@@ -371,6 +371,17 @@ for (const cls of ['.tb-hb', '.tb-hb-confirm', '.tb-hb-narrow', '.tb-hb-dispute'
   ok();
   if (!css.includes(cls)) warn(`styles-theory.css 里没有 ${cls}——六种结论在界面上分不出来（或「进了提示词」「为什么没核到」那两行没有样式）`);
 }
+/* 筛选 chips 的松紧：体检确认细分域那行挤成小块（10px 字、5px 缝）。
+   只钉下限，不钉死具体值——以后想再松可以，挤回去不行。
+   取数值比大小，不用「数字开头」的正则：10.5 以 10 开头会被误判成 10。 */
+ok();
+const subsRule = css.slice(css.indexOf('.tbl-subs'), css.indexOf('.tbl-subf'));
+const subsGap = Number((subsRule.match(/gap:\s*([\d.]+)px/) ?? [])[1]);
+if (!(subsGap >= 7)) warn(`细分域 chips 间距 ${subsGap}px < 7px——体检里这是一处拥挤`);
+ok();
+const subfRule = css.slice(css.indexOf('.tbl-subf'), css.indexOf('.tbl-subf.on'));
+const subfSize = Number((subfRule.match(/font-size:\s*([\d.]+)px/) ?? [])[1]);
+if (!(subfSize >= 10.5)) warn(`细分域 chips 字号 ${subfSize}px < 10.5px——窄块小字是体检记下的债`);
 
 /* ── 五 · 文档与命令 ── */
 const docPath = join(process.cwd(), 'docs/理论支撑/11-手册核对.md');

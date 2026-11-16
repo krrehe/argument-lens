@@ -245,6 +245,26 @@ ok(
   '行长上限不许无条件生效（窄窗口会跟着缩）',
 );
 
+/*
+ * 报告目录（主进程注入的独立脚本）宽度与正文补偿的等式。
+ * 目录 fixed 在右侧，正文必须让出同样宽度，否则最后几个字被盖住。
+ * 只钉「补偿 = 宽度 + 34（right 18 + 间隙 16）」这个关系，不钉死具体数字——
+ * 目录可以再调宽，但两者必须一起动。改宽度不改补偿，或反过来，都当场红。
+ */
+const nav = src('src/main/report-nav.ts');
+const navW = Number((nav.match(/#__alNav\{[^}]*?width:(\d+)px/) ?? [])[1]);
+const navPad = Number((nav.match(/body\.al-nav-open \.main\{padding-right:(\d+)px\}/) ?? [])[1]);
+ok(Number.isFinite(navW) && navW >= 204, '报告目录有宽度，且不小于原来的 204px（窄栏副标题挤作一团是体检记下的债）');
+ok(
+  Number.isFinite(navPad) && navPad === navW + 34,
+  '正文补偿 = 目录宽度 + 34（right 18 + 间隙 16）：改宽度不改补偿会遮住正文',
+  `目录 ${navW}px / 补偿 ${navPad}px`,
+);
+ok(
+  /#__alNav \.ni\{[^}]*?font:11\.5px/.test(nav),
+  '目录条目 11.5px：11px 在窄栏里偏小（体检确认项）',
+);
+
 /* 截断必须配 title：字被省略号吃掉又没有 title，等于把话删了。 */
 const hintRule = ruleBody(css, ":root[data-density='compact'] .exp-hint");
 ok(/text-overflow:\s*ellipsis/.test(hintRule) && /white-space:\s*nowrap/.test(hintRule), '简洁态把长说明收成一行');
