@@ -81,6 +81,29 @@ export const HANDBOOK_SECTIONS: HbSection[] = [
   { id: '12.18', title: '中国的论证研究', volume: 2, page: 913 },
 ];
 
+/**
+ * 这份解析文本读到哪一页为止。
+ *
+ * 数字只写在这里：界面上的「还差几页」、检查器里「说法与页码自洽」的判断、
+ * 文档里的覆盖范围，都从这一处取。上一版「470」在三个地方各写一遍，
+ * 改一处就会有两处对不上。
+ */
+export const HB_TEXT_END = 470;
+
+/**
+ * 「本次没核到」的两种情形。
+ *
+ * 为什么要分：页 642 那一节，是整册没进这份解析文本；页 190 那一节，
+ * 文本里有、就是没有那一段。前者等文本补齐就能核，后者再怎么读也读不出来——
+ * 读者对这两件事该有的期待完全不同，写成同一句「未核到」就是在骗人。
+ */
+export type HbGapKind = 'no-text' | 'no-section';
+
+export const HB_GAP_LABEL: Record<HbGapKind, string> = {
+  'no-text': '整节没进文本',
+  'no-section': '读到了，节里没有',
+};
+
 export interface HbCheck {
   /** 主张库里的 id。必须真存在，否则这条核对挂在空处 */
   claimId: string;
@@ -92,6 +115,11 @@ export interface HbCheck {
   says: string;
   /** 与本库这条的差：多了什么、少了什么、顶在哪里 */
   gap: string;
+  /**
+   * 只有「本次未核到」才填：这次为什么没核到。
+   * 其余五种结论带着这个字段就是矛盾——核到了还说什么没核到。
+   */
+  why?: HbGapKind;
 }
 
 /**
@@ -102,7 +130,7 @@ export interface HbCheck {
  * 一句话少说两章，读者会以为只有第十章空着。
  */
 export const HB_SCOPE =
-  '读到的是上册第 1—7 章，止于页 470（§7.5 中途）。上册第 8、9 章（页 515、578 起）与下册第 10—12 章（页 625 起）都没读到。';
+  `读到的是上册第 1—7 章，止于页 ${HB_TEXT_END}（§7.5 中途）。上册第 8、9 章（页 515、578 起）与下册第 10—12 章（页 625 起）都没读到。`;
 
 export const HB_CHECKS: HbCheck[] = [
   {
@@ -165,7 +193,8 @@ export const HB_CHECKS: HbCheck[] = [
     claimId: 'T2-07',
     section: '10.5',
     verdict: 'absent',
-    says: '语用论辩的讨论规则在第十章的 §10.5（页 642 起）；本次只读到上册页 470，这一节没读到。',
+    why: 'no-text',
+    says: '语用论辩的讨论规则在 §10.5；正文没读到。',
     gap: '所以「责任可以转移、但不会消失」这半句没有手册原文兜着，只有第 1 章概览里的一句连带说法。',
   },
   {
@@ -211,7 +240,8 @@ export const HB_CHECKS: HbCheck[] = [
     claimId: 'T3-06',
     section: '7.8',
     verdict: 'absent',
-    says: '沃尔顿那一节（页 483 起）在本次范围外，没读到；「元问题优先」的手册依据因此核不到。',
+    why: 'no-text',
+    says: '沃尔顿论论证型式与对话类型在 §7.8；正文没读到。',
     gap: '库里这条 refs 写的是「本工具的判断」，本来就没有文献；手册若有一句，也只可能在 §7.8。',
   },
   {
@@ -225,7 +255,8 @@ export const HB_CHECKS: HbCheck[] = [
     claimId: 'T4-01',
     section: '10.5',
     verdict: 'absent',
-    says: '十规则的原文在 §10.5（下册页 642 起）；本次只读到上册页 470，这一节没读到。',
+    why: 'no-text',
+    says: '十规则的原文在 §10.5；正文没读到。',
     gap:
       '「对广告、社论、带货话术套十规则是范畴错误」这半句没有手册原文兜着；第 1 章概览只说到论证指向消除分歧，没到「否则即范畴错误」这一步。',
   },
@@ -233,7 +264,8 @@ export const HB_CHECKS: HbCheck[] = [
     claimId: 'T4-02',
     section: '7.8',
     verdict: 'absent',
-    says: '对话类型如何约束招式的合法性，手册在 §7.8（沃尔顿）与下册第十章（语用论辩）讲；两处都在本次范围外。',
+    why: 'no-text',
+    says: '对话类型如何约束招式合法性，手册在 §7.8 与下册第十章讲；两处正文都没读到。',
     gap: '库里把 dialogueType 做成参与判定的字段，手册依据核不到。',
   },
   {
@@ -293,8 +325,8 @@ export const HB_CHECKS: HbCheck[] = [
     claimId: 'T5-05',
     section: '3.5',
     verdict: 'absent',
-    says:
-      '伍兹的资源约束解释一路，手册只在第 1 章概述里点了一句（页 25），§3.5 与 §3.6 都没读到对应段落。',
+    why: 'no-section',
+    says: '伍兹的资源约束解释一路，手册只在第 1 章概述里点了一句（页 25）；§3.5 里没有对应段落。',
     gap: '库里这条出处写 Woods；手册帮不上忙，只能回 Woods 原书。「认知资源有限是常态成因」这一段没核到。',
   },
   {
@@ -357,14 +389,16 @@ export const HB_CHECKS: HbCheck[] = [
     claimId: 'T10-02',
     section: '12.18',
     verdict: 'absent',
-    says: '下册 §12.18「中国的论证研究」（页 913 起）是本书唯一可能谈到墨家的地方；正文没读到。',
+    why: 'no-text',
+    says: '下册 §12.18「中国的论证研究」是本书唯一可能谈到墨家的地方；正文没读到。',
     gap: '所以墨家三层对得上手册哪一页，现在答不了，只能说这本书里有一节叫这个名字——未核。',
   },
   {
     claimId: 'T10-05',
     section: '12.18',
     verdict: 'absent',
-    says: '《荀子·正名》与「中国的论证研究」在 §12.18（下册页 913 起）；本次没读到。',
+    why: 'no-text',
+    says: '《荀子·正名》与「中国的论证研究」在 §12.18；正文没读到。',
     gap: '「名定而实辨」与命名纪律同向这一层，没有手册页码可指；出处仍是《荀子》原书。',
   },
 ];
@@ -395,8 +429,46 @@ export function hbLocator(c: HbCheck): string {
   return s.page === null ? `${vol} §${s.id}` : `${vol} §${s.id}（页 ${s.page} 起）`;
 }
 
-export function hbStats(): { total: number; byVerdict: Record<HbVerdict, number> } {
-  const byVerdict = {
+/**
+ * 「为什么没核到」那一行。只有「本次未核到」有。
+ *
+ * 句子由这里生成，不写在数据里：七条未核到要是各写一句，就会出现七种口径，
+ * 有的说「范围外」有的说「没读到」，读者分不清是同一种情况还是七种。
+ * 数也是算出来的——「还差 172 页」是页 642 减文本末尾 470，不是抄来的。
+ */
+export function hbGapLine(c: HbCheck): string | null {
+  if (c.verdict !== 'absent' || !c.why) return null;
+  const s = c.section === null ? undefined : SECTION_BY_ID.get(c.section);
+  if (c.why === 'no-text') {
+    if (s?.page == null) {
+      return `整节没进这份解析文本（文本止于页 ${HB_TEXT_END}）——不是节里没这段话，是整册没读到。`;
+    }
+    const behind = s.page - HB_TEXT_END;
+    const far = behind > 0 ? `，还差 ${behind} 页` : '';
+    return `文本止于页 ${HB_TEXT_END}，这一节在页 ${s.page} 起${far}——不是节里没这段话，是整册没读到。`;
+  }
+  const head = s?.page == null ? '这一节' : `这一节（页 ${s.page} 起）`;
+  return `${head}这次读到了，节里没有讲这一段的段落——是这一段书里没写，不是没读到。`;
+}
+
+/**
+ * 说法与页码必须自洽。检查器逐条拿它判，界面不显示。
+ *
+ * 页在文本末尾之后的节，只可能是「整节没进文本」；页在末尾之前的节，
+ * 既然读到了，就只能说「节里没有」。这条互推关系挡的是拍脑袋：
+ * 以后新增一条未核到，写错类别会当场红，而不是等读者发现「页 190 的节怎么会没读到」。
+ */
+export function hbGapFits(c: HbCheck): boolean {
+  if (c.verdict !== 'absent') return c.why === undefined;
+  if (!c.why) return false;
+  const s = c.section === null ? undefined : SECTION_BY_ID.get(c.section);
+  const page = s?.page ?? null;
+  // 目录没给起页，就说不清「整节没进文本」还是「节里没有」——不许猜。
+  if (page === null) return false;
+  return c.why === 'no-text' ? page > HB_TEXT_END : page <= HB_TEXT_END;
+}
+
+export function hbStats(): { total: number; byVerdict: Record<HbVerdict, number> } {  const byVerdict = {
     confirm: 0,
     narrow: 0,
     dispute: 0,

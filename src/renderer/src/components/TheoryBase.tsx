@@ -18,7 +18,15 @@ import {
   type TheoryClaim,
 } from '@shared/theory-base';
 import { LANDING, LAND_KIND_LABEL } from '@shared/landing';
-import { HB_VERDICT_HINT, HB_VERDICT_LABEL, hbCoverage, hbLine, hbLocator, hbOf } from '@shared/theory-handbook';
+import {
+  HB_VERDICT_HINT,
+  HB_VERDICT_LABEL,
+  hbCoverage,
+  hbGapLine,
+  hbLine,
+  hbLocator,
+  hbOf,
+} from '@shared/theory-handbook';
 
 /**
  * 理论主张库。
@@ -112,6 +120,17 @@ function ClaimRow({ c, focus }: { c: TheoryClaim; focus: boolean }) {
                 </div>
                 <p className="tb-hb-says">{hb.says}</p>
                 <p className="tb-hb-gap">{hb.gap}</p>
+                {/*
+                  「本次未核到」原先只有结论，没有下文：读者看到这四个字，
+                  不知道是书里没有、还是这次没读到、还要不要再等。这一行把两种情形分开——
+                  整册没进文本（等补齐就能核）与节里没有（再读也读不出来），
+                  它们该得到的期待完全不同。
+                */}
+                {hb.verdict === 'absent' && hbGapLine(hb) !== null && (
+                  <p className="tb-hb-why" data-hb-why={c.id}>
+                    {hbGapLine(hb)}
+                  </p>
+                )}
                 {/*
                   文献说了「有反对」，可这条如果同时写进了提示词，那它不只是书架上的注记：
                   模型每次分析都按它判，而报告上不会写「这条被文献批评过」。

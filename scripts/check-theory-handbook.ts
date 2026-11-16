@@ -4,10 +4,14 @@ import { THEORY_CLAIMS, CLAIM_BY_ID } from '@shared/theory-base';
 import {
   HANDBOOK_SECTIONS,
   HB_CHECKS,
+  HB_GAP_LABEL,
   HB_SCOPE,
+  HB_TEXT_END,
   HB_VERDICT_LABEL,
   HB_VERDICT_ORDER,
   hbCoverage,
+  hbGapFits,
+  hbGapLine,
   hbLocator,
   hbMissing,
   hbStats,
@@ -132,12 +136,43 @@ for (const c of HB_CHECKS) {
     }
   }
 
-  // 「未核到」必须自己说清没读到，不能拿别处的一句话充数。
+  /*
+    「未核到」分两种，而且必须自报是哪一种。
+
+    上一版只有一句「必须说清没读到」，于是七条未核到全用一句手写的话糊过去，
+    其中六条是「整册没进解析文本」，一条是「这一节读到了、节里没这段」。
+    这两件事该有的期待正相反：前者等文本补齐就能核，后者再读也读不出来。
+    写成同一句，读者会一直等一个永远不会到的答案。
+
+    守三层：
+      1. 判 absent 必须有 why，且必须是两个字面量之一；
+      2. 其余五种结论不许有 why——核到了还说什么没核到；
+      3. why 必须与页码自洽，页在文本末尾之后的只能判「整节没进文本」。
+  */
   if (c.verdict === 'absent') {
     ok();
-    if (!/没读到|未核|不在本次|范围外/.test(c.says + c.gap)) {
-      warn(`${c.claimId} 判成「${HB_VERDICT_LABEL.absent}」，却没有一个字说明没读到——这等于假装核过`);
+    if (!c.why) warn(`${c.claimId} 判成「${HB_VERDICT_LABEL.absent}」，却没写是哪一种没核到（整节没进文本／读到了节里没有）`);
+    ok();
+    if (c.why && !(c.why in HB_GAP_LABEL)) warn(`${c.claimId} 的没核到类别 ${c.why} 不在两种之内`);
+    ok();
+    if (!hbGapFits(c)) {
+      const sec = c.section === null ? undefined : HANDBOOK_SECTIONS.find((s) => s.id === c.section);
+      const page = sec?.page ?? null;
+      warn(
+        `${c.claimId} 说「${c.why ? HB_GAP_LABEL[c.why] : '未填'}」，但这一节在页 ${page ?? '—'} 起、文本止于页 ${HB_TEXT_END}——说法与页码对不上`
+      );
     }
+    ok();
+    const line = hbGapLine(c);
+    if (!line) warn(`${c.claimId} 判「${HB_VERDICT_LABEL.absent}」，却没有「为什么没核到」那一句`);
+    else if (!/没读到/.test(line)) warn(`${c.claimId} 的「为什么没核到」没出现「没读到」——读者分不清是没读还是书里没有`);
+  } else {
+    ok();
+    if (c.why !== undefined) {
+      warn(`${c.claimId} 判「${HB_VERDICT_LABEL[c.verdict]}」，却带着没核到的类别 ${c.why}——核到了就没有「为什么没核到」`);
+    }
+    ok();
+    if (hbGapLine(c) !== null) warn(`${c.claimId} 判「${HB_VERDICT_LABEL[c.verdict]}」，却生成了「为什么没核到」那一句`);
   }
 
   /*
@@ -306,11 +341,35 @@ ok();
 if (!ui.includes('promptLands')) {
   warn('TheoryBase.tsx 里没有 promptLands——「进没进提示词」得按落点算，不能写死');
 }
+
+/*
+  「为什么没核到」那一行同样要认死写法。
+
+  这一行的价值全在「只在未核到时出现」：要是渲染条件被放宽成常态显示，
+  每条主张下面都会多一句「为什么没核到」——核过的条目也这么说，读者会以为
+  整张表都没核。所以条件必须由 `hb.verdict === 'absent'` 直接开头，
+  且句子的来源必须是 hbGapLine，不许在这里另写一份文案。
+*/
+const absentCount = HB_CHECKS.filter((c) => c.verdict === 'absent').length;
+ok();
+if (absentCount && !ui.includes('data-hb-why')) {
+  warn(`有 ${absentCount} 条「本次未核到」，界面却没有 data-hb-why 标记——读者只看到结论，看不到为什么`);
+}
+ok();
+if (absentCount && !/\{\s*hb\.verdict === 'absent' && hbGapLine\(hb\) !== null && \(/.test(ui)) {
+  warn(
+    '「为什么没核到」的条件不是由 `{hb.verdict === \'absent\' && hbGapLine(hb) !== null && (` 直接开头——前面挂一个 `false &&` 时，字样全在、界面一个字不出'
+  );
+}
+ok();
+if (absentCount && !/import[\s\S]*hbGapLine[\s\S]*from '@shared\/theory-handbook'/.test(ui)) {
+  warn('TheoryBase.tsx 没有从 @shared/theory-handbook 引入 hbGapLine——句子得由那一处生成，界面不许另抄一份');
+}
 const cssPath = join(process.cwd(), 'src/renderer/src/styles-theory.css');
 const css = existsSync(cssPath) ? readFileSync(cssPath, 'utf-8') : '';
-for (const cls of ['.tb-hb', '.tb-hb-confirm', '.tb-hb-narrow', '.tb-hb-dispute', '.tb-hb-outside', '.tb-hb-own', '.tb-hb-prompt']) {
+for (const cls of ['.tb-hb', '.tb-hb-confirm', '.tb-hb-narrow', '.tb-hb-dispute', '.tb-hb-outside', '.tb-hb-own', '.tb-hb-prompt', '.tb-hb-why']) {
   ok();
-  if (!css.includes(cls)) warn(`styles-theory.css 里没有 ${cls}——六种结论在界面上分不出来（或「进了提示词」那一行没有样式）`);
+  if (!css.includes(cls)) warn(`styles-theory.css 里没有 ${cls}——六种结论在界面上分不出来（或「进了提示词」「为什么没核到」那两行没有样式）`);
 }
 
 /* ── 五 · 文档与命令 ── */
@@ -324,8 +383,16 @@ else {
     warn('手册核对文档里的覆盖范围与 HB_SCOPE 不是同一句话——两处各写一份，迟早对不上');
   }
   ok();
+  if (!HB_SCOPE.includes(String(HB_TEXT_END))) {
+    warn(`覆盖范围那句话里没有「页 ${HB_TEXT_END}」——改了 HB_TEXT_END 却没改句子，两处各说一个数`);
+  }
+  ok();
   for (const v of VERDICTS) {
     if (!doc.includes(HB_VERDICT_LABEL[v])) warn(`手册核对文档里没写「${HB_VERDICT_LABEL[v]}」这种结论`);
+  }
+  ok();
+  for (const g of Object.values(HB_GAP_LABEL)) {
+    if (!doc.includes(g)) warn(`手册核对文档里没写「${g}」这种没核到的情形——界面会说两种，文档只说一种`);
   }
   ok();
   for (const c of HB_CHECKS) {
@@ -361,6 +428,16 @@ else {
     ok();
     if (secOfRow && secOfRow.page !== null && !row.includes(`页 ${secOfRow.page}`)) {
       warn(`${c.claimId} 文档那一行没写章节表里的起页 ${secOfRow.page}（或写成了别的页）`);
+    }
+    /*
+      未核到的行必须在文档里也分两种。代码分了、文档只写「本次未核到」，
+      读者从文档判断不出「等不等得到」——文档是给不带软件的人看的。
+    */
+    if (c.verdict === 'absent') {
+      ok();
+      if (!c.why || !row.includes(HB_GAP_LABEL[c.why])) {
+        warn(`${c.claimId} 文档那一行没写属哪一种没核到（${c.why ? HB_GAP_LABEL[c.why] : '类别未填'}）`);
+      }
     }
   }
 }
