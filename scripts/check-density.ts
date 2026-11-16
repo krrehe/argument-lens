@@ -246,6 +246,27 @@ ok(
 );
 
 /*
+ * 连续散文的读列。1240px 管的是块容器，不是行长——目录关着时正文
+ * 铺满可用宽度，14px 宋体能排九十来字，换行后找不回行首。
+ * 读列用 ch：中文一字约 2ch，舒适区 25—40 字 ⇒ 50—80ch。
+ * 钉「变量在舒适区」+「.passage 真用了它」，删掉或拉到极端都当场红。
+ */
+const measure = Number((styles.match(/--read-measure:\s*(\d+(?:\.\d+)?)ch/) ?? [])[1]);
+ok(
+  Number.isFinite(measure) && measure >= 50 && measure <= 80,
+  `读列在舒适区 50—80ch（≈25—40 中文字），当前 ${Number.isFinite(measure) ? measure : '缺失'}ch`,
+);
+const passageRule = (styles.match(/\.passage\s*\{([^}]*)\}/) ?? [])[1] ?? '';
+ok(
+  /max-width:\s*var\(--read-measure\)/.test(passageRule),
+  '正文散文 .passage 用读列变量（不是写死 px，也不是没有读列）',
+);
+ok(
+  (styles.match(/max-width:\s*var\(--read-measure\)/g) ?? []).length === 1,
+  '读列只作用在连续散文一处，不铺到 pre / 表格 / chips',
+);
+
+/*
  * 报告目录（主进程注入的独立脚本）宽度与正文补偿的等式。
  * 目录 fixed 在右侧，正文必须让出同样宽度，否则最后几个字被盖住。
  * 只钉「补偿 = 宽度 + 34（right 18 + 间隙 16）」这个关系，不钉死具体数字——

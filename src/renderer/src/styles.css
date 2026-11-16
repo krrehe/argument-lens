@@ -23,6 +23,13 @@
   --mono: 'Cascadia Mono', 'JetBrains Mono', Consolas, 'Courier New', monospace;
   --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
   --serif: Georgia, 'Songti SC', 'SimSun', serif;
+
+  /*
+   * 连续散文的读列。中文一行 25—40 字好读；ch 是「0」的宽度，
+   * 中文一字约 2ch，68ch ≈ 34 字，落在舒适区中段。
+   * 只给正文散文用，不给 pre / 表格 / chips / 多栏——那些铺满才对。
+   */
+  --read-measure: 68ch;
 }
 
 * {
@@ -428,11 +435,12 @@ select {
 /*
  * 宽屏上限：报告栏的宽度跟着窗口走，1920 全屏时整栏会铺到近 1500px，
  * 卡片被拉成一条横带、栏头的说明与右边缘隔出一大段空白。
- * 窗口够宽时把内容收在 1240px 以内，留一条稳定的阅读列。
+ * 窗口够宽时把「块容器」收在 1240px 以内。
  *
- * 说清它做不到什么：这不是「行长刚好」。12.5px 字号下 1240px 仍能排九十来字，
- * 正文偏长是全局排版的问题（窄屏一样偏长），要动得连几十张截图基准一起动——
- * 记在路线图里，不在这里假装解决。窄屏不受影响：这条只在 ≥1680px 生效。
+ * 这条管的是块的宽度，不是行长——12.5px 下 1240px 仍能排九十来字。
+ * 行长由 --read-measure 管，作用在 .passage 这类连续散文上（见 :root）。
+ * 两者分工：块容器负责不让卡片拉成横带，读列负责正文一行别太长。
+ * 窄屏不受 1240px 影响：这条只在 ≥1680px 生效；读列按 ch 自适应，窄屏自然更短。
  */
 @media (min-width: 1680px) {
   .main > * {
@@ -1040,6 +1048,8 @@ select {
   color: var(--ink);
   white-space: pre-wrap;
   word-break: break-word;
+  /* 连续散文收进读列：目录关着时这里曾一行九十来字，换行后难找回行首。 */
+  max-width: var(--read-measure);
 }
 .passage mark {
   background: #fbf0cd;
