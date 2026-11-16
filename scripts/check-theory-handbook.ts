@@ -198,27 +198,53 @@ if (booksCovered.size < 4) warn(`核对只覆盖了 ${booksCovered.size} 编，�
   整份报告的每个判断就都压在印象上。所以这一组不按数量要求，按名单要求——
   一条没有核对，这里就红。
 
-  名单不手抄：从 landing.ts 里把落在 `k: 'block'` 的主张捡出来。手抄一份清单，
-  下次有人往提示词里加一条主张而忘了改清单，这条断言就成了摆设。
+  名单不手抄：从 landing.ts 里把落在 `k: 'block'` 与 `k: 'lens'` 的主张捡出来。
+  手抄一份清单，下次有人往提示词里加一条主张而忘了改清单，这条断言就成了摆设。
+
+  为什么口径要从 block 扩到 lens：上一轮只算了「模式块」——那是提示词里的几段长文。
+  可透镜的 rules / scopeGuard / checksSpec / procedure 是整节 push 进正文的
+  （registry.ts 里 `lens.rules` 那几行），模型读到的是同一份东西。只守 block，
+  等于把「一半的提示词」放过去了。这一轮扩过去，17 条透镜主张补齐。
 */
 const landingPath = join(process.cwd(), 'src/shared/landing.ts');
 const landing = existsSync(landingPath) ? readFileSync(landingPath, 'utf-8') : '';
 ok();
 if (!landing) warn('landing.ts 不存在——查不出哪些主张写进了提示词');
-const promptClaimIds: string[] = [];
+const promptBlocks: string[] = [];
+const promptLenses: string[] = [];
 if (landing) {
   for (const m of landing.matchAll(/'T(\d{1,2}-\d{2})':\s*\[([\s\S]*?)\n  \]/g)) {
-    if (/\{ k: 'block'/.test(m[2])) promptClaimIds.push(`T${m[1]}`);
+    const id = `T${m[1]}`;
+    if (/\{ k: 'block'/.test(m[2])) promptBlocks.push(id);
+    if (/\{ k: 'lens'/.test(m[2])) promptLenses.push(id);
   }
 }
+const promptClaimIds = [...new Set([...promptBlocks, ...promptLenses])];
 ok();
-if (promptClaimIds.length < 5) {
-  warn(`落进提示词块的主张只数到 ${promptClaimIds.length} 条，少得可疑——landing.ts 的写法是不是变了`);
+if (promptBlocks.length < 5) {
+  warn(`落进提示词块的主张只数到 ${promptBlocks.length} 条，少得可疑——landing.ts 的写法是不是变了`);
+}
+ok();
+if (promptLenses.length < 8) {
+  warn(`落进透镜的主张只数到 ${promptLenses.length} 条，少得可疑——透镜的规则同样 push 进提示词正文`);
 }
 const promptMissing = hbMissing(promptClaimIds);
 ok();
 if (promptMissing.length) {
   warn(`写进提示词却没核过的主张：${promptMissing.join('、')}——报告里每个判断都压在这几条上`);
+}
+
+/*
+  核出「文献有反对」还不够。如果这一条同时写进了提示词，它就不只是书架上的注记：
+  模型每次分析都按它判，而报告上不会写「这条被文献批评过」。界面必须能把这层关系
+  说出来——否则就是「软件知道、读者不知道」，比没核更糟。
+*/
+const disputedInPrompt = HB_CHECKS.filter(
+  (c) => c.verdict === 'dispute' && promptClaimIds.includes(c.claimId)
+).map((c) => c.claimId);
+ok();
+if (disputedInPrompt.length === 0) {
+  warn('一条「文献有反对」的条目都没进提示词——若确实如此请删掉这条断言；若是最近改了 landing，先确认');
 }
 
 /* 账目：核对表覆盖全库多少，必须算得出来、且不加总成一句空话。 */
@@ -253,11 +279,38 @@ ok();
 if (!/\{hb && \(\s*<div className="tb-hb"/.test(ui)) {
   warn('TheoryBase.tsx 里核对块的渲染条件不是 `{hb && (` 直接渲染——被注释掉或被写成恒假条件时，字样检查是查不出来的');
 }
+
+/*
+  核出「文献有反对」，而这一条又写进了提示词——那它不只是书架上的注记。
+  界面必须能说出「模型每次都按这句判」，否则就是「软件知道、读者不知道」。
+  这两条只在真有这种条目时才要求，免得表里没有 dispute 时也在喊。
+*/
+ok();
+if (disputedInPrompt.length && !ui.includes('data-hb-prompt')) {
+  warn(`有「文献有反对」写进了提示词（${disputedInPrompt.join('、')}），界面却没有 data-hb-prompt 标记`);
+}
+ok();
+if (disputedInPrompt.length && !ui.includes('写进提示词')) {
+  warn('核出的「有反对」进了提示词，界面上却没有「写进提示词」这句话');
+}
+ok();
+if (
+  disputedInPrompt.length &&
+  !/\{\s*hb\.verdict === 'dispute' && promptLands\.length > 0 && \(/.test(ui)
+) {
+  warn(
+    '「进提示词」那一行的条件不是由 `{\\s*hb.verdict === \'dispute\' && promptLands.length > 0 && (` 直接开头——前面挂一个 `false &&` 时，字样全在、界面一个字不出'
+  );
+}
+ok();
+if (!ui.includes('promptLands')) {
+  warn('TheoryBase.tsx 里没有 promptLands——「进没进提示词」得按落点算，不能写死');
+}
 const cssPath = join(process.cwd(), 'src/renderer/src/styles-theory.css');
 const css = existsSync(cssPath) ? readFileSync(cssPath, 'utf-8') : '';
-for (const cls of ['.tb-hb', '.tb-hb-confirm', '.tb-hb-narrow', '.tb-hb-dispute', '.tb-hb-outside', '.tb-hb-own']) {
+for (const cls of ['.tb-hb', '.tb-hb-confirm', '.tb-hb-narrow', '.tb-hb-dispute', '.tb-hb-outside', '.tb-hb-own', '.tb-hb-prompt']) {
   ok();
-  if (!css.includes(cls)) warn(`styles-theory.css 里没有 ${cls}——六种结论在界面上分不出来`);
+  if (!css.includes(cls)) warn(`styles-theory.css 里没有 ${cls}——六种结论在界面上分不出来（或「进了提示词」那一行没有样式）`);
 }
 
 /* ── 五 · 文档与命令 ── */

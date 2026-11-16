@@ -49,6 +49,8 @@ function ClaimRow({ c, focus }: { c: TheoryClaim; focus: boolean }) {
   const [open, setOpen] = useState(false);
   const lands = LANDING[c.id] ?? [];
   const hb = hbOf(c.id);
+  /** 这一条里会进提示词正文的落点。block 是模式块，lens 是透镜片段——两者同样 push 进正文。 */
+  const promptLands = lands.filter((l) => l.k === 'block' || l.k === 'lens');
 
   /*
    * 从报告边界栏点 id 跳过来时，那一条会自动展开。
@@ -110,6 +112,19 @@ function ClaimRow({ c, focus }: { c: TheoryClaim; focus: boolean }) {
                 </div>
                 <p className="tb-hb-says">{hb.says}</p>
                 <p className="tb-hb-gap">{hb.gap}</p>
+                {/*
+                  文献说了「有反对」，可这条如果同时写进了提示词，那它不只是书架上的注记：
+                  模型每次分析都按它判，而报告上不会写「这条被文献批评过」。
+                  不把这层关系说出来，就是「软件知道、读者不知道」——比没核更糟。
+                  这一行只给 dispute，且只给真进了提示词的那几条。
+                */}
+                {hb.verdict === 'dispute' && promptLands.length > 0 && (
+                  <p className="tb-hb-prompt" data-hb-prompt={c.id}>
+                    这条已经写进提示词（
+                    {promptLands.map((l) => `${LAND_KIND_LABEL[l.k]} ${l.ref}`).join('、')}
+                    ）：模型每次都按它判，而文献对它有过批评。
+                  </p>
+                )}
               </div>
             </div>
           )}
