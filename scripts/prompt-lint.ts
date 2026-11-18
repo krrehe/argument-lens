@@ -281,6 +281,7 @@ function schemaKeys(s: string): Set<string> {
 const CONSUMED = [
   'context', 'issue', 'speakerPosition', 'opposingPosition', 'dialogueType', 'dialogueTypeBasis',
   'stage', 'audience', 'audienceKind', 'contextGaps',
+  'grounding', 'source', 'ifChanged',
   'scope', 'applicable', 'reason', 'outOfScopeAt', 'partialNote',
   'conclusion', 'premises', 'intermediate', 'id', 'role', 'text', 'supports', 'quote', 'implicit',
   'implicitBasis', 'burden', 'acceptability', 'status', 'forAudience', 'tag', 'confidence',

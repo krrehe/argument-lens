@@ -1,17 +1,17 @@
 # 提示词：论证型式与批判性问题（诊断模式）
 
-> Argumentation Schemes & Critical Questions｜模式：诊断（diagnose）｜版本：v2.5.0
+> Argumentation Schemes & Critical Questions｜模式：诊断（diagnose）｜版本：v2.6.0
 > 判定类：给档位。
 > 这一份问的是：判断这段话站不站得住。
 > 判定单元：型式的一条批判性问题（CQ）
 > 原生刻度：型式强度：抗 CQ 的能力
 > 出处：Walton, Reed & Macagno, Argumentation Schemes (2008)；武宏志《非形式逻辑导论》附录A
 
-指纹 `cadbec610c06`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `ef87c6684b30`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `767a8750b5d0`
 
-字符 16287（预算：警戒 16000／上限 24000，当前接近上限）
-估算 7191 token｜采样温度上限 0.2｜输出上限 8192 token
+字符 16706（预算：警戒 16000／上限 24000，当前接近上限）
+估算 7248 token｜采样温度上限 0.2｜输出上限 8192 token
 规则块（11）：core.role、core.not-hunter、core.three-never、core.credibility、core.reconstruct、core.input-boundary、core.output-discipline、core.epistemic、core.language、core.gate-four、core.scope-gate
 
 ---
@@ -232,7 +232,8 @@
     "stage": "confrontation|opening|argumentation|concluding|unknown",
     "audience": "说给谁听",
     "audienceKind": "general|specialist|adversarial|supportive|unknown",
-    "contextGaps": ["语境中缺失、因而无法判断的信息"]
+    "contextGaps": ["语境中缺失、因而无法判断的信息"],
+    "grounding": {"<上面七格各自一格>": {"source": "known|inferred|guess", "basis": "known=原文连续片段；inferred=据哪个特征推；guess=凭什么假定", "ifChanged": "仅 guess 要写：换成别的样子判定怎么变"}}
   },
 
   "scope": {
@@ -540,7 +541,8 @@ CQ：CQ1 有无相反证据使该归类存疑？（守：归类的边界）；CQ
    scope 里说明这一点，checks 留空，verdict.level 写 "undetermined"。
 4. 判断这副透镜是否适用。不适用就按范围门处理，不要勉强套用。
 5. 判断 dialogueType 之前，先想清这段文本是不是「共同求解」：探究、评审、学术讨论、会诊这类场合，参与者的目标是把问题弄清，不是要说服对方。persuasion 不是默认值——论文、综述、书评、政策报告尤其容易在这里判错。无论判成哪一类，都要在 dialogueTypeBasis 里写出原文中可指出的特征，不许只写「语气像」。
-6. legitimateMoves 至少认真检查一遍。没有就给空数组，但要真的检查过。
-7. 本透镜的判定单元是「型式的一条批判性问题（CQ）」，原生刻度是「型式强度：抗 CQ 的能力」。
+6. context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；guess＝原文没写、为把分析做下去而假定，必须给 ifChanged：这格换成别的样子，判定往哪边变。多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。
+7. legitimateMoves 至少认真检查一遍。没有就给空数组，但要真的检查过。
+8. 本透镜的判定单元是「型式的一条批判性问题（CQ）」，原生刻度是「型式强度：抗 CQ 的能力」。
    verdict.scale 与 verdict.scaleValue 要用这套刻度的话说，不要一律套用「强/弱/无效」。
 ```

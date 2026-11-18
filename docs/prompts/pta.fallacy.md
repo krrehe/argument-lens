@@ -1,17 +1,17 @@
 # 提示词：型式周期表三特征（查谬误模式）
 
-> Periodic Table of Arguments (PTA)｜模式：查谬误（fallacy）｜版本：v2.5.0
+> Periodic Table of Arguments (PTA)｜模式：查谬误（fallacy）｜版本：v2.6.0
 > 命名类：不给档位，给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：把可疑的地方对上教材里的名字——每个名字都要指得出原文哪一句，并说清它什么时候其实合法。
 > 判定单元：三个正交特征：阶（一阶／二阶）× 轴（谓词／主词）× 陈述类型（事实／价值／政策）
 > 原生刻度：定位一致性与型内恰当运用（不是好坏评分）
 > 出处：Wagemans, Periodic Table of Arguments；ATIP 识别程序
 
-指纹 `28fcf1e10511`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `13a488f1642f`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `6eee91463e74`
 
-字符 14349（预算：警戒 16000／上限 24000，当前正常）
-估算 6069 token｜采样温度上限 0.15｜输出上限 8192 token
+字符 14769（预算：警戒 16000／上限 24000，当前正常）
+估算 6127 token｜采样温度上限 0.15｜输出上限 8192 token
 规则块（13）：fa.role、fa.not-hunter、fa.no-verdict、fa.price、fa.one-per-place、fa.legit、fa.empty、core.input-boundary、core.output-discipline、fa.epistemic、fa.language、fa.gate-four、fa.scope-gate
 
 ---
@@ -296,7 +296,8 @@ scope.outOfScopeAt 要写清是哪一条前提不成立，不要笼统说「不�
     "stage": "confrontation|opening|argumentation|concluding|unknown",
     "audience": "说给谁听",
     "audienceKind": "general|specialist|adversarial|supportive|unknown",
-    "contextGaps": ["语境中缺失、因而无法判断的信息"]
+    "contextGaps": ["语境中缺失、因而无法判断的信息"],
+    "grounding": {"<上面七格各自一格>": {"source": "known|inferred|guess", "basis": "known=原文连续片段；inferred=据哪个特征推；guess=凭什么假定", "ifChanged": "仅 guess 要写：换成别的样子判定怎么变"}}
   },
 
   "scope": {
@@ -553,16 +554,17 @@ checks 为空数组且 applicable=true 是合法状态，不要为了凑数而�
    scope 里说明这一点，checks 留空，verdict.level 写 "undetermined"。
 4. 判断这副透镜是否适用。不适用就按范围门处理，不要勉强套用。
 5. 判断 dialogueType 之前，先想清这段文本是不是「共同求解」：探究、评审、学术讨论、会诊这类场合，参与者的目标是把问题弄清，不是要说服对方。persuasion 不是默认值——论文、综述、书评、政策报告尤其容易在这里判错。无论判成哪一类，都要在 dialogueTypeBasis 里写出原文中可指出的特征，不许只写「语气像」。
-6. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，refutations 必须是空数组。
+6. context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；guess＝原文没写、为把分析做下去而假定，必须给 ifChanged：这格换成别的样子，判定往哪边变。多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。
+7. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，refutations 必须是空数组。
    这一份只回答「哪些位置对得上哪个名字」，不回答「这段话站不站得住」。
-7. 主输出是 labels，最多三条。每条必须带 quote（原文里能原样找到的一句）、condition、
+8. 主输出是 labels，最多三条。每条必须带 quote（原文里能原样找到的一句）、condition、
    whenLegitimate、riskOfError、landsOnCheck。缺 quote 或 landsOnCheck 挂不上检查项的条目，
    程序会直接丢掉，不显示——说不出是哪一句，就只是贴标签。
-8. 同一处位置只给一个名字。两个名字都说得通时，选与检查项对得更准的那个，
+9. 同一处位置只给一个名字。两个名字都说得通时，选与检查项对得更准的那个，
    另一个写进 selfCheck.unknowns，说明另一种叫法会把判断带到哪。
-9. 一个都没找到是正常结果：labels 给空数组，并在 unknowns 里说清是哪一种没有——
+10. 一个都没找到是正常结果：labels 给空数组，并在 unknowns 里说清是哪一种没有——
    这段文本本来就不是论证、名字都站不住、还是你没判断出来。不要用「可能有……的倾向」填空。
-10. 本透镜的判定单元是「三个正交特征：阶（一阶／二阶）× 轴（谓词／主词）× 陈述类型（事实／价值／政策）」，原生刻度是「定位一致性与型内恰当运用（不是好坏评分）」。
+11. 本透镜的判定单元是「三个正交特征：阶（一阶／二阶）× 轴（谓词／主词）× 陈述类型（事实／价值／政策）」，原生刻度是「定位一致性与型内恰当运用（不是好坏评分）」。
    本模式不评级，但结构里的零件要按这套刻度命名：verdict.scale 与 verdict.scaleValue 照抄这套刻度的话，
    verdict.level 固定写 "undetermined"。
 ```

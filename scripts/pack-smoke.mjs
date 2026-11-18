@@ -316,6 +316,15 @@ const panelJson = (() => {
 })();
 // 两个面板各写一行 PANELDOM，靠探针内容区分，不靠顺序
 const promptPanel = log.split('\n').find((l) => l.includes('PANELDOM') && l.includes('"view"')) ?? '';
+/*
+ * 版号与注记行数从基线读，不写死。
+ * 写死的结果是每升一版、每加一条注记，红的就是这条断言自己——2.5.0 → 2.6.0
+ * 那一轮两条都撞上了（smoke.mjs 里同款毛病一并改掉）。
+ * 基线是 `npm run prompt:lock` 写的，界面、导出件、检查器读的都是这一份。
+ */
+const BASELINE = JSON.parse(readFileSync(resolve(root, 'docs/prompts/BASELINE.json'), 'utf-8'));
+const BASELINE_VERSION = String(BASELINE.version ?? '');
+const BASELINE_NOTES = Array.isArray(BASELINE.notes) ? BASELINE.notes.length : 0;
 const checks = [
   /* 隔离三条：正向、反向、以及「跑来跑去到底用哪个目录」。
      只有正向会被「恰好没写盘」骗过，只有反向会被「根本没跑起来」骗过。 */
@@ -915,7 +924,7 @@ const checks = [
    * 所以这里把关系、指纹状态、边界条数、展开行数四样对着比。
    */
   [
-    '包里「这把尺子」对回当前装机版、三条边界与八行变更史都在',
+    '包里「这把尺子」对回当前装机版、三条边界与全部变更史都在',
     (() => {
       const rLine = log.split('\n').find((l) => l.includes('RESULT {')) ?? '';
       const phLine = log.split('\n').find((l) => l.includes('PHOPEN ')) ?? '';
@@ -927,13 +936,13 @@ const checks = [
           r.phSection === true &&
           r.phRelation === 'same' &&
           r.phFp === 'match' &&
-          String(r.phVersion ?? '') === '2.5.0' &&
+          String(r.phVersion ?? '') === BASELINE_VERSION &&
           String(r.phNoteState ?? '') === 'found' &&
           Number(r.phCaveats ?? 0) === 3 &&
           /更早版本的全文没有存档/.test(String(r.phCaveatText ?? '')) &&
           String(r.phToggle ?? '') === '0' &&
           String(o.toggle ?? '') === '1' &&
-          Number(o.rows ?? 0) >= 8
+          Number(o.rows ?? 0) === BASELINE_NOTES
         );
       } catch {
         return false;

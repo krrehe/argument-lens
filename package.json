@@ -32,6 +32,7 @@
     "gloss:sync": "node scripts/gen-workbench-gloss.mjs",
     "check:gloss": "node scripts/check-gloss.mjs",
     "check:workbench": "node scripts/check-workbench.mjs",
+    "check:context-source": "node scripts/run-check-context-source.mjs",
     "check:archive": "node scripts/check-archive-health.mjs",
     "check:academic": "node scripts/run-check-academic.mjs",
     "check:theory": "node scripts/run-check-theory.mjs",

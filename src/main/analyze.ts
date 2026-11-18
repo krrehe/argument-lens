@@ -28,6 +28,7 @@ import type {
 import { DEFAULT_THEORY, THEORY_BY_ID, isTheoryId, type TheoryId } from '@shared/theories';
 import { auditReport } from '@shared/report-audit';
 import { normalizeBrief } from '@shared/brief';
+import { normalizeGrounding } from '@shared/context-grounding';
 import { normalizeDivergence } from '@shared/divergence';
 import { buildPrompt, renderPrompt, SAMPLING } from './prompt';
 import { chat, extractJson, LlmError, type ChatResult } from './llm';
@@ -554,6 +555,7 @@ export function normalizeDiagnosis(
 
   /* 语境 */
   const c = raw.context ?? {};
+  const grounding = normalizeGrounding(c.grounding, passage);
   const context = {
     issue: strNonEmpty(c.issue, '（未能确定争议之点）'),
     speakerPosition: str(c.speakerPosition),
@@ -581,7 +583,23 @@ export function normalizeDiagnosis(
       'unknown'
     ),
     contextGaps: arr<string>(c.contextGaps).filter((x) => typeof x === 'string'),
+    /*
+     * 语境出处。这一段是本轮新加的：报告其余部分都能回原文，只有语境九格是裸断言，
+     * 而它们在最上游（ARS 的可接受性从听众出发，walton 的 CQ 从对话类型出发）。
+     * 校验与降级都在 shared 里做，这里只负责把结果接上，并在降级时留一条诊断——
+     * 不留痕的话，界面会显示一份「全部都能从原文指出」的报告，而那是假的。
+     */
+    grounding: grounding.grounding,
   };
+  for (const p of grounding.problems) {
+    if (p.kind === 'basis-not-in-text' || p.kind === 'bad-source') {
+      diagnostics.push({
+        level: 'warn',
+        code: 'CONTEXT_GROUNDING',
+        message: `语境「${p.field}」${p.detail}`,
+      });
+    }
+  }
 
   /* 范围门 */
   const sc = raw.scope ?? {};

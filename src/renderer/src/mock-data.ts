@@ -37,6 +37,45 @@ export const MOCK: Diagnosis = {
     audience: '家长与校方',
     audienceKind: 'general',
     contextGaps: ['取消早读前后其他变量（生源、师资、命题难度）未知', '6 个百分点来自哪份统计、是否可比未知'],
+    /*
+     * 这份样张刻意把三档都摆出来：一个真能指出原文，两个是猜的。
+     * 界面预览要能看见「猜的那两格长什么样」，否则新加的标记只在声称原文时
+     * 才出现过，看起来像全都验过了——那正是这套标记要防的假象。
+     */
+    grounding: {
+      issue: {
+        source: 'inferred',
+        basis: '由「这说明取消早读是错的」与前后文反推争议点',
+      },
+      speakerPosition: {
+        source: 'known',
+        basis: '这说明取消早读是错的',
+      },
+      opposingPosition: {
+        source: 'guess',
+        basis: '文本只说「取消早读」，没交代是谁决定的、理由是什么',
+        ifChanged: '若这段是校方内部复盘，对面立场就是「取消是对的」，型式判断要换到成本—收益一侧',
+      },
+      dialogueType: {
+        source: 'inferred',
+        basis: '面向读者陈述并给出理由，末尾用反问施压',
+      },
+      stage: {
+        source: 'guess',
+        basis: '单段文本看不出讨论走到哪一步',
+        ifChanged: '若处于交锋初段，追问「有无参照校」还太早，应先要求交代争议点',
+      },
+      audience: {
+        source: 'guess',
+        basis: '原文没有称呼、没有署名，也没有出现的读者',
+        ifChanged: '若听众换成校务会，「家长支持」这条不再是理由；若发在家长群，它反而是最强的一条',
+      },
+      audienceKind: {
+        source: 'guess',
+        basis: '随上一格',
+        ifChanged: '若听众是专业评审，可接受性门槛整体抬高，三条前提都要补出处',
+      },
+    },
   },
   scope: {
     applicable: true,

@@ -25,7 +25,7 @@ import { blocksFor, REQUIRED_BLOCKS, type PromptBlock } from './blocks';
  * 每次改动提示词都必须改这里，并写清改了什么（见 docs/提示词工程.md 的变更表）。
  */
 
-export const PROMPT_VERSION = '2.5.0';
+export const PROMPT_VERSION = '2.6.0';
 
 /**
  * 变更记录。每次改版本号都要在这里留一行，说清改了什么、为什么。
@@ -35,6 +35,16 @@ export const PROMPT_VERSION = '2.5.0';
  * 没有这份记录，半年后有人会把它当冗余删掉，然后同一个 bug 再发生一次。
  */
 export const PROMPT_VERSION_NOTE: string[] = [
+  '2.6.0 新增语境出处（context.grounding）：七格各标 known／inferred／guess，' +
+    'known 的 basis 必须能在原文里逐字找到，找不到由本地降级为 inferred 并留一条诊断；' +
+    'guess 必须给 ifChanged（这一格换成别的样子，判定往哪边变）。' +
+    '起因是一组实测：本机 107 份存档里，同一段 41 字的文本被分析了 98 次，' +
+    '听众出现三种写法、对话类型出现两种、讨论阶段只有一种，而报告里一处都没说这是猜的。' +
+    '语境是整份报告里唯一没有出处的部分——结论和前提都有 quote 与 span 可逐字回查，语境一格都没有，' +
+    '而它恰好在最上游：ARS 的可接受性判定从听众出发，walton 的批判性问题排布从对话类型出发，' +
+    '这两格猜错，下面一律跟着偏，且偏得安静（靠「对手方」才成立的那几条会整齐地判未违反）。' +
+    '规则放在 user 模板里，与 2.2.0 的对话类型纪律同级、对全部透镜与模式生效。' +
+    '边界：旧存档没有这一层，界面照实说「没有标注」，不补一条假的。',
   '2.5.0 新增查谬误（fallacy）模式，七个独立内核块。这是本工具第一次把「谬误名」当主输出，' +
     '因此加了四条代价：每条命名必须指得出原文哪一句、凭什么成立、什么时候其实合法、最可能错在哪，' +
     '并且必须挂到一条真实存在的检查项上（代码侧 G11 逐条核，缺位置或挂不上的直接丢弃）。' +
@@ -245,7 +255,8 @@ export const SHARED_SCHEMA = `{
     "stage": "confrontation|opening|argumentation|concluding|unknown",
     "audience": "说给谁听",
     "audienceKind": "general|specialist|adversarial|supportive|unknown",
-    "contextGaps": ["语境中缺失、因而无法判断的信息"]
+    "contextGaps": ["语境中缺失、因而无法判断的信息"],
+    "grounding": {"<上面七格各自一格>": {"source": "known|inferred|guess", "basis": "known=原文连续片段；inferred=据哪个特征推；guess=凭什么假定", "ifChanged": "仅 guess 要写：换成别的样子判定怎么变"}}
   },
 
   "scope": {
@@ -499,6 +510,24 @@ const DIALOGUE_KIND_HINT =
   'persuasion 不是默认值——论文、综述、书评、政策报告尤其容易在这里判错。' +
   '无论判成哪一类，都要在 dialogueTypeBasis 里写出原文中可指出的特征，不许只写「语气像」。';
 
+/**
+ * 语境出处的纪律。与上一条同级、同样对全部透镜与模式生效。
+ *
+ * 为什么值得单列一条：语境这几格是报告里唯一没有出处的部分。结论和前提都有
+ * quote 与 span 可以逐字回查，语境一格都没有——而它最上游：ARS 的可接受性判定
+ * 从听众出发，walton 的批判性问题排布从对话类型出发。
+ *
+ * 加这一条之前实测过：同一段 41 字的文本分析 98 次，听众出现三种写法、
+ * 对话类型出现两种，而报告里一处都没说这是猜的。它一直以陈述句的形式坐在最上游。
+ * 加了这一条，猜的至少会自己承认是猜的。
+ */
+const CONTEXT_SOURCE_HINT =
+  'context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：' +
+  'known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；' +
+  'guess＝原文没写、为把分析做下去而假定，必须给 ifChanged：这格换成别的样子，判定往哪边变。' +
+  '多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。' +
+  '把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。';
+
 function userTemplateFor(theory: TheoryId, mode: AnalysisMode): string {
   const profile = THEORY_BY_ID[theory];
   const extra = MODE_EXTRA[mode];
@@ -513,8 +542,9 @@ function userTemplateFor(theory: TheoryId, mode: AnalysisMode): string {
 
   const numbered = [
     `5. ${DIALOGUE_KIND_HINT}`,
-    ...extra.map((s, i) => `${6 + i}. ${s}`),
-    `${6 + extra.length}. ${tail}`,
+    `6. ${CONTEXT_SOURCE_HINT}`,
+    ...extra.map((s, i) => `${7 + i}. ${s}`),
+    `${7 + extra.length}. ${tail}`,
   ].join('\n');
 
   return `守卫：{delim}

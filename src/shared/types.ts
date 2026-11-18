@@ -65,6 +65,63 @@ export type DialogueType =
 /** 批判性讨论四阶段。语用辩证透镜靠它定位。 */
 export type DiscussionStage = 'confrontation' | 'opening' | 'argumentation' | 'concluding' | 'unknown';
 
+/**
+ * 语境每一格的出处。
+ *
+ * 为什么需要这一层：报告其余部分都能回原文——结论和前提有 quote + span，
+ * 名称候选有 condition，连置信度都有 tag。只有语境这几格是裸断言：
+ * 「听众是关注升学率的家长与校内决策者」这句话，在原文那四十一个字里
+ * 找不到任何支持，却被当成事实写在最上游——ARS 的可接受性判定从听众出发，
+ * walton 的批判性问题排布从对话类型出发。上游猜错，下面一律跟着偏，
+ * 而报告里没有一处承认这是猜的。
+ *
+ * 实测：同一段文本分析 98 次，听众出现三种写法，对话类型出现两种，
+ * 讨论阶段一直只有一种。稳定不等于正确，只等于它对这个猜测很有信心。
+ *
+ * 三档直接沿用既有的 EpistemicTag，不另造一套词：
+ *   known    = 原文里能指出来的字（basis 必须是连续原文片段）
+ *   inferred = 由原文特征推出（basis 写推的是哪个特征）
+ *   guess    = 原文没有，为把分析做下去而假定（必须写 ifChanged）
+ */
+export type ContextSource = 'known' | 'inferred' | 'guess';
+
+export interface ContextGrounding {
+  source: ContextSource;
+  /** known 时必须是原文里原样找得到的连续片段；其余两档写凭什么。 */
+  basis: string;
+  /** 仅 guess 需要：这一格换成别的样子，判定会往哪边变。 */
+  ifChanged?: string;
+  /**
+   * 模型说 known，但依据在原文里找不到，被本地降级成 inferred 的痕迹。
+   * 留着它，界面才能照实说「它自称引自原文，其实原文没这句」——
+   * 静默降级会让人以为模型一直很老实。
+   */
+  downgraded?: boolean;
+}
+
+/**
+ * 需要标出处的语境格。`contextGaps` 不在其中——它写的就是「不知道什么」，
+ * 再给它标一个出处只会得到「这条猜测本身是猜的」这种废话。
+ */
+export type ContextField =
+  | 'issue'
+  | 'speakerPosition'
+  | 'opposingPosition'
+  | 'dialogueType'
+  | 'stage'
+  | 'audience'
+  | 'audienceKind';
+
+export const CONTEXT_FIELDS: readonly ContextField[] = [
+  'issue',
+  'speakerPosition',
+  'opposingPosition',
+  'dialogueType',
+  'stage',
+  'audience',
+  'audienceKind',
+];
+
 export interface Context {
   /** 争议之点：到底在争什么。这是所有后续判断的锚点。 */
   issue: string;
@@ -79,6 +136,11 @@ export interface Context {
   /** 受众类型，决定可接受性判断往哪个方向偏 */
   audienceKind: 'general' | 'specialist' | 'adversarial' | 'supportive' | 'unknown';
   contextGaps: string[];
+  /**
+   * 每一格打哪来的。用 Partial 是有意的：v2.3.0 之前存的报告没有这一层，
+   * 读旧档时它是 `{}`，界面照实说「这份存档没标出处」，不伪造也不崩。
+   */
+  grounding: Partial<Record<ContextField, ContextGrounding>>;
 }
 
 /* ─────────── 第二层：重构 ─────────── */

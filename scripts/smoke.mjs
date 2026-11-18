@@ -399,6 +399,15 @@ function dvObj(line) {
   }
 }
 const dv = dvObj(dvLine);
+/*
+ * 版号从基线读，不写死。
+ * 写死的号每升一版就把这条真机断言弄红一次，而红的是断言自己而不是产品——
+ * 2.5.0 → 2.6.0（语境出处）那一轮正是这样：分析完全正常，两条断言在等一个旧号。
+ * 基线是 `npm run prompt:lock` 写的，也是 check:prompt-drift 读的那一份，两边同一个事实来源。
+ */
+const BASELINE_VERSION = String(
+  JSON.parse(readFileSync(resolve(root, 'docs/prompts/BASELINE.json'), 'utf-8')).version ?? ''
+);
 const checks = [
   ['应用启动并渲染', domLine.includes('"topbar":true')],
   ['六副透镜就位', domLine.includes('"lensChips":6')],
@@ -675,7 +684,7 @@ const checks = [
       return (
         String(r.phRelation ?? '') === 'same' &&
         String(r.phFp ?? '') === 'match' &&
-        String(r.phVersion ?? '') === '2.5.0' &&
+        String(r.phVersion ?? '') === BASELINE_VERSION &&
         /当前装机版/.test(String(r.phLine ?? '')) &&
         /逐字对得上/.test(String(r.phLine ?? ''))
       );
@@ -686,7 +695,7 @@ const checks = [
   ['这把尺子：注记是查得到的一行，不是编出来的', (() => {
     try {
       const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
-      return String(r.phNoteState ?? '') === 'found' && /2\.5\.0/.test(String(r.phNote ?? ''));
+      return String(r.phNoteState ?? '') === 'found' && String(r.phNote ?? '').includes(BASELINE_VERSION);
     } catch {
       return false;
     }
