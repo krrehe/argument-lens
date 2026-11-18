@@ -23,7 +23,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:12
 button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
 button{cursor:pointer;background:none;border:0}
 .mono{font-family:var(--mono)}
-.app{display:grid;grid-template-rows:28px 34px auto minmax(0,1fr) 24px;height:100vh}
+/* 工具栏那行是 auto 而不是 34px：1280 宽时它自然就是 34px（与原来一致），
+   1100 宽时多出来的按钮换到第二行、整行自己长高，而不是把「这份报告」压成竖排、
+   把快捷键提示挤到可视区外——挤掉的那两处不会报错，只有看图才发现。 */
+.app{display:grid;grid-template-rows:28px auto auto minmax(0,1fr) 24px;height:100vh}
 .body{display:grid;grid-template-columns:236px minmax(0,1fr) 296px;min-height:0;border-top:1px solid var(--line)}
 .center{display:grid;grid-template-rows:minmax(0,1fr) 190px;min-height:0;border-left:1px solid var(--line);border-right:1px solid var(--line)}
 .pane{background:var(--panel);min-height:0;display:flex;flex-direction:column;overflow:hidden}
@@ -45,7 +48,8 @@ button{cursor:pointer;background:none;border:0}
 .topbar .sp{flex:1}
 .tlink{color:var(--muted);font-family:var(--mono);font-size:10px}
 .tlink:hover{color:var(--accent)}
-.toolbar{display:flex;align-items:center;gap:5px;padding:0 9px;background:var(--panel);border-bottom:1px solid var(--line)}
+.toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:4px 5px;padding:4px 9px;background:var(--panel);border-bottom:1px solid var(--line)}
+.toolbar .lbl{color:var(--muted);font-size:10px;white-space:nowrap}
 .tb{border:1px solid var(--line);background:var(--panel2);border-radius:3px;padding:4px 9px;font-size:11px;color:var(--text2);white-space:nowrap}
 .tb:hover{border-color:var(--line2);background:var(--panel3);color:var(--text)}
 .tb.pri{border-color:var(--accent);color:var(--accent);background:var(--accentbg)}
@@ -97,6 +101,16 @@ table.t tr.sel td{background:var(--sel)}
 .ti .ct{font-family:var(--mono);font-size:9px;color:var(--muted)}
 .ti .sub{padding-left:8px}
 .tifoot{padding:8px 10px;font-size:10px;color:var(--muted);line-height:1.7;border-top:1px solid var(--line)}
+/* 存档行：先摆能认出来的字，再摆 id。
+   原来一行只有 8 位 id + 模式 + 字数，而摘录只写在 title 里——104 份报告要逐条悬停
+   才知道是哪一份。回看台最常做的一件事就是「找那份」，所以摘录必须是可见文字，
+   id 退到第二行做取证用。两行一起高 34px，比原来多 13px，换来的是一眼能扫。 */
+.ti.arc{align-items:flex-start;padding:5px 9px 5px 12px;min-height:34px;gap:6px}
+.ti.arc .dot{flex:none;margin-right:0;margin-top:5px}
+.ti.arc .arcmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ti.arc .arcx{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ti.arc .arcmeta{font-family:var(--mono);font-size:9.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ti.arc.arcnow .arcx{color:var(--text)}
 
 .inspkv{display:grid;grid-template-columns:104px minmax(0,1fr);border-bottom:1px solid var(--line);font-size:11px}
 .inspkv .ik{padding:5px 8px;font-family:var(--mono);font-size:10px;color:var(--muted);border-right:1px solid var(--line);word-break:break-all}
@@ -299,7 +313,7 @@ pre.json{margin:0;padding:9px;font-family:var(--mono);font-size:10px;color:var(-
   <div class="sep"></div>
   <!-- 这两项原来是 select，选完只弹一句「需重新分析」，状态栏却跟着变，
        报告其实没换。改成当前报告自己的只读值 + 一个真的能回去换的按钮。 -->
-  <span style="color:var(--muted);font-size:10px">这份报告</span>
+  <span class="lbl">这份报告</span>
   <span class="ro" id="lensNow" title="当前报告生成时用的透镜">透镜 —</span>
   <span class="ro" id="modeNow" title="当前报告生成时用的模式">模式 —</span>
   <button class="tb" data-back="回原界面换透镜 / 模式：工作台只回看已存档报告，换透镜要重新分析">换透镜 · 回原界面</button>
@@ -679,7 +693,14 @@ function renderTree(){
     用户还得先猜出 id 才能搜到剩下那些。滚动 + 过滤已经够了。 */
  const arc=shown.map(a=>{
   const lv=a.level==='weakened'?'warn':'ok';
-  return `<div class="ti ${a.id===R.id?'arcnow':''}" data-arc="${esc(a.id)}" title="${esc(a.excerpt||'')}"><span class="dot ${lv}"></span><span class="id">${esc(a.id.slice(0,8))}</span><span class="nm sub">${esc(a.mode)}</span><span class="ct">${a.chars}</span></div>`;
+  /* 摘录 16 字：236px 栏里一行放得下 14—16 个汉字，再多就只能靠省略号。
+     没有摘录的旧档明写「没有原文摘录」，不留一行空白让人以为是渲染坏了。
+     第二行给时间 / 模式 / 档位，而不是 id：本机 104 份里 89 份是同一段原文，
+     摘录一样、id 认不出，能分开它们的只有「什么时候、哪个模式、判成什么」。
+     id 仍在 title 与过滤里，要引用 id 时悬停即可。 */
+  const ex=String(a.excerpt||'').replace(/\s+/g,' ').trim();
+  const line=!ex?'（这份存档没有原文摘录）':(ex.length>16?ex.slice(0,16)+'…':ex);
+  return `<div class="ti arc ${a.id===R.id?'arcnow':''}" data-arc="${esc(a.id)}" title="${esc(a.id)} · ${esc(a.mode)} · ${a.chars} 字&#10;${esc(ex||'没有原文摘录')}"><span class="dot ${lv}"></span><span class="arcmain"><span class="arcx">${esc(line)}</span><span class="arcmeta">${esc(fmtAt(a.at))} · ${esc(a.mode)} · ${esc(VZ[a.level]?.[0]||a.level||'—')}</span></span></div>`;
  }).join('');
  const none=!shown.length?`<div class="tifoot">没有匹配的存档。清空关键词可看全部 ${arcAll.length} 份。</div>`:'';
  $('leftTree').innerHTML=`

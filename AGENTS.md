@@ -101,7 +101,7 @@ npm run verify
 | `check:coverage` | **长文覆盖账破了**：短文本也摆一条 100% 的空面板、句子带着段间空行被归错段（off-by-one）、另切一套段落不与「切给我看」同源、每句归一段的守恒破了、界面写出劝告或「分析漏了」、只剩 import 或样式／预览／端到端探针没接 |
 | `check:docs` | **这份文件自己腐烂了**：它点名的命令/路径不存在，或漏掉了某个 check |
 
-`check:gloss` 守工作台的人话口径：内联术语表由 `gloss:sync` 从 `src/renderer/src/glossary.ts` 生成，术语改了字却没同步、字段映射引用了不存在的术语 key、或检查器丢掉「原始 JSON」取证入口，这一关就红。`check:archive` 守存档损坏不许被吞掉：`archive:health` / `archive:probe` 纯读不写盘、点开坏报告有话说、历史空态在坏盘上不谎报「还没有」、`archive:list` / `archive:get` 形状不变（smoke 拿它们当独立真值）；改 `src/main/archive.ts` 的 catch 之前先读 `scripts/check-archive-health.mjs`。`smoke` 与 `pack:check` 不进 verify（要几分钟、要起应用），改到界面或打包时单独跑。verify 现在是并发的：typecheck 先单跑（它红了会把后面的报错全带偏），其余最多 6 路并行。**怀疑并发把某一项搞红了，先 `VERIFY_JOBS=1 npm run verify` 复现**——串行也红，就不是并发的事。
+`check:gloss` 守工作台的人话口径：内联术语表由 `gloss:sync` 从 `src/renderer/src/glossary.ts` 生成，术语改了字却没同步、字段映射引用了不存在的术语 key、或检查器丢掉「原始 JSON」取证入口，这一关就红。`check:archive` 守存档损坏不许被吞掉：`archive:health` / `archive:probe` 纯读不写盘、点开坏报告有话说、历史空态在坏盘上不谎报「还没有」、`archive:list` / `archive:get` 形状不变（smoke 拿它们当独立真值）；改 `src/main/archive.ts` 的 catch 之前先读 `scripts/check-archive-health.mjs`。`check:workbench` 守回看台左栏与工具条（`src/renderer/public/workbench.html` 是单文件页面，`check:css` 与 `check:arch` 都扫不到它）：存档行第一行必须是原文摘录（不许只留在 `title` 里）、第二行必须是「时间 · 模式 · 档位中文」，`.arcmain` 必须有 `min-width:0`（少了它省略号静默失效），工具条必须能换行且 `.app` 第二行是 `auto`——1100px 宽时固定 34px 会把「这份报告」压成竖排、把快捷键提示推出可视区。`smoke` 与 `pack:check` 不进 verify（要几分钟、要起应用），改到界面或打包时单独跑。verify 现在是并发的：typecheck 先单跑（它红了会把后面的报错全带偏），其余最多 6 路并行。**怀疑并发把某一项搞红了，先 `VERIFY_JOBS=1 npm run verify` 复现**——串行也红，就不是并发的事。
 
 ---
 ## 改什么要跑什么
