@@ -50,6 +50,8 @@ import { ConditionScreen } from './ConditionScreen';
 import { SourceBar } from './SourceBar';
 import { CoverageBar } from './CoverageBar';
 import { coverageOf, coverageScopeText } from '@shared/coverage';
+import { AUDIENCE_KIND_LABEL, contextLoadOf, DIALOGUE_TYPE_LABEL, STAGE_LABEL } from '@shared/context-use';
+import { CtxCell } from './CtxCell';
 import { FieldTermsBar } from './FieldTermsBar';
 import { DensityBar, useDensity } from './Density';
 import { isLedgerSection, sectionKey } from '@shared/ui-density';
@@ -713,13 +715,8 @@ const FAMILY_LABEL: Record<string, string> = {
   none: '未识别',
 };
 
-const RULE_STAGE_LABEL: Record<string, string> = {
-  confrontation: '冲突阶段',
-  opening: '开场阶段',
-  argumentation: '论证阶段',
-  concluding: '结论阶段',
-  unknown: '阶段不明',
-};
+/* 阶段中文表已挪到 @shared/context-use：报告页与回看台原来各有一份，
+   两份一旦不一致，同一格在两屏上会显示两个阶段名。 */
 
 function LensPanel({ d }: { d: Diagnosis }) {
   const l = d.lens;
@@ -781,7 +778,7 @@ function LensPanel({ d }: { d: Diagnosis }) {
           </span>
           <span className="k">阶段</span>
           <span className="v">
-            {RULE_STAGE_LABEL[d.context.stage] ?? d.context.stage}
+            {STAGE_LABEL[d.context.stage] ?? d.context.stage}
             {l.stageBasis ? ` — ${l.stageBasis}` : ''}
           </span>
           <span className="k">谁妨碍了分歧解决</span>
@@ -1550,6 +1547,12 @@ export function DiagnosisView({
    * 没被落上时出现；短文本不在这里补一句 100% 的废话。
    */
   const cov = useMemo(() => coverageOf(d), [d]);
+  /*
+   * 语境这一块的载荷：这副透镜读哪几格、这几格在手上这份报告里站不站得住。
+   * 依赖表在 shared/context-use，界面不自己判断——界面自己判断的结果是
+   * 「这句报告读语境」与提示词里的依赖表各说一套。
+   */
+  const ctxLoad = useMemo(() => contextLoadOf(d), [d]);
   const t = THEORY_BY_ID[d.theory];
 
   const allClaims: Claim[] = [d.conclusion, ...d.premises, ...d.intermediate];
@@ -1959,8 +1962,20 @@ export function DiagnosisView({
           />
         </Gated>
         <div className="verdict-say">{d.verdict.statement}</div>
+        {/*
+          语境地基。判定读的那几格语境若不是原文说的，这句就在这儿说穿——
+          写在语境栏里没用：读到判定的人不会回头翻那一格。
+          只在确有站不住的格时出现；地基稳就不补一句「一切正常」。
+        */}
+        {ctxLoad.caveat && (
+          <div className="verdict-scope" data-verdict-context>
+            <span className="vtag">语境</span>
+            <span className="vscope-say">{ctxLoad.caveat}</span>
+          </div>
+        )}
         {cov.partial && (
           <div className="verdict-scope" data-verdict-scope>
+            <span className="vtag">引文</span>
             <span className="vscope-say">
               {coverageScopeText(cov.pinned, cov.sentences, cov.untouched)}
             </span>
@@ -2119,41 +2134,77 @@ export function DiagnosisView({
       <Block
         id="sec-context"
         title="语境坐标"
-        sub="后面所有判断都锚在这上面"
+        sub={ctxLoad.used.length ? `这副尺子读其中 ${ctxLoad.used.length} 格` : '这副尺子不读语境'}
         disputes={at('sec-context')}
         plain="这段话是在什么场合说的、说给谁听、对方是谁。同一句话换个场合，对错会变。"
-      >        <div className="ctx">
-          <div>
-            <div className="k">争议之点</div>
-            <div className="v">{d.context.issue}</div>
-          </div>
-          <div>
-            <div className="k">说话者立场</div>
-            <div className="v">{d.context.speakerPosition || '—'}</div>
-          </div>
-          <div>
-            <div className="k">对方立场</div>
-            <div className="v">{d.context.opposingPosition || '无可识别对手'}</div>
-          </div>
-          <div>
-            <div className="k">
-              <Term k="dialogue">对话类型</Term>
-            </div>
-            <div className="v">
-              {d.context.dialogueType}
-              {d.context.dialogueTypeBasis ? `｜${d.context.dialogueTypeBasis}` : ''}
-            </div>
-          </div>
-          <div>
-            <div className="k">受众</div>
-            <div className="v">{d.context.audience || '—'}</div>
-          </div>
-          <div>
-            <div className="k">
-              <Term k="stage">阶段</Term>
-            </div>
-            <div className="v">{RULE_STAGE_LABEL[d.context.stage] ?? d.context.stage}</div>
-          </div>
+      >
+        {/*
+          这一行的口径按透镜分开，原来那句「所有判断都锚在这上面」是假的：
+          图尔明、PTA、名录对照三副透镜的判定一步都不读语境。
+          依赖表在 @shared/context-use，这里只把结论念出来。
+        */}
+        <div className={`ctx-sum${ctxLoad.weak.length ? ' weak' : ''}`} data-ctx-sum>
+          {ctxLoad.summary}
+        </div>
+        <div className="ctx">
+          <CtxCell
+            field="issue"
+            name="争议之点"
+            value={d.context.issue}
+            g={d.context.grounding?.issue}
+            used={ctxLoad.used.some((u) => u.field === 'issue')}
+          />
+          <CtxCell
+            field="speakerPosition"
+            name="说话者立场"
+            value={d.context.speakerPosition || '—'}
+            g={d.context.grounding?.speakerPosition}
+            used={ctxLoad.used.some((u) => u.field === 'speakerPosition')}
+          />
+          <CtxCell
+            field="opposingPosition"
+            name="对方立场"
+            value={d.context.opposingPosition || '无可识别对手'}
+            g={d.context.grounding?.opposingPosition}
+            used={ctxLoad.used.some((u) => u.field === 'opposingPosition')}
+          />
+          <CtxCell
+            field="dialogueType"
+            name={<Term k="dialogue">对话类型</Term>}
+            value={
+              <>
+                {DIALOGUE_TYPE_LABEL[d.context.dialogueType] ?? d.context.dialogueType}
+                {d.context.dialogueTypeBasis ? `｜${d.context.dialogueTypeBasis}` : ''}
+              </>
+            }
+            g={d.context.grounding?.dialogueType}
+            used={ctxLoad.used.some((u) => u.field === 'dialogueType')}
+          />
+          <CtxCell
+            field="audience"
+            name="受众"
+            value={d.context.audience || '—'}
+            g={d.context.grounding?.audience}
+            used={ctxLoad.used.some((u) => u.field === 'audience')}
+          />
+          {/*
+            受众类型原来不在这一栏里显示，而它恰是决定可接受性往哪边偏的那一格：
+            ARS 的档位按它调门槛，读者却只看得到「受众」那句话。
+          */}
+          <CtxCell
+            field="audienceKind"
+            name="受众类型"
+            value={AUDIENCE_KIND_LABEL[d.context.audienceKind] ?? d.context.audienceKind}
+            g={d.context.grounding?.audienceKind}
+            used={ctxLoad.used.some((u) => u.field === 'audienceKind')}
+          />
+          <CtxCell
+            field="stage"
+            name={<Term k="stage">阶段</Term>}
+            value={STAGE_LABEL[d.context.stage] ?? d.context.stage}
+            g={d.context.grounding?.stage}
+            used={ctxLoad.used.some((u) => u.field === 'stage')}
+          />
         </div>
         {d.context.contextGaps.length > 0 && (
           <div style={{ marginTop: 10 }}>

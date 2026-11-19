@@ -2154,6 +2154,27 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
       }
 
       /*
+       * 语境地基：判定那一格下面那句，以及语境坐标的口径句。
+       *
+       * 假模型不产出 context.grounding，所以这条跑道走的一定是**旧档路径**：
+       * 界面必须说「分不出哪几格是原文说的」，而不是补一句「假定」。
+       * 这正是要验的那条边界——真实模型漏标时，界面会不会替它编一个来路。
+       * 「读的是哪两格」由 check:context-use 的 128 条守着（walton→对话类型＋阶段），
+       * 这里只核接线：标记在、文字来自载荷、徽章数对得上。
+       */
+      {
+        const ctx = await wc.executeJavaScript(`JSON.stringify({
+          has: !!document.querySelector('[data-verdict-context]'),
+          caveat: (document.querySelector('[data-verdict-context] .vscope-say')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+          note: (document.querySelector('[data-ctx-sum]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+          reads: document.querySelectorAll('.ctxused').length,
+          badges: [...document.querySelectorAll('.ctxbadge')].map((e) => e.textContent.trim()),
+          tags: [...document.querySelectorAll('[data-verdict-context] .vtag')].map((e) => e.textContent.trim()),
+        })`);
+        add(`CTXRESULT ${ctx}`);
+      }
+
+      /*
        * 「骨架缺口」：本地第一次对报告本身说「这里接不上」。
        *
        * 核的是接线与来源，不是算法：每条缺口都得带 `data-skeleton-from`，

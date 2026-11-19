@@ -1,17 +1,17 @@
 # 提示词：语用辩证（十规则）（诊断模式）
 
-> Pragma-Dialectics: Ten Rules for Critical Discussion｜模式：诊断（diagnose）｜版本：v2.6.0
+> Pragma-Dialectics: Ten Rules for Critical Discussion｜模式：诊断（diagnose）｜版本：v2.7.0
 > 判定类：给档位。
 > 这一份问的是：判断这段话站不站得住。
 > 判定单元：四阶段 × 十条规则中的某一条
 > 原生刻度：规则违反：哪条规则、在哪个阶段、被哪个言语行为违反
 > 出处：van Eemeren & Grootendorst, Speech Acts in Argumentative Discussions；十规则（10／17 两版）
 
-指纹 `58ccd9e688b0`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `a0c5c6263ed3`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `767a8750b5d0`
 
-字符 13318（预算：警戒 16000／上限 24000，当前正常）
-估算 5575 token｜采样温度上限 0.2｜输出上限 8192 token
+字符 13547（预算：警戒 16000／上限 24000，当前正常）
+估算 5591 token｜采样温度上限 0.2｜输出上限 8192 token
 规则块（11）：core.role、core.not-hunter、core.three-never、core.credibility、core.reconstruct、core.input-boundary、core.output-discipline、core.epistemic、core.language、core.gate-four、core.scope-gate
 
 ---
@@ -230,7 +230,7 @@
     "audience": "说给谁听",
     "audienceKind": "general|specialist|adversarial|supportive|unknown",
     "contextGaps": ["语境中缺失、因而无法判断的信息"],
-    "grounding": {"<上面七格各自一格>": {"source": "known|inferred|guess", "basis": "known=原文连续片段；inferred=据哪个特征推；guess=凭什么假定", "ifChanged": "仅 guess 要写：换成别的样子判定怎么变"}}
+    "grounding": {"<上面七格各自一格>": {"source": "known|inferred|guess", "basis": "known=原文连续片段；inferred=据哪个特征推；guess=凭什么假定", "ifChanged": "非 known 都要写：这格换成别的样子，哪条检查或哪个档位会跟着变（不许写「影响很大」）"}}
   },
 
   "scope": {
@@ -461,8 +461,9 @@ checks 由十规则逐条生成，一条规则一个检查项（通常 10 条，
    scope 里说明这一点，checks 留空，verdict.level 写 "undetermined"。
 4. 判断这副透镜是否适用。不适用就按范围门处理，不要勉强套用。
 5. 判断 dialogueType 之前，先想清这段文本是不是「共同求解」：探究、评审、学术讨论、会诊这类场合，参与者的目标是把问题弄清，不是要说服对方。persuasion 不是默认值——论文、综述、书评、政策报告尤其容易在这里判错。无论判成哪一类，都要在 dialogueTypeBasis 里写出原文中可指出的特征，不许只写「语气像」。
-6. context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；guess＝原文没写、为把分析做下去而假定，必须给 ifChanged：这格换成别的样子，判定往哪边变。多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。
-7. legitimateMoves 至少认真检查一遍。没有就给空数组，但要真的检查过。
-8. 本透镜的判定单元是「四阶段 × 十条规则中的某一条」，原生刻度是「规则违反：哪条规则、在哪个阶段、被哪个言语行为违反」。
+6. context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；guess＝原文没写、为把分析做下去而假定。这两档都要给 ifChanged：这格换成别的样子，判定往哪边变。多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。
+7. 本透镜的判定要读 3 格语境：「对话类型」这段话语是否以解决分歧为目标，是整副透镜的适用门槛；「阶段」每条违反都要落到某一阶段，阶段空着规则就落不下去；「对方立场」没有可识别的对方，靠「对手方」才成立的规则无从违反。这几格只要不是 known，ifChanged 就必须写，而且要有落点：写成「这格若是别的样子，哪一条检查或哪一个档位会跟着变」，不许写「影响很大」「结论可能不同」这种没有落点的话。
+8. legitimateMoves 至少认真检查一遍。没有就给空数组，但要真的检查过。
+9. 本透镜的判定单元是「四阶段 × 十条规则中的某一条」，原生刻度是「规则违反：哪条规则、在哪个阶段、被哪个言语行为违反」。
    verdict.scale 与 verdict.scaleValue 要用这套刻度的话说，不要一律套用「强/弱/无效」。
 ```

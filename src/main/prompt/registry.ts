@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { THEORY_BY_ID, type TheoryId } from '@shared/theories';
 import { estimateTokens } from '@shared/tokens';
 import { MODE_META, type AnalysisMode } from '@shared/types';
+import { CONTEXT_FIELD_LABEL, CONTEXT_USE } from '@shared/context-use';
 import type { LensFragment } from './fragments';
 import { waltonLens } from './lenses/walton';
 import { pragmaLens } from './lenses/pragma';
@@ -25,7 +26,7 @@ import { blocksFor, REQUIRED_BLOCKS, type PromptBlock } from './blocks';
  * 每次改动提示词都必须改这里，并写清改了什么（见 docs/提示词工程.md 的变更表）。
  */
 
-export const PROMPT_VERSION = '2.6.0';
+export const PROMPT_VERSION = '2.7.0';
 
 /**
  * 变更记录。每次改版本号都要在这里留一行，说清改了什么、为什么。
@@ -35,6 +36,14 @@ export const PROMPT_VERSION = '2.6.0';
  * 没有这份记录，半年后有人会把它当冗余删掉，然后同一个 bug 再发生一次。
  */
 export const PROMPT_VERSION_NOTE: string[] = [
+  '2.7.0 user 模板加第 7 条「本透镜读哪几格语境」，与 shared/context-use 同一张表：' +
+    'walton 读对话类型与阶段，pragma 再读对方立场，ars 读受众与受众类型，pta／toulmin／copi 一格都不读。' +
+    '不读语境的透镜明确写「不要把档位归因到语境上」——2.6.0 只要求标出处，没说这一格到底进不进判定，' +
+    '于是「因为受众是对立听众，所以判 weakened」这种因果可以写进任何一副透镜的报告里，' +
+    '而图尔敏布局根本不看受众。同时把 ifChanged 从「仅 guess 要写」扩到「非 known 都要写」，' +
+    '并要求写出落点（哪条检查、哪个档位会变）：inferred 缺这句最容易被读成「推的＝稳的」。' +
+    '这条改动只影响提示词与报告标注，不改判定口径；六副透镜的依赖表逐条指得出理论条目或 procedure 原话，' +
+    '由 check:context-use 核对。',
   '2.6.0 新增语境出处（context.grounding）：七格各标 known／inferred／guess，' +
     'known 的 basis 必须能在原文里逐字找到，找不到由本地降级为 inferred 并留一条诊断；' +
     'guess 必须给 ifChanged（这一格换成别的样子，判定往哪边变）。' +
@@ -256,7 +265,7 @@ export const SHARED_SCHEMA = `{
     "audience": "说给谁听",
     "audienceKind": "general|specialist|adversarial|supportive|unknown",
     "contextGaps": ["语境中缺失、因而无法判断的信息"],
-    "grounding": {"<上面七格各自一格>": {"source": "known|inferred|guess", "basis": "known=原文连续片段；inferred=据哪个特征推；guess=凭什么假定", "ifChanged": "仅 guess 要写：换成别的样子判定怎么变"}}
+    "grounding": {"<上面七格各自一格>": {"source": "known|inferred|guess", "basis": "known=原文连续片段；inferred=据哪个特征推；guess=凭什么假定", "ifChanged": "非 known 都要写：这格换成别的样子，哪条检查或哪个档位会跟着变（不许写「影响很大」）"}}
   },
 
   "scope": {
@@ -524,9 +533,33 @@ const DIALOGUE_KIND_HINT =
 const CONTEXT_SOURCE_HINT =
   'context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：' +
   'known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；' +
-  'guess＝原文没写、为把分析做下去而假定，必须给 ifChanged：这格换成别的样子，判定往哪边变。' +
+  'guess＝原文没写、为把分析做下去而假定。这两档都要给 ifChanged：这格换成别的样子，判定往哪边变。' +
   '多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。' +
   '把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。';
+
+/**
+ * 本透镜读哪几格语境。与 `@shared/context-use` 同一张表，不在这里另写一份——
+ * 另写一份的结果是提示词和界面各说一套，而两边都「看起来对」。
+ *
+ * 不读语境的透镜也要说这一句：不说，模型就会为了「填满表格」把语境写成
+ * 判定的理由（「因为受众是对立听众，所以判 weakened」），而图尔敏布局根本不看受众。
+ */
+function contextDiscipline(theory: TheoryId): string {
+  const uses = CONTEXT_USE[theory];
+  if (uses.length === 0) {
+    return (
+      '本透镜的判定一步都不读语境七格——它只是给人看的地图。' +
+      '语境照实填，但不要把档位或结论归因到语境上，也不许写「因为受众是……所以判……」这种因果。'
+    );
+  }
+  const why = uses.map((u) => `「${CONTEXT_FIELD_LABEL[u.field]}」${u.why}`).join('；');
+  return (
+    `本透镜的判定要读 ${uses.length} 格语境：${why}。` +
+    '这几格只要不是 known，ifChanged 就必须写，而且要有落点：' +
+    '写成「这格若是别的样子，哪一条检查或哪一个档位会跟着变」，' +
+    '不许写「影响很大」「结论可能不同」这种没有落点的话。'
+  );
+}
 
 function userTemplateFor(theory: TheoryId, mode: AnalysisMode): string {
   const profile = THEORY_BY_ID[theory];
@@ -543,8 +576,9 @@ function userTemplateFor(theory: TheoryId, mode: AnalysisMode): string {
   const numbered = [
     `5. ${DIALOGUE_KIND_HINT}`,
     `6. ${CONTEXT_SOURCE_HINT}`,
-    ...extra.map((s, i) => `${7 + i}. ${s}`),
-    `${7 + extra.length}. ${tail}`,
+    `7. ${contextDiscipline(theory)}`,
+    ...extra.map((s, i) => `${8 + i}. ${s}`),
+    `${8 + extra.length}. ${tail}`,
   ].join('\n');
 
   return `守卫：{delim}

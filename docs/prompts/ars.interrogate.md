@@ -1,17 +1,17 @@
 # 提示词：ARS 三标准（提问模式）
 
-> Acceptability · Relevance · Sufficiency｜模式：提问（interrogate）｜版本：v2.6.0
+> Acceptability · Relevance · Sufficiency｜模式：提问（interrogate）｜版本：v2.7.0
 > 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：不替你下结论，只给你一串可以直接问出口的问题。
 > 判定单元：单个前提上的一个标准，或单条推理链接上的一个标准
 > 原生刻度：三标准逐项符合度（每项独立评级，不合成总分）
 > 出处：Johnson & Blair, Logical Self-Defense；SEP, Informal Logic (Groarke, 2026)
 
-指纹 `8b3ea693a6cc`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `175d9fb44ada`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `2120144ccb81`
 
-字符 13234（预算：警戒 16000／上限 24000，当前正常）
-估算 5461 token｜采样温度上限 0.4｜输出上限 8192 token
+字符 13430（预算：警戒 16000／上限 24000，当前正常）
+估算 5476 token｜采样温度上限 0.4｜输出上限 8192 token
 规则块（13）：q.role、q.not-cross-examiner、q.no-verdict、q.aim、q.three-never、q.credibility、q.answerable、core.input-boundary、core.output-discipline、q.epistemic、q.language、q.gate-four、q.scope-gate
 
 ---
@@ -269,7 +269,7 @@
     "audience": "说给谁听",
     "audienceKind": "general|specialist|adversarial|supportive|unknown",
     "contextGaps": ["语境中缺失、因而无法判断的信息"],
-    "grounding": {"<上面七格各自一格>": {"source": "known|inferred|guess", "basis": "known=原文连续片段；inferred=据哪个特征推；guess=凭什么假定", "ifChanged": "仅 guess 要写：换成别的样子判定怎么变"}}
+    "grounding": {"<上面七格各自一格>": {"source": "known|inferred|guess", "basis": "known=原文连续片段；inferred=据哪个特征推；guess=凭什么假定", "ifChanged": "非 known 都要写：这格换成别的样子，哪条检查或哪个档位会跟着变（不许写「影响很大」）"}}
   },
 
   "scope": {
@@ -494,14 +494,15 @@ checks 按「前提 × 标准 + 整体充分性」生成：
    scope 里说明这一点，checks 留空，verdict.level 写 "undetermined"。
 4. 判断这副透镜是否适用。不适用就按范围门处理，不要勉强套用。
 5. 判断 dialogueType 之前，先想清这段文本是不是「共同求解」：探究、评审、学术讨论、会诊这类场合，参与者的目标是把问题弄清，不是要说服对方。persuasion 不是默认值——论文、综述、书评、政策报告尤其容易在这里判错。无论判成哪一类，都要在 dialogueTypeBasis 里写出原文中可指出的特征，不许只写「语气像」。
-6. context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；guess＝原文没写、为把分析做下去而假定，必须给 ifChanged：这格换成别的样子，判定往哪边变。多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。
-7. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，labels 必须是空数组。
-8. 主输出是 refutations，但本模式下含义换成「你要问的问题」：
+6. context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；guess＝原文没写、为把分析做下去而假定。这两档都要给 ifChanged：这格换成别的样子，判定往哪边变。多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。
+7. 本透镜的判定要读 2 格语境：「受众」可接受性是「对该受众可接受」，不是客观为真；「受众类型」受众类型决定可接受性的偏置方向：对立受众门槛天然更高。这几格只要不是 known，ifChanged 就必须写，而且要有落点：写成「这格若是别的样子，哪一条检查或哪一个档位会跟着变」，不许写「影响很大」「结论可能不同」这种没有落点的话。
+8. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，labels 必须是空数组。
+9. 主输出是 refutations，但本模式下含义换成「你要问的问题」：
    claim 是问什么，script 是可以直接发出去的原话，steelman 是他最可能怎么答，
    reply 是他答完之后你接什么。四段缺一段就补上。
-9. 每一问都必须对方答得上来。「你能证明不存在……」式的一律不许出现——
+10. 每一问都必须对方答得上来。「你能证明不存在……」式的一律不许出现——
    那是错置证明责任，问出口位置就反了。
-10. 本透镜的判定单元是「单个前提上的一个标准，或单条推理链接上的一个标准」，原生刻度是「三标准逐项符合度（每项独立评级，不合成总分）」。
+11. 本透镜的判定单元是「单个前提上的一个标准，或单条推理链接上的一个标准」，原生刻度是「三标准逐项符合度（每项独立评级，不合成总分）」。
    本模式不评级，但结构里的零件要按这套刻度命名：verdict.scale 与 verdict.scaleValue 照抄这套刻度的话，
    verdict.level 固定写 "undetermined"。
 ```

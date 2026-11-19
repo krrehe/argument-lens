@@ -1718,6 +1718,39 @@ if (process.env.SMOKE_AGREEMENT === '1') {
 }
 
 /*
+ * 语境地基（无条件跑）。
+ *
+ * 假模型不产出 context.grounding，所以这条路径走的一定是旧档分支：
+ * 界面必须说「分不出哪几格是原文说的」。这条断言防的是一种很自然的退化——
+ * 为了让界面好看，把没有出处的一律当成「假定」。那不是更诚实，是往
+ * 一份没做过承诺的报告上补一个它没做过的承诺。
+ *
+ * 「walton 读哪两格」由 check:context-use 的 128 条守着，这里只核接线。
+ */
+{
+  const ctx = jOfLine('CTXRESULT');
+  const badges = Array.isArray(ctx.badges) ? ctx.badges : [];
+  const tags = Array.isArray(ctx.tags) ? ctx.tags : [];
+  checks.push(
+    ['语境地基：判定下面那句真的出现了', ctx.has === true],
+    [
+      '语境地基：没标出处时说「分不出」，不说「假定」',
+      /分不出/.test(String(ctx.caveat)) && !/假定/.test(String(ctx.caveat)),
+      String(ctx.caveat),
+    ],
+    ['语境地基：那句的主语是「这条判定」', /^这条判定/.test(String(ctx.caveat)), String(ctx.caveat)],
+    [
+      '语境地基：语境栏口径句说的是读哪几格',
+      /读的是/.test(String(ctx.note)) && /没标出处/.test(String(ctx.note)),
+      String(ctx.note),
+    ],
+    ['语境地基：walton 读两格，界面上有两个「读」标记', ctx.reads === 2, String(ctx.reads)],
+    ['语境地基：七格徽章全是「没标」', badges.length === 7 && badges.every((b) => b === '没标'), badges.join(',')],
+    ['语境地基：那条带「语境」前缀，不与「引文」混在一起', tags.includes('语境'), JSON.stringify(tags)],
+  );
+}
+
+/*
  * 骨架缺口（无条件跑：报告一出现它就在）。
  *
  * 核的是「这一层有没有真的把本地判定与报告自己的话分开」——

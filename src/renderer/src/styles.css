@@ -1040,6 +1040,81 @@ select {
   word-break: break-word;
 }
 
+/*
+ * 语境一栏的口径句。它说的是「这副尺子读其中几格、这几格站不站得住」，
+ * 与上面那排格子是一件事的两面：格子给值，这句给来路。
+ * 有站不住的格时加一条左边线——不换色，颜色在这份报告里已经被档位占满了。
+ */
+.ctx-sum {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+.ctx-sum.weak {
+  color: var(--ink);
+  border-left: 2px solid var(--weak);
+  padding-left: 10px;
+}
+
+/*
+ * 出处徽章：原文／推出／假定／没标。
+ * 只用背景与文字色，不加边框——这一排格子已经有栅格线，再加边框会显得像按钮。
+ * 被本地降级的那一格多一道描边：它和普通「推出」不是一回事，
+ * 它是「自称引自原文，原文里没有」。
+ */
+.ctxbadge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  font-size: 10.5px;
+  line-height: 1.65;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  vertical-align: 1px;
+}
+.ctxbadge.s-known {
+  color: var(--legal);
+  background: var(--legal-bg);
+}
+.ctxbadge.s-inferred {
+  color: var(--weak);
+  background: var(--weak-bg);
+}
+.ctxbadge.s-guess {
+  color: var(--invalid);
+  background: var(--invalid-bg);
+}
+.ctxbadge.s-unmarked {
+  color: var(--ink-3);
+  background: var(--muted-bg);
+}
+.ctxbadge.down {
+  border-color: var(--invalid);
+}
+
+/* 「读」：这一格真的进判定。七格里常常只有两三格有这个标记。 */
+.ctxused {
+  margin-left: 6px;
+  font-size: 10.5px;
+  color: var(--accent);
+  border-bottom: 1px dotted var(--accent);
+}
+
+.ctx-basis,
+.ctx-if {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.ctx-basis {
+  color: var(--ink-3);
+}
+.ctx-if {
+  color: var(--ink-2);
+}
+
 /* 原文高亮 */
 .passage {
   font-family: var(--serif);
@@ -2192,6 +2267,16 @@ pre.code {
 .vscope-say {
   flex: 1 1 260px;
   min-width: 0;
+}
+/*
+ * 判定下面可能叠两条说明：语境地基、引文覆盖。前缀两个字分开它们——
+ * 不靠颜色分，颜色在这份报告里已经是档位的语言。
+ */
+.vtag {
+  flex: none;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
 }
 /*
  * 线框、不填色：这一格是说明，不是这一屏的主按钮。

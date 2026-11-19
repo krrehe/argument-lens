@@ -46,6 +46,7 @@ export type GroundingProblemKind =
   | 'basis-empty'
   | 'basis-not-in-text'
   | 'guess-without-ifchanged'
+  | 'inferred-without-ifchanged'
   | 'missing';
 
 export interface GroundingProblem {
@@ -102,8 +103,9 @@ function asString(v: unknown): string {
  *   - known 且 basis 归一化后能在原文里找到 → 保留，这是唯一一种「确实指着原文」的标法。
  *   - known 但找不到（或 basis 太短）→ 降为 inferred + downgraded，记 basis-not-in-text。
  *     降级而不是丢弃：它至少说明了「从哪推的」，这比一句没有强，但不能再冒充原文。
- *   - guess 没写 ifChanged → 保留，记一条。这一条只提醒，不降级——guess 本身就是
- *     最诚实的档位，缺的是「改掉它有什么用」那句。
+ *   - guess 或 inferred 没写 ifChanged → 保留，各记一条。这两条只提醒，不降级——
+ *     档位本身没说谎，缺的是「换掉它有什么用」那句。guess 缺这句时更严重：
+ *     它连「这一格是假定的」都不肯往下想一步。
  */
 export function normalizeGrounding(raw: unknown, passage: string): GroundingResult {
   const src = asRecord(raw);
@@ -156,10 +158,25 @@ export function normalizeGrounding(raw: unknown, passage: string): GroundingResu
       }
     }
 
-    if (source === 'guess') {
+    if (source === 'guess' || source === 'inferred') {
+      /*
+       * 2.7.0 起 inferred 也要写 ifChanged。理由：inferred 是「据原文特征推的」，
+       * 推的东西一样可能错，而读者最需要知道的不是「它从哪儿推的」，是
+       * 「这一格换个样子，上面那条判定会不会变」。guess 缺这句只是少一句说明，
+       * inferred 缺这句则让人误以为「推的＝稳的」。只记问题，不降级——inferred
+       * 本身没说谎，缺的是敏感度那一句。
+       */
       const ifChanged = asString(entry.ifChanged).trim();
       if (ifChanged) item.ifChanged = ifChanged;
-      else problems.push({ field, kind: 'guess-without-ifchanged', detail: '标了猜测，却没写换成别的样子会怎样' });
+      else
+        problems.push({
+          field,
+          kind: source === 'guess' ? 'guess-without-ifchanged' : 'inferred-without-ifchanged',
+          detail:
+            source === 'guess'
+              ? '标了猜测，却没写换成别的样子会怎样'
+              : '标了推出，却没写这一格换成别的样子判定会怎样',
+        });
     }
 
     grounding[field] = item;
