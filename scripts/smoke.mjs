@@ -2127,6 +2127,20 @@ if (process.env.SMOKE_LONGFORM === '1') {
     ['长文：点某一段能把它那份报告调回来', lf.opened === true && String(lf.openedPassage).length >= 6, String(lf.openedPassage)],
     ['长文：台账截图产出了', existsSync(resolve(root, 'scripts/.out/longform-real.png'))],
   );
+
+  /*
+   * 「看见了」要接得上「能动手」：判定区那句「引文只钉住几句」旁边有个按钮，
+   * 点了要真把上面的切分条展开、滚到视口里。三条都不能只看代码里有那几个字符串——
+   * 事件名对不上、列表本来就没收起、滚过去停在视口外，代码读起来都像对的。
+   */
+  const sj = lf.segJump ?? {};
+  checks.push(
+    ['长文：整篇分析后判定区摆出「切给我看」', sj.ok === true && sj.scope === true && /段/.test(String(sj.label ?? '')), `ok=${sj.ok} scope=${sj.scope} label=${sj.label ?? ''} why=${sj.why ?? ''}`],
+    ['长文：点它之前切分条本来是收起的', sj.listBefore === false, `listBefore=${sj.listBefore}`],
+    ['长文：点它之后列表真的展开', sj.listAfter === true, `listAfter=${sj.listAfter}`],
+    ['长文：滚过去之后切分条停在视口里', sj.inView === true, `top=${sj.top}`],
+    ['长文：跳过去时闪一下（读者知道到没到）', sj.hit === true, `hit=${sj.hit}`],
+  );
 }
 
 let allOk = true;

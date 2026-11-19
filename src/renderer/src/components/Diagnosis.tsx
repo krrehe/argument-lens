@@ -1961,7 +1961,25 @@ export function DiagnosisView({
         <div className="verdict-say">{d.verdict.statement}</div>
         {cov.partial && (
           <div className="verdict-scope" data-verdict-scope>
-            {coverageScopeText(cov.pinned, cov.sentences, cov.untouched)}
+            <span className="vscope-say">
+              {coverageScopeText(cov.pinned, cov.sentences, cov.untouched)}
+            </span>
+            {/*
+              这句话如果只到「知道了」为止，读者下一步得自己想起来：
+              切分条在输入区，隔着一整份报告。所以给它一个真能点的动作——
+              展开切分条、滚过去、闪一下，与「去填立案」同一套。
+              只导航，不代跑：切完选哪一段、跑不跑，都还在人手里。
+            */}
+            {cov.segmentCount > 1 && (
+              <button
+                className="vscope-act"
+                onClick={() => window.dispatchEvent(new CustomEvent('al:segment'))}
+                data-verdict-segment="1"
+                title="展开上面的切分条，选择只分析其中一段"
+              >
+                切给我看（{cov.segmentCount} 段）
+              </button>
+            )}
           </div>
         )}
         <ObjectBtn field="verdict" refId="verdict" refLabel="判读" excerpt={d.verdict.statement} />

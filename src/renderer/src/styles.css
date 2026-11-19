@@ -2180,6 +2180,40 @@ pre.code {
   background: var(--muted-bg);
   border-left: 2px solid var(--weak);
   border-radius: 0 5px 5px 0;
+  /*
+   * 文字与动作分两栏：动作不跟着段落换行挤到句子中间——
+   * 那句话本身要连着读，按钮插在「其余 39 句、10 段」后面会把它截断。
+   */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.vscope-say {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+/*
+ * 线框、不填色：这一格是说明，不是这一屏的主按钮。
+ * 实心会把读者的视线从判定本身拉到按钮上，而这里要说的恰恰是
+ * 「上面那句判定只够到原文的一小部分」。
+ */
+.vscope-act {
+  flex: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 3px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vscope-act:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .verdict-qual {
   margin-top: 8px;

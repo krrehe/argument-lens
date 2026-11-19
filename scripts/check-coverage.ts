@@ -215,6 +215,41 @@ ok(/COVERAGERESULT/.test(smokeTs) && /data-coverage/.test(smokeTs), '真应用�
 ok(/jOfLine\('COVERAGERESULT'\)/.test(smokeMjs), '端到端真的接了这一栏的探针');
 ok(/includes\('COVERAGERESULT'\)/.test(packMjs), '包内断言真的接了这一栏的探针');
 
+/* ─────────── 五 · 从「看见了」到「能动手」 ─────────── */
+
+/*
+ * 判定区那句「引文只钉住 3 句」如果只到「知道了」为止，读者下一步得自己想起来：
+ * 切分条在输入区，隔着一整份报告。所以给它一个动作。
+ *
+ * 守卫要查「还挂在段数判断上」，不是查「data-verdict-segment 这个词还在」——
+ * 第 66 轮踩过：把条件改成恒真后词照样在，而短文本上会冒出一个点了没用的按钮。
+ */
+const segTsx = src('src/renderer/src/components/SegmentBar.tsx');
+const cssFlow = src('src/renderer/src/styles-flow.css');
+ok(
+  /cov\.segmentCount > 1 &&[\s\S]{0,260}data-verdict-segment/.test(diagTsx),
+  '「切给我看」挂在段数 > 1 上，不是无条件渲染'
+);
+ok(
+  /window\.dispatchEvent\(new CustomEvent\('al:segment'\)\)/.test(diagTsx),
+  '按下派的是 al:segment，与切分条约定同一个名字'
+);
+ok(/window\.addEventListener\('al:segment'/.test(segTsx), '切分条真的接住了这个事件（不是只有派发端）');
+ok(
+  /pickedIndex === null && segs\.length >= 2\) setOpen\(true\)/.test(segTsx),
+  '接住后展开列表；已载入某一段时不假装展开（那一屏没有列表）'
+);
+ok(/scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\)/.test(segTsx), '接住后滚过去，不让人自己找');
+ok(/setHit\(true\)/.test(segTsx) && /1400/.test(segTsx), '滚过去之后闪一下然后撤掉');
+ok(/\.vscope-act \{/.test(cssMain), '按钮有线框样式，不是裸文字');
+ok(/\.sg-bar\.sg-hit \{/.test(cssFlow), '切分条被跳中时的高亮样式在');
+ok(/切给我看（\{cov\.segmentCount\} 段）/.test(diagTsx), '按钮文案带段数，读者知道要点开的是什么');
+/*
+ * 只说「切给我看」这件事。这一格里不许出现花钱入口——批跑有它自己的确认流
+ * （几次调用、每段各存一份），在判定旁边再放一个「跑」会绕开那道确认。
+ */
+ok(!/runBatch|onRunBatch|longformPlan/.test(diagTsx), '判定区不放花钱入口，批跑仍只在切分条上发起');
+
 /* ─────────── 收口 ─────────── */
 
 if (failed.length) {

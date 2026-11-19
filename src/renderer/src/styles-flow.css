@@ -26,6 +26,17 @@
   background: var(--accent-bg);
 }
 
+/*
+ * 从报告页的「切给我看」跳过来时闪一下。
+ *
+ * 滚过去之后如果没有标记，读者落在一个与刚才那屏长得差不多的条上，
+ * 会怀疑自己点没点中——上一份报告的距离感正好把「到了」抵掉。
+ */
+.sg-bar.sg-hit {
+  outline: 2px solid var(--accent, #3b6ea5);
+  outline-offset: 1px;
+}
+
 .sg-head {
   display: flex;
   align-items: center;

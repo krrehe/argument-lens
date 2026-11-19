@@ -3121,9 +3121,71 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           const ta = document.querySelector('.composer textarea') || document.querySelector('textarea');
           if (!ta) return JSON.stringify({ ok: false, why: 'no-textarea' });
           const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+          /*
+           * 先摆一段**真够长**的（>800 字）再验跳转：覆盖账与那句范围只在长文上出现，
+           * 而下面逐段跑用的六段合起来才两百字，拿它验等于验了一个不会出现的按钮。
+           * 内容就是把六段各重复六遍——切分仍是六段（空行分隔），字数过千。
+           */
+          const longText = segs.map(function (s) { return [s, s, s, s, s, s].join(' '); }).join('\\n\\n');
+          setter.call(ta, longText);
+          ta.dispatchEvent(new Event('input', { bubbles: true }));
+          await sleep(400);
+
+          /*
+           * 先验「报告页 → 切分条」这一跳，再逐段跑。
+           *
+           * 顺序不能反：逐段跑会把输入框换成第 5 段，那时切分条只剩「恢复全文」，
+           * 判定区那个按钮也随覆盖账改算到那一段上、不再出现。
+           *
+           * 这里要验的是三件静态断言看不见的事：按钮真的出现、点了列表真的展开、
+           * 展开之后真的停在视口里（滚过去了才算把人送到）。
+           */
+          let segJump = { ok: false, why: 'no-primary' };
+          const primary = document.querySelector('.composer button.primary');
+          if (primary) {
+            primary.click();
+            let sawScope = false;
+            for (let i = 0; i < 40; i++) {
+              await sleep(200);
+              if (document.querySelector('[data-verdict-scope]')) { sawScope = true; break; }
+            }
+            const btn = document.querySelector('[data-verdict-segment]');
+            if (!btn) {
+              segJump = { ok: false, why: 'no-seg-btn', scope: sawScope };
+            } else {
+              const listBefore = !!document.querySelector('.sg-list');
+              const label = (btn.textContent || '').trim();
+              btn.click();
+              await sleep(400);
+              const bar = document.querySelector('.sg-bar');
+              const hit = !!bar && bar.classList.contains('sg-hit');
+              const listAfter = !!document.querySelector('.sg-list');
+              await sleep(1200);
+              const rect = bar ? bar.getBoundingClientRect() : null;
+              segJump = {
+                ok: true,
+                scope: sawScope,
+                label,
+                listBefore,
+                listAfter,
+                hit,
+                inView: !!rect && rect.top >= -2 && rect.bottom <= window.innerHeight + 2,
+                top: rect ? Math.round(rect.top) : null,
+              };
+            }
+          }
+
+          /*
+           * 换回六段短文再逐段跑。跳转那一步把列表点开了，这里先收起——
+           * 下面照原流程「点开头展开再找逐段跑」，列表若已展开，那一点会把它收起。
+           */
           setter.call(ta, segs.join('\\n\\n'));
           ta.dispatchEvent(new Event('input', { bubbles: true }));
           await sleep(400);
+          if (document.querySelector('.sg-list')) {
+            const h0 = document.querySelector('.sg-head');
+            if (h0) { h0.click(); await sleep(200); }
+          }
 
           const head = document.querySelector('.sg-head');
           if (!head) return JSON.stringify({ ok: false, why: 'no-segbar' });
@@ -3178,6 +3240,7 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             line: String(line).slice(0, 120), busyLeft, opened, openedPassage, back,
             skipped: [...document.querySelectorAll('[data-lf-status="skipped"]')].length,
             uniq: new Set(ids.filter(Boolean)).size,
+            segJump,
           });
         })()`);
         add(`LFRESULT ${lf}`);

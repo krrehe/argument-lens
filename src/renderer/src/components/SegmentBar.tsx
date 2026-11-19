@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { cutIsGrounded, describeSegments, segmentPassage, worthSegmenting, type Segment } from '@shared/segment';
 import { planLine, type LongPlan } from '@shared/longform';
 
@@ -68,6 +68,14 @@ export function SegmentBar({
    * 正在读的东西，且在这个工具里显得像报错。
    */
   const [confirm, setConfirm] = useState(false);
+  /*
+   * 报告页那条「引文只钉住 3 句」旁边有个按钮，点了会派 `al:segment` 过来。
+   *
+   * 这里只做三件事：展开、滚过来、闪一下——与「去填立案」「去登记分歧」同一套。
+   * 不替人点任何一段：切开之后选哪段是判断，工具只把列表摆到眼前。
+   */
+  const barRef = useRef<HTMLDivElement>(null);
+  const [hit, setHit] = useState(false);
 
   const skipMap = useMemo(() => {
     const m = new Map<number, string>();
@@ -75,9 +83,27 @@ export function SegmentBar({
     return m;
   }, [plan]);
 
+  useEffect(() => {
+    const onSegment = () => {
+      /*
+       * 已经载入某一段时不展开：那一屏的切分条只有「已载入第 N 段 / 恢复全文」，
+       * 没有列表可展开。此时滚过去仍然有用（那是「恢复全文」的入口），
+       * 所以照滚，只是不假装展开了什么。
+       */
+      if (pickedIndex === null && segs.length >= 2) setOpen(true);
+      const el = barRef.current;
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHit(true);
+      window.setTimeout(() => setHit(false), 1400);
+    };
+    window.addEventListener('al:segment', onSegment);
+    return () => window.removeEventListener('al:segment', onSegment);
+  }, [pickedIndex, segs.length]);
+
   if (pickedIndex !== null) {
     return (
-      <div className="sg-bar sg-picked">
+      <div className={`sg-bar sg-picked ${hit ? 'sg-hit' : ''}`} ref={barRef} data-sg-bar="picked">
         <span className="sg-tag">已载入第 {pickedIndex + 1} 段</span>
         <span className="sg-sub">只分析这一段。切错了吗？</span>
         <div className="sg-spacer" />
@@ -91,7 +117,7 @@ export function SegmentBar({
   if (segs.length < 2) return null;
 
   return (
-    <div className={`sg-bar ${long ? 'sg-loud' : ''}`}>
+    <div className={`sg-bar ${long ? 'sg-loud' : ''} ${hit ? 'sg-hit' : ''}`} ref={barRef} data-sg-bar="list">
       <button className="sg-head" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
         <span className="sg-scissors" aria-hidden>
           ✂
