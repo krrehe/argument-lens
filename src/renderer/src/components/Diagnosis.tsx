@@ -49,6 +49,7 @@ import { RescaleScreen } from './RescaleScreen';
 import { ConditionScreen } from './ConditionScreen';
 import { SourceBar } from './SourceBar';
 import { CoverageBar } from './CoverageBar';
+import { coverageOf, coverageScopeText } from '@shared/coverage';
 import { FieldTermsBar } from './FieldTermsBar';
 import { DensityBar, useDensity } from './Density';
 import { isLedgerSection, sectionKey } from '@shared/ui-density';
@@ -1543,6 +1544,12 @@ export function DiagnosisView({
   /* 第三屏：连报告文字都不显示。条件、依据与结论全由人写，默认当然也是关着的。 */
   const [conditions, setConditions] = useState(!!initialConditions);
   const view = useMemo(() => rereadOf(d), [d]);
+  /*
+   * 判定的适用范围。覆盖账在报告开头，判定在中部——读到「结论似真可接受」的人
+   * 未必还记得上面那行数字，所以判定这一格自己带一句。只在长文且确有句子
+   * 没被落上时出现；短文本不在这里补一句 100% 的废话。
+   */
+  const cov = useMemo(() => coverageOf(d), [d]);
   const t = THEORY_BY_ID[d.theory];
 
   const allClaims: Claim[] = [d.conclusion, ...d.premises, ...d.intermediate];
@@ -1952,6 +1959,11 @@ export function DiagnosisView({
           />
         </Gated>
         <div className="verdict-say">{d.verdict.statement}</div>
+        {cov.partial && (
+          <div className="verdict-scope" data-verdict-scope>
+            {coverageScopeText(cov.pinned, cov.sentences, cov.untouched)}
+          </div>
+        )}
         <ObjectBtn field="verdict" refId="verdict" refLabel="判读" excerpt={d.verdict.statement} />
         {/*
           推导链只给「会给档位」的三个模式。查谬误／重构／提问本来就不判，

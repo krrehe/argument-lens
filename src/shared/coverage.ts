@@ -31,11 +31,34 @@ export const COVERAGE_LABEL = {
   toggle: '逐段看',
   empty: '每个切出来的段里都至少有一句被报告条目落上。',
   colHead: '一句都没被落上的段',
+  /*
+   * 这一段原来写的是「没被落上的句子不等于分析漏了」——听起来稳妥，实际上是在替
+   * 模型开脱：2026-11-19 复算本机三份长文，4078 字那份 22 段里 15 段零引文，
+   * 其中第 6、7、10、11 段是完整的类比与因果推理（「只要吃饱穿暖就该感恩」
+   * 「把好就业偷换成人生幸福」），不是转述或铺垫。本地确实分不出哪些没落上的段
+   * 是论证、哪些不是，但「分不出」不等于「多半不是」。
+   */
   note:
     '这里只数位置：句子边界与「有没有条目落上去」都用「回到原文重读」那一套，段就是「切给我看」给出的那些段。' +
-    '没被落上的句子不等于分析漏了——长文里本就有转述、铺垫、例子；该不该分析，由你判断。' +
+    '只数「有位置」的条目——结论、前提、中间结论、谬误名、合法招；检查项的「依据」是自由文字，本地定位不到句子，不计入。' +
+    '没被落上的句子可能是转述、铺垫或例子，也可能是没被接住的推理——本地分不出来，所以既不替你排除，也不替你判定。' +
     '段落只显示开头几个字，逐字取自原文。本地不改判定、不落盘。',
 } as const;
+
+/**
+ * 判定的适用范围。只在长文且确有句子没被落上时出现。
+ *
+ * 为什么单列一句：覆盖账在报告开头，判定在页面中部；读到「结论似真可接受」的人
+ * 未必还记得上面那行数字。这句话不评价分析好坏，只说这份判定够到了原文的哪一部分。
+ */
+export function coverageScopeText(pinned: number, sentences: number, untouched: number): string {
+  const pct = sentences > 0 ? Math.round((pinned / sentences) * 100) : 0;
+  return (
+    `这份判定的引文只钉住原文 ${pinned} 句（共 ${sentences} 句，${pct}%）；` +
+    `其余 ${sentences - pinned} 句、${untouched} 段没有可定位的引用。` +
+    '检查项的依据是自由文字，不在这个数里。'
+  );
+}
 
 export interface CoverageSegment {
   index: number;
@@ -58,6 +81,10 @@ export interface CoverageView {
   sentences: number;
   pinned: number;
   quiet: number;
+  /** 被落上的句子占全文句数的百分比（四舍五入）；0 句时为 0 */
+  sharePct: number;
+  /** 长文且确有句子没被落上：判定那一栏要带一句适用范围 */
+  partial: boolean;
   segmentCount: number;
   /** 一句都没被钉住的段数 */
   untouched: number;
@@ -130,6 +157,7 @@ export function coverageOf(d: Diagnosis): CoverageView {
   const pinned = sentences.filter((s) => !s.quiet).length;
   const untouched = segments.filter((s) => s.pinned === 0 && s.sentences > 0).length;
   const long = passage.trim().length >= SEGMENT_HINT_CHARS;
+  const sharePct = sentences.length > 0 ? Math.round((pinned / sentences.length) * 100) : 0;
 
   return {
     long,
@@ -137,11 +165,13 @@ export function coverageOf(d: Diagnosis): CoverageView {
     sentences: sentences.length,
     pinned,
     quiet: sentences.length - pinned,
+    sharePct,
+    partial: long && pinned < sentences.length,
     segmentCount: segments.length,
     untouched,
     segments,
     headline:
-      `原文 ${sentences.length} 句，报告条目落在 ${pinned} 句上；` +
+      `原文 ${sentences.length} 句，有位置的条目落在 ${pinned} 句上（${sharePct}%）；` +
       `按切分条切成 ${segments.length} 段，其中 ${untouched} 段一句都没被落上。`,
   };
 }

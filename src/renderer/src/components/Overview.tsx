@@ -1,5 +1,6 @@
 import type { Diagnosis } from '@shared/types';
 import { LEVEL_LABEL } from '@shared/theories';
+import { coverageOf } from '@shared/coverage';
 import { disputesIn } from '@shared/disputes';
 import { propositionsOf } from '@shared/propositions';
 import { pivotOf } from '@shared/pivot';
@@ -95,6 +96,13 @@ export function QuickRead({ d }: { d: Diagnosis }) {
   const sections = sectionsFor(d);
   const levelClass =
     d.verdict.level === 'withstands' ? 'ok' : d.verdict.level === 'fails' ? 'bad' : d.verdict.level === 'weakened' ? 'mid' : '';
+  /*
+   * 第③句是速览里最容易被当成「整篇的结论」的一句。长文只落上少数几句时，
+   * 这里必须带上「引文钉住几句」，否则读者看不到这句判定的边界——
+   * 详细口径在报告里的覆盖账，这里只放一个数。
+   */
+  const cov = coverageOf(d);
+  const covTag = cov.partial ? ` · 引文 ${cov.pinned}/${cov.sentences} 句` : '';
 
   const rows = [
     {
@@ -120,7 +128,7 @@ export function QuickRead({ d }: { d: Diagnosis }) {
       title: '所以这算说明到什么程度',
       body: clip(d.verdict.statement, 110),
       to: 'sec-verdict',
-      extra: LEVEL_LABEL[d.verdict.level],
+      extra: `${LEVEL_LABEL[d.verdict.level]}${covTag}`,
       extraClass: levelClass,
     },
     {
@@ -147,7 +155,7 @@ export function QuickRead({ d }: { d: Diagnosis }) {
             <span className="qk">{r.k}</span>
             <span className="qt">{r.title}</span>
             <span className="qb">{r.body}</span>
-            <span className={`qx ${r.extraClass ?? ''}`}>{r.extra}</span>
+            <span className={`qx ${r.extraClass ?? ''}`} data-quick-cover={r.to === 'sec-verdict' && cov.partial ? '1' : undefined}>{r.extra}</span>
           </li>
         ))}
       </ol>

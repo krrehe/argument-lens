@@ -20,6 +20,7 @@ import {
   COVERAGE_LABEL,
   COVERAGE_PREVIEW_CHARS,
   coverageOf,
+  coverageScopeText,
 } from '@shared/coverage';
 import { SEGMENT_HINT_CHARS, segmentPassage } from '@shared/segment';
 import { sentenceBounds, rereadOf } from '@shared/reread';
@@ -101,6 +102,26 @@ ok(
 ok(v.segments.every((s, i) => s.previewTruncated === (segs[i].text.replace(/\s+/g, ' ').trim().length > COVERAGE_PREVIEW_CHARS)), '截断标记按原段长度算（与 preview 是否被改写无关）');
 ok(v.segments.some((s) => s.previewTruncated) && v.segments.some((s) => !s.previewTruncated), '样本里既有截断的预览也有没截断的');
 ok(JSON.stringify(coverageOf(D_LONG)) === JSON.stringify(v), '同一输入两次调用结果相同（纯函数）');
+ok(v.sharePct === Math.round((v.pinned / v.sentences) * 100), '百分比由句数实算，不写死');
+ok(v.sharePct === 3, '构造样本 2/59 句 = 3%');
+ok(v.partial === true, '长文有句子没落上时 partial=true（判定那一栏要带范围）');
+
+/* 范围句：只在长文且未全覆盖时用；数字与「检查依据不计入」都必须写出来 */
+const ADVICE = /建议|应该|最好|不妨|请|值得一试|推荐|务必/;
+const scope = coverageScopeText(v.pinned, v.sentences, v.untouched);
+ok(scope.includes('2 句') && scope.includes('59 句'), '范围句带着钉住句数与总句数');
+ok(scope.includes('3%'), '范围句带着百分比');
+ok(scope.includes('57 句') && scope.includes('18 段'), '范围句带着未落上的句数与段数');
+ok(/自由文字/.test(scope) && /不在这个数里/.test(scope), '范围句明写检查依据不计入');
+ok(!ADVICE.test(scope), '范围句不劝告、不写「建议」');
+ok(!/漏了|错误|失败/.test(scope), '范围句不替报告判「漏了」');
+
+/* 全覆盖样本：一句一句都被钉住时 partial=false，界面不该再补一句废话 */
+const FULL = '甲'.repeat(SEGMENT_HINT_CHARS);
+const D_FULL = diag(FULL, [{ start: 0, end: FULL.length }]);
+const full = coverageOf(D_FULL);
+ok(full.pinned === full.sentences && full.sentences === 1, '全覆盖样本：唯一一句被钉住');
+ok(full.partial === false, '全覆盖时 partial=false');
 
 /* 阈值两侧：不能只在够长的样本上验 long */
 const justUnder = diag('甲'.repeat(SEGMENT_HINT_CHARS - 1), []);
@@ -124,11 +145,12 @@ ok(blank.segmentCount === 1 && blank.segments[0].chars === BLANK.length, '全空
 
 /* ─────────── 三 · 文案与边界 ─────────── */
 
-const ADVICE = /建议|应该|最好|不妨|请|值得一试|推荐|务必/;
 ok(!ADVICE.test(COVERAGE_LABEL.note), '边界说明不劝告');
 ok(!ADVICE.test(v.headline), '总述不劝告');
 ok(!/漏了|错误|不对|失败/.test(v.headline), '总述不写判断词');
-ok(/不等于分析漏了/.test(COVERAGE_LABEL.note), '明写「没被落上 ≠ 分析漏了」');
+ok(!/不等于分析漏了/.test(COVERAGE_LABEL.note), '不再用「没被落上 ≠ 漏了」替模型打包票');
+ok(/本地分不出来/.test(COVERAGE_LABEL.note), '明写本地分不出未落上的段是不是推理');
+ok(/检查项/.test(COVERAGE_LABEL.note) && /不计入/.test(COVERAGE_LABEL.note), '明写检查项的自由文字不计入这个数');
 ok(/本地不改判定/.test(COVERAGE_LABEL.note), '明写本地不改判定');
 ok(v.headline.includes(String(v.sentences)) && v.headline.includes(String(v.pinned)), '总述带着句数与钉住数');
 ok(v.headline.includes(String(v.segmentCount)) && v.headline.includes(String(v.untouched)), '总述带着段数与未碰段数');
@@ -164,6 +186,20 @@ ok(/previewTruncated \? '…' : ''/.test(bar), '截断的预览有省略号，�
 ok(/\.cv-bar/.test(css) && /\.cv-row/.test(css) && /\.cv-note/.test(css) && /\.cv-scroll/.test(css), '样式表里有收起栏、行、边界与滚动区');
 ok(/font-size: 11px/.test(css), '小字不小于 11px（整页截图里 10px 糊成黑块）');
 ok(/import '\.\/styles-coverage\.css'/.test(mainTsx) && /import '\.\/styles-coverage\.css'/.test(mockTsx), '真应用与预览页都引了样式');
+
+/*
+ * 判定的适用范围。守卫要查「还挂在 cov.partial 上」，不是查「data-verdict-scope 这个词还在」——
+ * 把条件改成 false 后词仍会在，而那一行已经不渲染了。第 66 轮踩过这个假绿。
+ */
+const overviewTsx = src('src/renderer/src/components/Overview.tsx');
+const cssMain = src('src/renderer/src/styles.css');
+ok(/import \{ coverageOf, coverageScopeText \} from '@shared\/coverage'/.test(diagTsx), '主报告组件用纯函数算范围');
+ok(/cov\.partial && \([\s\S]{0,200}data-verdict-scope/.test(diagTsx), '范围句还挂在 cov.partial 判断上，不是只剩一个词');
+ok(/coverageScopeText\(cov\.pinned, cov\.sentences, cov\.untouched\)/.test(diagTsx), '范围句的三个数字来自纯函数，不写死');
+ok(/\.verdict-scope \{/.test(cssMain), '范围句有自己的样式，不是裸文字');
+ok(/import \{ coverageOf \} from '@shared\/coverage'/.test(overviewTsx), '速览也读同一份覆盖口径');
+ok(/cov\.partial \? ` · 引文 \$\{cov\.pinned\}\/\$\{cov\.sentences\} 句`/.test(overviewTsx), '速览第③句在长文上带「引文 N/M 句」');
+ok(/data-quick-cover=\{r\.to === 'sec-verdict' && cov\.partial/.test(overviewTsx), '速览的覆盖标记挂在 partial 上，可被探针抓');
 
 /* 预览入口：一份长文本、一个锚点，两者都挂上 */
 ok(/QS\.get\('coverage'\)/.test(mockTsx) && /<CoverageAnchor \/>/.test(mockTsx), '?coverage=1 预览入口挂上了');

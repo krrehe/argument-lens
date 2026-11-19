@@ -2171,6 +2171,16 @@ pre.code {
   font-size: 13.5px;
   line-height: 1.78;
 }
+.verdict-scope {
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  padding: 7px 11px;
+  background: var(--muted-bg);
+  border-left: 2px solid var(--weak);
+  border-radius: 0 5px 5px 0;
+}
 .verdict-qual {
   margin-top: 8px;
   font-size: 12px;
