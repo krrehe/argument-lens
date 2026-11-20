@@ -963,6 +963,35 @@ const checks = [
       }
     })(),
   ],
+  /*
+   * 型式—CQ 对表：跨 shared 纯函数 / 渲染组件 / 检查表这一块三层。
+   * 只 grep asar 里有没有 SCHEME_CQ_TABLE 证明不了路通——任一层没进包，
+   * 卡片整块不出现，而「没有卡片」和「这份报告没有型式」在屏幕上长得一样。
+   * 所以取包内实际渲染出来的属性：第 8 型、四问、三问已登记、库内缺一问。
+   */
+  [
+    '打包产物里型式—CQ 对表跟着报告进了包（第 8 型四问、库内缺「机制」）',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('SCQRESULT ')) ?? '';
+      if (!line) return false;
+      try {
+        const s = JSON.parse(line.slice(line.indexOf('{')));
+        return (
+          s.table === 'in' &&
+          Number(s.no) === 8 &&
+          Number(s.min) === 4 &&
+          Number(s.registered) === 3 &&
+          Number(s.libgap) === 1 &&
+          Array.isArray(s.rows) &&
+          s.rows.length === 4 &&
+          s.rows[3] === '4:library-gap:none' &&
+          /机制/.test(String((s.notes ?? []).join(' ')))
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
   ['流程无报错', /\bOK\b/.test(log)],
   ['截图产出', existsSync(shot)],
 ];

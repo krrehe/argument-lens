@@ -230,6 +230,20 @@ ok(
   'D0 且全过时不报矛盾',
 );
 
+/* C-03 4.4「未答不算过」：空白与不过同计，D0／D1 却留一格空白也是记录与自身矛盾 */
+ok(
+  kinds(fake({ grade: record({ level: 'D1' }), confidence: { level: 'high', why: 'x' }, answers: ['passed', 'unanswered'] })).includes('shallow-grade-with-unanswered'),
+  'D1 却有未答的检查项 → warn（未答不算过）',
+);
+ok(
+  !kinds(fake({ grade: record({ level: 'D1' }), confidence: { level: 'high', why: 'x' }, answers: ['passed', 'not-applicable'] })).includes('shallow-grade-with-unanswered'),
+  '不适用项不进分母，D1 不受影响',
+);
+ok(
+  !kinds(fake({ grade: record({ level: 'D2' }), confidence: { level: 'high', why: 'x' }, answers: ['passed', 'unanswered'] })).includes('shallow-grade-with-unanswered'),
+  'D2 允许未答（C-03 4.7：支持力下降），不误报',
+);
+
 /* 条款对不上 */
 ok(
   kinds(fake({ grade: record({ level: 'D3', clause: '4.5' }), confidence: { level: 'high', why: 'x' } })).includes('clause-mismatch'),

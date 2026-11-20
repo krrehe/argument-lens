@@ -91,7 +91,8 @@
     "check:context-use": "node scripts/run-check-context-use.mjs",
     "check:grading": "node scripts/run-check-grading.mjs",
     "check:rhetoric": "node scripts/run-check-rhetoric.mjs",
-    "check:ledger": "node scripts/run-check-ledger.mjs"
+    "check:ledger": "node scripts/run-check-ledger.mjs",
+    "check:scheme-cq": "node scripts/run-check-scheme-cq.mjs"
   },
   "devDependencies": {
     "@argdown/core": "^2.0.1",

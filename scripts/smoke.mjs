@@ -1808,6 +1808,31 @@ if (process.env.SMOKE_AGREEMENT === '1') {
 }
 
 /*
+ * 型式—CQ 对表（C-04）。
+ *
+ * 假模型这份是「相关—因果」，所以走「表内 + 库内缺一问」那一支。核的是
+ * 三种缺席有没有分开：第四行必须是 library-gap（本库没有「机制」），
+ * 另外三行都登记了、unlisted 为 0；缺口说明必须点名「机制」；
+ * 边界句与隔离句在。库的边界被写成模型漏答，是这一栏最坏的错法。
+ */
+{
+  const s = jOfLine('SCQRESULT');
+  const rows = Array.isArray(s.rows) ? s.rows : [];
+  const notes = Array.isArray(s.notes) ? s.notes : [];
+  checks.push(
+    ['型式—CQ：卡片出现，且走的是「表内」那一支', s.has === true && s.table === 'in', `${s.has}/${s.table}`],
+    ['型式—CQ：认出第 8 型因果，最低集四问', s.no === 8 && s.min === 4, `${s.no}/${s.min}`],
+    ['型式—CQ：报告登记三问，库内缺一问', s.registered === 3 && s.libgap === 1 && s.unlisted === 0, `${s.registered}/${s.libgap}/${s.unlisted}`],
+    ['型式—CQ：四行都渲染出来', rows.length === 4, String(rows.length)],
+    ['型式—CQ：第四行标「本库没有」，不是「报告没答」', rows[3] === '4:library-gap:none', String(rows[3])],
+    ['型式—CQ：缺口说明点名「机制」', notes.length === 1 && /机制/.test(notes[0]), notes.join(' | ')],
+    ['型式—CQ：一句话账说清最低集与库内缺口', /最低集 4 问/.test(String(s.line)) && /本库没有 1/.test(String(s.line)), String(s.line)],
+    ['型式—CQ：边界句写明「表是检索工具，不是判定机」', /检索工具/.test(String(s.boundary)) && /不是判定机/.test(String(s.boundary)), String(s.boundary)],
+    ['型式—CQ：隔离句写明不改档位、不补答', /不改档位/.test(String(s.iso)) && /补答/.test(String(s.iso)), String(s.iso)],
+  );
+}
+
+/*
  * 命题账（D-02）。
  *
  * 假模型给了四条命题的账，所以这里走「有账」那一支。核的是屏幕上真正能看见的东西：

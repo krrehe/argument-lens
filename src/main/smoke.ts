@@ -2233,6 +2233,34 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
       }
 
       /*
+       * 型式—CQ 对表（C-04）。
+       *
+       * 假模型这份的型式是「相关—因果」：表内第 8 型最低集四问，库内只列了三问，
+       * 少的那一问是「机制」。所以这里走的是「表内 + 本库有缺口」那一支：
+       * 核四行都渲染、第四行标的是 library-gap（不是「报告没答」）、缺口说明点名
+       * 「机制」、报告那三问都登记了、边界句与隔离句在。
+       * 「表对不对、覆盖是不是真的」归 check:scheme-cq 的 373 条与 12 组反证，
+       * 这里只核它真的走到了屏幕上，且没有把库的边界算成模型的漏答。
+       */
+      {
+        const scq = await wc.executeJavaScript(`JSON.stringify({
+          has: !!document.querySelector('[data-scheme-cq]'),
+          table: document.querySelector('[data-scheme-cq]')?.getAttribute('data-scq-table') ?? '',
+          no: Number(document.querySelector('[data-scheme-cq]')?.getAttribute('data-scq-no') ?? -1),
+          min: Number(document.querySelector('[data-scheme-cq]')?.getAttribute('data-scq-min') ?? -1),
+          registered: Number(document.querySelector('[data-scheme-cq]')?.getAttribute('data-scq-registered') ?? -1),
+          libgap: Number(document.querySelector('[data-scheme-cq]')?.getAttribute('data-scq-libgap') ?? -1),
+          unlisted: Number(document.querySelector('[data-scheme-cq]')?.getAttribute('data-scq-unlisted') ?? -1),
+          rows: [...document.querySelectorAll('[data-scq-row]')].map((e) => e.getAttribute('data-scq-row') + ':' + e.getAttribute('data-scq-gap') + ':' + e.getAttribute('data-scq-answer')),
+          notes: [...document.querySelectorAll('[data-scq-note]')].map((e) => (e.textContent ?? '').replace(/\\s+/g, ' ').trim()),
+          line: (document.querySelector('[data-scq-line]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+          boundary: (document.querySelector('[data-scheme-cq] .scq-boundary')?.textContent ?? '').trim(),
+          iso: (document.querySelector('[data-scheme-cq] .scq-iso')?.textContent ?? '').trim(),
+        })`);
+        add(`SCQRESULT ${scq}`);
+      }
+
+      /*
        * 命题账（D-02）。
        *
        * 假模型给了四条命题的账：C 在规范栏（带 A_v 与条件式结论）、P1 已证真、

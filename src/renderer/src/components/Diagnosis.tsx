@@ -55,6 +55,7 @@ import { AUDIENCE_KIND_LABEL, contextLoadOf, DIALOGUE_TYPE_LABEL, STAGE_LABEL } 
 import { CtxCell } from './CtxCell';
 import { GradeCard } from './GradeCard';
 import { RhetoricCard } from './RhetoricCard';
+import { SchemeCqCard } from './SchemeCqCard';
 import { auditLine, rhetoricExpected } from '@shared/rhetoric';
 import { FieldTermsBar } from './FieldTermsBar';
 import { DensityBar, useDensity } from './Density';
@@ -1908,6 +1909,12 @@ export function DiagnosisView({
               <CheckStrip checks={d.checks} sel={sel} onPick={setSel} defeatId={d.defeat.checkId} />
             </Gated>
             <CheckTable checks={d.checks} sel={sel} />
+            {/*
+              检查表下面紧跟一句「这一型该问的这几问，问全了吗」。
+              放在同一块里而不是另开一栏：它核的是上面那张表本身，
+              搬到别处就成了读者读到一半才发现的附注。
+            */}
+            <SchemeCqCard d={d} />
           </>
         ) : (
           /*

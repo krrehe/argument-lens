@@ -2749,6 +2749,153 @@ pre.code {
   color: var(--ink);
 }
 
+/* ── 型式—CQ 对表（C-04）：检查表下面那句「这一型该问的全了吗」 ── */
+.scq {
+  margin-top: 10px;
+  padding: 10px 12px 11px;
+  background: var(--panel-2);
+  border-radius: 8px;
+}
+.scq-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.scq-line {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.scq-tag,
+.scq-src {
+  flex: none;
+  font-size: 10px;
+  color: var(--ink-3);
+  background: var(--muted-bg);
+  border-radius: 999px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+.scq-why {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.scq-point,
+.scq-example,
+.scq-extra {
+  margin: 7px 0 0;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.scq-point b,
+.scq-example b {
+  color: var(--ink);
+  font-weight: 500;
+}
+.scq-table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.scq-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-3);
+  font-size: 10px;
+  padding: 3px 5px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.scq-table td {
+  padding: 4px 5px;
+  vertical-align: top;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+.scq-table tbody tr:nth-child(even) {
+  background: var(--muted-bg);
+}
+.scq-table th:nth-child(1),
+.scq-table td:nth-child(1) {
+  width: 58px;
+}
+.scq-table th:nth-child(3),
+.scq-table td:nth-child(3) {
+  width: 92px;
+}
+.scq-table th:nth-child(4),
+.scq-table td:nth-child(4) {
+  width: 112px;
+}
+.scq-no {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.scq-key {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--weak);
+  background: var(--weak-bg);
+  border-radius: 999px;
+  padding: 0 5px;
+}
+.scq-lib,
+.scq-got {
+  color: var(--ink);
+}
+.scq-miss {
+  color: var(--weak);
+}
+.scq-notes {
+  margin: 7px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+}
+.scq-notes li {
+  font-size: 11px;
+  line-height: 1.65;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--weak-bg);
+  color: var(--ink-2);
+}
+.scq-notes b {
+  color: var(--weak);
+  font-weight: 500;
+}
+.scq-close {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.scq-iso {
+  flex: none;
+  text-align: right;
+}
+.scq-boundary {
+  margin: 6px 0 0;
+  font-size: 10px;
+  line-height: 1.65;
+  color: var(--ink-3);
+}
+.scq-out {
+  background: var(--muted-bg);
+}
+
 .verdict-qual {
   margin-top: 8px;
   font-size: 12px;

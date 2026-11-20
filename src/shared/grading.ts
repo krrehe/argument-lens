@@ -91,6 +91,7 @@ export type GradeGapKind =
   | 'grade-on-nongrading-mode'
   | 'level-mismatch'
   | 'shallow-grade-with-violation'
+  | 'shallow-grade-with-unanswered'
   | 'confidence-missing';
 
 export interface GradeGap {
@@ -118,6 +119,8 @@ const GAP_TEXT: Record<GradeGapKind, string> = {
   'level-mismatch': '四档投影与 D 档不一致，已按 D 档重算（四档只是六档的粗桶）。',
   'shallow-grade-with-violation':
     '判了 D0／D1，但报告里有检查项被标为 violated。这两档的触发条件都要求适用 CQ 全过——记录与自身矛盾。',
+  'shallow-grade-with-unanswered':
+    '判了 D0／D1，但报告里有检查项标为「未答」。C-03 的「未答不算过」把空白与不过同计，空白不能折算成通过——这两档的触发条件要求适用 CQ 全过。',
   'confidence-missing': '没有评估置信度。三分离要求它与档位并列记录，不得折算（D-01 二节）。',
 };
 
@@ -197,6 +200,12 @@ export function auditGrade(d: Diagnosis): GradeGap[] {
   // 这不是本地在判档，是同一份记录里两句话对不上。
   if ((g.level === 'D0' || g.level === 'D1') && d.checks.some((c) => c.answer === 'violated')) {
     gaps.push(gap('shallow-grade-with-violation', 'warn'));
+  }
+
+  // C-03 4.4：「未答不算过」——空白与不过同计。不适用项不进分母（C-03 五节），
+  // 所以这里只数 unanswered，不把 not-applicable 算进来。
+  if ((g.level === 'D0' || g.level === 'D1') && d.checks.some((c) => c.answer === 'unanswered')) {
+    gaps.push(gap('shallow-grade-with-unanswered', 'warn'));
   }
 
   if (!d.confidence) gaps.push(gap('confidence-missing', 'warn'));
