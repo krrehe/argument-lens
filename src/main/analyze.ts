@@ -20,11 +20,15 @@ import type {
   PtaLens,
   Refutation,
   RefutationStrategy,
+  ReportConfidence,
   ToulminLens,
   UsageRecord,
   VerdictLevel,
   WaltonLens,
+  Grade,
+  GradeRecord,
 } from '@shared/types';
+import { GRADE_BUCKET, GRADE_CLAUSE, GRADE_LABEL, GRADES, auditGrade } from '@shared/grading';
 import { DEFAULT_THEORY, THEORY_BY_ID, isTheoryId, type TheoryId } from '@shared/theories';
 import { auditReport } from '@shared/report-audit';
 import { normalizeBrief } from '@shared/brief';
@@ -807,6 +811,94 @@ export function normalizeDiagnosis(
     whatIsRefuted = 'nothing';
   }
 
+  /*
+   * 判档：D0–D5（知识库「论证分析流程」D-01 v2.1）。
+   *
+   * 这里只做三件事，都不改「判几档」：
+   *   1. 把模型给的 grade 认下来（六档、触发条款、缺陷位置、证据、处置、降级、
+   *      D5 三闸门），认不出就留痕并置空——不猜一个档位补上；
+   *   2. 模式不给档位、透镜不适用、名录透镜三种情形，D 档随四档一起置空（G8 同款）；
+   *   3. 有 D 档时，四档按 GRADE_BUCKET 重算。四档只是六档的粗桶，
+   *      两处不一致就说明同一个档位被写成了两种说法，留痕后按六档为准。
+   */
+  const rawGrade = v.grade;
+  let grade: GradeRecord | null = null;
+  if (rawGrade && typeof rawGrade === 'object') {
+    const g = rawGrade as Record<string, any>;
+    const lv = typeof g.level === 'string' ? g.level.trim().toUpperCase() : '';
+    if ((GRADES as readonly string[]).includes(lv)) {
+      const gates = g.d5 && typeof g.d5 === 'object' ? (g.d5 as Record<string, any>) : null;
+      grade = {
+        level: lv as Grade,
+        // 条款是拿来复核的编号，模型漏填就按档位补上（表在 shared/grading，只此一处）
+        clause: str(g.clause).trim() || GRADE_CLAUSE[lv as Grade],
+        at: arr<unknown>(g.at)
+          .map((x) => str(x).trim())
+          .filter(Boolean),
+        evidence: str(g.evidence),
+        fix: str(g.fix),
+        downgrade: str(g.downgrade),
+        d5: gates
+          ? {
+              consequence: str(gates.consequence),
+              synergy: str(gates.synergy),
+              protocol: str(gates.protocol),
+              removed: arr<unknown>(gates.removed)
+                .map((x) => str(x).trim())
+                .filter(Boolean),
+            }
+          : null,
+      };
+    } else if (str(g.level).trim()) {
+      diagnostics.push({
+        level: 'warn',
+        code: 'GRADE_UNREADABLE',
+        message: `模型给的档位「${str(g.level).slice(0, 12)}」不在 D0–D5 里，已置空。不补一个近似的档位：那会让一个读不出的记录看起来像判决。`,
+      });
+    }
+  }
+
+  if (grade && (!givesVerdict || theory === 'copi' || !scope.applicable)) {
+    diagnostics.push({
+      level: 'info',
+      code: 'GRADE_STRIPPED',
+      message: givesVerdict
+        ? '透镜在本文本上不适用，D 档随四档一并置空——档位没有落点，留着它会让读者以为这里判过。'
+        : `本次是「${MODE_META[mode].label}」模式，该模式不评级，D 档已置空。`,
+    });
+    grade = null;
+  }
+
+  if (grade) {
+    const bucket = GRADE_BUCKET[grade.level];
+    if (bucket !== level) {
+      diagnostics.push({
+        level: 'info',
+        code: 'GRADE_LEVEL_SYNCED',
+        message: `D 档 ${grade.level} 对应四档「${bucket}」，模型写的却是「${level}」，已按 D 档重算。四档是六档的粗桶，不是第二套判定。`,
+      });
+      level = bucket;
+    }
+    // 档位不蕴含结论真假：D0／D1 不可能否证结论。
+    if (bucket === 'withstands' && whatIsRefuted === 'conclusion') {
+      whatIsRefuted = 'argument-only';
+      diagnostics.push({
+        level: 'warn',
+        code: 'GRADE_OVERRUN',
+        message: `判了 ${grade.level}（${GRADE_LABEL[grade.level]}），却写「结论被否证」。低档只说明论证有缺陷，不说明结论为假——这是谬误谬误，已改回「仅否证论证」。`,
+      });
+    }
+  }
+
+  const rawConf = (raw as any).confidence;
+  let confidence: ReportConfidence | undefined;
+  if (rawConf && typeof rawConf === 'object') {
+    const c = rawConf as Record<string, unknown>;
+    const lv = conf(c.level, 'undetermined');
+    const why = str(c.why).trim();
+    if (why || lv !== 'undetermined') confidence = { level: lv, why };
+  }
+
   const verdict = {
     scale: strNonEmpty(v.scale, THEORY_BY_ID[theory].scale),
     scaleValue: str(v.scaleValue),
@@ -814,6 +906,7 @@ export function normalizeDiagnosis(
     statement: strNonEmpty(v.statement, '在目前给出的信息下，无法给出可靠判断。'),
     qualification: str(v.qualification),
     whatIsRefuted,
+    grade,
   };
 
   /* 修补 */
@@ -1089,6 +1182,7 @@ export function normalizeDiagnosis(
     lens,
     defeat,
     verdict,
+    confidence,
     repair,
     labels,
     legitimateMoves,
@@ -1130,6 +1224,21 @@ export function normalizeDiagnosis(
       level: 'info',
       code: 'REPORT_GAP',
       message: `这一栏没写全：${gap}。判断本身不受影响。`,
+    });
+  }
+
+  /*
+   * 判档记录核对。只核「这份记录齐不齐、与报告其余部分矛不矛盾」，
+   * 不核「档位判得对不对」——后者要真模型评测，本地给不了。
+   *
+   * block 级（缺缺陷位置、缺降级条件、D5 缺闸门）按 warn 记：
+   * 它意味着这一份按 D-01 还不算判决，读者要知道这一点。
+   */
+  for (const g of auditGrade(report)) {
+    diagnostics.push({
+      level: g.severity === 'block' ? 'warn' : 'info',
+      code: g.severity === 'block' ? 'GRADE_INCOMPLETE' : 'GRADE_NOTE',
+      message: `${g.text}（${g.kind}）`,
     });
   }
 

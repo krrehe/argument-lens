@@ -2175,6 +2175,35 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
       }
 
       /*
+       * 判档记录卡（D0–D5）。
+       *
+       * 假模型这份给了完整的 D2 记录，所以这里走的是「有档位」的那条分支：
+       * 档位、条款、缺陷位置、处置、降级条件、置信度都得逐字来自报告，
+       * 而不是卡片自己按检查项算一个。缺口为 0 时不许摆一条空的缺口清单
+       * （空格子会被读成「记录不全」）——反过来说，缺口数必须真等于本地核对的结果。
+       *
+       * 「判几档对不对」本地给不了（判断由模型写出），归 check:grading 的 81 条与
+       * 13 组反证；这里只核接线：属性、文案来源、D5 闸门在 D2 上不出现。
+       */
+      {
+        const grade = await wc.executeJavaScript(`JSON.stringify({
+          has: !!document.querySelector('[data-grade]'),
+          none: !!document.querySelector('[data-grade-none]'),
+          level: document.querySelector('[data-grade]')?.getAttribute('data-grade') ?? '',
+          blocks: document.querySelector('[data-grade]')?.getAttribute('data-grade-gap') ?? '',
+          label: (document.querySelector('[data-grade] .glb')?.textContent ?? '').trim(),
+          clause: (document.querySelector('[data-grade] .gcl')?.textContent ?? '').trim(),
+          heads: [...document.querySelectorAll('[data-grade] .grows dt')].map((e) => (e.textContent ?? '').trim()),
+          vals: [...document.querySelectorAll('[data-grade] .grows dd')].map((e) => (e.textContent ?? '').trim()),
+          gates: !!document.querySelector('[data-grade-gates]'),
+          gaps: [...document.querySelectorAll('[data-grade] .ggaps li')].length,
+          boundary: (document.querySelector('[data-grade] .gnote')?.textContent ?? '').trim(),
+          conf: (document.querySelector('[data-grade] .gconf')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+        })`);
+        add(`GRADERESULT ${grade}`);
+      }
+
+      /*
        * 「骨架缺口」：本地第一次对报告本身说「这里接不上」。
        *
        * 核的是接线与来源，不是算法：每条缺口都得带 `data-skeleton-from`，

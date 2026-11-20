@@ -2300,6 +2300,184 @@ pre.code {
   border-color: var(--accent);
   color: var(--accent);
 }
+/*
+ * 判档记录卡。D0–D5 与它的记录（缺陷位置／证据／处置／降级条件）。
+ *
+ * 为什么不是又一条灰色说明：这一块要能被当成「判决书的一页」读——
+ * 档位、判据编号、缺陷位置、降级条件四样必须一眼找得到。
+ * 所以用卡片（6px 圆角）而不是左侧竖线，与上面两条「范围句」分开层次。
+ */
+.gradecard {
+  margin-top: 9px;
+  padding: 9px 12px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.ghead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.glv {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--muted-bg);
+  color: var(--ink-2);
+}
+/* 颜色按档位分三组：无缺陷／可加固、支持不足／型式误用、结构性失效／操纵。
+   与四档粗桶同色系，读者不用在两套颜色之间换算。 */
+.glv.g-d0,
+.glv.g-d1 {
+  background: var(--strong-bg);
+  color: var(--strong);
+}
+.glv.g-d2,
+.glv.g-d3 {
+  background: var(--weak-bg);
+  color: var(--weak);
+}
+.glv.g-d4,
+.glv.g-d5 {
+  background: var(--invalid-bg);
+  color: var(--invalid);
+}
+.glb {
+  font-size: 12.5px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.gcl {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.gok {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--strong);
+}
+.gbad {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--invalid);
+}
+/*
+ * 四行记录。不画逐行横线（上一轮 UI 清单：边框越少越好），
+ * 用隔行底色分组——项目里字段行与表格已是同一套做法。
+ */
+.grows {
+  margin: 8px 0 0;
+  display: grid;
+  gap: 0;
+}
+.grows > div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 10px;
+  padding: 3px 7px;
+  font-size: 12px;
+  line-height: 1.65;
+  border-radius: 3px;
+}
+.grows > div:nth-child(even) {
+  background: var(--muted-bg);
+}
+.grows dt {
+  color: var(--ink-3);
+}
+.grows dd {
+  margin: 0;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+.ggates {
+  margin-top: 9px;
+  padding: 7px 9px;
+  background: var(--invalid-bg);
+  border-radius: 3px;
+}
+.ggt {
+  font-size: 11px;
+  color: var(--invalid);
+  margin-bottom: 4px;
+}
+.ggate {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.gk {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.gremoved {
+  margin: 5px 0 0;
+  padding-left: 18px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+.ggaps {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+}
+.ggaps li {
+  font-size: 11.5px;
+  line-height: 1.6;
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+.ggaps li.blk {
+  background: var(--invalid-bg);
+  color: var(--invalid);
+}
+.ggaps li.wrn {
+  background: var(--weak-bg);
+  color: var(--weak);
+}
+.gconf {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+.gconf-note {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.gnote {
+  margin: 7px 0 0;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--ink-3);
+}
+.grade-none {
+  margin-top: 9px;
+  padding: 8px 11px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  background: var(--muted-bg);
+  border-radius: 3px;
+}
+.grade-none b {
+  color: var(--ink);
+}
+
 .verdict-qual {
   margin-top: 8px;
   font-size: 12px;

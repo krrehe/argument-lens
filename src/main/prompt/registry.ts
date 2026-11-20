@@ -26,7 +26,7 @@ import { blocksFor, REQUIRED_BLOCKS, type PromptBlock } from './blocks';
  * 每次改动提示词都必须改这里，并写清改了什么（见 docs/提示词工程.md 的变更表）。
  */
 
-export const PROMPT_VERSION = '2.7.0';
+export const PROMPT_VERSION = '2.8.0';
 
 /**
  * 变更记录。每次改版本号都要在这里留一行，说清改了什么、为什么。
@@ -36,6 +36,15 @@ export const PROMPT_VERSION = '2.7.0';
  * 没有这份记录，半年后有人会把它当冗余删掉，然后同一个 bug 再发生一次。
  */
 export const PROMPT_VERSION_NOTE: string[] = [
+  '2.8.0 user 模板加第 8 条「判档纪律」，verdict.grade 按知识库「论证分析流程」D-01 v2.1 ' +
+    '的 D0–D5 六档写，顺序 D5→D4→D3→D2→D1→D0，D2 及以上必须带缺陷位置与降级条件，' +
+    'D5 必须逐项记后果／协同／协议三道闸门与反事实移除测试；另加 confidence 一格，' +
+    '评「这次分析可靠吗」，与档位并列、不折算。起因：原来只有四档（站得住／削弱／不成／未定），' +
+    'D2 支持不足与 D3 型式误用折在同一个「削弱」里，而两者的处置完全不同（补证据 vs 换型式），' +
+    '报告只能给出两边都不得罪的话；「缺一不算判决」这条硬边界也没有落点——' +
+    '一份只有「削弱」两个字的报告，读者无从复核。这一版只加记录，不改变六副透镜各自的判据：' +
+    '四档仍是六档的粗桶（GRADE_BUCKET 一处投影），旧存档没有这一栏就照实说没有，不补假值。' +
+    '真模型是否照做（会不会把 D5 当最高刻度凑数、把 downgrade 写成「若证据不同」）未验，余额为空。',
   '2.7.0 user 模板加第 7 条「本透镜读哪几格语境」，与 shared/context-use 同一张表：' +
     'walton 读对话类型与阶段，pragma 再读对方立场，ars 读受众与受众类型，pta／toulmin／copi 一格都不读。' +
     '不读语境的透镜明确写「不要把档位归因到语境上」——2.6.0 只要求标出处，没说这一格到底进不进判定，' +
@@ -333,7 +342,26 @@ export const SHARED_SCHEMA = `{
     "level": "withstands|weakened|fails|undetermined",
     "statement": "必须带模态限定，如「在目前给出的证据下，结论似真可接受」",
     "qualification": "这份判断在什么条件下成立",
-    "whatIsRefuted": "argument-only|conclusion|nothing"
+    "whatIsRefuted": "argument-only|conclusion|nothing",
+    "grade": {
+      "level": "D0|D1|D2|D3|D4|D5（不给档位的模式写 null）",
+      "clause": "触发条款编号：D0/D1 写 4.3，D2/D3 写 4.4，D4 写 4.5，D5 写 4.6",
+      "at": ["缺陷位置：P2、A1、CQ4 这类报告里真实存在的编号；D2 及以上必填"],
+      "evidence": "必要证据（凭什么这一档成立）",
+      "fix": "共享处置或可执行加固动作",
+      "downgrade": "降级条件：若 X 成立，本判改为 Y。写不出就说明这判还没做完",
+      "d5": {
+        "consequence": "仅 D5：后果闸门（剥夺追问／伪造证据状态／隐瞒有利反证，指出是哪一种、在哪）",
+        "synergy": "仅 D5：协同闸门（至少两个手法，各自单独不足、合起来才造成）",
+        "protocol": "仅 D5：协议闸门（当前对话协议下确属不该发生）",
+        "removed": ["仅 D5：反事实移除测试逐条记录；非 D5 写 null"]
+      }
+    }
+  },
+
+  "confidence": {
+    "level": "high|medium|low|very-low|undetermined",
+    "why": "凭什么这个置信度：取材是否完整、版本是否明确、有没有关键信息缺失"
   },
 
   "repair": {
@@ -561,6 +589,43 @@ function contextDiscipline(theory: TheoryId): string {
   );
 }
 
+/**
+ * 判档纪律。来源：知识库「论证分析流程」04_裁决层 D-01《分档：D0 至 D5》v2.1。
+ *
+ * 为什么要把六档塞进提示词，而不是让本地把四档换算过去：
+ * 四档只说得清「站得住／削弱／不成」，说不清「为什么是这一档」——
+ * D2 支持不足与 D3 型式误用的修法完全不同（补证据 vs 换型式），
+ * 折进同一个「削弱」之后，处置建议只能写成两边都不得罪的话。
+ *
+ * 为什么必须要求写 downgrade：D-01 4.8 写明「降级条件写不出，视为本判尚未完成」。
+ * 一条没有降级条件的档位，读者无法知道什么新证据会推翻它——那正是本工具
+ * 与「AI 随口下结论」的分界线。
+ */
+const GRADE_HINT =
+  'verdict.grade 按 D0–D5 判档，顺序固定为 D5→D4→D3→D2→D1→D0，命中第一个即停，不许先觉得「问题不大」再逐档找理由：' +
+  'D0 无缺陷（三问与适用 CQ 全过、枢纽已处理）／D1 可加固（全过，但有一处一句话就能补的薄弱）／' +
+  'D2 支持不足（关键前提未获辩护、重度结论强度超载、合流结构一条支路失败）／' +
+  'D3 型式误用（型式与材料错配，或关键 CQ 未过仍按型式结论使用）／' +
+  'D4 结构性失效（断环正在枢纽、循环论证、多路实则单路）／D5 操纵（下面三道闸门全中）。' +
+  'D2 及以上必须写 at（缺陷位置，用报告里真实存在的 P／A／CQ 编号）与 downgrade（若 X 成立，本判改为 Y）；' +
+  'evidence 写必要证据，fix 写共享处置或可执行加固动作。同一处缺陷只记一次：' +
+  '它既表现为三问不过、又表现为某条 CQ 未过时，只挂一个位置。' +
+  'D5 必须逐项写 d5：后果闸门（剥夺追问／伪造证据状态／隐瞒有利反证）、' +
+  '协同闸门（至少两个手法，各自单独不足、合起来才造成）与协议闸门（当前对话协议下不该发生），' +
+  '并在 removed 里逐条写反事实移除测试——删去某手法后后果是否仍在。' +
+  '三处小毛病相加不是 D5：D5 是门槛，不是最高刻度；语气强硬、立场偏颇都不构成 D5。' +
+  '档位只评论证质量：不许由档位推出结论为假，也不许因为结论后来被证实就抬高档位。' +
+  'confidence 另写一格，评的是「这次分析可靠吗」——取材不详、版本冲突降它，不降档位。';
+
+/** 不给档位的模式：D 档与置信度都不该有，写一句比留白更清楚。 */
+const NO_GRADE_HINT =
+  '本模式不评级：verdict.grade 写 null 或整个省略，confidence 也不必写。' +
+  '给了档位会被程序置空并留痕——那不是解析错误，是模式定义。';
+
+function gradeDiscipline(mode: AnalysisMode): string {
+  return MODE_META[mode].givesVerdict ? GRADE_HINT : NO_GRADE_HINT;
+}
+
 function userTemplateFor(theory: TheoryId, mode: AnalysisMode): string {
   const profile = THEORY_BY_ID[theory];
   const extra = MODE_EXTRA[mode];
@@ -577,8 +642,9 @@ function userTemplateFor(theory: TheoryId, mode: AnalysisMode): string {
     `5. ${DIALOGUE_KIND_HINT}`,
     `6. ${CONTEXT_SOURCE_HINT}`,
     `7. ${contextDiscipline(theory)}`,
-    ...extra.map((s, i) => `${8 + i}. ${s}`),
-    `${8 + extra.length}. ${tail}`,
+    `8. ${gradeDiscipline(mode)}`,
+    ...extra.map((s, i) => `${9 + i}. ${s}`),
+    `${9 + extra.length}. ${tail}`,
   ].join('\n');
 
   return `守卫：{delim}

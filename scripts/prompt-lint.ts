@@ -289,6 +289,9 @@ const CONSUMED = [
   'checks', 'system', 'label', 'question', 'meta', 'answer', 'basis', 'guards', 'landsOn',
   'lens', 'defeat', 'kind', 'checkId', 'cuts', 'explanation',
   'verdict', 'scale', 'scaleValue', 'level', 'statement', 'qualification', 'whatIsRefuted',
+  // 判档记录（grading.ts）：只核记录完整性，不代模型改档位
+  'grade', 'clause', 'at', 'evidence', 'fix', 'downgrade', 'd5',
+  'consequence', 'synergy', 'protocol', 'removed',
   'repair', 'missingPremise', 'alternativeReading', 'answerable', 'burdenStatus', 'repairedForm',
   'labels', 'name', 'nameEn', 'condition', 'whenLegitimate', 'riskOfError', 'landsOnCheck', 'tradition',
   'legitimateMoves', 'targetId', 'what', 'why',

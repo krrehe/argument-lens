@@ -40,6 +40,7 @@ export type SideSectionId =
   | 'checks'
   | 'defeat'
   | 'verdict'
+  | 'confidence'
   | 'repair'
   | 'refutations'
   | 'labels'
@@ -64,6 +65,9 @@ export const SECTION_ORDER: { id: SideSectionId; label: string; key: string }[] 
   { id: 'checks', label: '检查项', key: 'checks' },
   { id: 'defeat', label: '击败', key: 'defeat' },
   { id: 'verdict', label: '评级', key: 'verdict' },
+  /* 把握紧跟在评级后面：同一份判断，一处说「几档」，一处说「这个判断有多把稳」。
+     两者不许合并成一段——档位低而把握高（或反过来）本身就是该被看见的形状。 */
+  { id: 'confidence', label: '把握', key: 'confidence' },
   { id: 'repair', label: '修补', key: 'repair' },
   { id: 'refutations', label: '反驳', key: 'refutations' },
   { id: 'labels', label: '命名候选', key: 'labels' },
@@ -191,6 +195,19 @@ export const FIELD_LABEL: Record<string, string> = {
   skeleton: '骨架',
   alternativeFamily: '更可能被认成的另一族',
   alternativeNote: '族的误认说明',
+  /* 判档记录（D0–D5）。`level` 与四档共用「档位」，这里只补 D 档特有的几栏：
+     记录七项各自是一句人话，读的人要在界面上分清「缺哪一项」，不能都印成英文。 */
+  grade: 'D 档',
+  clause: '触发条款',
+  at: '缺陷位置',
+  evidence: '凭什么这一档',
+  fix: '怎么处置',
+  downgrade: '降级条件',
+  d5: 'D5 四道记录',
+  consequence: '后果闸门',
+  synergy: '协同闸门',
+  protocol: '协议闸门',
+  removed: '反事实移除测试',
   /* EPI 自评的七项与合计 */
   epi: 'EPI 自评',
   P1_source: 'EPI 1 来源',

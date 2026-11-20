@@ -1,17 +1,17 @@
 # 提示词：论证型式与批判性问题（查谬误模式）
 
-> Argumentation Schemes & Critical Questions｜模式：查谬误（fallacy）｜版本：v2.7.0
+> Argumentation Schemes & Critical Questions｜模式：查谬误（fallacy）｜版本：v2.8.0
 > 命名类：不给档位，给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：把可疑的地方对上教材里的名字——每个名字都要指得出原文哪一句，并说清它什么时候其实合法。
 > 判定单元：型式的一条批判性问题（CQ）
 > 原生刻度：型式强度：抗 CQ 的能力
 > 出处：Walton, Reed & Macagno, Argumentation Schemes (2008)；武宏志《非形式逻辑导论》附录A
 
-指纹 `5dd201a5b0f6`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `e034360150e6`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `6eee91463e74`
 
-字符 18551（预算：警戒 16000／上限 24000，当前接近上限）
-估算 7982 token｜采样温度上限 0.15｜输出上限 8192 token
+字符 19315（预算：警戒 16000／上限 24000，当前接近上限）
+估算 8250 token｜采样温度上限 0.15｜输出上限 8192 token
 规则块（13）：fa.role、fa.not-hunter、fa.no-verdict、fa.price、fa.one-per-place、fa.legit、fa.empty、core.input-boundary、core.output-discipline、fa.epistemic、fa.language、fa.gate-four、fa.scope-gate
 
 ---
@@ -368,7 +368,26 @@ scope.outOfScopeAt 要写清是哪一条前提不成立，不要笼统说「不�
     "level": "withstands|weakened|fails|undetermined",
     "statement": "必须带模态限定，如「在目前给出的证据下，结论似真可接受」",
     "qualification": "这份判断在什么条件下成立",
-    "whatIsRefuted": "argument-only|conclusion|nothing"
+    "whatIsRefuted": "argument-only|conclusion|nothing",
+    "grade": {
+      "level": "D0|D1|D2|D3|D4|D5（不给档位的模式写 null）",
+      "clause": "触发条款编号：D0/D1 写 4.3，D2/D3 写 4.4，D4 写 4.5，D5 写 4.6",
+      "at": ["缺陷位置：P2、A1、CQ4 这类报告里真实存在的编号；D2 及以上必填"],
+      "evidence": "必要证据（凭什么这一档成立）",
+      "fix": "共享处置或可执行加固动作",
+      "downgrade": "降级条件：若 X 成立，本判改为 Y。写不出就说明这判还没做完",
+      "d5": {
+        "consequence": "仅 D5：后果闸门（剥夺追问／伪造证据状态／隐瞒有利反证，指出是哪一种、在哪）",
+        "synergy": "仅 D5：协同闸门（至少两个手法，各自单独不足、合起来才造成）",
+        "protocol": "仅 D5：协议闸门（当前对话协议下确属不该发生）",
+        "removed": ["仅 D5：反事实移除测试逐条记录；非 D5 写 null"]
+      }
+    }
+  },
+
+  "confidence": {
+    "level": "high|medium|low|very-low|undetermined",
+    "why": "凭什么这个置信度：取材是否完整、版本是否明确、有没有关键信息缺失"
   },
 
   "repair": {
@@ -610,16 +629,17 @@ CQ：CQ1 有无相反证据使该归类存疑？（守：归类的边界）；CQ
 5. 判断 dialogueType 之前，先想清这段文本是不是「共同求解」：探究、评审、学术讨论、会诊这类场合，参与者的目标是把问题弄清，不是要说服对方。persuasion 不是默认值——论文、综述、书评、政策报告尤其容易在这里判错。无论判成哪一类，都要在 dialogueTypeBasis 里写出原文中可指出的特征，不许只写「语气像」。
 6. context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；guess＝原文没写、为把分析做下去而假定。这两档都要给 ifChanged：这格换成别的样子，判定往哪边变。多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。
 7. 本透镜的判定要读 2 格语境：「对话类型」同一招式在不同对话类型下结论不同，类型判错，合法性跟着错；「阶段」逐条问 CQ 之前要先辨对话类型与阶段。这几格只要不是 known，ifChanged 就必须写，而且要有落点：写成「这格若是别的样子，哪一条检查或哪一个档位会跟着变」，不许写「影响很大」「结论可能不同」这种没有落点的话。
-8. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，refutations 必须是空数组。
+8. 本模式不评级：verdict.grade 写 null 或整个省略，confidence 也不必写。给了档位会被程序置空并留痕——那不是解析错误，是模式定义。
+9. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，refutations 必须是空数组。
    这一份只回答「哪些位置对得上哪个名字」，不回答「这段话站不站得住」。
-9. 主输出是 labels，最多三条。每条必须带 quote（原文里能原样找到的一句）、condition、
+10. 主输出是 labels，最多三条。每条必须带 quote（原文里能原样找到的一句）、condition、
    whenLegitimate、riskOfError、landsOnCheck。缺 quote 或 landsOnCheck 挂不上检查项的条目，
    程序会直接丢掉，不显示——说不出是哪一句，就只是贴标签。
-10. 同一处位置只给一个名字。两个名字都说得通时，选与检查项对得更准的那个，
+11. 同一处位置只给一个名字。两个名字都说得通时，选与检查项对得更准的那个，
    另一个写进 selfCheck.unknowns，说明另一种叫法会把判断带到哪。
-11. 一个都没找到是正常结果：labels 给空数组，并在 unknowns 里说清是哪一种没有——
+12. 一个都没找到是正常结果：labels 给空数组，并在 unknowns 里说清是哪一种没有——
    这段文本本来就不是论证、名字都站不住、还是你没判断出来。不要用「可能有……的倾向」填空。
-12. 本透镜的判定单元是「型式的一条批判性问题（CQ）」，原生刻度是「型式强度：抗 CQ 的能力」。
+13. 本透镜的判定单元是「型式的一条批判性问题（CQ）」，原生刻度是「型式强度：抗 CQ 的能力」。
    本模式不评级，但结构里的零件要按这套刻度命名：verdict.scale 与 verdict.scaleValue 照抄这套刻度的话，
    verdict.level 固定写 "undetermined"。
 ```

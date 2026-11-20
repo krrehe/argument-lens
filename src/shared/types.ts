@@ -263,6 +263,40 @@ export interface Defeat {
 /** 归一化后的四档。原生刻度另存，不覆盖。 */
 export type VerdictLevel = 'withstands' | 'weakened' | 'fails' | 'undetermined';
 
+/* ─────────── 体系档位 D0–D5（来源：D-01 分档 v2.1） ─────────── */
+
+/** 六档。互斥等级，不是六类文体。判据与顺序见 @shared/grading。 */
+export type Grade = 'D0' | 'D1' | 'D2' | 'D3' | 'D4' | 'D5';
+
+/** D5 三道闸门的记录。任一为空即「门槛未记录」，不得算 D5。 */
+export interface GradeD5 {
+  /** 后果闸门：剥夺追问／伪造证据状态／隐瞒有利反证，指出是哪一种、在哪 */
+  consequence: string;
+  /** 协同闸门：至少两个手法共同造成，每个单独不足 */
+  synergy: string;
+  /** 协议闸门：当前对话协议下这确属不该发生 */
+  protocol: string;
+  /** 反事实移除测试逐项记录：删去某手法后后果是否仍在 */
+  removed: string[];
+}
+
+/** 一份判档记录。字段与 D-01 4.8 的七项对应（置信度另立字段）。 */
+export interface GradeRecord {
+  level: Grade;
+  /** 触发条款编号，如 "4.4" */
+  clause: string;
+  /** 缺陷位置：P2／A1／CQ4。D2 及以上必填。 */
+  at: string[];
+  /** 必要证据 */
+  evidence: string;
+  /** 共享处置或可执行加固动作 */
+  fix: string;
+  /** 降级条件：若 X 成立，本判改为 Y。写不出视为本判尚未完成。 */
+  downgrade: string;
+  /** 仅 D5 有 */
+  d5: GradeD5 | null;
+}
+
 export interface Verdict {
   /** 本透镜的评级刻度名 */
   scale: string;
@@ -274,6 +308,29 @@ export interface Verdict {
   qualification: string;
   /** 被否证的是论证还是结论。绝大多数情况只能否证前者。 */
   whatIsRefuted: 'argument-only' | 'conclusion' | 'nothing';
+  /**
+   * 体系档位 D0–D5 与它的记录（知识库「论证分析流程」D-01 v2.1）。
+   *
+   * 为什么另立一栏而不是把 level 换成六档：level 是四档粗桶（颜色、筛选、
+   * 回看台都靠它），六档是体系档位。粗桶是六档的投影，投影写在一处
+   * （shared/grading 的 GRADE_BUCKET），界面不再各算一遍。
+   *
+   * null 有三种情况，界面必须分开说：不给档位的模式、透镜不适用、
+   * 以及 2.8.0 之前的旧存档。前两种是正常状态，第三种是「没这个字段」——
+   * 不补一个假的 D 档上去，那比空白更误导。
+   */
+  grade?: GradeRecord | null;
+}
+
+/**
+ * 评估置信度。三分离的中间那本账：档位评论证质量，它评「这次分析可靠吗」。
+ *
+ * 为什么不能并进档位：取材不详、版本冲突时该降的是它（D-01 二节）。
+ * 把它折进档位，等于拿「没看清」当「论证很差」——同一个数字，两种意思。
+ */
+export interface ReportConfidence {
+  level: ConfidenceLevel;
+  why: string;
 }
 
 /* ─────────── 修补 ─────────── */
@@ -681,6 +738,11 @@ export interface Diagnosis {
 
   defeat: Defeat;
   verdict: Verdict;
+  /**
+   * 评估置信度。与档位并列，不得互相折算。
+   * 旧存档没有这一栏，按「没记」处理，不回填假值。
+   */
+  confidence?: ReportConfidence;
   repair: Repair;
 
   /** 命名候选（名录透镜下是主输出，其他透镜下是末端注释，可空） */

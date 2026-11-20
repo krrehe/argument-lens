@@ -52,6 +52,7 @@ import { CoverageBar } from './CoverageBar';
 import { coverageOf, coverageScopeText } from '@shared/coverage';
 import { AUDIENCE_KIND_LABEL, contextLoadOf, DIALOGUE_TYPE_LABEL, STAGE_LABEL } from '@shared/context-use';
 import { CtxCell } from './CtxCell';
+import { GradeCard } from './GradeCard';
 import { FieldTermsBar } from './FieldTermsBar';
 import { DensityBar, useDensity } from './Density';
 import { isLedgerSection, sectionKey } from '@shared/ui-density';
@@ -1962,6 +1963,12 @@ export function DiagnosisView({
           />
         </Gated>
         <div className="verdict-say">{d.verdict.statement}</div>
+        {/*
+          判档记录：D0–D5、触发条款、缺陷位置、降级条件、D5 三闸门。
+          放在判定句正下方、语境与引文两条范围句之前——读到「削弱」的人
+          第一个问题就是「哪一种削弱」，而 D2 与 D3 的处置完全不同。
+        */}
+        <GradeCard d={d} />
         {/*
           语境地基。判定读的那几格语境若不是原文说的，这句就在这儿说穿——
           写在语境栏里没用：读到判定的人不会回头翻那一格。

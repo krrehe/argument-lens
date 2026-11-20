@@ -1751,6 +1751,32 @@ if (process.env.SMOKE_AGREEMENT === '1') {
 }
 
 /*
+ * 判档记录卡（无条件跑）。
+ *
+ * 假模型给了一份完整的 D2 记录，所以这条跑道走的是「有档位」那一支。
+ * 核的是**接线与来源**：档位／条款／缺陷位置／降级条件都得逐字来自报告，
+ * 缺口数得等于本地核对的结果，D5 闸门在 D2 上不许出现（出现了就是把门槛当成刻度）。
+ * 「本地判得对不对」不在这一层——档位是模型写的，本地只核记录齐不齐。
+ */
+{
+  const g = jOfLine('GRADERESULT');
+  const heads = Array.isArray(g.heads) ? g.heads : [];
+  const vals = Array.isArray(g.vals) ? g.vals : [];
+  checks.push(
+    ['判档：卡片出现了，且不是「没有 D 档」那一支', g.has === true && g.none === false, JSON.stringify([g.has, g.none])],
+    ['判档：档位与中文名逐字来自记录', g.level === 'D2' && g.label === '支持不足', `${g.level}/${g.label}`],
+    ['判档：触发条款指向 D-01 第四节', g.clause === '触发 4.4', String(g.clause)],
+    ['判档：缺陷位置写的是报告里真实存在的编号', String(vals[0] ?? '').includes('P2') && String(vals[0] ?? '').includes('CQ2'), String(vals[0])],
+    ['判档：四栏记录都在（位置／证据／处置／降级）', heads.length === 4 && heads.includes('降级条件'), heads.join(',')],
+    ['判档：降级条件不是空着的一行', String(vals[3] ?? '').length > 8 && String(vals[3] ?? '') !== '—', String(vals[3])],
+    ['判档：记录齐全时不摆缺口（0 条，不是空格子）', g.blocks === '0' && g.gaps === 0, `${g.blocks}/${g.gaps}`],
+    ['判档：D2 上不出现 D5 三道闸门（D5 是门槛不是刻度）', g.gates === false, String(g.gates)],
+    ['判档：边界句写着「不蕴含结论真假」', /不蕴含结论真假/.test(String(g.boundary)), String(g.boundary)],
+    ['判档：置信度与档位并列，明写不折算', /评估置信度/.test(String(g.conf)) && /不折算/.test(String(g.conf)), String(g.conf)],
+  );
+}
+
+/*
  * 骨架缺口（无条件跑：报告一出现它就在）。
  *
  * 核的是「这一层有没有真的把本地判定与报告自己的话分开」——

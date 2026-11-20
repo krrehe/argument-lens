@@ -1,5 +1,6 @@
 import type { Diagnosis } from '@shared/types';
 import { LEVEL_LABEL } from '@shared/theories';
+import { GRADE_LABEL, auditGrade } from '@shared/grading';
 import { coverageOf } from '@shared/coverage';
 import { disputesIn } from '@shared/disputes';
 import { propositionsOf } from '@shared/propositions';
@@ -103,6 +104,15 @@ export function QuickRead({ d }: { d: Diagnosis }) {
    */
   const cov = coverageOf(d);
   const covTag = cov.partial ? ` · 引文 ${cov.pinned}/${cov.sentences} 句` : '';
+  /*
+   * 档位这一格优先写体系档位 D0–D5：速览是「一屏看完」，
+   * 而「削弱」说不清是补证据（D2）还是换型式（D3）。没有 D 档的旧报告照旧写四档。
+   */
+  const grade = d.verdict.grade;
+  const verdictTag = grade
+    ? `${grade.level} ${GRADE_LABEL[grade.level]}`
+    : LEVEL_LABEL[d.verdict.level];
+  const gradeGap = grade ? auditGrade(d).filter((x) => x.severity === 'block').length : 0;
 
   const rows = [
     {
@@ -128,7 +138,7 @@ export function QuickRead({ d }: { d: Diagnosis }) {
       title: '所以这算说明到什么程度',
       body: clip(d.verdict.statement, 110),
       to: 'sec-verdict',
-      extra: `${LEVEL_LABEL[d.verdict.level]}${covTag}`,
+      extra: `${verdictTag}${gradeGap ? '（记录不全）' : ''}${covTag}`,
       extraClass: levelClass,
     },
     {
