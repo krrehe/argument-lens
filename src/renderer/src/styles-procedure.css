@@ -24,7 +24,7 @@
 
 /* 这四问比报告里的新：只把边框点亮一点，不整块换色——它仍然是同一张卡。 */
 .bf.bf-pending {
-  border-color: #e6cf94;
+  border-color: var(--weak);
 }
 
 .bf-head {
@@ -36,16 +36,16 @@
 }
 
 .bf-k {
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--accent);
   background: var(--accent-bg);
-  border-radius: 3px;
+  border-radius: 8px;
   padding: 1px 6px;
 }
 
 .bf-sub {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   font-family: var(--mono);
 }
@@ -63,7 +63,7 @@
 .bf-verdict {
   font-size: 11px;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: 8px;
   border: 1px solid var(--line-strong);
   color: var(--ink-3);
   background: var(--muted-bg);
@@ -86,8 +86,8 @@
   border: 1px solid var(--line-strong);
   background: var(--panel);
   color: var(--ink-2);
-  border-radius: 4px;
-  font-size: 11.5px;
+  border-radius: 8px;
+  font-size: 12px;
   padding: 3px 9px;
   cursor: pointer;
   flex: none;
@@ -101,7 +101,7 @@
 .bf-why {
   margin: 0;
   padding: 0 11px 9px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-3);
 }
@@ -110,12 +110,12 @@
 .bf-pend {
   margin: 0;
   padding: 7px 11px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-2);
-  background: #fff8e6;
-  border-top: 1px solid #f0e2bc;
-  border-bottom: 1px solid #f0e2bc;
+  background: var(--weak-bg);
+  border-top: 1px solid var(--weak);
+  border-bottom: 1px solid var(--weak);
 }
 
 .bf-pend b {
@@ -124,7 +124,7 @@
 
 /* 从报告里的「去填立案」跳过来时闪一下：不然人只知道屏幕换了一处，不知道要看哪。 */
 .bf-hit {
-  outline: 2px solid var(--accent, #3b6ea5);
+  outline: 2px solid var(--accent, #0066cc);
   outline-offset: 1px;
 }
 
@@ -146,7 +146,7 @@
 .bf-label {
   width: 96px;
   flex: none;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 
@@ -154,7 +154,7 @@
   flex: 1;
   min-width: 180px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel);
   padding: 4px 8px;
   font-size: 12px;
@@ -181,11 +181,11 @@
 .bf-chip {
   padding: 3px 12px;
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
   background: var(--panel);
   border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
@@ -207,7 +207,7 @@
 
 .bf-warn {
   margin: 0;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--weak);
   background: var(--weak-bg);
@@ -218,7 +218,7 @@
 
 .bf-fine {
   margin: 0;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.6;
   color: var(--ink-3);
 }
@@ -257,7 +257,7 @@
 
 .wf-depth {
   margin: 0 0 10px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-2);
 }
@@ -284,7 +284,7 @@
   font-size: 11px;
   color: var(--panel);
   background: var(--ink-3);
-  border-radius: 3px;
+  border-radius: 8px;
   padding: 0 5px;
 }
 
@@ -317,7 +317,7 @@
   font-size: 12px;
   line-height: 1.5;
   text-align: center;
-  border-radius: 3px;
+  border-radius: 8px;
 }
 
 .wf-mark.m-ok {
@@ -348,7 +348,7 @@
 }
 
 .wf-name {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
   white-space: nowrap;
@@ -374,14 +374,14 @@
 }
 
 .wf-note {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.65;
   color: var(--ink-3);
   word-break: break-word;
 }
 
 .wf-next {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--accent);
 }
@@ -390,8 +390,8 @@
   border: 1px solid var(--line-strong);
   background: var(--panel);
   color: var(--ink-2);
-  border-radius: 4px;
-  font-size: 10.5px;
+  border-radius: 8px;
+  font-size: 11px;
   padding: 2px 6px;
   cursor: pointer;
   white-space: nowrap;
@@ -412,7 +412,7 @@
   margin: 10px 0 0;
   padding-top: 8px;
   border-top: 1px solid var(--line);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.65;
   color: var(--ink-3);
 }
@@ -426,7 +426,7 @@
 
 .wf-closure {
   margin: 0 0 10px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-2);
   padding: 5px 8px;
@@ -464,17 +464,17 @@
 }
 
 .dv-title {
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--accent);
   background: var(--accent-bg);
-  border-radius: 3px;
+  border-radius: 8px;
   padding: 1px 6px;
   white-space: nowrap;
 }
 
 .dv-sum {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
   line-height: 1.45;
   /*
@@ -487,10 +487,10 @@
 }
 
 .dv-toggle {
-  font-size: 11.5px;
+  font-size: 12px;
   padding: 3px 9px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink);
   cursor: pointer;
@@ -502,7 +502,7 @@
 .dv-lead {
   margin: 0;
   padding: 0 11px 9px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-3);
 }
@@ -540,7 +540,7 @@
 }
 
 .dv-field > span {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -548,10 +548,10 @@
 .dv-in {
   width: 100%;
   box-sizing: border-box;
-  font-size: 11.5px;
+  font-size: 12px;
   padding: 4px 6px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink);
 }
@@ -585,7 +585,7 @@
 }
 
 .dv-chip.sm {
-  font-size: 10.5px;
+  font-size: 11px;
   padding: 2px 7px;
 }
 
@@ -621,10 +621,10 @@
 
 .dv-del,
 .dv-add {
-  font-size: 11.5px;
+  font-size: 12px;
   padding: 2px 8px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink-2);
   cursor: pointer;
@@ -639,7 +639,7 @@
   padding: 7px 9px;
   border-left: 2px solid var(--weak);
   background: var(--panel);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-2);
 }
@@ -655,7 +655,7 @@
 
 .dv-rules {
   margin-top: 9px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 
@@ -666,9 +666,9 @@
 .dv-pending {
   margin: 9px 0 0;
   padding: 6px 9px;
-  border-left: 2px solid #e6cf94;
+  border-left: 2px solid var(--weak);
   background: var(--panel);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 
@@ -698,25 +698,25 @@
 
 .dv-vgrid > div {
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 5px 7px;
   min-width: 0;
 }
 
 .dv-vgrid span {
   display: block;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
 .dv-vgrid b {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .dv-vframe {
   margin: 0 0 9px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 
@@ -724,7 +724,7 @@
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 9px;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .dv-vtable th,
@@ -736,7 +736,7 @@
 }
 
 .dv-vtable th {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   font-weight: 600;
 }
@@ -746,13 +746,13 @@
 }
 
 .dv-vdl dt {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
 .dv-vdl dd {
   margin: 1px 0 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   white-space: pre-wrap;
 }
 
@@ -761,7 +761,7 @@
   padding: 6px 9px;
   border-left: 2px solid var(--weak);
   background: var(--panel);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 
@@ -789,7 +789,7 @@
 .ph-k,
 .ph-cur,
 .ph-combo {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -818,7 +818,7 @@
 
 .ph-lead {
   margin: 0 0 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 
@@ -827,7 +827,7 @@
   padding: 8px 10px;
   border-left: 2px solid var(--weak);
   background: var(--panel);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
   white-space: pre-wrap;
@@ -837,13 +837,13 @@
   margin: 0 0 9px;
   padding: 7px 10px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
 }
 
 .ph-caveat-head {
   display: block;
   margin-bottom: 3px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   font-weight: 600;
 }
@@ -856,10 +856,10 @@
 
 .ph-toggle {
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink-2);
-  font-size: 11.5px;
+  font-size: 12px;
   padding: 4px 10px;
   cursor: pointer;
 }
@@ -872,7 +872,7 @@
 .ph-rows {
   margin: 9px 0 0;
   padding-left: 20px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 

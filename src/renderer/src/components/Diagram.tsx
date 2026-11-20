@@ -59,24 +59,29 @@ import { LEVEL_LABEL, THEORIES, type TheoryId } from '@shared/theories';
  * 每张图下面都有读图说明——没有图例的图只是装饰。
  */
 
-/** SVG 里不能用 var(--x) 当属性值，只能内联 hex。与 styles.css 的配色保持一致。 */
+/*
+ * SVG 的呈现属性（fill= / stroke=）不认 var(--x)，只能内联 hex，所以这张表是
+ * styles.css :root 的影子。影子会走样——原来它一直是旧的暖色，主界面换成
+ * 苹果色板之后，图里还是土黄与墨绿。check:ui-rules 现在会比对这两处：
+ * 表里任一项与 :root 对应变量不一致就红，不靠人记得同步。
+ */
 export const C = {
-  ink: '#23201b',
-  ink2: '#5d574d',
-  ink3: '#8b8478',
-  line: '#e2ded4',
-  lineStrong: '#cfc9bc',
-  edge: '#a8a091',
-  accent: '#3c4f63',
-  accentBg: '#edf1f5',
-  strong: '#2c6350',
-  strongBg: '#eaf1ed',
-  weak: '#96702c',
-  weakBg: '#f7f0e2',
-  invalid: '#973f34',
-  invalidBg: '#f7eae7',
+  ink: '#1d1d1f',
+  ink2: '#48484a',
+  ink3: '#68686d',
+  line: '#e6e6eb',
+  lineStrong: '#d2d2d7',
+  edge: '#a1a1a6',
+  accent: '#0066cc',
+  accentBg: '#ecf4ff',
+  strong: '#1d7a45',
+  strongBg: '#e6f5ec',
+  weak: '#8a5300',
+  weakBg: '#fdf3e0',
+  invalid: '#c0271d',
+  invalidBg: '#fdecea',
   panel: '#ffffff',
-  panel2: '#fbfaf7',
+  panel2: '#fafafc',
 };
 
 const ACC_COLOR: Record<Claim['acceptability']['status'], string> = {
@@ -427,7 +432,7 @@ export function VerdictGauge({
       <svg viewBox={`0 0 ${W} 92`} style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="判读刻度">
         {undetermined ? (
           <>
-            <rect x="20" y={barY} width={W - 40} height={barH} rx="6" fill="#f2f0ea" stroke={C.line} strokeDasharray="4 3" />
+            <rect x="20" y={barY} width={W - 40} height={barH} rx="8" fill={C.panel2} stroke={C.line} strokeDasharray="4 3" />
             <text x={W / 2} y={barY - 8} fontSize="11" textAnchor="middle" fill={C.ink3}>
               判不了
             </text>

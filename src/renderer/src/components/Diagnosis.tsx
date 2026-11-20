@@ -493,7 +493,7 @@ function ClaimCard({
       )}
 
       {claim.implicitBasis && (
-        <div className="claim-quote" style={{ borderLeftColor: 'var(--weak)', color: '#6d5320' }}>
+        <div className="claim-quote" style={{ borderLeftColor: 'var(--weak)', color: 'var(--weak)' }}>
           {claim.implicitBasis}
         </div>
       )}

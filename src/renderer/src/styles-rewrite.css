@@ -16,7 +16,7 @@
 
 /* 总述：数字与单位都在这行，字号 11.5px —— 再小汉字就认不出了。 */
 .claim-rewrite-line {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-2);
   word-break: break-word;

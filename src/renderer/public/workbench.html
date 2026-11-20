@@ -5,17 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>论证镜 · 工作台</title>
 <style>
+/* 苹果系统深色（macOS Dark）。灰阶取系统的那四级（#1c1c1e / #242426 / #2c2c2e / #3a3a3c），
+   强调色是系统蓝的深色版 #5aabff——原生 #0a84ff 落在 --panel3 上只有 4.2:1，做正文色不合格。
+   浅色那一套与 React 主窗口共用同一张表，两处同色，切换时才不像两个应用。 */
 :root,[data-theme="dark"]{
- --bg:#0E1216;--panel:#141A21;--panel2:#1A222B;--panel3:#202A35;--line:#28323D;--line2:#384553;--edge:#5C6E80;
- --text:#D6DEE7;--text2:#9EABB8;--muted:#8897A5;--accent:#6BA7E8;--accentbg:#15283C;
- --warn:#E0A94A;--warnbg:#2E2617;--ok:#63B08A;--okbg:#182A22;--danger:#D98080;--sel:#1B2F42;
- --mono:ui-monospace,"Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",monospace;
- --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+ --bg:#1c1c1e;--panel:#242426;--panel2:#2c2c2e;--panel3:#3a3a3c;--line:#38383a;--line2:#48484a;--edge:#7c7c82;
+ --text:#f5f5f7;--text2:#c7c7cc;--muted:#aeaeb2;--accent:#5aabff;--accentbg:#0a2740;
+ --warn:#e8b45c;--warnbg:#33260f;--ok:#5fd08a;--okbg:#12301f;--danger:#ff8a80;--sel:#0a2a4a;
+ --hair:rgba(255,255,255,.09);--bar:rgba(44,44,46,.78);
+ --shade:0 1px 2px rgba(0,0,0,.30),0 2px 10px rgba(0,0,0,.22);
+ --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,"Liberation Mono",monospace;
+ --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
 [data-theme="light"]{
- --bg:#ECEFF3;--panel:#FFFFFF;--panel2:#F4F6F8;--panel3:#EAEEF2;--line:#D8DEE5;--line2:#C4CDD7;--edge:#8FA0B0;
- --text:#1C2733;--text2:#4A5764;--muted:#5E6A76;--accent:#1A63AC;--accentbg:#E4F0FC;
- --warn:#8A5600;--warnbg:#FBF0DC;--ok:#2E7355;--okbg:#E6F2EB;--danger:#A84242;--sel:#DCEBFA;
+ --bg:#f5f5f7;--panel:#ffffff;--panel2:#fafafc;--panel3:#f2f2f5;--line:#e6e6eb;--line2:#d2d2d7;--edge:#8e8e93;
+ --text:#1d1d1f;--text2:#48484a;--muted:#68686d;--accent:#0066cc;--accentbg:#ecf4ff;
+ --warn:#8a5300;--warnbg:#fdf3e0;--ok:#1d7a45;--okbg:#e6f5ec;--danger:#c0271d;--sel:#e9f1fe;
+ --hair:rgba(0,0,0,.07);--bar:rgba(255,255,255,.78);
+ --shade:0 1px 2px rgba(0,0,0,.04),0 2px 8px rgba(0,0,0,.03);
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;overflow:hidden}
@@ -27,20 +34,23 @@ button{cursor:pointer;background:none;border:0}
    1100 宽时多出来的按钮换到第二行、整行自己长高，而不是把「这份报告」压成竖排、
    把快捷键提示挤到可视区外——挤掉的那两处不会报错，只有看图才发现。 */
 .app{display:grid;grid-template-rows:28px auto auto minmax(0,1fr) 24px;height:100vh}
-.body{display:grid;grid-template-columns:236px minmax(0,1fr) 296px;min-height:0;border-top:1px solid var(--line)}
-.center{display:grid;grid-template-rows:minmax(0,1fr) 190px;min-height:0;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.body{display:grid;grid-template-columns:236px minmax(0,1fr) 296px;min-height:0;border-top:1px solid var(--hair)}
+.center{display:grid;grid-template-rows:minmax(0,1fr) 190px;min-height:0;border-left:1px solid var(--hair);border-right:1px solid var(--hair)}
 .pane{background:var(--panel);min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .ph{height:24px;flex:0 0 24px;display:flex;align-items:center;gap:8px;padding:0 9px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
 .ph b{font-weight:600;color:var(--text2);letter-spacing:.08em}
 .ph .sp{flex:1}
-.ph button{color:var(--muted);font-size:11px;padding:1px 4px;border-radius:3px}
+.ph button{color:var(--muted);font-size:11px;padding:1px 4px;border-radius:8px}
 .ph button:hover{background:var(--panel3);color:var(--text)}
 .scroll{overflow:auto;min-height:0;flex:1}
 .scroll::-webkit-scrollbar{width:9px;height:9px}
-.scroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px}
+.scroll::-webkit-scrollbar-thumb{background:var(--line2);border-radius:12px}
 .scroll::-webkit-scrollbar-track{background:transparent}
 
-.topbar{display:flex;align-items:center;gap:16px;padding:0 10px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:11px}
+/* 顶栏那层材质：半透明的系统底色 + 背景模糊。深色下是 #2c2c2e 的 78%，
+   浅色下是白色的 78%，两套用 --bar 分开——写死 rgba(255,255,255,.72) 的话，
+   深色主题会变成一条白杠。 */
+.topbar{display:flex;align-items:center;gap:16px;padding:0 12px;background:var(--bar);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--hair);font-size:11px;position:relative;z-index:5}
 .topbar .logo{font-weight:600;letter-spacing:.1em;color:var(--text)}
 .topbar .logo span{font-weight:400;color:var(--muted);letter-spacing:.04em;margin-left:7px;font-family:var(--mono);font-size:10px}
 .menu{color:var(--text2)}
@@ -50,19 +60,19 @@ button{cursor:pointer;background:none;border:0}
 .tlink:hover{color:var(--accent)}
 .toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:4px 5px;padding:4px 9px;background:var(--panel);border-bottom:1px solid var(--line)}
 .toolbar .lbl{color:var(--muted);font-size:10px;white-space:nowrap}
-.tb{border:1px solid var(--line);background:var(--panel2);border-radius:3px;padding:4px 9px;font-size:11px;color:var(--text2);white-space:nowrap}
+.tb{border:1px solid var(--hair);background:var(--panel2);border-radius:8px;padding:5px 11px;font-size:11px;color:var(--text2);white-space:nowrap;box-shadow:0 1px 1px rgba(0,0,0,.04);transition:background .14s ease,border-color .14s ease}
 .tb:hover{border-color:var(--line2);background:var(--panel3);color:var(--text)}
 .tb.pri{border-color:var(--accent);color:var(--accent);background:var(--accentbg)}
 .sep{width:1px;height:18px;background:var(--line);margin:0 5px}
-.toolbar select{border:1px solid var(--line);background:var(--panel2);border-radius:3px;padding:4px 7px;font-size:11px;color:var(--text2)}
+.toolbar select{border:1px solid var(--hair);background:var(--panel2);border-radius:8px;padding:5px 9px;font-size:11px;color:var(--text2)}
 .toolbar .sp{flex:1}
-.kbd{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:2px 6px}
+.kbd{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:2px 6px}
 
 .tabs{display:flex;align-items:stretch;flex:0 0 30px;background:var(--panel2);border-bottom:1px solid var(--line);overflow-x:auto}
 .tab{padding:0 14px;display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);border-right:1px solid var(--line);white-space:nowrap;border-bottom:2px solid transparent}
 .tab:hover{color:var(--text2);background:var(--panel3)}
 .tab.on{color:var(--text);background:var(--panel);border-bottom-color:var(--accent)}
-.tab .n{font-family:var(--mono);font-size:10px;color:var(--muted);background:var(--panel3);border-radius:3px;padding:0 4px}
+.tab .n{font-family:var(--mono);font-size:10px;color:var(--muted);background:var(--panel3);border-radius:8px;padding:0 4px}
 
 /* 每行拉一条横线，十几行下来就是一片网。Refactoring UI 那条说的是：
    优先用底色、阴影、留白区分元素，边框越少界面越不碎。改成隔行底色，
@@ -83,7 +93,7 @@ button{cursor:pointer;background:none;border:0}
 .ctxdown{color:var(--danger);font-size:10px;line-height:1.55}
 .ctxnote{padding:7px 10px;font-size:10px;line-height:1.75;color:var(--text2);background:var(--panel2);border-bottom:1px solid var(--line)}
 .ctxnote.old{color:var(--warn);background:var(--warnbg)}
-.gsrc{display:inline-block;font-size:10px;padding:0 4px;margin-right:4px;border-radius:3px;border:1px solid var(--line2);color:var(--muted);vertical-align:1px}
+.gsrc{display:inline-block;font-size:10px;padding:0 4px;margin-right:4px;border-radius:8px;border:1px solid var(--line2);color:var(--muted);vertical-align:1px}
 .gsrc.ok{color:var(--ok);border-color:var(--ok)}
 .gsrc.warn{color:var(--warn);border-color:var(--warn)}
 .gsrc.danger{color:var(--danger);border-color:var(--danger)}
@@ -102,7 +112,7 @@ table.t td{padding:5px 8px;color:var(--text2);white-space:nowrap;overflow:hidden
 table.t tbody tr:nth-child(even) td{background:var(--panel2)}
 table.t tr:hover td{background:var(--panel3)}
 table.t tr.sel td{background:var(--sel)}
-.badge{display:inline-block;font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:3px;border:1px solid var(--line2);color:var(--muted)}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:8px;border:1px solid var(--line2);color:var(--muted)}
 .badge.unanswered{color:var(--warn);border-color:var(--warn);background:var(--warnbg)}
 .badge.passed{color:var(--ok);border-color:var(--ok);background:var(--okbg)}
 .badge.violated{color:var(--danger);border-color:var(--danger)}
@@ -158,8 +168,8 @@ pre.json{margin:0;padding:9px;font-family:var(--mono);font-size:10px;color:var(-
 .inspkv{grid-template-columns:120px minmax(0,1fr)}
 .izh{display:block;color:var(--text);font-size:11px;font-weight:600;margin-bottom:2px;line-height:1.4}
 .ien{display:block;color:var(--muted);font-size:10px;word-break:break-all;font-family:var(--mono)}
-.ik .iq{display:inline-block;margin-top:3px;padding:0 4px;border:1px solid var(--line2);border-radius:6px;color:var(--muted);font-size:10px;line-height:13px}
-.iv-zh{display:inline-block;margin-left:7px;padding:1px 5px;border-radius:3px;background:var(--accentbg);color:var(--accent);font-size:10px;cursor:help;white-space:nowrap}
+.ik .iq{display:inline-block;margin-top:3px;padding:0 4px;border:1px solid var(--line2);border-radius:12px;color:var(--muted);font-size:10px;line-height:13px}
+.iv-zh{display:inline-block;margin-left:7px;padding:1px 5px;border-radius:8px;background:var(--accentbg);color:var(--accent);font-size:10px;cursor:help;white-space:nowrap}
 .inog{display:block;margin-top:3px;color:var(--muted);font-size:10px}
 .in-act{display:flex;gap:6px;flex-wrap:wrap;padding:9px 10px;border-top:1px solid var(--line);background:var(--panel2)}
 .in-json{border-top:1px solid var(--line)}
@@ -181,26 +191,26 @@ pre.json{margin:0;padding:9px;font-family:var(--mono);font-size:10px;color:var(-
 .qrow .qt{flex:1;color:var(--text2);line-height:1.6}
 .qrow .qw{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap}
 .qbar{display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:10px;color:var(--muted)}
-.qbar .track{flex:1;height:3px;background:var(--line);border-radius:3px;overflow:hidden}
+.qbar .track{flex:1;height:3px;background:var(--line);border-radius:8px;overflow:hidden}
 .qbar .fill{height:100%;background:var(--warn);width:0}
 .qact{display:flex;gap:6px;padding:8px 10px;align-items:center;border-top:1px solid var(--line)}
-.qact input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:3px;padding:5px 8px;font-size:11px;outline:none;min-width:0}
-.qact input:focus{border-color:var(--accent)}
+.qact input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:11px;outline:none;min-width:0;transition:border-color .14s ease,box-shadow .14s ease}
+.qact input:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 24%,transparent)}
 /* ─────────── 异议锚点 ───────────
  * 一条异议原来只是底部一行字，看不出它反对的是哪一处。这里把「钉在哪」
  * 做成单独一条，且让原文每一句都能当锚点。颜色沿用 accent（分歧不是错误，
  * 不用红）；徽标是按钮，点它能回到那一处。 */
 .anbar{display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--panel2);border-top:1px solid var(--line);font-size:10px;flex-wrap:wrap}
 .anbar .anlbl{color:var(--muted);white-space:nowrap}
-.anbar .anval{font-family:var(--mono);font-size:10px;color:var(--accent);background:var(--accentbg);border:1px solid var(--line2);border-radius:3px;padding:2px 6px;max-width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.anbar .anval{font-family:var(--mono);font-size:10px;color:var(--accent);background:var(--accentbg);border:1px solid var(--line2);border-radius:8px;padding:2px 6px;max-width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .anbar .anquote{color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:34%;font-size:10px}
 .anbar .sp{flex:1}
 .anbar .hint{color:var(--muted);font-size:10px;line-height:1.6;flex-basis:100%}
-.anbadge{display:inline-block;font-family:var(--mono);font-size:10px;color:var(--accent);background:var(--accentbg);border:1px solid var(--line2);border-radius:3px;padding:1px 5px;margin-right:6px;line-height:1.7}
+.anbadge{display:inline-block;font-family:var(--mono);font-size:10px;color:var(--accent);background:var(--accentbg);border:1px solid var(--line2);border-radius:8px;padding:1px 5px;margin-right:6px;line-height:1.7}
 .anbadge:hover{border-color:var(--accent)}
 .anbadge.none{color:var(--muted);background:transparent;border-style:dashed}
 .anq{color:var(--muted);font-size:10px;display:block;margin:2px 0;line-height:1.6}
-.anpick{border:1px solid var(--line2);background:transparent;color:var(--accent);font-size:10px;border-radius:3px;padding:1px 5px;cursor:pointer;font-family:var(--mono)}
+.anpick{border:1px solid var(--line2);background:transparent;color:var(--accent);font-size:10px;border-radius:8px;padding:1px 5px;cursor:pointer;font-family:var(--mono)}
 .anpick:hover{background:var(--accentbg)}
 .codeln.anchored{background:var(--accentbg)}
 .codeln.flash{background:var(--warnbg)}
@@ -220,10 +230,10 @@ pre.json{margin:0;padding:9px;font-family:var(--mono);font-size:10px;color:var(-
 
 /* 状态栏原来整条铺 accentbg，屏幕上最大的一块颜色被最不重要的一行占着。
    改成与其他面板同底色，颜色只留在「● 就绪」那一个字上。 */
-.status{display:flex;align-items:center;gap:14px;padding:0 10px;background:var(--panel2);border-top:1px solid var(--line2);font-family:var(--mono);font-size:10px;color:var(--text2)}
+.status{display:flex;align-items:center;gap:14px;padding:0 10px;background:var(--panel2);border-top:1px solid var(--hair);font-family:var(--mono);font-size:10px;color:var(--text2)}
 .status .sp{flex:1}
 .status .hi{color:var(--accent)}
-.status .st-warn{flex:0 0 auto;border:1px solid var(--warn);border-radius:3px;background:transparent;color:var(--warn);font:inherit;cursor:pointer;padding:1px 6px}
+.status .st-warn{flex:0 0 auto;border:1px solid var(--warn);border-radius:8px;background:transparent;color:var(--warn);font:inherit;cursor:pointer;padding:1px 6px}
 .status .st-warn:hover{background:var(--warn);color:var(--bg)}
 
 .gridbg{background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:20px 20px;opacity:.5}
@@ -254,7 +264,7 @@ pre.json{margin:0;padding:9px;font-family:var(--mono);font-size:10px;color:var(-
 .codeln mark{background:var(--accentbg);color:var(--accent);border-bottom:1px solid var(--accent)}
 
 .cmdwrap{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60;display:flex;justify-content:center;align-items:flex-start;padding-top:12vh}
-.cmd{width:520px;max-width:92vw;background:var(--panel);border:1px solid var(--line2);border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.45);overflow:hidden}
+.cmd{width:520px;max-width:92vw;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.45);overflow:hidden}
 .cmd input{width:100%;padding:12px 14px;background:var(--panel2);border:0;border-bottom:1px solid var(--line);outline:none;font-size:12px;color:var(--text)}
 .cmdlist{max-height:300px;overflow:auto}
 .cmdi{padding:8px 14px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text2);border-bottom:1px solid var(--line);cursor:pointer}
@@ -262,10 +272,10 @@ pre.json{margin:0;padding:9px;font-family:var(--mono);font-size:10px;color:var(-
 .cmdi .t{flex:1}
 .cmdi .p{font-family:var(--mono);font-size:10px;color:var(--muted)}
 .cmdf{padding:6px 14px;font-size:10px;color:var(--muted);font-family:var(--mono)}
-.toast{position:fixed;right:16px;bottom:36px;z-index:70;background:var(--panel3);border:1px solid var(--line2);border-radius:6px;padding:8px 13px;font-size:11px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.toast{position:fixed;right:16px;bottom:36px;z-index:70;background:var(--panel3);border:1px solid var(--line2);border-radius:12px;padding:8px 13px;font-size:11px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.3)}
 /* 加了底色的只有这一个，它和速览页那个「回去分析文本」是同一件事。
    同一屏两个实心按钮在争注意力，所以这里退成线框：这是离开的动作，不是主任务。 */
-.tlink.btn{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:3px;padding:3px 10px;font-family:var(--sans);font-size:11px;font-weight:600;white-space:nowrap}
+.tlink.btn{border:1px solid var(--accent);background:transparent;color:var(--accent);border-radius:8px;padding:3px 10px;font-family:var(--sans);font-size:11px;font-weight:600;white-space:nowrap}
 .tlink.btn:hover{background:var(--accentbg)}
 .guide{display:flex;align-items:center;gap:10px;padding:6px 12px;background:var(--accentbg);border-bottom:1px solid var(--line);font-size:11px;color:var(--text2);line-height:1.65}
 /* 说明条原来是一整段 230 字、一行铺到 1080px——按每行 45—75 字算，那是三倍长。
@@ -274,50 +284,50 @@ pre.json{margin:0;padding:9px;font-family:var(--mono);font-size:10px;color:var(-
 .guide>span{max-width:860px}
 .guide b{color:var(--text);font-weight:600}
 .guide .sp{flex:1}
-.guide button{border:1px solid var(--line2);border-radius:3px;padding:2px 9px;font-size:10px;color:var(--text2);white-space:nowrap}
+.guide button{border:1px solid var(--line2);border-radius:8px;padding:2px 9px;font-size:10px;color:var(--text2);white-space:nowrap}
 .guide button:hover{background:var(--panel3);color:var(--text)}
 .ov{padding:24px 30px 38px;max-width:880px}
 .ov .kicker{font-family:var(--mono);font-size:10px;letter-spacing:.13em;color:var(--muted);margin-bottom:15px}
 .ov h1{font-size:22px;line-height:1.5;font-weight:600;color:var(--text);margin:0 0 10px;max-width:820px}
 .ov .issue{font-size:12px;color:var(--text2);margin-bottom:24px;padding-left:11px;border-left:2px solid var(--line2)}
 .ovgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:16px;margin-bottom:22px}
-.ovcard{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:12px 14px;min-height:118px}
+.ovcard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-height:118px}
 .ovcard .h{font-size:10px;letter-spacing:.1em;color:var(--muted);margin-bottom:10px}
 .ovcard .p{font-size:12px;line-height:1.75;color:var(--text2);margin:0 0 8px}
 .ovcard .p:last-child{margin-bottom:0}
 .ovcard .q{font-family:var(--mono);font-size:10px;color:var(--accent);display:block;margin-bottom:3px}
-.ovquote{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:3px;padding:10px 14px;font-size:12px;line-height:1.8;color:var(--text2);margin-bottom:20px;cursor:pointer}
+.ovquote{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:12px;line-height:1.8;color:var(--text2);margin-bottom:20px;cursor:pointer}
 .ovquote:hover{background:var(--panel3)}
 .ovquote .lb{font-family:var(--mono);font-size:10px;color:var(--muted);display:block;margin-bottom:5px}
 .ovact{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:13px}
-.ovbtn{border:1px solid var(--line2);background:var(--panel2);color:var(--text);border-radius:3px;padding:9px 15px;font-size:12px}
+.ovbtn{border:1px solid var(--line2);background:var(--panel2);color:var(--text);border-radius:8px;padding:9px 15px;font-size:12px}
 .ovbtn:hover{background:var(--panel3);border-color:var(--accent)}
 .ovbtn.primary{background:var(--accentbg);border-color:var(--accent);color:var(--accent);font-weight:600}
 .ovbtn.primary:hover{background:var(--sel)}
 .ovfoot{font-size:10px;color:var(--muted);line-height:1.8;max-width:760px}
 /* 只读值、左树过滤、命令类别：把「看着能改其实改不了」的控件换成只读 + 真动作。 */
-.ro{display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--panel2);border-radius:3px;padding:4px 8px;font-family:var(--mono);font-size:10px;color:var(--text2);white-space:nowrap}
+.ro{display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:4px 8px;font-family:var(--mono);font-size:10px;color:var(--text2);white-space:nowrap}
 .arcfilter{width:100%;box-sizing:border-box;background:var(--bg);border:0;border-bottom:1px solid var(--line);padding:6px 9px;font-size:11px;color:var(--text2);outline:none}
 .arcfilter:focus{border-bottom-color:var(--accent)}
 .arcfilter::placeholder{color:var(--muted)}
-.cmdi .kind{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:1px 5px;white-space:nowrap}
+.cmdi .kind{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:1px 5px;white-space:nowrap}
 .ti.arcnow{background:var(--sel);border-left-color:var(--accent);color:var(--text)}
 /* 跨报告全文检索：搜的是本机已存档报告里的字，不调模型、不写盘。 */
 .sr{padding:18px 22px 34px;max-width:880px}
 .sr-h{font-size:11px;color:var(--text2);line-height:1.7;margin-bottom:12px}
 .sr-h b{color:var(--text)}
 .sr-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-.sr-input{flex:1;min-width:240px;background:var(--panel2);border:1px solid var(--line2);border-radius:3px;padding:8px 11px;color:var(--text);font-size:12px;outline:none;font-family:var(--sans)}
+.sr-input{flex:1;min-width:240px;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:8px 11px;color:var(--text);font-size:12px;outline:none;font-family:var(--sans)}
 .sr-input:focus{border-color:var(--accent)}
 .sr-input::placeholder{color:var(--muted)}
-.sr-btn{border:1px solid var(--line2);background:var(--panel2);color:var(--text);border-radius:3px;padding:8px 13px;font-size:11px;white-space:nowrap}
+.sr-btn{border:1px solid var(--line2);background:var(--panel2);color:var(--text);border-radius:8px;padding:8px 13px;font-size:11px;white-space:nowrap}
 .sr-btn:hover{background:var(--panel3)}
 .sr-btn.pri{background:var(--accentbg);border-color:var(--accent);color:var(--accent);font-weight:600}
-.sr-sel{background:var(--panel2);border:1px solid var(--line2);border-radius:3px;padding:7px 8px;color:var(--text2);font-size:11px;outline:none}
+.sr-sel{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:7px 8px;color:var(--text2);font-size:11px;outline:none}
 .sr-meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line);padding:7px 0 9px;margin-bottom:4px}
 .sr-meta b{color:var(--text);font-family:var(--mono)}
 .sr-meta .cap{color:var(--warn)}
-.sr-row{display:grid;grid-template-columns:104px minmax(0,1fr) 78px;gap:10px;align-items:start;padding:9px 8px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:3px}
+.sr-row{display:grid;grid-template-columns:104px minmax(0,1fr) 78px;gap:10px;align-items:start;padding:9px 8px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:8px}
 .sr-row:hover{background:var(--panel2)}
 .sr-stale{opacity:.45}
 .sr-id{font-family:var(--mono);font-size:10px;color:var(--accent);line-height:1.7}
@@ -325,7 +335,7 @@ pre.json{margin:0;padding:9px;font-family:var(--mono);font-size:10px;color:var(-
 .sr-body{min-width:0}
 .sr-path{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:3px;word-break:break-all}
 .sr-clip{font-size:12px;line-height:1.7;color:var(--text2);word-break:break-word}
-.sr-clip mark{background:var(--warnbg);color:var(--warn);border-radius:3px;padding:0 1px}
+.sr-clip mark{background:var(--warnbg);color:var(--warn);border-radius:8px;padding:0 1px}
 .sr-go{font-size:10px;color:var(--muted);text-align:right;white-space:nowrap;line-height:1.7}
 .sr-row:hover .sr-go{color:var(--accent)}
 .sr-empty{padding:26px 8px;color:var(--muted);font-size:11px;line-height:1.8}
@@ -335,7 +345,7 @@ pre.json{margin:0;padding:9px;font-family:var(--mono);font-size:10px;color:var(-
 .estate .ett{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px}
 .estate .ehh{font-size:11px;line-height:1.75;color:var(--text2);margin-bottom:13px}
 .estate .eacts{display:flex;gap:8px;flex-wrap:wrap}
-.echip{border:1px solid var(--line2);background:var(--panel2);color:var(--text2);border-radius:3px;padding:5px 10px;font-size:11px}
+.echip{border:1px solid var(--line2);background:var(--panel2);color:var(--text2);border-radius:8px;padding:5px 10px;font-size:11px}
 .echip:hover{border-color:var(--accent);color:var(--accent)}
 .sr-foot{font-size:10px;color:var(--muted);line-height:1.8;margin-top:14px;border-top:1px solid var(--line);padding-top:9px}
 .sr-err{color:var(--danger);font-size:11px;padding:8px 0}

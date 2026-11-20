@@ -16,11 +16,15 @@
  *    真正挤压、错位、字被裁，只有 CDP 量或人眼看图才发现得了。
  *  - 对比度按十六进制字面值算，算不到 rgba、渐变、图片背景上的文字。
  *  - 「实心主按钮只有一个」只按类名与背景色判断，判断不了人眼觉得哪个更显眼。
+ *  - 字号与圆角两条同时罩 React 主窗口的样式表（src/renderer/src/*.css）：
+ *    此前只读 workbench.html，于是那一侧积了 20 种字号、13 种圆角，规则一条没管——
+ *    只罩住一半界面的规则，会让人以为另一半也是干净的。
  *
  * 跑法：npm run check:ui-rules
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { readdirSync } from 'node:fs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const html = readFileSync(path.join(ROOT, 'src/renderer/public/workbench.html'), 'utf8');
@@ -86,19 +90,70 @@ for (const [name, re] of THEMES) {
   );
 }
 
+/* ── React 主窗口的样式表也纳入这两条 ───────────────────────── */
+const reactDir = path.join(ROOT, 'src/renderer/src');
+const reactCss = readdirSync(reactDir)
+  .filter((f) => f.endsWith('.css'))
+  .map((f) => readFileSync(path.join(reactDir, f), 'utf8'))
+  .join('\n');
+const both = html + '\n' + reactCss;
+/*
+ * 这一条是防「规则只罩一半」的回退。读不到 React 的样式表时，下面的字号与圆角
+ * 只会在 html 上通过——那正是这套界面曾经的状态：html 那边干干净净，
+ * React 那边 20 种字号、13 种圆角，一条规则都没管。
+ */
+ck(reactCss.length > 20000, `React 主窗口的样式表没读进来（只读到 ${reactCss.length} 字符）：字号与圆角会漏掉整个主界面`);
+
+/* ── 1b. 图表调色板与 :root 对表 ────────────────────────────── */
+/*
+ * SVG 的 fill= / stroke= 不认 var()，Diagram.tsx 里那张 C 表是 :root 的手抄影子。
+ * 手抄的东西必走样：主界面换成了苹果色板，这张表还留着旧的土黄与墨绿，
+ * 结构图上每一条线都是另一个时代的样子，而没有任何检查会红。
+ * 这里逐项对表，并额外要求「C 的每个键都在映射里」——
+ * 漏映射等于漏检查，那种情况下表里加一项新颜色不会有人发现。
+ */
+const VAR_OF = {
+  ink: 'ink', ink2: 'ink-2', ink3: 'ink-3', line: 'line', lineStrong: 'line-strong',
+  edge: 'edge', accent: 'accent', accentBg: 'accent-bg', strong: 'strong',
+  strongBg: 'strong-bg', weak: 'weak', weakBg: 'weak-bg', invalid: 'invalid',
+  invalidBg: 'invalid-bg', panel: 'panel', panel2: 'panel-2',
+};
+const stylesCss = readFileSync(path.join(ROOT, 'src/renderer/src/styles.css'), 'utf8');
+const rootVars = Object.fromEntries(
+  [...(stylesCss.match(/:root \{([\s\S]*?)\}/) ?? ['', ''])[1].matchAll(/--([a-z0-9-]+)\s*:\s*(#[0-9A-Fa-f]{6})/g)]
+    .map((m) => [m[1], m[2].toLowerCase()]),
+);
+const diagramTsx = readFileSync(path.join(ROOT, 'src/renderer/src/components/Diagram.tsx'), 'utf8');
+const cTable = (diagramTsx.match(/export const C = \{([\s\S]*?)\};/) ?? ['', ''])[1];
+const cEntries = [...cTable.matchAll(/(\w+):\s*'(#[0-9a-fA-F]{6})'/g)].map((m) => [m[1], m[2].toLowerCase()]);
+ck(cEntries.length >= 14, `图表调色板只读到 ${cEntries.length} 项，对表失去意义`);
+const unmapped = cEntries.map(([k]) => k).filter((k) => !VAR_OF[k]);
+ck(unmapped.length === 0, `图表调色板里有 ${unmapped.join('、')} 没有对应变量，等于没被检查`);
+for (const [k, v] of cEntries) {
+  const varName = VAR_OF[k];
+  if (!varName) continue;
+  ck(rootVars[varName] === v, `图表调色板 C.${k} 是 ${v}，:root 的 --${varName} 是 ${rootVars[varName] ?? '（缺）'}——两处对不上`);
+}
+
 /* ── 2. 字号阶梯 ───────────────────────────────────────────── */
-const sizes = [...new Set([...html.matchAll(/font-size:\s*([0-9.]+)px/g)].map((m) => Number(m[1])))].sort((a, b) => a - b);
-const ALLOWED_SIZE = [10, 11, 12, 22];
+/*
+ * 六档：10（等宽元数据）/ 11（辅助）/ 12（次级正文）/ 13（正文）/ 15（区段标题）/ 22（页标题）。
+ * 原来写的是四档 10/11/12/22，装不下 13 与 11 的区分，于是源码里长出
+ * 10.5 / 11.5 / 12.5 / 13.5 这些半像素台阶——四个档位守不住，就会变成二十个。
+ * 六档是苹果系统 App 的实际阶梯（11/12/13/15/17/22，去掉 17），不是随手放宽。
+ */
+const sizes = [...new Set([...both.matchAll(/font-size:\s*([0-9.]+)px/g)].map((m) => Number(m[1])))].sort((a, b) => a - b);
+const ALLOWED_SIZE = [10, 11, 12, 13, 15, 22];
 const extraSize = sizes.filter((s) => !ALLOWED_SIZE.includes(s));
-ck(extraSize.length === 0, `字号多出 ${extraSize.join('、')}px：只留 ${ALLOWED_SIZE.join(' / ')} 四档（层级靠字重与颜色，不靠字号）`);
+ck(extraSize.length === 0, `字号多出 ${extraSize.join('、')}px：只留 ${ALLOWED_SIZE.join(' / ')} 六档（层级靠字重与颜色，不靠字号）`);
 ck(Math.min(...sizes) >= 10, `最小的字是 ${Math.min(...sizes)}px，10px 以下在 1x 屏上读不清`);
 
 /* ── 3. 圆角 ───────────────────────────────────────────────── */
-const radii = [...html.matchAll(/border-radius:\s*([0-9.]+)(px|%)/g)].map((m) => m[1] + m[2]);
+const radii = [...both.matchAll(/border-radius:\s*([0-9.]+)(px|%)/g)].map((m) => m[1] + m[2]);
 const uniqRadii = [...new Set(radii)].sort();
-const oddRadius = uniqRadii.filter((r) => !['1px', '3px', '6px', '50%'].includes(r));
-ck(oddRadius.length === 0, `圆角还有 ${oddRadius.join('、')}：控制件统一 3px、大块 6px，混着来就是「AI 手笔」`);
-ck(uniqRadii.includes('3px') && uniqRadii.includes('6px'), '圆角两档（3px / 6px）没有同时出现，收敛没做完整');
+const oddRadius = uniqRadii.filter((r) => !['1px', '8px', '12px', '50%', '999px'].includes(r));
+ck(oddRadius.length === 0, `圆角还有 ${oddRadius.join('、')}：控制件 8px、大块 12px、药丸 999px，混着来就是「AI 手笔」`);
+ck(uniqRadii.includes('8px') && uniqRadii.includes('12px'), '圆角两档（8px / 12px）没有同时出现，收敛没做完整');
 /* 1px 只属于圆点的方/空心方，别的地方不该有 */
 const onePx = [...html.matchAll(/(?:^|[}\n])\s*([.\w-]+)\s*\{([^}]*border-radius:1px[^}]*)\}/g)]
   .map((m) => m[1].trim())

@@ -96,7 +96,7 @@ function createWindow(): void {
     minWidth: 1080,
     minHeight: 700,
     show: false,
-    backgroundColor: '#f7f6f3',
+    backgroundColor: '#f5f5f7',
     title: '论证镜',
     autoHideMenuBar: true,
     webPreferences: {
@@ -136,7 +136,7 @@ function createWindow(): void {
       b.textContent = '▦ 工作台';
       b.title = '打开工作台：回看已存档的报告（分析新文本请留在当前界面）';
       /* 配色跟着主界面走：原来是深色浮块，压在米白界面上像贴上去的补丁。 */
-      b.style.cssText = 'position:fixed;right:18px;bottom:16px;z-index:2147483647;padding:6px 11px;border:1px solid #d8d3c8;border-radius:6px;background:rgba(255,255,255,.94);color:#6b6458;font:11.5px system-ui;cursor:pointer;box-shadow:0 2px 8px rgba(45,40,30,.08)';
+      b.style.cssText = 'position:fixed;right:18px;bottom:16px;z-index:2147483647;padding:7px 12px;border:1px solid rgba(0,0,0,.07);border-radius:8px;background:rgba(255,255,255,.86);backdrop-filter:saturate(180%) blur(20px);color:#48484a;font:11px system-ui;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.12)';
       b.onmouseenter = function(){ b.style.background = '#eef1f5'; b.style.color = '#2c3a49'; };
       b.onmouseout = function(){ b.style.background = 'rgba(255,255,255,.94)'; b.style.color = '#6b6458'; };
       b.onclick = function(){ window.api && window.api.workbench && window.api.workbench.open(); };
@@ -442,7 +442,7 @@ function openWorkbench(): void {
     minWidth: 1100,
     minHeight: 700,
     title: '论证镜 · 工作台',
-    backgroundColor: '#0E1216',
+    backgroundColor: '#1c1c1e',
     autoHideMenuBar: true,
     show: false,
     webPreferences: {

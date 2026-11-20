@@ -29,7 +29,7 @@
   background: var(--panel-2);
 }
 .hs-title {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -42,7 +42,7 @@
   color: var(--ink-2);
   padding: 4px 10px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel);
   display: inline-flex;
   align-items: center;
@@ -60,7 +60,7 @@
 /* 计数：用等宽，免得数字一变整行跟着抖 */
 .hs-n {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 15px;
   padding: 0 5px;
   border-radius: 8px;
@@ -75,7 +75,7 @@
   flex: 1;
 }
 .hs-x {
-  font-size: 17px;
+  font-size: 15px;
   line-height: 1;
   color: var(--ink-3);
   padding: 0 3px;
@@ -118,12 +118,12 @@
 .hs-q {
   flex: 1;
   min-width: 0;
-  font-size: 12.5px;
+  font-size: 13px;
   font-family: var(--sans);
   color: var(--ink);
   background: var(--panel);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 6px 9px;
 }
 .hs-q:focus {
@@ -136,11 +136,11 @@
 }
 .hs-q-clear {
   flex: 0 0 auto;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 6px 9px;
   cursor: pointer;
 }
@@ -149,7 +149,7 @@
   border-color: var(--line-strong);
 }
 .hs-find-line {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
   margin-top: -4px;
@@ -172,17 +172,17 @@
 .hs-where {
   color: var(--accent);
   background: var(--accent-bg);
-  border-radius: 3px;
+  border-radius: 8px;
   padding: 0 4px;
 }
 /* 加亮用底色，不改字色：片段里的字是原文，改色会让它读起来像另一个词。 */
 .hs-hit {
-  background: #f3e4a8;
-  border-radius: 2px;
+  background: var(--weak-bg);
+  border-radius: 8px;
 }
 
 .hs-empty {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink-3);
   padding: 22px 6px;
   text-align: center;
@@ -200,7 +200,7 @@
   display: flex;
   align-items: stretch;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--panel);
   overflow: hidden;
 }
@@ -247,7 +247,7 @@
 }
 .hs-time {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 .hs-theory {
@@ -255,10 +255,10 @@
   font-weight: 600;
 }
 .hs-level {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 15px;
   padding: 0 6px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--muted-bg);
   color: var(--ink-2);
 }
@@ -311,7 +311,7 @@
   border-left: 1px solid var(--line);
   background: var(--panel-2);
   color: var(--ink-3);
-  font-size: 11.5px;
+  font-size: 12px;
   cursor: pointer;
 }
 .hs-del:hover {
@@ -370,10 +370,10 @@
 }
 .hs-field,
 .hs-ref {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 15px;
   padding: 0 6px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--accent-bg);
   color: var(--accent);
 }
@@ -397,7 +397,7 @@
 }
 .hs-reasons {
   margin: 5px 0 0 18px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-2);
 }
@@ -440,7 +440,7 @@
   font-size: 12px;
   padding: 5px 11px;
   border: 1px solid var(--accent);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--accent-bg);
   color: var(--accent);
 }
@@ -449,7 +449,7 @@
   color: var(--panel);
 }
 .rp-rerun-note {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.65;
   color: var(--ink-2);
 }
@@ -461,9 +461,9 @@
   padding: 10px 12px;
   border: 1px solid var(--invalid);
   border-left-width: 3px;
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--invalid-bg);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink);
 }
@@ -482,7 +482,7 @@
 }
 .hs-health-top b {
   color: var(--invalid);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 .hs-health-sub {
   color: var(--ink-2);
@@ -500,7 +500,7 @@
 .hs-health-more summary {
   cursor: pointer;
   color: var(--accent);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 .hs-health-list {
   list-style: none;
@@ -518,14 +518,14 @@
 }
 .hs-health-file {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink);
   word-break: break-all;
 }
 .hs-health-kind {
   flex: 0 0 auto;
   color: var(--invalid);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 .hs-health-foot {
   display: flex;

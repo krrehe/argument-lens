@@ -16,7 +16,7 @@
   gap: 7px;
   padding: 4px 11px 4px 9px;
   border: 1px solid var(--line-strong);
-  border-radius: 20px;
+  border-radius: 999px;
   font-size: 12px;
   color: var(--ink-2);
   background: var(--panel);
@@ -73,14 +73,14 @@
   text-align: left;
   margin-top: 8px;
   padding: 7px 10px;
-  border-radius: 5px;
-  font-size: 11.5px;
+  border-radius: 8px;
+  font-size: 12px;
   line-height: 1.6;
 }
 .u-exhausted {
   color: var(--invalid);
   background: var(--invalid-bg);
-  border: 1px solid #ecd5d0;
+  border: 1px solid var(--invalid);
 }
 .u-exhausted b {
   margin-left: 4px;
@@ -117,7 +117,7 @@
   letter-spacing: 0.02em;
 }
 .u-x {
-  font-size: 19px;
+  font-size: 15px;
   line-height: 1;
   color: var(--ink-3);
   padding: 0 2px;
@@ -135,7 +135,7 @@
   padding: 30px 0;
   text-align: center;
   color: var(--ink-3);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 /* 小节标题：右侧总能挂一句「这个数是哪来的」 */
@@ -143,7 +143,7 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--ink-2);
@@ -156,11 +156,11 @@
   color: var(--ink-3);
 }
 .u-mini {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--accent);
   padding: 2px 7px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 .u-mini:hover {
@@ -183,10 +183,10 @@
 }
 .u-kpi.wide {
   background: var(--accent-bg);
-  border-color: #d9e2ea;
+  border-color: var(--line);
 }
 .u-kpi-label {
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--ink-3);
   margin-bottom: 3px;
@@ -205,7 +205,7 @@
    * 数据用无衬线 + 等宽数字，编辑体留给标题与引文。
    */
   font-family: var(--sans);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 650;
   line-height: 1.15;
   letter-spacing: -0.01em;
@@ -221,7 +221,7 @@
   color: var(--invalid);
 }
 .u-kpi-val b.u-unknown {
-  font-size: 17px;
+  font-size: 15px;
   color: var(--ink-3);
   font-family: var(--sans);
   font-weight: 500;
@@ -237,7 +237,7 @@
 .u-bar {
   display: flex;
   height: 10px;
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--line);
   background: var(--panel-2);
@@ -271,8 +271,8 @@
 .u-bar-empty {
   padding: 10px 12px;
   border: 1px dashed var(--line-strong);
-  border-radius: 7px;
-  font-size: 11.5px;
+  border-radius: 8px;
+  font-size: 12px;
   line-height: 1.72;
   color: var(--ink-3);
   background: var(--panel-2);
@@ -290,7 +290,7 @@
 .u-anchor-form input {
   padding: 6px 9px;
   border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   outline: none;
   font-size: 12px;
   background: var(--panel);
@@ -335,7 +335,7 @@
   display: block;
   width: 100%;
   background: #cdd7d1;
-  border-radius: 3px 3px 0 0;
+  border-radius: 8px 3px 0 0;
   min-height: 0;
   transition: background 0.14s;
 }
@@ -351,7 +351,7 @@
   bottom: -17px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 9.5px;
+  font-size: 10px;
   color: var(--ink-3);
   white-space: nowrap;
 }
@@ -365,10 +365,10 @@
 .u-chart-empty {
   padding: 22px 0;
   text-align: center;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   border: 1px dashed var(--line-strong);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 
@@ -376,7 +376,7 @@
 
 .u-table {
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 8px;
   overflow: hidden;
 }
 .u-tr {
@@ -385,7 +385,7 @@
   gap: 8px;
   align-items: center;
   padding: 5px 11px;
-  font-size: 11.5px;
+  font-size: 12px;
   border-bottom: 1px solid var(--line);
   font-variant-numeric: tabular-nums;
 }
@@ -395,7 +395,7 @@
 .u-th {
   background: var(--panel-2);
   color: var(--ink-3);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   font-weight: 500;
 }
@@ -407,11 +407,11 @@
 }
 .u-tr.dead {
   color: var(--ink-3);
-  background: #fbf9f6;
+  background: var(--panel);
 }
 .u-tr.dead em {
   font-style: normal;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--invalid);
 }
 .u-table > .u-tr:not(.u-th):hover {
@@ -456,7 +456,7 @@ sup.est {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   letter-spacing: 0.03em;
 }
@@ -464,7 +464,7 @@ sup.est {
   width: 108px;
   padding: 6px 9px;
   border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   outline: none;
   font-size: 12px;
   background: var(--panel);
@@ -508,8 +508,8 @@ sup.est {
   font-size: 11px;
   color: var(--strong);
   background: var(--strong-bg);
-  border: 1px solid #cfe1d8;
-  border-radius: 5px;
+  border: 1px solid var(--strong);
+  border-radius: 8px;
   word-break: break-all;
 }
 .u-link {
@@ -533,7 +533,7 @@ sup.est {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
 }
@@ -556,7 +556,7 @@ sup.est {
 
 .u-pricing.first {
   padding: 11px 14px;
-  border: 1px solid #d9e2ea;
+  border: 1px solid var(--line);
   background: var(--accent-bg);
   border-radius: 8px;
 }
@@ -580,7 +580,7 @@ sup.est {
   color: var(--ink-3);
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   font-variant-numeric: tabular-nums;
 }
 .run-cost .rc-k {
@@ -606,8 +606,8 @@ sup.est {
   flex: 0 0 auto;
   padding: 3px 10px;
   border: 1px solid currentColor;
-  border-radius: 5px;
-  font-size: 11.5px;
+  border-radius: 8px;
+  font-size: 12px;
   opacity: 0.78;
   white-space: nowrap;
 }

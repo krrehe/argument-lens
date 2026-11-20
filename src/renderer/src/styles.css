@@ -1,28 +1,58 @@
+/*
+ * 苹果风格的设计变量（浅色）。
+ *
+ * 换的是整套语言，不是给旧色板调个色相：
+ *   · 底色取 macOS 的分组背景（#f5f5f7），面板纯白，不再有纸黄的暖调；
+ *   · 文字取 label 的三级灰（#1d1d1f / #48484a / #68686d），第三级压到
+ *     白底 4.5:1 以上——苹果原生的 secondaryLabel 在白底只有 3.9:1，
+ *     正文用它不合 WCAG AA，所以往下压了一档；
+ *   · 强调色用系统蓝 #0066cc（链接蓝，不是按钮蓝 #0071e3：后者白底
+ *     只有 4.0:1，做正文色不合格）；
+ *   · 分隔靠 1px 发丝线（#e6e6eb）与两层极轻投影，不靠深色边框——
+ *     苹果的界面里边框几乎看不见，块与块的边界由底色差与阴影给。
+ *
+ * 深色那一套在 src/renderer/public/workbench.html，同一张表、同一套验算。
+ */
 :root {
-  --bg: #f6f5f1;
+  --bg: #f5f5f7;
   --panel: #ffffff;
-  --panel-2: #fbfaf7;
-  --ink: #23201b;
-  --ink-2: #5d574d;
-  --ink-3: #8b8478;
-  --line: #e2ded4;
-  --line-strong: #cfc9bc;
+  --panel-2: #fafafc;
+  --ink: #1d1d1f;
+  --ink-2: #48484a;
+  --ink-3: #68686d;
+  --line: #e6e6eb;
+  --line-strong: #d2d2d7;
+  /* 箭头与细描边的中灰。SVG 里用得多（结构图的连线、地形图的边界）。 */
+  --edge: #a1a1a6;
 
-  --strong: #2c6350;
-  --strong-bg: #eaf1ed;
-  --weak: #96702c;
-  --weak-bg: #f7f0e2;
-  --invalid: #973f34;
-  --invalid-bg: #f7eae7;
-  --legal: #2f6152;
-  --legal-bg: #ebf2ee;
-  --accent: #3c4f63;
-  --accent-bg: #edf1f5;
-  --muted-bg: #f2f0ea;
+  --strong: #1d7a45;
+  --strong-bg: #e6f5ec;
+  --weak: #8a5300;
+  --weak-bg: #fdf3e0;
+  --invalid: #c0271d;
+  --invalid-bg: #fdecea;
+  --legal: #16694a;
+  --legal-bg: #e6f4ee;
+  --accent: #0066cc;
+  --accent-bg: #ecf4ff;
+  --muted-bg: #f2f2f5;
 
-  --mono: 'Cascadia Mono', 'JetBrains Mono', Consolas, 'Courier New', monospace;
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
-  --serif: Georgia, 'Songti SC', 'SimSun', serif;
+  /* 发丝线与两层投影：卡片靠它们浮起来，而不是靠描边。 */
+  --hair: rgba(0, 0, 0, 0.07);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 14px rgba(0, 0, 0, 0.05);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.08);
+  --focus: 0 0 0 3.5px rgba(0, 102, 204, 0.28);
+
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  /*
+   * 标题字族。苹果不用衬线做品牌与标题——原来这里装的是 Georgia + 宋体，
+   * 那是「印刷品」的语气，与系统 App 的语气相反。变量名也从 --serif 改成
+   * --display：叫 serif 却装无衬线，是下一个读这段代码的人要踩的坑。
+   */
+  --display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 
   /*
    * 连续散文的读列。中文一行 25—40 字好读；ch 是「0」的宽度，
@@ -46,8 +76,8 @@ body,
 
 body {
   font-family: var(--sans);
-  font-size: 13.5px;
-  line-height: 1.68;
+  font-size: 13px;
+  line-height: 1.6;
   color: var(--ink);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -69,15 +99,18 @@ select {
 }
 
 ::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
+  width: 11px;
+  height: 11px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d3cec3;
-  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #bdb7ab;
+  background: rgba(0, 0, 0, 0.32);
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -92,67 +125,93 @@ select {
   overflow: hidden;
 }
 
+/*
+ * 顶栏走系统标题栏那层材质：半透明白 + 背景模糊，正文滚到下面时透出一点。
+ * 苹果的栏之所以像栏，不在高度，在这层材质与那条几乎看不见的分隔线——
+ * 原来的实心白底 + 1px 灰线，是网页顶栏的样子。
+ */
 .topbar {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 0 18px;
-  height: 46px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  height: 52px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--hair);
   flex: 0 0 auto;
+  position: relative;
+  z-index: 20;
 }
 
 .brand {
-  font-family: var(--serif);
-  font-size: 16px;
-  letter-spacing: 0.06em;
+  font-family: var(--display);
+  font-size: 15px;
+  /* 苹果的字距是紧的：0.06em 那是印刷品的排法，系统标题不这么排。 */
+  letter-spacing: 0.01em;
   font-weight: 600;
 }
 .brand small {
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   margin-left: 8px;
   font-weight: 400;
 }
 
+/*
+ * 分段控件（segmented control）。苹果把「几个互斥视图」做成一个药丸槽里
+ * 滑动的白色块，而不是一排各自带底色的按钮——后者读起来是「三个开关」，
+ * 前者读起来是「一个控件的三个档」。外槽用 --muted-bg，选中块用白 + 轻投影。
+ */
 .tabs {
   display: flex;
   gap: 2px;
   margin-left: 10px;
+  padding: 3px;
+  /* 分段控件的槽：苹果用的是半透明中灰（rgba(118,118,128,.12)），
+     不是实色浅灰——实色浅灰放在白顶栏上几乎看不见槽，选中块就像悬在空中。 */
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: 999px;
 }
 .tab {
-  padding: 4px 11px;
-  border-radius: 5px;
-  color: var(--ink-3);
-  font-size: 12.5px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-size: 13px;
+  transition: background 0.16s ease, color 0.16s ease;
 }
 .tab:hover {
-  background: var(--muted-bg);
-  color: var(--ink-2);
+  color: var(--ink);
 }
 .tab.on {
-  background: var(--accent-bg);
-  color: var(--accent);
+  background: var(--panel);
+  color: var(--ink);
   font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
 }
 
 .spacer {
   flex: 1;
 }
 
+/*
+ * 次要按钮：苹果的次按钮是浅灰底、无描边、深色字。原来那版是白底 + 一圈灰边，
+ * 一页里出现五六个，整页就变成一堆小方框——描边是最容易被滥用的分隔手段。
+ */
 .ghost-btn {
-  padding: 5px 11px;
-  border: 1px solid var(--line-strong);
-  border-radius: 5px;
-  font-size: 12.5px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
   color: var(--ink-2);
-  background: var(--panel);
+  background: var(--muted-bg);
+  transition: background 0.14s ease, color 0.14s ease;
 }
 .ghost-btn:hover {
-  border-color: var(--ink-3);
+  background: #e8e8ed;
   color: var(--ink);
 }
 .ghost-btn:disabled {
@@ -171,7 +230,7 @@ select {
   white-space: nowrap;
 }
 .ghost-btn.confirm {
-  border-color: var(--invalid);
+  border: 1px solid var(--invalid);
   background: var(--invalid-bg);
   color: var(--invalid);
   font-weight: 600;
@@ -200,7 +259,7 @@ select {
   flex: 0 0 168px;
   padding: 7px 11px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--panel);
   text-align: left;
   transition: border-color 0.12s, box-shadow 0.12s;
@@ -214,7 +273,7 @@ select {
   background: var(--accent-bg);
 }
 .lens-chip .n {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
   white-space: nowrap;
@@ -223,7 +282,7 @@ select {
   color: var(--accent);
 }
 .lens-chip .u {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   line-height: 1.4;
   /* 三行封顶：这套透镜的判定单元最长 38 字，两行会从词组中间切断 */
@@ -244,7 +303,7 @@ select {
 .side {
   width: 400px;
   flex: 0 0 400px;
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--hair);
   background: var(--panel);
   display: flex;
   flex-direction: column;
@@ -252,8 +311,8 @@ select {
 }
 
 .side-head {
-  padding: 12px 16px 8px;
-  border-bottom: 1px solid var(--line);
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--hair);
   flex: 0 0 auto;
 }
 .side-title {
@@ -268,25 +327,30 @@ select {
   display: flex;
   flex-direction: column;
   gap: 9px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--hair);
   flex: 0 0 auto;
 }
 
+/*
+ * 输入区。苹果的文本框是白底 + 发丝边，聚焦时不换底色，
+ * 只多一圈很浅的蓝色光晕——底色一跳，人就以为控件换了。
+ */
 .composer textarea {
   width: 100%;
   height: 190px;
   resize: vertical;
-  padding: 10px 11px;
+  padding: 11px 13px;
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--panel-2);
+  border-radius: 12px;
+  background: var(--panel);
   line-height: 1.7;
   font-size: 13px;
   outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 .composer textarea:focus {
   border-color: var(--accent);
-  background: var(--panel);
+  box-shadow: var(--focus);
 }
 
 .composer row {
@@ -315,25 +379,35 @@ select {
   flex: 0 0 auto;
 }
 
+/*
+ * 主按钮：系统蓝实心、白字、8px 圆角、按下时轻微下沉。
+ * 原来是墨黑底——黑按钮在苹果的界面里只用于极少数「不可逆」的动作，
+ * 主操作一律是蓝的。
+ */
 .primary {
-  padding: 7px 16px;
-  border-radius: 6px;
-  background: var(--ink);
-  color: #fbfaf7;
+  padding: 8px 18px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.01em;
+  transition: background 0.16s ease, transform 0.06s ease;
 }
 .primary:hover {
-  background: #3a352d;
+  background: #0058b0;
+}
+.primary:active {
+  transform: scale(0.98);
 }
 .primary:disabled {
-  background: #c9c3b7;
+  background: #c7c7cc;
   cursor: not-allowed;
+  transform: none;
 }
 
 .hint {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   line-height: 1.6;
 }
@@ -374,13 +448,13 @@ select {
   margin-top: 0;
 }
 .brief p {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink-2);
   margin-bottom: 6px;
 }
 .brief .claim {
-  font-family: var(--serif);
-  font-size: 13.5px;
+  font-family: var(--display);
+  font-size: 13px;
   color: var(--ink);
   line-height: 1.7;
   padding: 9px 11px;
@@ -396,7 +470,7 @@ select {
   gap: 4px;
 }
 .brief li {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink-2);
   padding-left: 12px;
   position: relative;
@@ -417,9 +491,9 @@ select {
   margin-top: 12px;
   padding: 9px 11px;
   background: var(--weak-bg);
-  border-radius: 5px;
+  border-radius: 8px;
   font-size: 12px;
-  color: #6d5320;
+  color: var(--weak);
   line-height: 1.65;
 }
 
@@ -460,8 +534,8 @@ select {
   text-align: center;
 }
 .empty h2 {
-  font-family: var(--serif);
-  font-size: 25px;
+  font-family: var(--display);
+  font-size: 22px;
   font-weight: 500;
   color: var(--ink);
   letter-spacing: 0.04em;
@@ -480,7 +554,7 @@ select {
  */
 .empty > p {
   max-width: 660px;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.7;
   color: var(--ink-3);
   margin: 2px 0 0;
@@ -492,7 +566,7 @@ select {
 .start-navhint {
   width: 100%;
   max-width: 660px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-3);
 }
@@ -511,8 +585,8 @@ select {
   gap: 8px;
   padding: 7px 11px;
   border: 1px dashed var(--line);
-  border-radius: 6px;
-  font-size: 11.5px;
+  border-radius: 8px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 .start-more > summary::-webkit-details-marker {
@@ -561,14 +635,14 @@ select {
   width: 100%;
   max-width: 660px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--panel);
   padding: 14px 20px 11px;
   box-shadow: 0 2px 12px rgba(45, 40, 30, 0.04);
 }
 .start-lead {
-  font-family: var(--serif);
-  font-size: 14px;
+  font-family: var(--display);
+  font-size: 13px;
   line-height: 1.8;
   color: var(--ink-2);
   margin-bottom: 10px;
@@ -581,9 +655,9 @@ select {
 }
 .start-primary,
 .start-ghost {
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 8px 15px;
-  font-size: 12.5px;
+  font-size: 13px;
   cursor: pointer;
   border: 1px solid var(--line-strong);
   background: var(--panel-2);
@@ -619,7 +693,7 @@ select {
   padding: 7px 10px;
   border: 1px solid var(--line);
   border-left: 2px solid var(--ink-3);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel-2);
   font-size: 11px;
   line-height: 1.65;
@@ -629,7 +703,7 @@ select {
   width: 100%;
   max-width: 660px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--panel-2);
   padding: 8px 14px 9px;
   text-align: left;
@@ -650,7 +724,7 @@ select {
   border: 0;
   background: none;
   color: var(--accent);
-  font-size: 11.5px;
+  font-size: 12px;
   cursor: pointer;
   padding: 2px 0;
 }
@@ -668,7 +742,7 @@ select {
   gap: 10px;
   width: 100%;
   border: 0;
-  border-radius: 5px;
+  border-radius: 8px;
   background: transparent;
   padding: 6px 8px;
   cursor: pointer;
@@ -680,7 +754,7 @@ select {
 .start-recent-item b {
   flex: 1;
   min-width: 0;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ink);
   overflow: hidden;
@@ -690,7 +764,7 @@ select {
 .start-recent-item span {
   flex: 0 0 auto;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 .start-recent-empty {
@@ -723,8 +797,8 @@ select {
   margin-bottom: 18px;
 }
 .run-head b {
-  font-family: var(--serif);
-  font-size: 17px;
+  font-family: var(--display);
+  font-size: 15px;
   font-weight: 500;
   color: var(--ink);
   letter-spacing: 0.03em;
@@ -757,7 +831,7 @@ select {
 }
 .run-wait {
   margin-left: auto;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
@@ -777,13 +851,13 @@ select {
 }
 .run-pct {
   margin-left: auto;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
 .run-bar {
   height: 4px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--line);
   overflow: hidden;
 }
@@ -795,12 +869,12 @@ select {
 }
 .run-note {
   margin-top: 14px;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.85;
   color: var(--ink-3);
 }
 .run-note.fine {
-  font-size: 11.5px;
+  font-size: 12px;
   margin-top: 8px;
   padding-top: 9px;
   border-top: 1px dashed var(--line);
@@ -823,11 +897,11 @@ select {
   flex: none;
   padding: 5px 18px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink-2);
   background: var(--panel);
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
 }
@@ -841,7 +915,7 @@ select {
   opacity: 0.75;
 }
 .run-stop-note {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-3);
   /* 和按钮的首行文字对齐：按钮有 5px 内边距 + 边框，这里补回来 */
@@ -899,7 +973,7 @@ select {
   flex: 1;
 }
 .run-step-n {
-  font-size: 12.5px;
+  font-size: 13px;
 }
 .run-step.current .run-step-n {
   font-weight: 500;
@@ -912,14 +986,14 @@ select {
 .run-step-time {
   flex: none;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
 /* 同一阶段里又报了一句（比如判定格式损坏要重出一次）：那是真发生了，别藏 */
 .run-live {
   margin-top: 9px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
 }
@@ -933,7 +1007,7 @@ select {
   margin-top: 11px;
   padding: 8px 10px;
   border-left: 2px solid var(--weak);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--weak-bg);
   font-size: 12px;
   line-height: 1.75;
@@ -950,14 +1024,19 @@ select {
 .banner-sub {
   display: block;
   margin-top: 3px;
-  font-size: 11.5px;
+  font-size: 12px;
   opacity: 0.82;
 }
 
+/*
+ * 卡片。苹果的卡片不是「白底 + 一圈灰框」，是「白底 + 一层极轻的投影」，
+ * 边界靠底色差与阴影给，描边只用发丝线兜一下——描边一重，整页就像表格。
+ */
 .block {
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  box-shadow: var(--shadow-1);
   margin-bottom: 14px;
   overflow: hidden;
 }
@@ -965,8 +1044,8 @@ select {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 10px 15px;
-  border-bottom: 1px solid var(--line);
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--hair);
   background: var(--panel-2);
 }
 .block-head .t {
@@ -974,7 +1053,7 @@ select {
      真的发生过）。宁可让副标题去让位，也不让标题折行。 */
   flex: 0 0 auto;
   white-space: nowrap;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
@@ -993,8 +1072,8 @@ select {
   display: flex;
   gap: 10px;
   padding: 11px 14px;
-  border-radius: 7px;
-  font-size: 12.5px;
+  border-radius: 8px;
+  font-size: 13px;
   line-height: 1.65;
   margin-bottom: 14px;
   border: 1px solid;
@@ -1002,7 +1081,7 @@ select {
 .banner.warn {
   background: var(--weak-bg);
   border-color: #e6d7b8;
-  color: #6d5320;
+  color: var(--weak);
 }
 .banner.bad {
   background: var(--invalid-bg);
@@ -1011,7 +1090,7 @@ select {
 }
 .banner.info {
   background: var(--accent-bg);
-  border-color: #d3dde7;
+  border-color: var(--line-strong);
   color: #33465b;
 }
 .banner b {
@@ -1029,13 +1108,13 @@ select {
   min-width: 0;
 }
 .ctx .k {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 .ctx .v {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink);
   word-break: break-word;
 }
@@ -1047,7 +1126,7 @@ select {
  */
 .ctx-sum {
   margin: 0 0 10px;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.75;
   color: var(--ink-2);
 }
@@ -1067,11 +1146,11 @@ select {
   display: inline-block;
   margin-left: 6px;
   padding: 0 5px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.65;
   letter-spacing: 0.04em;
   border: 1px solid transparent;
-  border-radius: 3px;
+  border-radius: 8px;
   vertical-align: 1px;
 }
 .ctxbadge.s-known {
@@ -1097,7 +1176,7 @@ select {
 /* 「读」：这一格真的进判定。七格里常常只有两三格有这个标记。 */
 .ctxused {
   margin-left: 6px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--accent);
   border-bottom: 1px dotted var(--accent);
 }
@@ -1117,8 +1196,8 @@ select {
 
 /* 原文高亮 */
 .passage {
-  font-family: var(--serif);
-  font-size: 14px;
+  font-family: var(--display);
+  font-size: 13px;
   line-height: 2;
   color: var(--ink);
   white-space: pre-wrap;
@@ -1127,13 +1206,13 @@ select {
   max-width: var(--read-measure);
 }
 .passage mark {
-  background: #fbf0cd;
+  background: var(--weak-bg);
   padding: 1px 0;
-  border-bottom: 2px solid #ddb96a;
+  border-bottom: 2px solid var(--weak);
   cursor: pointer;
 }
 .passage mark.sel {
-  background: #ffe9a8;
+  background: var(--weak-bg);
   border-bottom-color: #b8892c;
 }
 
@@ -1187,13 +1266,13 @@ select {
   border-color: var(--line-strong);
 }
 .pv-chip.on {
-  background: #fdf5dd;
-  border-color: #ddb96a;
-  box-shadow: inset 0 0 0 1px #ddb96a;
+  background: var(--weak-bg);
+  border-color: var(--weak);
+  box-shadow: inset 0 0 0 1px var(--weak);
 }
 .pv-chip.lost {
   background: var(--invalid-bg);
-  border-color: #e3c3bd;
+  border-color: var(--invalid);
   color: var(--invalid);
 }
 /* 与另一条主张引同一句：原文里没有它自己的高亮，点是跳卡片 */
@@ -1225,7 +1304,7 @@ select {
   background: var(--panel);
   color: var(--ink-3);
   font-size: 11px;
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 3px 9px;
   cursor: pointer;
 }
@@ -1257,7 +1336,7 @@ select {
   gap: 6px;
   align-items: center;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel);
   padding: 7px 9px;
   cursor: pointer;
@@ -1267,13 +1346,13 @@ select {
   border-color: var(--line-strong);
 }
 .pv-row.on {
-  background: #fdf5dd;
-  border-color: #ddb96a;
+  background: var(--weak-bg);
+  border-color: var(--weak);
   box-shadow: inset 2px 0 0 var(--weak);
 }
 .pv-row.lost {
   background: var(--invalid-bg);
-  border-color: #e3c3bd;
+  border-color: var(--invalid);
 }
 .pv-id {
   font: 10px var(--mono);
@@ -1286,8 +1365,8 @@ select {
 }
 .pv-q {
   grid-column: 1 / -1;
-  font-family: var(--serif);
-  font-size: 12.5px;
+  font-family: var(--display);
+  font-size: 13px;
   line-height: 1.7;
   color: var(--ink);
   display: -webkit-box;
@@ -1296,9 +1375,9 @@ select {
   overflow: hidden;
 }
 .pv-badge {
-  font-size: 9.5px;
+  font-size: 10px;
   padding: 1px 4px;
-  border-radius: 3px;
+  border-radius: 8px;
   white-space: nowrap;
 }
 .q-exact {
@@ -1335,13 +1414,13 @@ select {
 /* 主张卡 */
 .claim-card {
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 9px;
   background: var(--panel-2);
 }
 .claim-card.concl {
-  background: #fdfcf7;
+  background: var(--panel);
   border-color: var(--line-strong);
 }
 .claim-top {
@@ -1354,7 +1433,7 @@ select {
   font-family: var(--mono);
   font-size: 11px;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--accent-bg);
   color: var(--accent);
   font-weight: 600;
@@ -1369,8 +1448,8 @@ select {
 }
 .claim-quote {
   margin-top: 5px;
-  font-family: var(--serif);
-  font-size: 12.5px;
+  font-family: var(--display);
+  font-size: 13px;
   color: var(--ink-2);
   padding-left: 9px;
   border-left: 2px solid var(--line);
@@ -1385,7 +1464,7 @@ select {
 .pill {
   font-size: 11px;
   padding: 1px 7px;
-  border-radius: 20px;
+  border-radius: 999px;
   background: var(--muted-bg);
   color: var(--ink-2);
   font-family: var(--mono);
@@ -1407,7 +1486,7 @@ select {
 table.grid {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 table.grid th {
   text-align: left;
@@ -1430,7 +1509,7 @@ table.grid tr:last-child td {
 }
 table.grid td.id {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   white-space: nowrap;
 }
@@ -1446,7 +1525,7 @@ table.grid td.basis {
   display: inline-block;
   font-size: 11px;
   padding: 1px 7px;
-  border-radius: 4px;
+  border-radius: 8px;
   white-space: nowrap;
   font-weight: 600;
 }
@@ -1476,12 +1555,12 @@ table.grid td.basis {
   align-items: baseline;
 }
 .kv .k {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   letter-spacing: 0.04em;
 }
 .kv .v {
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.65;
   word-break: break-word;
 }
@@ -1498,22 +1577,22 @@ table.grid td.basis {
 }
 .feat .box {
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 9px 11px;
   background: var(--panel-2);
 }
 .feat .box .k {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   letter-spacing: 0.1em;
 }
 .feat .box .v {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   margin-top: 2px;
 }
 .feat .box .n {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   margin-top: 3px;
   line-height: 1.55;
@@ -1536,7 +1615,7 @@ table.grid td.basis {
   flex-wrap: wrap;
 }
 .cand-head .nm {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
 }
 /* 可点的名字（与落点图对位）。虚线下划线提示「这行能点」，
@@ -1567,7 +1646,7 @@ table.grid td.basis {
 }
 .cand dt {
   color: var(--ink-3);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 .cand dd {
   color: var(--ink-2);
@@ -1613,13 +1692,13 @@ table.grid td.basis {
  */
 .fmap {
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--panel-2);
   padding: 10px 12px;
   margin-bottom: 12px;
 }
 .fmap-flow {
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 2.1;
   color: var(--ink-2);
 }
@@ -1630,7 +1709,7 @@ table.grid td.basis {
 .fmap-s-hit {
   background: var(--weak-bg);
   box-shadow: 0 0 0 2px var(--weak-bg);
-  border-radius: 3px;
+  border-radius: 8px;
   /* 底色 weak-bg 和纸底几乎分不出，光靠它「着色格」是句空话；
      文字跟着变可疑金，与命名卡左条同一语义：这句挂着候选，不是中性陈述。 */
   color: var(--weak);
@@ -1644,7 +1723,7 @@ table.grid td.basis {
   color: var(--weak);
   background: var(--panel);
   border: 1px solid var(--weak);
-  border-radius: 9px;
+  border-radius: 8px;
   cursor: pointer;
 }
 .fmap-chip:hover {
@@ -1658,7 +1737,7 @@ table.grid td.basis {
 /* 反驳 */
 .ref {
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 8px;
   padding: 11px 13px;
   margin-bottom: 10px;
 }
@@ -1673,7 +1752,7 @@ table.grid td.basis {
   font-size: 13px;
   line-height: 1.75;
   padding: 9px 11px;
-  background: #f9f8f4;
+  background: var(--panel-2);
   border-left: 2px solid var(--accent);
   border-radius: 0 5px 5px 0;
   margin: 7px 0;
@@ -1688,7 +1767,7 @@ table.grid td.basis {
 }
 .ref-row .k {
   color: var(--ink-3);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 /* 自检 */
@@ -1700,7 +1779,7 @@ table.grid td.basis {
 }
 .epi .cell {
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 5px 8px;
   min-width: 62px;
   text-align: center;
@@ -1713,7 +1792,7 @@ table.grid td.basis {
 }
 .epi .cell .v {
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
 }
 .epi .cell.zero .v {
@@ -1728,7 +1807,7 @@ table.grid td.basis {
   gap: 6px;
   font-size: 12px;
   padding: 3px 10px;
-  border-radius: 20px;
+  border-radius: 999px;
   font-weight: 600;
 }
 .reading.legitimate {
@@ -1747,7 +1826,7 @@ table.grid td.basis {
 /* 诊断 */
 .diag {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   display: flex;
   gap: 8px;
@@ -1811,22 +1890,29 @@ table.grid td.basis {
 }
 pre.code {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.75;
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--ink-2);
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 8px;
   padding: 14px 16px;
 }
 
 /* 设置 */
+/*
+ * 苹果的模态把底下的窗口压暗并轻微模糊，而不是盖一层纯黑：
+ * 模糊让人知道「后面还在，只是暂时点不到」，纯黑更像另一页。
+ * 底色也从中性灰取，不用原来那层带暖调的 rgba(35,32,27)。
+ */
 .mask {
   position: fixed;
   inset: 0;
-  background: rgba(35, 32, 27, 0.28);
+  background: rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1835,14 +1921,14 @@ pre.code {
 .dialog {
   width: 460px;
   background: var(--panel);
-  border-radius: 10px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+  border-radius: 12px;
+  box-shadow: var(--shadow-2), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
   overflow: hidden;
 }
 .dialog-head {
-  padding: 13px 18px;
-  border-bottom: 1px solid var(--line);
-  font-size: 13.5px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--hair);
+  font-size: 13px;
   font-weight: 600;
 }
 .dialog-body {
@@ -1857,28 +1943,29 @@ pre.code {
   gap: 4px;
 }
 .field label {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   letter-spacing: 0.04em;
 }
 .field input {
-  padding: 7px 10px;
+  padding: 8px 11px;
   border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   outline: none;
-  font-size: 12.5px;
-  background: var(--panel-2);
+  font-size: 13px;
+  background: var(--panel);
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
 .field input:focus {
   border-color: var(--accent);
-  background: var(--panel);
+  box-shadow: var(--focus);
 }
 
 /*
  * 滑块。
  *
- * 它是这一屏唯一的原生控件，不设 accent-color 就会带着系统蓝出现——
- * 一屏暖色纸面里唯一一块高饱和的蓝，而且它就在首次启动的第一屏上。
+ * 它是这一屏唯一的原生控件，不设 accent-color 就会带着系统蓝出现，
+ * 而那个蓝与强调色不是同一个（#0071e3 对 #0066cc），并排能看出来。
  * .field input 的边框与底色对它也不适用：那会画出一个装着滑块的方框。
  */
 .field input[type='range'] {
@@ -1890,7 +1977,7 @@ pre.code {
 }
 .dialog-foot {
   padding: 12px 18px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--hair);
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -1919,8 +2006,8 @@ pre.code {
   padding: 12px 14px;
   background: var(--accent-bg);
   border: 1px solid #d8e0e8;
-  border-radius: 7px;
-  font-size: 12.5px;
+  border-radius: 8px;
+  font-size: 13px;
   line-height: 1.72;
   color: var(--ink-2);
 }
@@ -1929,7 +2016,7 @@ pre.code {
   font-weight: 600;
 }
 .why .fine {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   padding-top: 6px;
   border-top: 1px dashed #cfdae4;
@@ -1946,7 +2033,7 @@ pre.code {
   gap: 1px;
   padding: 7px 10px;
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
   text-align: left;
   transition: border-color 0.12s, background 0.12s;
@@ -1960,14 +2047,14 @@ pre.code {
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 .preset .pn {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
 }
 .preset.on .pn {
   color: var(--accent);
 }
 .preset .pd {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -1982,20 +2069,20 @@ pre.code {
   /* 上下都要留白：只给左右，它会压住滚动区最后一行说明 */
   margin: 0 18px 10px;
   padding: 7px 10px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
-  border-radius: 5px;
+  border-radius: 8px;
   word-break: break-word;
 }
 .test-bar.ok {
   color: var(--strong);
   background: var(--strong-bg);
-  border: 1px solid #cfe1d8;
+  border: 1px solid var(--strong);
 }
 .test-bar.bad {
   color: var(--invalid);
   background: var(--invalid-bg);
-  border: 1px solid #ecd5d0;
+  border: 1px solid var(--invalid);
 }
 
 /*
@@ -2006,12 +2093,12 @@ pre.code {
  * 否则用户会以为那又是一句说明文字。
  */
 .hint.warn {
-  color: #6d5320;
+  color: var(--weak);
   background: var(--weak-bg);
   border-left: 2px solid var(--weak);
   padding: 7px 10px;
   border-radius: 0 5px 5px 0;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
 }
 
@@ -2030,7 +2117,7 @@ pre.code {
   gap: 7px;
   padding: 4px 11px;
   border: 1px solid var(--line-strong);
-  border-radius: 20px;
+  border-radius: 999px;
   font-size: 12px;
   color: var(--ink-3);
   background: var(--panel);
@@ -2080,11 +2167,11 @@ pre.code {
 .block-plain::before {
   content: '人话';
   display: inline-block;
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   color: #fff;
   background: #93a7b5;
-  border-radius: 3px;
+  border-radius: 8px;
   padding: 0 4px;
   margin-right: 7px;
   vertical-align: 1px;
@@ -2158,7 +2245,7 @@ pre.code {
   transition: background 0.1s;
 }
 .quick-row:hover {
-  background: #f7f9fa;
+  background: var(--panel-2);
 }
 .quick-row:last-child {
   border-bottom: none;
@@ -2185,7 +2272,7 @@ pre.code {
 .qx {
   font-size: 11px;
   padding: 1px 7px;
-  border-radius: 20px;
+  border-radius: 999px;
   background: var(--muted-bg);
   color: var(--ink-2);
   font-family: var(--mono);
@@ -2212,15 +2299,15 @@ pre.code {
   background: var(--panel-2);
 }
 .qn-label {
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--ink-3);
 }
 .qn-chip {
-  font-size: 11.5px;
+  font-size: 12px;
   padding: 2px 9px;
   border: 1px solid var(--line-strong);
-  border-radius: 20px;
+  border-radius: 999px;
   color: var(--ink-2);
   background: var(--panel);
 }
@@ -2243,7 +2330,7 @@ pre.code {
   margin-top: 4px;
 }
 .verdict-say {
-  font-size: 13.5px;
+  font-size: 13px;
   line-height: 1.78;
 }
 .verdict-scope {
@@ -2274,7 +2361,7 @@ pre.code {
  */
 .vtag {
   flex: none;
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--ink-3);
 }
@@ -2290,7 +2377,7 @@ pre.code {
   line-height: 1.4;
   padding: 3px 9px;
   border: 1px solid var(--line-strong);
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink-2);
   cursor: pointer;
@@ -2312,7 +2399,7 @@ pre.code {
   padding: 9px 12px 10px;
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 .ghead {
   display: flex;
@@ -2326,7 +2413,7 @@ pre.code {
   font-weight: 600;
   letter-spacing: 0.02em;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--muted-bg);
   color: var(--ink-2);
 }
@@ -2348,7 +2435,7 @@ pre.code {
   color: var(--invalid);
 }
 .glb {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink);
   font-weight: 600;
 }
@@ -2382,7 +2469,7 @@ pre.code {
   padding: 3px 7px;
   font-size: 12px;
   line-height: 1.65;
-  border-radius: 3px;
+  border-radius: 8px;
 }
 .grows > div:nth-child(even) {
   background: var(--muted-bg);
@@ -2399,7 +2486,7 @@ pre.code {
   margin-top: 9px;
   padding: 7px 9px;
   background: var(--invalid-bg);
-  border-radius: 3px;
+  border-radius: 8px;
 }
 .ggt {
   font-size: 11px;
@@ -2421,7 +2508,7 @@ pre.code {
 .gremoved {
   margin: 5px 0 0;
   padding-left: 18px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
   line-height: 1.6;
 }
@@ -2433,10 +2520,10 @@ pre.code {
   gap: 3px;
 }
 .ggaps li {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   padding: 3px 8px;
-  border-radius: 3px;
+  border-radius: 8px;
 }
 .ggaps li.blk {
   background: var(--invalid-bg);
@@ -2448,7 +2535,7 @@ pre.code {
 }
 .gconf {
   margin-top: 8px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
   display: flex;
   gap: 8px;
@@ -2468,11 +2555,11 @@ pre.code {
 .grade-none {
   margin-top: 9px;
   padding: 8px 11px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
   background: var(--muted-bg);
-  border-radius: 3px;
+  border-radius: 8px;
 }
 .grade-none b {
   color: var(--ink);
@@ -2491,7 +2578,7 @@ pre.code {
   padding: 9px 12px 10px;
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
 }
 .rh-head {
   display: flex;
@@ -2597,7 +2684,7 @@ pre.code {
   margin-top: 9px;
   padding: 7px 9px;
   background: var(--weak-bg);
-  border-radius: 3px;
+  border-radius: 8px;
 }
 .rh-ct {
   font-size: 11px;
@@ -2633,7 +2720,7 @@ pre.code {
   font-size: 11px;
   line-height: 1.6;
   padding: 3px 8px;
-  border-radius: 3px;
+  border-radius: 8px;
 }
 .rh-gaps li.blk {
   background: var(--invalid-bg);
@@ -2652,11 +2739,11 @@ pre.code {
 .rh-none {
   margin-top: 9px;
   padding: 8px 11px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
   background: var(--muted-bg);
-  border-radius: 3px;
+  border-radius: 8px;
 }
 .rh-none b {
   color: var(--ink);
@@ -2693,12 +2780,12 @@ pre.code {
   margin-bottom: 8px;
 }
 .vh-t {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 .vh-s {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   line-height: 1.6;
 }
@@ -2716,7 +2803,7 @@ pre.code {
   align-items: flex-start;
   gap: 9px;
   padding: 6px 0;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 .vstep + .vstep::before {
   content: '';
@@ -2735,7 +2822,7 @@ pre.code {
   border: 1px solid var(--line-strong);
   background: var(--panel);
   color: var(--ink-3);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 17px;
   text-align: center;
   font-family: var(--mono);
@@ -2771,7 +2858,7 @@ pre.code {
   letter-spacing: 0.02em;
 }
 .vs-body {
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.7;
   color: var(--ink);
 }
@@ -2790,7 +2877,7 @@ pre.code {
   font-size: 11px;
   color: var(--accent);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 2px 7px;
   white-space: nowrap;
 }
@@ -2802,7 +2889,7 @@ pre.code {
   position: relative;
   margin-top: 8px;
   padding: 7px 10px 7px 32px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
   background: var(--panel-2);
@@ -2819,7 +2906,7 @@ pre.code {
   line-height: 1.5;
   color: var(--ink-3);
   border: 1px solid var(--line-strong);
-  border-radius: 3px;
+  border-radius: 8px;
   padding: 0 3px;
 }
 
@@ -2859,7 +2946,7 @@ pre.code {
   background: var(--panel);
   color: var(--ink-3);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   text-align: center;
   margin-right: 7px;
   vertical-align: -2px;
@@ -2875,7 +2962,7 @@ pre.code {
   gap: 3px;
   padding: 8px 9px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 .vl-name {
@@ -2917,7 +3004,7 @@ pre.code {
 }
 .vl-here {
   font-style: normal;
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 400;
   color: var(--panel);
   background: var(--ink-2);
@@ -2929,7 +3016,7 @@ pre.code {
 .vforced {
   margin-top: 10px;
   padding: 7px 10px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
   background: var(--weak-bg);
@@ -3002,7 +3089,7 @@ pre.code {
   line-height: 1;
 }
 .diagram-note {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   line-height: 1.65;
   padding: 4px 2px 0;
@@ -3019,7 +3106,7 @@ pre.code {
   display: flex;
   flex-wrap: wrap;
   gap: 3px 14px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   margin-top: 4px;
 }
@@ -3044,7 +3131,7 @@ pre.code {
   gap: 7px;
   padding: 5px 9px 5px 7px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
   max-width: 212px;
   text-align: left;
@@ -3085,12 +3172,12 @@ pre.code {
 }
 .si-id {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   flex: 0 0 auto;
 }
 .si-label {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
   white-space: nowrap;
   overflow: hidden;
@@ -3107,7 +3194,7 @@ pre.code {
   align-items: baseline;
   gap: 12px;
   margin-top: 8px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 .strip-sum b {
@@ -3140,7 +3227,7 @@ table.grid tr.hit td {
   margin-bottom: 12px;
 }
 .gg-name {
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   color: var(--ink-3);
   padding: 6px 0;
@@ -3164,26 +3251,26 @@ table.grid tr.hit td {
 }
 .gg-term {
   flex: 0 0 96px;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
 }
 .gg-plain {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink-2);
   line-height: 1.62;
 }
 .gg-more,
 .gg-eg {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.62;
   color: var(--ink-3);
   margin: 3px 0 0 105px;
 }
 .gg-eg {
-  color: #6d5320;
+  color: var(--weak);
   background: var(--weak-bg);
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 3px 8px;
   margin-top: 4px;
 }
@@ -3203,7 +3290,7 @@ table.grid tr.hit td {
   gap: 7px;
   padding: 6px 12px;
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 999px;
   background: var(--panel);
   font-size: 12px;
   color: var(--ink-2);
@@ -3236,7 +3323,7 @@ table.grid tr.hit td {
 .em-steps div {
   display: flex;
   gap: 9px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink-2);
   line-height: 1.6;
 }
@@ -3251,7 +3338,7 @@ table.grid tr.hit td {
 .brief .tcard {
   margin-top: 16px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
   overflow: hidden;
 }
@@ -3280,7 +3367,7 @@ table.grid tr.hit td {
   border-radius: 50%;
   background: var(--accent-bg);
   color: var(--accent);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 600;
   flex: 0 0 auto;
 }
@@ -3324,7 +3411,7 @@ table.grid tr.hit td {
   padding: 8px 10px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   position: relative;
   padding-left: 10px;
 }
@@ -3333,7 +3420,7 @@ table.grid tr.hit td {
 }
 
 .tc-who {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink);
   margin-bottom: 3px;
@@ -3349,18 +3436,18 @@ table.grid tr.hit td {
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px dashed var(--line);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
 }
 
 .tc-ans-tag {
   display: inline-block;
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 0.08em;
   padding: 1px 5px;
   margin-right: 6px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--strong-bg);
   color: var(--strong);
   vertical-align: 1px;
@@ -3391,7 +3478,7 @@ table.grid tr.hit td {
 table.grid > caption.grid-note {
   caption-side: top;
   text-align: left;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-3);
   padding: 0 0 8px;
@@ -3406,12 +3493,12 @@ table.grid > caption.grid-note {
  */
 
 .rx-empty {
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.85;
   color: var(--ink-2);
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 12px 14px;
 }
 
@@ -3430,7 +3517,7 @@ table.grid > caption.grid-note {
 }
 
 .rx-gist {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.8;
   color: var(--ink-3);
   padding-bottom: 8px;
@@ -3465,10 +3552,10 @@ table.grid > caption.grid-note {
 
 .rx-state {
   flex: 0 0 auto;
-  font-size: 10.5px;
+  font-size: 11px;
   font-family: var(--mono);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 8px;
   letter-spacing: 0.02em;
 }
 .rx-state.rx-open {
@@ -3481,26 +3568,26 @@ table.grid > caption.grid-note {
 }
 
 .rx-ring {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
 }
 
 .rx-cid {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
 .rx-need {
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.9;
   color: var(--ink);
   margin-bottom: 6px;
 }
 
 .rx-accept {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.8;
   color: var(--strong);
 }
@@ -3513,7 +3600,7 @@ table.grid > caption.grid-note {
 }
 
 .rx-cost {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.8;
   color: var(--ink-3);
 }
@@ -3541,10 +3628,10 @@ table.grid > caption.grid-note {
 
 .exp-btn {
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   padding: 5px 12px;
   border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink);
   cursor: pointer;
@@ -3561,7 +3648,7 @@ table.grid > caption.grid-note {
 .exp-hint,
 .exp-ok,
 .exp-fail {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
 }
 .exp-hint {
@@ -3585,13 +3672,13 @@ table.grid > caption.grid-note {
  */
 .exp-act {
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 18px;
   padding: 1px 8px;
   color: var(--accent);
   background: var(--panel-2);
   border: 1px solid var(--line-strong);
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
 }
 

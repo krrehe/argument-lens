@@ -22,7 +22,7 @@
  * 长文本不切则报告基本作废——两者的提示强度不该一样。
  */
 .sg-bar.sg-loud {
-  border-color: #c8d2dd;
+  border-color: var(--line-strong);
   background: var(--accent-bg);
 }
 
@@ -33,7 +33,7 @@
  * 会怀疑自己点没点中——上一份报告的距离感正好把「到了」抵掉。
  */
 .sg-bar.sg-hit {
-  outline: 2px solid var(--accent, #3b6ea5);
+  outline: 2px solid var(--accent, #0066cc);
   outline-offset: 1px;
 }
 
@@ -81,7 +81,7 @@
 }
 
 .sg-toggle {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--accent);
   white-space: nowrap;
 }
@@ -112,7 +112,7 @@
   width: 100%;
   padding: 7px 8px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   background: none;
   cursor: pointer;
   text-align: left;
@@ -137,7 +137,7 @@
 .sg-n {
   flex: none;
   width: 16px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
   padding-top: 2px;
@@ -160,7 +160,7 @@
 .sg-kind {
   font-size: 10px;
   padding: 0 5px;
-  border-radius: 3px;
+  border-radius: 8px;
   line-height: 15px;
   background: var(--muted-bg);
   color: var(--ink-2);
@@ -179,7 +179,7 @@
 }
 
 .sg-chars {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
@@ -189,7 +189,7 @@
   color: var(--weak);
   background: var(--weak-bg);
   padding: 0 4px;
-  border-radius: 3px;
+  border-radius: 8px;
   line-height: 15px;
 }
 
@@ -203,13 +203,13 @@
 }
 
 .sg-why {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.5;
   color: var(--ink-3);
 }
 
 .sg-foot {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.6;
   color: var(--ink-3);
   padding: 8px 4px 2px;
@@ -222,12 +222,12 @@
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
-  border-color: #c8d2dd;
+  border-color: var(--line-strong);
   background: var(--accent-bg);
 }
 
 .sg-tag {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--accent);
   white-space: nowrap;
@@ -258,12 +258,12 @@
   margin-top: 7px;
   padding: 1px 7px;
   font-family: inherit;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 16px;
   color: var(--ink-3);
   background: none;
   border: 1px dashed var(--line-strong);
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   vertical-align: middle;
 }
@@ -290,19 +290,19 @@
   border-left: 2px solid var(--accent);
   border-radius: 0 5px 5px 0;
   background: rgba(60, 79, 99, 0.045);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
 .obj-note.sm {
   margin-top: 4px;
   padding: 3px 6px 3px 7px;
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .obj-flag {
   flex: none;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--accent);
   white-space: nowrap;
@@ -323,7 +323,7 @@
   margin-left: auto;
   padding: 0;
   font-family: inherit;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   background: none;
   border: none;
@@ -340,12 +340,12 @@
   margin-top: 8px;
   padding: 9px 10px;
   border: 1px solid var(--line-strong);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--panel);
 }
 
 .obj-form-h {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
   margin-bottom: 6px;
 }
@@ -359,7 +359,7 @@
   color: var(--ink);
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   resize: vertical;
   outline: none;
 }
@@ -379,7 +379,7 @@
 .obj-fine {
   flex: 1;
   min-width: 0;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.55;
   color: var(--ink-3);
 }
@@ -389,8 +389,8 @@
   flex: none;
   padding: 3px 10px;
   font-family: inherit;
-  font-size: 11.5px;
-  border-radius: 5px;
+  font-size: 12px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
@@ -453,7 +453,7 @@
 
 .rv-k {
   flex: none;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--ink-2);
@@ -462,10 +462,10 @@
 
 .rv-trend {
   flex: none;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 15px;
   padding: 0 6px;
-  border-radius: 3px;
+  border-radius: 8px;
   white-space: nowrap;
   background: var(--muted-bg);
   color: var(--ink-2);
@@ -492,7 +492,7 @@
 .rv-headline {
   flex: 1;
   min-width: 0;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.55;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -526,18 +526,18 @@
 }
 
 .rv-num .k {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
 .rv-num .v {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
 .rv-moved-h {
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   color: var(--ink-3);
   margin: 8px 0 5px;
@@ -546,7 +546,7 @@
 .rv-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .rv-table td {
@@ -558,7 +558,7 @@
 .rv-table .id {
   width: 62px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -574,7 +574,7 @@
 
 .rv-table .kd {
   width: 68px;
-  font-size: 10.5px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -640,7 +640,7 @@
 .rv-fine {
   flex: 1;
   min-width: 200px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.55;
   color: var(--ink-3);
 }
@@ -663,11 +663,11 @@
 .mode-chip {
   padding: 3px 12px;
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
   background: var(--panel);
   border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
@@ -690,7 +690,7 @@
 .mode-note {
   flex: 1;
   min-width: 150px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.5;
   color: var(--ink-3);
 }
@@ -769,7 +769,7 @@
   font-size: 10px;
   line-height: 15px;
   padding: 0 6px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--accent-bg);
   color: var(--accent);
 }
@@ -870,7 +870,7 @@
 .pend-note {
   flex: 1;
   min-width: 180px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.55;
   color: var(--ink-2);
 }
@@ -879,7 +879,7 @@
   flex: none;
   padding: 0;
   font-family: inherit;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   background: none;
   border: none;
@@ -902,7 +902,7 @@
 
 .cap-hint {
   margin: 2px 0 8px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-3);
 }
@@ -919,10 +919,10 @@
  */
 .cap-hint.off {
   padding: 6px 9px;
-  border-left: 2px solid #c9a227;
+  border-left: 2px solid var(--weak);
   border-radius: 0 5px 5px 0;
   background: var(--weak-bg);
-  color: #6d5320;
+  color: var(--weak);
 }
 
 .cap-bar {
@@ -931,7 +931,7 @@
   gap: 8px;
   margin: 2px 0 8px;
   padding: 6px 9px;
-  border-radius: 5px;
+  border-radius: 8px;
   flex-wrap: wrap;
 }
 
@@ -950,7 +950,7 @@
  * 而这句话是整条提示的全部意义（「没覆盖你写的字」），断开了读起来像「要替换」。
  */
 .cap-bar.ask {
-  border-left: 2px dashed #c9a227;
+  border-left: 2px dashed var(--weak);
   border-radius: 0 5px 5px 0;
   background: var(--weak-bg);
   justify-content: flex-end;
@@ -960,14 +960,14 @@
 .cap-note {
   flex: 1;
   min-width: 180px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-2);
 }
 
 .cap-bar.ask .cap-note {
   flex: 1 1 100%;
-  color: #6d5320;
+  color: var(--weak);
 }
 
 .cap-x,
@@ -982,7 +982,7 @@
 .cap-x,
 .cap-keep {
   padding: 0;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
   background: none;
   border: none;
@@ -997,16 +997,16 @@
 
 .cap-use {
   padding: 2px 8px;
-  font-size: 11.5px;
-  color: #6d5320;
-  background: #fdfaf1;
+  font-size: 12px;
+  color: var(--weak);
+  background: var(--panel);
   border: 1px solid #d8c48a;
-  border-radius: 5px;
+  border-radius: 8px;
 }
 
 .cap-use:hover {
   border-color: #b89b4a;
-  background: #fbf4e0;
+  background: var(--weak-bg);
 }
 
 
@@ -1037,20 +1037,20 @@
 
 .si-gate {
   flex: 0 0 auto;
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 14px;
   padding: 0 4px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--accent-bg);
   color: var(--accent);
 }
 
 .si-down {
   flex: 0 0 auto;
-  font-size: 9.5px;
+  font-size: 10px;
   line-height: 14px;
   padding: 0 5px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--invalid);
   color: #fff;
 }
@@ -1058,14 +1058,14 @@
 .strip-dies {
   flex: 1;
   min-width: 0;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 
 .strip-dies b {
   margin: 0 3px;
   padding: 0 5px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--invalid-bg);
   color: var(--invalid);
   font-family: var(--mono);
@@ -1081,7 +1081,7 @@
  */
 .tp-row {
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 8px;
   padding: 9px 11px;
   display: flex;
   flex-direction: column;
@@ -1100,14 +1100,14 @@
   gap: 8px;
 }
 .tp-name {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
 }
 .tp-flag {
   font-size: 10px;
   line-height: 15px;
   padding: 0 6px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--muted-bg);
   color: var(--ink-3);
 }
@@ -1122,7 +1122,7 @@
   color: var(--ink-3);
 }
 .tp-basis {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.65;
   color: var(--ink-2);
 }
@@ -1162,7 +1162,7 @@
   align-items: flex-start;
   padding: 7px 10px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 .lim-id {
@@ -1247,7 +1247,7 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--accent-bg);
 }
 .ac-g-head {
@@ -1266,7 +1266,7 @@
 }
 .ac-g-basis {
   margin-top: 4px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.65;
   color: var(--ink-2);
 }
@@ -1301,7 +1301,7 @@
   color: var(--ink-3);
 }
 .ac-note {
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-3);
 }
@@ -1321,7 +1321,7 @@
   align-items: flex-start;
   padding: 7px 10px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 .ac-kind {
@@ -1330,7 +1330,7 @@
   line-height: 1.8;
   padding: 0 5px;
   text-align: center;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--muted-bg);
   color: var(--ink-2);
   white-space: nowrap;
@@ -1363,7 +1363,7 @@
   align-items: flex-start;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 .ac-norm.on {
@@ -1377,7 +1377,7 @@
   margin-top: 2px;
   padding: 0;
   border: 1px solid var(--line-strong);
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--legal);
   font-size: 10px;
@@ -1403,7 +1403,7 @@
   flex-wrap: wrap;
 }
 .ac-norm-ask {
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.6;
   font-weight: 600;
   color: var(--ink);
@@ -1418,7 +1418,7 @@
   font-size: 10px;
   line-height: 15px;
   padding: 0 6px;
-  border-radius: 3px;
+  border-radius: 8px;
   white-space: nowrap;
 }
 .ac-by-yes {
@@ -1442,7 +1442,7 @@
 }
 .ac-why {
   margin-top: 3px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
 }
@@ -1480,7 +1480,7 @@
   align-items: flex-start;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 .ac-atk-high {
@@ -1504,7 +1504,7 @@
   flex-wrap: wrap;
 }
 .ac-atk-l {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
 }
@@ -1513,7 +1513,7 @@
   font-size: 10px;
   line-height: 15px;
   padding: 0 6px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--muted-bg);
   color: var(--ink-3);
 }
@@ -1523,7 +1523,7 @@
 }
 .ac-atk-target {
   margin-top: 3px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
   font-family: var(--mono);
@@ -1533,7 +1533,7 @@
 .ac-div {
   padding-top: 9px;
   border-top: 1px dashed var(--line-strong);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.75;
   color: var(--ink-3);
 }
@@ -1573,7 +1573,7 @@
 .same-bar .sb-why {
   flex: 1 1 auto;
   min-width: 160px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-style: normal;
   line-height: 1.6;
   color: var(--ink-3);
@@ -1618,10 +1618,10 @@
   white-space: nowrap;
   padding: 2px 8px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--accent);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.6;
   cursor: pointer;
 }
@@ -1638,7 +1638,7 @@
 
 .pf-why {
   margin: 0 0 6px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.7;
   color: var(--ink-3);
 }
@@ -1650,7 +1650,7 @@
 
 .pf-list li {
   margin-bottom: 3px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.7;
   color: var(--ink-2);
   /*
@@ -1669,7 +1669,7 @@
   width: 100%;
   padding: 6px 7px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel-2);
   color: var(--ink-2);
   font-family: inherit;
@@ -1682,7 +1682,7 @@
   margin: 0;
   font-size: 11px;
   line-height: 1.6;
-  color: #9b4030;
+  color: var(--invalid);
 }
 
 /* 一组两行：头部（第几组 / 几份 / 版本 / 模式 / 字段）与后半截（谁跑的 / 时间 / 原文）。 */
@@ -1704,7 +1704,7 @@
 
 .ag-spreads li {
   margin-bottom: 2px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.7;
   color: var(--ink-3);
   overflow-wrap: anywhere;
@@ -1732,7 +1732,7 @@
   flex: 0 0 auto;
   padding: 6px 12px;
   border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel-2);
   color: var(--ink);
   font-size: 12px;
@@ -1774,7 +1774,7 @@
 
 .rr-head h2 {
   margin: 8px 0 6px;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -1790,7 +1790,7 @@
 .rr-lead2 {
   margin: 0;
   max-width: 760px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-3);
 }
@@ -1799,9 +1799,9 @@
   margin: 14px 0;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel-2);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 
@@ -1837,12 +1837,12 @@
 }
 
 .rr-n {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
 .rr-none {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   font-style: normal;
 }
@@ -1893,14 +1893,14 @@
 
 .rr-kind {
   flex: 0 0 auto;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-2);
 }
 
 .rr-id {
   flex: 0 0 auto;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -1913,7 +1913,7 @@
 
 .rr-quote {
   flex: 1 1 100%;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.5;
   color: var(--ink-3);
 }
@@ -1926,8 +1926,8 @@
   margin: 18px 0 8px;
   padding: 10px 12px;
   border: 1px dashed var(--line-strong);
-  border-radius: 5px;
-  font-size: 11.5px;
+  border-radius: 8px;
+  font-size: 12px;
   color: var(--ink-2);
 }
 
@@ -1949,7 +1949,7 @@
   margin-top: 18px;
   padding: 7px 14px;
   border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 
@@ -1968,7 +1968,7 @@
 
 .rs-head h2 {
   margin: 8px 0 6px;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -1984,7 +1984,7 @@
 .rs-lead2 {
   margin: 0;
   max-width: 780px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-3);
 }
@@ -1996,7 +1996,7 @@
   margin: 16px 0 10px;
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 
@@ -2011,7 +2011,7 @@
   min-width: 120px;
   padding: 7px 9px;
   border: 1px solid var(--line-strong);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel, var(--panel-2));
   color: var(--ink);
   font-family: inherit;
@@ -2029,10 +2029,10 @@
   flex: 0 0 auto;
   padding: 6px 10px;
   border: 1px solid var(--line-strong);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel-2);
   color: var(--ink-2);
-  font-size: 11.5px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -2049,9 +2049,9 @@
   margin: 12px 0;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel-2);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
 }
@@ -2060,7 +2060,7 @@
   margin: 0 0 12px;
   padding: 8px 10px;
   border-left: 2px dashed var(--line-strong);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 
@@ -2117,13 +2117,13 @@
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.85;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--ink);
 }
 
 .rs-changed {
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--accent-bg);
 }
 
@@ -2143,9 +2143,9 @@
   min-width: 0;
   padding: 6px 8px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel-2);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -2153,7 +2153,7 @@
   margin: 18px 0 0;
   padding: 8px 10px;
   border-left: 2px dashed var(--line-strong);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.8;
   color: var(--ink-3);
 }
@@ -2210,7 +2210,7 @@
   box-sizing: border-box;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink);
   font: inherit;
@@ -2241,10 +2241,10 @@
 .cl-mark {
   padding: 4px 10px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: none;
   color: var(--ink-2);
-  font-size: 11.5px;
+  font-size: 12px;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -2258,10 +2258,10 @@
 .cl-pick {
   padding: 4px 8px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink-2);
-  font-size: 11.5px;
+  font-size: 12px;
   max-width: 100%;
 }
 
@@ -2286,7 +2286,7 @@
   margin-top: 8px;
   padding-left: 8px;
   border-left: 2px solid var(--line-strong);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
 }
@@ -2295,7 +2295,7 @@
   align-self: flex-start;
   padding: 5px 12px;
   border: 1px dashed var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   background: none;
   color: var(--ink-2);
   font-size: 12px;
@@ -2321,8 +2321,8 @@
   margin-top: 16px;
   padding: 9px 11px;
   border: 1px dashed var(--line-strong);
-  border-radius: 5px;
-  font-size: 11.5px;
+  border-radius: 8px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
 }
@@ -2331,7 +2331,7 @@
   margin-top: 22px;
   padding: 10px 12px 12px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 
@@ -2340,7 +2340,7 @@
   flex-wrap: wrap;
   gap: 4px 12px;
   margin-bottom: 8px;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-3);
 }
@@ -2355,11 +2355,11 @@
   min-height: 170px;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink-2);
   font-family: ui-monospace, Consolas, monospace;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   white-space: pre;
   resize: vertical;
@@ -2375,20 +2375,20 @@
   margin: 26px 0 34px;
   padding: 16px 18px 18px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 
 .nl-title {
   margin: 0 0 5px;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--accent);
 }
 
 .nl-why {
   margin: 0;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.75;
   color: var(--ink-3);
 }
@@ -2400,11 +2400,11 @@
   margin-top: 10px;
   padding: 8px 10px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink-2);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.75;
   resize: vertical;
 }
@@ -2423,7 +2423,7 @@
 
 .nl-count {
   margin-left: auto;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
@@ -2436,11 +2436,11 @@
 .nl-save {
   padding: 4px 14px;
   border: 1px solid var(--accent);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--accent);
   color: #fff;
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
   cursor: pointer;
 }
@@ -2454,7 +2454,7 @@
   margin: 8px 0 0;
   font-size: 11px;
   line-height: 1.7;
-  color: #9b4030;
+  color: var(--invalid);
 }
 
 .nl-ledger {
@@ -2473,11 +2473,11 @@
 .nl-toggle {
   padding: 2px 9px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--accent);
   font-family: inherit;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.6;
   cursor: pointer;
 }
@@ -2542,7 +2542,7 @@
   margin-top: 1px;
   padding: 2px 9px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: transparent;
   color: var(--ink-3);
   font-family: inherit;
@@ -2568,7 +2568,7 @@
   width: 100%;
   padding: 7px 9px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink-2);
   font-family: inherit;
@@ -2583,7 +2583,7 @@
   margin: 14px 0 4px;
   padding: 8px 11px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--panel-2);
 }
 
@@ -2595,7 +2595,7 @@
 }
 
 .vw-line {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--ink-2);
   overflow-wrap: break-word;
 }
@@ -2604,7 +2604,7 @@
   flex: none;
   padding: 3px 9px;
   border: 1px solid var(--line-strong);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink-2);
   font-family: inherit;
@@ -2657,7 +2657,7 @@
   height: 16px;
   padding: 0;
   border: 1px solid var(--line-strong);
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--accent);
   font-family: inherit;
@@ -2701,7 +2701,7 @@
 
 .vw-state {
   flex: none;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -2712,7 +2712,7 @@
 .vw-why {
   flex: 1 1 100%;
   padding-left: 25px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.65;
   color: var(--weak);
   overflow-wrap: break-word;
@@ -2722,11 +2722,11 @@
   flex: none;
   padding: 1px 7px;
   border: 1px solid var(--line);
-  border-radius: 3px;
+  border-radius: 8px;
   background: transparent;
   color: var(--ink-3);
   font-family: inherit;
-  font-size: 10.5px;
+  font-size: 11px;
   cursor: pointer;
 }
 
@@ -2746,7 +2746,7 @@
 .vw-act {
   padding: 3px 9px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink-2);
   font-family: inherit;
@@ -2761,7 +2761,7 @@
 
 .vw-saved {
   flex: 1 1 240px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.6;
   color: var(--ink-3);
 }
@@ -2776,7 +2776,7 @@
   margin-left: 6px;
   padding: 0 6px;
   border: 1px solid var(--line-strong);
-  border-radius: 3px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--accent);
   font-family: inherit;
@@ -2800,7 +2800,7 @@
 .repair-form .k {
   display: block;
   margin-bottom: 3px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -2821,7 +2821,7 @@
   border-left: 2px solid var(--accent);
   border-radius: 0 7px 7px 0;
   background: rgba(60, 79, 99, 0.035);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -2838,19 +2838,19 @@
 }
 
 .odg-h b {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--accent);
 }
 
 .odg-where {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
 .odg-why {
   margin-left: auto;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -2858,13 +2858,13 @@
 .odg-jump {
   flex: none;
   font-family: inherit;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 16px;
   padding: 1px 7px;
   color: var(--ink-2);
   background: var(--panel);
   border: 1px solid var(--line-strong);
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
@@ -2895,14 +2895,14 @@
 }
 
 .odg-st-t {
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   color: var(--ink-3);
 }
 
 .odg-st-n {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--accent);
 }
 
@@ -2943,7 +2943,7 @@
   margin-left: auto;
   padding: 0;
   font-family: inherit;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
   background: none;
   border: none;
@@ -2982,7 +2982,7 @@
 }
 
 .pl-gt {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--ink-2);
@@ -2990,12 +2990,12 @@
 
 .pl-gn {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--accent);
 }
 
 .pl-gg {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.55;
   color: var(--ink-3);
 }
@@ -3034,7 +3034,7 @@
 }
 
 .pl-text {
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--ink);
   word-break: break-word;
@@ -3050,7 +3050,7 @@
 
 .pl-why,
 .pl-if {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.55;
   color: var(--ink-2);
   word-break: break-word;
@@ -3074,7 +3074,7 @@
 
 .pl-fine {
   margin: 4px 0 0;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.6;
   color: var(--ink-3);
 }
@@ -3085,7 +3085,7 @@
 .pl-route {
   padding: 6px 9px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel-2);
   font-size: 11px;
   line-height: 1.6;
@@ -3109,7 +3109,7 @@
   border-left: 2px solid var(--accent);
   background: rgba(60, 79, 99, 0.035);
   border-radius: 0 5px 5px 0;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.6;
   color: var(--ink-2);
 }
@@ -3126,8 +3126,8 @@
 .pl-none {
   padding: 7px 10px;
   border: 1px dashed var(--line-strong);
-  border-radius: 5px;
-  font-size: 10.5px;
+  border-radius: 8px;
+  font-size: 11px;
   line-height: 1.6;
   color: var(--ink-2);
 }
@@ -3170,7 +3170,7 @@
 }
 
 .pl-f {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.55;
   color: var(--ink-2);
   word-break: break-word;
@@ -3201,7 +3201,7 @@
 
 .pl-fal-g {
   margin: 0;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.6;
   color: var(--ink-3);
 }
@@ -3211,7 +3211,7 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 8px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.55;
   color: var(--ink-2);
 }
@@ -3239,9 +3239,9 @@
 .pl-gaps {
   padding: 7px 10px;
   border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel-2);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.6;
   color: var(--ink-2);
 }
@@ -3284,7 +3284,7 @@
 
 .pvt-line {
   margin: 0;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -3312,7 +3312,7 @@
   font-size: 10px;
   line-height: 15px;
   padding: 0 5px;
-  border-radius: 3px;
+  border-radius: 8px;
   letter-spacing: 0.04em;
 }
 
@@ -3348,7 +3348,7 @@
 }
 
 .pvt-text {
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--ink);
   word-break: break-word;
@@ -3374,7 +3374,7 @@
 .pvt-sig li {
   position: relative;
   padding-left: 12px;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.6;
   color: var(--ink-2);
   word-break: break-word;
@@ -3403,7 +3403,7 @@
   margin: 0;
   padding: 7px 10px;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel-2);
   font-size: 11px;
   line-height: 1.6;
@@ -3412,14 +3412,14 @@
 
 .pvt-none {
   margin: 0;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--ink-2);
 }
 
 .pvt-fine {
   margin: 0;
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.65;
   color: var(--ink-3);
 }

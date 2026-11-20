@@ -29,7 +29,7 @@
 
 .ft-toggle {
   border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--accent);
   font-size: 11px;
@@ -66,7 +66,7 @@
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--panel);
   color: var(--ink);
   font-family: var(--sans);
@@ -87,7 +87,7 @@
   line-height: 1.7;
   color: var(--ink);
   background: var(--accent-bg);
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 7px 9px;
   margin-top: 9px;
 }
