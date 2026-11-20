@@ -41,7 +41,7 @@
   font-variant-numeric: tabular-nums;
 }
 .usage-chip.warn {
-  border-color: #ddc79a;
+  border-color: transparent;
   background: var(--weak-bg);
   color: var(--weak);
 }
@@ -49,11 +49,11 @@
   background: var(--weak);
 }
 .usage-chip.warn .uc-runs {
-  border-left-color: #e6d6b6;
-  color: #8a6a2c;
+  border-left-color: var(--line-strong);
+  color: var(--weak);
 }
 .usage-chip.bad {
-  border-color: #e0bdb7;
+  border-color: transparent;
   background: var(--invalid-bg);
   color: var(--invalid);
 }
@@ -61,8 +61,8 @@
   background: var(--invalid);
 }
 .usage-chip.bad .uc-runs {
-  border-left-color: #ecd0cb;
-  color: #8a4038;
+  border-left-color: var(--line-strong);
+  color: var(--invalid);
 }
 
 /* 余额告急提示：放在输入框下面，不弹窗不拦截 */
@@ -90,7 +90,7 @@
 .u-low {
   color: var(--weak);
   background: var(--weak-bg);
-  border: 1px solid #e8dcc4;
+  border: 1px solid transparent;
 }
 .u-exhausted:hover,
 .u-low:hover {
@@ -243,7 +243,7 @@
   background: var(--panel-2);
 }
 .u-bar-used {
-  background: #c9c2b4;
+  background: var(--ink-3);
   display: block;
   height: 100%;
 }
@@ -334,7 +334,7 @@
 .u-day-track i {
   display: block;
   width: 100%;
-  background: #cdd7d1;
+  background: var(--edge);
   border-radius: 8px 3px 0 0;
   min-height: 0;
   transition: background 0.14s;

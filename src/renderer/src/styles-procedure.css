@@ -124,7 +124,7 @@
 
 /* 从报告里的「去填立案」跳过来时闪一下：不然人只知道屏幕换了一处，不知道要看哪。 */
 .bf-hit {
-  outline: 2px solid var(--accent, #0066cc);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
@@ -197,7 +197,7 @@
 .bf-chip.on {
   background: var(--ink-2);
   border-color: var(--ink-2);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .bf-chip:disabled {

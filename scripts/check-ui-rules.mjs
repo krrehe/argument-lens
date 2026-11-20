@@ -9,7 +9,11 @@
  *   5. 一块区域只有一个实心主按钮；
  *   6. 密集列表用隔行底色而不是每行拉线；
  *   7. 空状态要有标题与一个真能点的动作；
- *   8. 正文行宽有上限，说明条不再是一整段长文。
+ *   8. 正文行宽有上限，说明条不再是一整段长文；
+ *   9. 主窗口调色板自身逐对过对比度（底 × 前景的笛卡尔积），实心底上的白字另算；
+ *  10. 主窗口样式表里不许出现 :root 之外的色值——颜色只能来自变量；
+ *  11. 区段标题单独一档 17px，与正文分得开；
+ *  12. 次按钮全站只有一种皮（浅灰底、无描边）。
  *
  * 边界（必须说清，否则会被当成它管不了的保证）：
  *  - 它读的是源码里的 CSS 文本与模板字符串，不是浏览器里的实际渲染。
@@ -135,15 +139,100 @@ for (const [k, v] of cEntries) {
   ck(rootVars[varName] === v, `图表调色板 C.${k} 是 ${v}，:root 的 --${varName} 是 ${rootVars[varName] ?? '（缺）'}——两处对不上`);
 }
 
+/* ── 1c. 主窗口调色板的对比度 ─────────────────────────────── */
+/*
+ * 上一轮换色板时算过一遍 56 组，但那是一次性的脚本，没留下。没留下的验算
+ * 等于没有：下一次改一个色值，没有人会重跑它。
+ *
+ * 这里接进 verify：底 × 前景的笛卡尔积，逐对 ≥ 4.5:1。之所以用笛卡尔积
+ * 而不是「实际出现过的组合」，是因为实际组合随时会变（同一个 --ink-3
+ * 今天在白卡上，明天就可能被挪到浅灰条上），而漏掉的那一对不会有任何提示。
+ */
+const RFG = ['ink', 'ink-2', 'ink-3', 'strong', 'weak', 'invalid', 'legal', 'accent'];
+const RBG = ['bg', 'panel', 'panel-2', 'muted-bg', 'muted-bg-2', 'strong-bg', 'weak-bg', 'invalid-bg', 'legal-bg', 'accent-bg'];
+const missingVars = [...RFG, ...RBG, 'on-solid'].filter((k) => !rootVars[k]);
+ck(missingVars.length === 0, `styles.css 的 :root 缺 ${missingVars.join('、')}，主窗口的对比度没法算`);
+if (missingVars.length === 0) {
+  const fails = [];
+  for (const f of RFG) {
+    for (const b of RBG) {
+      const r = ratio(rootVars[f], rootVars[b]);
+      if (r < 4.5) fails.push(`--${f} 落在 --${b} 上只有 ${r.toFixed(2)}:1`);
+    }
+  }
+  ck(fails.length === 0, `主窗口有 ${fails.length} 组文字低于 4.5:1：${fails.slice(0, 3).join('；')}`);
+
+  /* 实心底上的白字：主按钮、状态点、深色块。它们不在上面的笛卡尔积里，
+     因为 --on-solid 不是「一种底色」，是「实心上的字」。 */
+  const solids = ['accent', 'accent-press', 'strong', 'weak', 'invalid', 'legal', 'ink', 'ink-3'];
+  const onFails = solids.filter((k) => ratio(rootVars['on-solid'], rootVars[k]) < 4.5);
+  ck(onFails.length === 0, `--on-solid 落在 ${onFails.join('、')} 上低于 4.5:1`);
+}
+
+/*
+ * 从样式表里取一条规则体。不用正则拼选择器：选择器里有 . { } 这些字符，
+ * 一层层转义之后写出来的东西，比它要解决的问题更难读。
+ */
+const cssRule = (src, sel) => {
+  const at = src.indexOf(sel + ' {');
+  if (at < 0) return '';
+  const end = src.indexOf('}', at);
+  return end < 0 ? '' : src.slice(at + sel.length + 2, end);
+};
+/* ── 1d. 调色板外不许有 hex ───────────────────────────────── */
+/*
+ * 上一轮按十六进制字面值批量换色，漏掉的那批不会红：它们不在 :root 里，
+ * 所以不进对比度验算；不在图表 C 表里，所以不进对表。于是 22 个旧世代的
+ * 蓝灰与土黄留在九个样式表里，每次渲染都在用——边框比别处淡一点、标签底
+ * 比别处暖一点。说不出哪里不对，但整屏就是「不齐」。
+ *
+ * 这条把后门关上：主窗口的样式表里，颜色只能来自变量。白也是颜色，
+ * 所以它有名字（--on-solid）。注释不算——注释里的色值是对历史的记录。
+ */
+const stripCssComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '');
+const reactBare = stripCssComments(reactCss).replace(/:root\s*\{[^}]*\}/g, '');
+const strayHex = [...reactBare.matchAll(/#[0-9a-fA-F]{3,8}(?![0-9a-fA-F])/g)].map((m) => m[0]);
+ck(
+  strayHex.length === 0,
+  `主窗口样式表里有 ${strayHex.length} 处调色板外的色值（${[...new Set(strayHex)].slice(0, 4).join('、')}）：颜色只能来自 :root 的变量`,
+);
+
+/* ── 1e. 区段标题单独一档 ─────────────────────────────────── */
+/*
+ * 报告里二十来个区段原来与正文同为 13px，只差一个字重。字重已经用到 600，
+ * 再往上就是黑体；层级只剩字号这一条路。17px 是苹果阶梯里的 title3——
+ * 这一档不是新增的花样，是把 11/12/13/15/17/22 里缺的那一格补回来。
+ */
+const blockTitleRule = cssRule(reactCss, '.block-head .t');
+ck(blockTitleRule.length > 0, '找不到 .block-head .t 这条规则，区段标题的字号无从核对');
+ck(/font-size:\s*17px/.test(blockTitleRule), '区段标题不是 17px：与正文同号时，报告会读成一片，找不到「这一栏从哪开始」');
+
+/* ── 1f. 次按钮只有一种皮 ─────────────────────────────────── */
+/*
+ * 导出、重读入口、浅灰按钮是同一类东西：都排在内容前面，都不是主按钮。
+ * 原来它们各写一套（白底描边 / 浅底描边 / 浅灰无描边），一屏里七个按钮
+ * 三种长相，读者会以为权重不同。这条规则要求它们共用一套皮：
+ * 浅灰底、无描边——描边是这一页里最容易被滥用的分隔手段。
+ */
+for (const sel of ['.ghost-btn', '.exp-btn', '.rr-open']) {
+  const r = cssRule(reactCss, sel);
+  ck(r.length > 0, `找不到次按钮 ${sel} 的规则`);
+  if (!r) continue;
+  ck(/background:\s*var\(--muted-bg\)/.test(r), `${sel} 不是浅灰底：次按钮全站只用一种皮`);
+  ck(!/border:\s*1px solid/.test(r), `${sel} 又描边了：一屏七个描边小方框就是这样攒出来的`);
+}
+
 /* ── 2. 字号阶梯 ───────────────────────────────────────────── */
 /*
- * 六档：10（等宽元数据）/ 11（辅助）/ 12（次级正文）/ 13（正文）/ 15（区段标题）/ 22（页标题）。
+ * 七档：10（等宽元数据）/ 11（辅助）/ 12（次级正文）/ 13（正文）/ 15（卡标题）
+ *      / 17（区段标题）/ 22（页标题）。
  * 原来写的是四档 10/11/12/22，装不下 13 与 11 的区分，于是源码里长出
  * 10.5 / 11.5 / 12.5 / 13.5 这些半像素台阶——四个档位守不住，就会变成二十个。
- * 六档是苹果系统 App 的实际阶梯（11/12/13/15/17/22，去掉 17），不是随手放宽。
+ * 17 是后来补的：先说「去掉 17 也够」，直到区段标题与正文同为 13px、
+ * 整份报告读成一片，才发现缺的不是四个半像素台阶，是这一格。
  */
 const sizes = [...new Set([...both.matchAll(/font-size:\s*([0-9.]+)px/g)].map((m) => Number(m[1])))].sort((a, b) => a - b);
-const ALLOWED_SIZE = [10, 11, 12, 13, 15, 22];
+const ALLOWED_SIZE = [10, 11, 12, 13, 15, 17, 22];
 const extraSize = sizes.filter((s) => !ALLOWED_SIZE.includes(s));
 ck(extraSize.length === 0, `字号多出 ${extraSize.join('、')}px：只留 ${ALLOWED_SIZE.join(' / ')} 六档（层级靠字重与颜色，不靠字号）`);
 ck(Math.min(...sizes) >= 10, `最小的字是 ${Math.min(...sizes)}px，10px 以下在 1x 屏上读不清`);
@@ -227,4 +316,4 @@ if (bad.length) {
   console.error(`\n✗ 界面规则 ${bad.length}/${n} 项不合格`);
   process.exit(1);
 }
-console.log(`✓ 界面规则：对比度、字号、圆角、状态形状、主按钮、隔行底色、空状态、行宽 ${n} 项`);
+console.log(`✓ 界面规则：对比度、调色板、字号、圆角、状态形状、主按钮、次按钮、隔行底色、空状态、行宽 ${n} 项`);

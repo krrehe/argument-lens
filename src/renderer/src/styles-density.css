@@ -54,7 +54,7 @@
 
 .db-btn.db-on {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .db-btn:hover:not(.db-on) {

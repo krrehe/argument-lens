@@ -36,6 +36,15 @@
   --accent: #0066cc;
   --accent-bg: #ecf4ff;
   --muted-bg: #f2f2f5;
+  /* 悬停时再深一档的灰。比 --muted-bg 只深一点，但全调色板的前景色
+     落在它上面都还在 4.5:1 之上（最强的绿 4.54:1，最险的一对）。 */
+  --muted-bg-2: #ececef;
+  /* 实心底上的字。白不是「一种颜色」，是没有颜色——所以它也得有个名字，
+     否则下一次扫色板时它又会被当成漏网的硬编码。 */
+  --on-solid: #ffffff;
+  /* 主按钮的按下与禁用：--accent 的两个明度台阶，不是两种新颜色。 */
+  --accent-press: #0058b0;
+  --accent-off: #c7c7cc;
 
   /* 发丝线与两层投影：卡片靠它们浮起来，而不是靠描边。 */
   --hair: rgba(0, 0, 0, 0.07);
@@ -211,7 +220,7 @@ select {
   transition: background 0.14s ease, color 0.14s ease;
 }
 .ghost-btn:hover {
-  background: #e8e8ed;
+  background: var(--muted-bg-2);
   color: var(--ink);
 }
 .ghost-btn:disabled {
@@ -268,9 +277,13 @@ select {
   border-color: var(--line-strong);
 }
 .lens-chip.on {
+  /*
+   * 原来是描边 + inset 描边 + 蓝底，三重强调堆在同一张卡上，选中状态像报警。
+   * 现在只留一条 1px 蓝边与一层浅投影：卡片浮起来，字变蓝，够读了。
+   */
   border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
-  background: var(--accent-bg);
+  box-shadow: 0 2px 10px rgba(0, 102, 204, 0.14);
+  background: var(--panel);
 }
 .lens-chip .n {
   font-size: 13px;
@@ -388,20 +401,20 @@ select {
   padding: 8px 18px;
   border-radius: 8px;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-solid);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.01em;
   transition: background 0.16s ease, transform 0.06s ease;
 }
 .primary:hover {
-  background: #0058b0;
+  background: var(--accent-press);
 }
 .primary:active {
   transform: scale(0.98);
 }
 .primary:disabled {
-  background: #c7c7cc;
+  background: var(--accent-off);
   cursor: not-allowed;
   transform: none;
 }
@@ -667,7 +680,7 @@ select {
 .start-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-solid);
   font-weight: 600;
 }
 .start-primary:hover {
@@ -1044,18 +1057,23 @@ select {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 11px 16px;
+  padding: 13px 18px 11px;
   border-bottom: 1px solid var(--hair);
   background: var(--panel-2);
 }
 .block-head .t {
   /* 栏名是这一栏的坐标，断成两行就认不出来了（窄窗口里「四句话看懂这份报 / 告」
-     真的发生过）。宁可让副标题去让位，也不让标题折行。 */
+     真的发生过）。宁可让副标题去让位，也不让标题折行。
+
+     17px 是这一轮补上的第五档（苹果阶梯 11/12/13/15/17/22 里的 title3）。
+     此前栏名与正文同为 13px，只差一个字重——整份报告读下来，二十来个区段
+     标题和正文糊成一片，读者找不着「这一栏从哪开始」。字重已经用满（600），
+     再往上就是黑体；层级只剩下字号这一条路。 */
   flex: 0 0 auto;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
 }
 .block-head .s {
   flex: 1 1 auto;
@@ -1065,7 +1083,7 @@ select {
   font-family: var(--mono);
 }
 .block-body {
-  padding: 13px 15px;
+  padding: 15px 18px 16px;
 }
 
 .banner {
@@ -1080,18 +1098,18 @@ select {
 }
 .banner.warn {
   background: var(--weak-bg);
-  border-color: #e6d7b8;
+  border-color: transparent;
   color: var(--weak);
 }
 .banner.bad {
   background: var(--invalid-bg);
-  border-color: #e7c8c2;
-  color: #7d332a;
+  border-color: transparent;
+  color: var(--invalid);
 }
 .banner.info {
   background: var(--accent-bg);
-  border-color: var(--line-strong);
-  color: #33465b;
+  border-color: transparent;
+  color: var(--ink-2);
 }
 .banner b {
   display: block;
@@ -1213,7 +1231,7 @@ select {
 }
 .passage mark.sel {
   background: var(--weak-bg);
-  border-bottom-color: #b8892c;
+  border-bottom-color: var(--weak);
 }
 
 /* ─────────── 原文核对：原文满宽，清单在下面铺成网格 ─────────── */
@@ -2005,7 +2023,7 @@ pre.code {
   gap: 8px;
   padding: 12px 14px;
   background: var(--accent-bg);
-  border: 1px solid #d8e0e8;
+  border: 1px solid var(--line);
   border-radius: 8px;
   font-size: 13px;
   line-height: 1.72;
@@ -2019,7 +2037,7 @@ pre.code {
   font-size: 12px;
   color: var(--ink-3);
   padding-top: 6px;
-  border-top: 1px dashed #cfdae4;
+  border-top: 1px solid var(--hair);
 }
 
 .presets {
@@ -2138,7 +2156,7 @@ pre.code {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--on-solid);
   transition: transform 0.15s;
 }
 .plain-toggle.on {
@@ -2155,25 +2173,33 @@ pre.code {
 
 /* ═══════ 每一栏顶上那句人话 ═══════ */
 
+/*
+ * 「人话」条。
+ *
+ * 上一版是灰蓝底 + 灰蓝实心小方块的标签——那是上一代色板的遗留（#f2f6f8 /
+ * #93a7b5 这两个值在苹果色板里根本不存在）。一块彩色底加一个彩色标签，
+ * 说的是「这里有个提醒」；而这条其实只是区段标题的注解，语气应当更轻。
+ *
+ * 现在：白底、字用二级灰、标签退成一列小字加一条竖发丝线。整条只有一条
+ * 下边线，与上面标题栏的线组成一对，读起来是「标题 / 副题」，而不是「告警」。
+ */
 .block-plain {
   margin: 0;
-  padding: 8px 15px 9px;
+  padding: 9px 18px 10px;
   font-size: 12px;
-  line-height: 1.65;
-  color: #3f4c58;
-  background: #f2f6f8;
-  border-bottom: 1px solid #e3ebf0;
+  line-height: 1.68;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--hair);
 }
 .block-plain::before {
   content: '人话';
   display: inline-block;
   font-size: 10px;
-  letter-spacing: 0.1em;
-  color: #fff;
-  background: #93a7b5;
-  border-radius: 8px;
-  padding: 0 4px;
-  margin-right: 7px;
+  letter-spacing: 0.2em;
+  color: var(--ink-3);
+  padding-right: 9px;
+  margin-right: 9px;
+  border-right: 1px solid var(--line-strong);
   vertical-align: 1px;
 }
 
@@ -2208,11 +2234,17 @@ pre.code {
 /* ═══════ 开头四句话 ═══════ */
 
 .quick {
+  /*
+   * 这张卡原来是「1px 灰边 + 3px 蓝左边条」。左边条是模板网站的手笔：
+   * 它想说的是「这张卡重要」，但一张卡重不重要，读者看标题与位置就知道，
+   * 不需要一条 3px 的色带来提醒。去掉之后卡片反而浮起来了——它靠投影与
+   * 15px 的标题立住，不靠一条边。
+   */
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-  border-radius: 8px;
-  margin-bottom: 14px;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  box-shadow: var(--shadow-1);
+  margin-bottom: 18px;
   overflow: hidden;
 }
 .quick-head {
@@ -2223,7 +2255,7 @@ pre.code {
   border-bottom: 1px dashed var(--line);
 }
 .qh-title {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.03em;
 }
@@ -2304,12 +2336,19 @@ pre.code {
   color: var(--ink-3);
 }
 .qn-chip {
+  /*
+   * 十二个药丸排成一行，像一排按钮，其实是目录。
+   * 不能真的做成「没有边、只有字」：试过，十二个词连读成一句话，眼睛找不到切分处。
+   * 所以留边，但把边从 --line-strong 换成发丝线 --line，字退到三级灰——
+   * 一堆浅灰的小圆角框读起来是目录，一堆深灰描边读起来是一排开关。
+   */
   font-size: 12px;
-  padding: 2px 9px;
-  border: 1px solid var(--line-strong);
+  padding: 3px 9px;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  color: var(--ink-2);
-  background: var(--panel);
+  color: var(--ink-3);
+  background: transparent;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .qn-chip:hover {
   border-color: var(--accent);
@@ -3302,7 +3341,7 @@ pre.code {
   justify-content: center;
   font-size: 10px;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-solid);
   background: var(--ink-3);
 }
 .strip-item.passed .si-icon {
@@ -3354,7 +3393,7 @@ pre.code {
 }
 
 table.grid tr.hit td {
-  background: #f0f4f7;
+  background: var(--accent-bg);
 }
 
 /* ═══════ 术语表弹窗 ═══════ */
@@ -3774,18 +3813,24 @@ table.grid > caption.grid-note {
 }
 
 .exp-btn {
+  /*
+   * 次按钮全站只有一种皮：浅灰底、无描边、深灰字（.ghost-btn 那一套）。
+   * 这一条原来是白底 + 一圈 --line-strong，与 .rr-open、.exp-act 各写一套，
+   * 于是同一屏里七个按钮三种长相，读者会以为它们权重不同——而它们其实同级。
+   */
   font: inherit;
   font-size: 13px;
-  padding: 5px 12px;
-  border: 1px solid var(--line-strong);
+  padding: 6px 12px;
+  border: none;
   border-radius: 8px;
-  background: var(--panel);
-  color: var(--ink);
+  background: var(--muted-bg);
+  color: var(--ink-2);
   cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 .exp-btn:hover:not(:disabled) {
-  border-color: var(--ink-3);
-  background: var(--panel-2);
+  background: var(--muted-bg-2);
+  color: var(--ink);
 }
 .exp-btn:disabled {
   color: var(--ink-3);
@@ -3823,8 +3868,8 @@ table.grid > caption.grid-note {
   line-height: 18px;
   padding: 1px 8px;
   color: var(--accent);
-  background: var(--panel-2);
-  border: 1px solid var(--line-strong);
+  background: transparent;
+  border: none;
   border-radius: 8px;
   cursor: pointer;
 }

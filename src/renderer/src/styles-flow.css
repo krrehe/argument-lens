@@ -33,7 +33,7 @@
  * 会怀疑自己点没点中——上一份报告的距离感正好把「到了」抵掉。
  */
 .sg-bar.sg-hit {
-  outline: 2px solid var(--accent, #0066cc);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
@@ -403,7 +403,7 @@
 .obj-save {
   background: var(--accent);
   border: 1px solid var(--accent);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 /* ─────────── 修订对照 ─────────── */
@@ -679,7 +679,7 @@
 .mode-chip.on {
   background: var(--ink-2);
   border-color: var(--ink-2);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .mode-chip:disabled {
@@ -1000,12 +1000,12 @@
   font-size: 12px;
   color: var(--weak);
   background: var(--panel);
-  border: 1px solid #d8c48a;
+  border: 1px solid var(--line-strong);
   border-radius: 8px;
 }
 
 .cap-use:hover {
-  border-color: #b89b4a;
+  border-color: var(--weak);
   background: var(--weak-bg);
 }
 
@@ -1052,7 +1052,7 @@
   padding: 0 5px;
   border-radius: 8px;
   background: var(--invalid);
-  color: #fff;
+  color: var(--on-solid);
 }
 
 .strip-dies {
@@ -1729,18 +1729,21 @@
 }
 
 .rr-open {
+  /* 与 .ghost-btn / .exp-btn 同一套次按钮皮：浅灰底、无描边。 */
   flex: 0 0 auto;
   padding: 6px 12px;
-  border: 1px solid var(--line-strong);
+  border: none;
   border-radius: 8px;
-  background: var(--panel-2);
-  color: var(--ink);
+  background: var(--muted-bg);
+  color: var(--ink-2);
   font-size: 12px;
   cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
 .rr-open:hover {
-  background: var(--accent-bg);
+  background: var(--muted-bg-2);
+  color: var(--ink);
 }
 
 .rr-bar-why {
@@ -2438,7 +2441,7 @@
   border: 1px solid var(--accent);
   border-radius: 8px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-solid);
   font-family: inherit;
   font-size: 12px;
   line-height: 1.6;

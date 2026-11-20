@@ -94,17 +94,17 @@
 .tbl-tf.on.tb-a {
   color: var(--strong);
   background: var(--strong-bg);
-  border-color: #b9d2c6;
+  border-color: transparent;
 }
 .tbl-tf.on.tb-b {
   color: var(--weak);
   background: var(--weak-bg);
-  border-color: #e2cfa6;
+  border-color: transparent;
 }
 .tbl-tf.on.tb-c {
   color: var(--accent);
   background: var(--accent-bg);
-  border-color: #c3cfdc;
+  border-color: transparent;
 }
 .tbl-clear {
   height: 26px;
@@ -293,17 +293,17 @@
 .tb-tier.tb-a {
   color: var(--strong);
   background: var(--strong-bg);
-  border-color: #c6dbd0;
+  border-color: transparent;
 }
 .tb-tier.tb-b {
   color: var(--weak);
   background: var(--weak-bg);
-  border-color: #e6d5ae;
+  border-color: transparent;
 }
 .tb-tier.tb-c {
   color: var(--accent);
   background: var(--accent-bg);
-  border-color: #c9d5e0;
+  border-color: transparent;
 }
 
 /* 「它让本工具做了什么」——每条都有，不许缺。
@@ -564,7 +564,7 @@
 .tbl-foot-dim {
   display: block;
   margin-top: 2px;
-  color: #a9a294;
+  color: var(--ink-3);
 }
 .tbl-foot code {
   font-family: var(--mono);
