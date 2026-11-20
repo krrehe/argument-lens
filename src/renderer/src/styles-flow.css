@@ -287,7 +287,7 @@
   gap: 7px;
   margin-top: 8px;
   padding: 5px 8px 5px 9px;
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   border-radius: 0 5px 5px 0;
   background: rgba(60, 79, 99, 0.045);
   font-size: 12px;
@@ -416,7 +416,7 @@
 
 .rv-bar {
   border: 1px solid var(--line);
-  border-left: 3px solid var(--ink-3);
+  border-left: 2px solid var(--ink-3);
   border-radius: 0 8px 8px 0;
   background: var(--panel);
   margin-bottom: 12px;
@@ -853,7 +853,7 @@
   gap: 8px;
   margin: 2px 0 8px;
   padding: 6px 9px;
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   border-radius: 0 5px 5px 0;
   background: rgba(60, 79, 99, 0.05);
   flex-wrap: wrap;
@@ -936,7 +936,7 @@
 }
 
 .cap-bar.note {
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   border-radius: 0 5px 5px 0;
   background: rgba(60, 79, 99, 0.05);
 }
@@ -1031,7 +1031,7 @@
 
 /* 元问题：答否则后续免除，所以它是闸门，不是并列的一关 */
 .strip-item.meta {
-  border-left: 3px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   padding-left: 5px;
 }
 
@@ -1088,7 +1088,7 @@
   gap: 6px;
 }
 .tp-row.tp-hit {
-  border-left: 3px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   background: var(--accent-bg);
 }
 .tp-row.tp-miss {
@@ -1246,7 +1246,7 @@
 .ac-genre {
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   border-radius: 8px;
   background: var(--accent-bg);
 }
@@ -1484,7 +1484,7 @@
   background: var(--panel-2);
 }
 .ac-atk-high {
-  border-left: 3px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
 }
 .ac-atk-low {
   opacity: 0.82;
@@ -1820,7 +1820,7 @@
  */
 .rr-s {
   padding: 10px 12px 12px;
-  border-left: 3px solid var(--line-strong);
+  border-left: 2px solid var(--line-strong);
   border-radius: 0 6px 6px 0;
   background: rgba(60, 79, 99, 0.03);
 }
@@ -1877,7 +1877,7 @@
   flex: 1 1 280px;
   max-width: 480px;
   padding: 7px 9px;
-  border-left: 3px solid var(--line-strong);
+  border-left: 2px solid var(--line-strong);
   border-radius: 0 4px 4px 0;
   background: var(--panel-2);
 }
@@ -2081,7 +2081,7 @@
 
 .rs-s {
   padding: 10px 12px 12px;
-  border-left: 3px solid var(--line-strong);
+  border-left: 2px solid var(--line-strong);
   border-radius: 0 6px 6px 0;
   background: rgba(60, 79, 99, 0.03);
 }
@@ -2177,7 +2177,7 @@
 .cl-item {
   padding: 10px 12px 12px;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--line-strong);
+  border-left: 2px solid var(--line-strong);
   border-radius: 0 6px 6px 0;
   background: var(--panel-2);
 }
@@ -2795,7 +2795,7 @@
 .repair-form {
   margin-top: 6px;
   padding: 8px 10px;
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   border-radius: 0 4px 4px 0;
   background: var(--accent-bg);
 }
@@ -2821,7 +2821,7 @@
 .odg {
   margin: 0 0 14px;
   border: 1px solid var(--line);
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   border-radius: 0 7px 7px 0;
   background: rgba(60, 79, 99, 0.035);
   font-size: 12px;
@@ -3109,7 +3109,7 @@
 .pl-d2 {
   margin: 6px 0 0;
   padding: 7px 10px;
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   background: rgba(60, 79, 99, 0.035);
   border-radius: 0 5px 5px 0;
   font-size: 11px;
@@ -3277,7 +3277,7 @@
 .pvt-head {
   margin: 0;
   padding: 8px 11px;
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   background: var(--accent-bg);
   border-radius: 0 6px 6px 0;
   font-size: 13px;

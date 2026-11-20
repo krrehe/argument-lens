@@ -13,7 +13,10 @@
  *   9. 主窗口调色板自身逐对过对比度（底 × 前景的笛卡尔积），实心底上的白字另算；
  *  10. 主窗口样式表里不许出现 :root 之外的色值——颜色只能来自变量；
  *  11. 区段标题单独一档 17px，与正文分得开；
- *  12. 次按钮全站只有一种皮（浅灰底、无描边）。
+ *  12. 次按钮全站只有一种皮（浅灰底、无描边）；
+ *  13. 状态底色只有一种中性灰——语义交给字色与形状，不靠一块块彩色底；
+ *  14. 首屏高频标签不许带底色与圆角框（目录是「一行字」，不是一排药丸）；
+ *  15. 彩色 3px 左边条清零，整条横幅不许铺底。
  *
  * 边界（必须说清，否则会被当成它管不了的保证）：
  *  - 它读的是源码里的 CSS 文本与模板字符串，不是浏览器里的实际渲染。
@@ -307,6 +310,75 @@ if (guide) {
   ck(/<br\s*\/?>/.test(guide[1]), '说明条没有断行，还是一整段铺到底');
 }
 
+/* ── 1g. 状态底色只有一种中性灰 ─────────────────────────────── */
+/*
+ * 上一轮把 22 个孤儿色并进调色板，但没管「一屏同时出现几种底色」：
+ * 淡黄「部分适用」、淡红「支柱立即整改」、淡蓝「默认裁决」、淡绿勾、
+ * 加上几十个灰蓝小徽章——每一块都在说「看我」，于是谁都不重要。
+ *
+ * 这一轮的判断是：状态语义已经在文字里（「D2 支持不足」「没过」「修补」），
+ * 底色只是把同一句话说第二遍。所以四个状态底色收敛成同一个中性灰，
+ * 字色与形状继续承担区分。这条把「不许再退回彩色块」钉死。
+ */
+const STATE_BG = ['strong-bg', 'weak-bg', 'invalid-bg', 'legal-bg'];
+const neutral = (hex) => {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return Math.max(...c) - Math.min(...c) <= 3;
+};
+const stateBgFails = STATE_BG.filter((k) => !rootVars[k] || !neutral(rootVars[k]));
+ck(stateBgFails.length === 0,
+  `状态底色 ${stateBgFails.join('、')} 不是中性灰：一屏回到四种彩色块，减法白做了`);
+ck(STATE_BG.every((k) => rootVars[k] === rootVars['muted-bg']),
+  '四个状态底色不都等于 --muted-bg：状态不该靠底色分家，要靠字色');
+
+/* ── 1h. 彩色 3px 左边条清零 ───────────────────────────────── */
+/*
+ * 3px 彩色竖条是上一代最典型的装饰：每一条注释、每一个提示、每一行
+ * 状态都来一条，一屏几十条竖线。收成 2px 之后颜色还在（语义锚点），
+ * 但不再把版面切成一条条彩带。蓝色那批更狠：直接换成中性发丝线。
+ */
+const thickLeft = [...reactCss.matchAll(/border-left:\s*3px/g)].length;
+ck(thickLeft === 0, `主窗口还有 ${thickLeft} 处 3px 左边条：满屏彩色竖带又回来了`);
+const blueLeft = [...reactCss.matchAll(/border-left:\s*[23]px\s+solid\s+var\(--accent\)/g)].length;
+ck(blueLeft === 0, `还有 ${blueLeft} 处蓝色实线左边条：那是模板网站的强调手法`);
+
+/* ── 1i. 首屏高频标签不许带底色与圆角框 ────────────────────── */
+/*
+ * 四句话卡右端、判断数、跳转目录、流程账行末，原来各自写一套
+ * 「圆角 + 浅底 + 描边」的小标签。一屏几十个圆角小方块，就是 chip soup。
+ * 现在它们统一成纯文字（下划线表示可点），切分靠 1px 竖发丝线。
+ * 这条只钉四个代表，不逐个枚举——如果被绕开，反证会红。
+ */
+const LIGHT_TAGS = [
+  ['src/renderer/src/styles.css', '.qx', '四句话卡右端徽章'],
+  ['src/renderer/src/styles.css', '.qn-chip', '跳转目录'],
+  ['src/renderer/src/styles-source.css', '.src-tag', '判断数徽章'],
+  ['src/renderer/src/styles-procedure.css', '.wf-go', '流程账行末链接'],
+];
+for (const [file, sel, why] of LIGHT_TAGS) {
+  const src = readFileSync(path.join(ROOT, file), 'utf8');
+  const r = cssRule(src, sel);
+  ck(r.length > 0, `找不到 ${sel} 这条规则（${why}）`);
+  if (!r) continue;
+  ck(!/background:\s*var\(--(?:strong|weak|invalid|legal|accent|muted)-bg\)/.test(r),
+    `${sel} 又铺上状态底色了：${why} 只能是文字`);
+  ck(!/border-radius:\s*(?:8px|999px)/.test(r),
+    `${sel} 又变成圆角药丸了：${why} 不该是一排小方块`);
+}
+
+/* ── 1j. 整条横幅不许铺底 ─────────────────────────────────── */
+const BANNERS = [
+  ['src/renderer/src/styles-procedure.css', '.wf-breach', '流程账缺口横幅'],
+  ['src/renderer/src/styles-procedure.css', '.wf-closure', '流程账收口横幅'],
+];
+for (const [file, sel, why] of BANNERS) {
+  const r = cssRule(readFileSync(path.join(ROOT, file), 'utf8'), sel);
+  ck(r.length > 0, `找不到 ${sel}（${why}）`);
+  if (!r) continue;
+  ck(!/background:\s*var\(--(?:strong|weak|invalid|legal|accent)-bg\)/.test(r),
+    `${sel} 又整条铺彩色底了：${why} 用红字与左边细线就够`);
+}
+
 /* ── 9. 状态栏不许铺满强调色 ───────────────────────────────── */
 const st = need('.status', '状态栏');
 ck(!/background:var\(--accentbg\)/.test(st), '状态栏又整条铺强调色了：屏幕最大的一块颜色不该是最不重要的一行');
@@ -316,4 +388,4 @@ if (bad.length) {
   console.error(`\n✗ 界面规则 ${bad.length}/${n} 项不合格`);
   process.exit(1);
 }
-console.log(`✓ 界面规则：对比度、调色板、字号、圆角、状态形状、主按钮、次按钮、隔行底色、空状态、行宽 ${n} 项`);
+console.log(`✓ 界面规则：对比度、调色板、字号、圆角、状态形状、主按钮、次按钮、隔行底色、空状态、行宽、降噪 ${n} 项`);

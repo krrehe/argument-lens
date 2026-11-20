@@ -6,7 +6,7 @@
  */
 .ft-bar {
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   border-radius: 8px;
   background: var(--panel-2);
   padding: 11px 13px;

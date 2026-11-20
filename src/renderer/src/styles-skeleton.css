@@ -36,7 +36,7 @@
  * 六条缺口同时出现时，满屏色块反而看不清哪句是哪句的。
  */
 .sk-gap {
-  border-left: 3px solid var(--weak);
+  border-left: 2px solid var(--weak);
   padding: 2px 0 2px 10px;
   display: flex;
   flex-direction: column;

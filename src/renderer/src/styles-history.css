@@ -212,16 +212,16 @@
  * 档位是归一化后的四档，与正文里的刻度条同一套颜色，不另发明一套。
  */
 .hs-row.lv-withstands {
-  border-left: 3px solid var(--strong);
+  border-left: 2px solid var(--strong);
 }
 .hs-row.lv-weakened {
-  border-left: 3px solid var(--weak);
+  border-left: 2px solid var(--weak);
 }
 .hs-row.lv-fails {
-  border-left: 3px solid var(--invalid);
+  border-left: 2px solid var(--invalid);
 }
 .hs-row.lv-undetermined {
-  border-left: 3px solid var(--line-strong);
+  border-left: 2px solid var(--line-strong);
 }
 
 .hs-main {

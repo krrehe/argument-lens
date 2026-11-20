@@ -6,7 +6,7 @@
 
 .cv-bar {
   border: 1px solid var(--line);
-  border-left: 3px solid var(--strong);
+  border-left: 2px solid var(--strong);
   border-radius: 8px;
   background: var(--panel-2);
   padding: 10px 13px;

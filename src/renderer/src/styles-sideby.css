@@ -83,10 +83,10 @@
 }
 /* 甲乙两色只用来区分「这是哪一份」，不表示任何好坏 */
 .sb-card.side-a {
-  border-left: 3px solid var(--ink-3);
+  border-left: 2px solid var(--ink-3);
 }
 .sb-card.side-b {
-  border-left: 3px solid var(--ink-2);
+  border-left: 2px solid var(--ink-2);
 }
 .sb-cardh {
   display: flex;
@@ -159,7 +159,7 @@
 .sb-warn {
   margin: 0;
   padding: 8px 10px;
-  border-left: 3px solid var(--weak);
+  border-left: 2px solid var(--weak);
   background: var(--weak-bg);
   color: var(--weak);
   font-size: 12px;
@@ -239,7 +239,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-  border-left: 3px solid var(--line);
+  border-left: 2px solid var(--line);
   padding: 5px 0 6px 9px;
 }
 .sb-row.k-changed {

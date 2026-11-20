@@ -26,13 +26,13 @@
   --edge: #a1a1a6;
 
   --strong: #1d7a45;
-  --strong-bg: #e6f5ec;
+  --strong-bg: #f2f2f5;
   --weak: #8a5300;
-  --weak-bg: #fdf3e0;
+  --weak-bg: #f2f2f5;
   --invalid: #c0271d;
-  --invalid-bg: #fdecea;
+  --invalid-bg: #f2f2f5;
   --legal: #16694a;
-  --legal-bg: #e6f4ee;
+  --legal-bg: #f2f2f5;
   --accent: #0066cc;
   --accent-bg: #ecf4ff;
   --muted-bg: #f2f2f5;
@@ -267,14 +267,20 @@ select {
   min-height: 62px;
   flex: 0 0 168px;
   padding: 7px 11px;
-  border: 1px solid var(--line);
+  /*
+   * 六张卡原来一人一圈 1px 灰描边，横排就是六条竖线加上下两条长线——
+   * 顶栏最密的一处网格。苹果的分组控件靠底色差与留白分块，不靠描边。
+   * 这里常态只给一层几乎看不出的浅灰底（border 留 1px 透明，避免选中时
+   * 卡片宽度跳 1px），选中态才把边染蓝：焦点只有一个，看清落在哪张卡上。
+   */
+  border: 1px solid transparent;
   border-radius: 8px;
-  background: var(--panel);
+  background: var(--panel-2);
   text-align: left;
-  transition: border-color 0.12s, box-shadow 0.12s;
+  transition: border-color 0.12s, box-shadow 0.12s, background 0.12s;
 }
 .lens-chip:hover {
-  border-color: var(--line-strong);
+  background: var(--muted-bg);
 }
 .lens-chip.on {
   /*
@@ -1298,16 +1304,16 @@ select {
   border-style: dashed;
 }
 .pv-chip.c-exact {
-  border-left: 3px solid var(--strong);
+  border-left: 2px solid var(--strong);
 }
 .pv-chip.c-normalized {
-  border-left: 3px solid var(--weak);
+  border-left: 2px solid var(--weak);
 }
 .pv-chip.c-fuzzy {
-  border-left: 3px dashed var(--weak);
+  border-left: 2px dashed var(--weak);
 }
 .pv-chip.c-failed {
-  border-left: 3px solid var(--invalid);
+  border-left: 2px solid var(--invalid);
 }
 .pv-stat {
   font-size: 11px;
@@ -1619,7 +1625,7 @@ table.grid td.basis {
 /* 命名候选 */
 .cand {
   border: 1px solid var(--line);
-  border-left: 3px solid var(--weak);
+  border-left: 2px solid var(--weak);
   border-radius: 0 6px 6px 0;
   padding: 10px 12px;
   margin-bottom: 10px;
@@ -1771,7 +1777,7 @@ table.grid td.basis {
   line-height: 1.75;
   padding: 9px 11px;
   background: var(--panel-2);
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   border-radius: 0 5px 5px 0;
   margin: 7px 0;
 }
@@ -2302,24 +2308,25 @@ pre.code {
   overflow: hidden;
 }
 .qx {
+  /*
+   * 四句话卡右端原来是一排圆角小色块：灰底、绿底、黄底、红底各一格，
+   * 四行摞起来像四枚贴纸。语义其实全在文字里（「他摆了 3 条依据」
+   * 「CQ4 · 没过」「D2 支持不足」「修补」）——底色只是重复说了一遍。
+   * 现在只留字色：看得懂，也不再把一行切成三个色块。
+   */
   font-size: 11px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--muted-bg);
-  color: var(--ink-2);
+  padding: 0;
+  color: var(--ink-3);
   font-family: var(--mono);
   white-space: nowrap;
 }
 .qx.ok {
-  background: var(--strong-bg);
   color: var(--strong);
 }
 .qx.mid {
-  background: var(--weak-bg);
   color: var(--weak);
 }
 .qx.bad {
-  background: var(--invalid-bg);
   color: var(--invalid);
 }
 .quick-nav {
@@ -2337,23 +2344,25 @@ pre.code {
 }
 .qn-chip {
   /*
-   * 十二个药丸排成一行，像一排按钮，其实是目录。
-   * 不能真的做成「没有边、只有字」：试过，十二个词连读成一句话，眼睛找不到切分处。
-   * 所以留边，但把边从 --line-strong 换成发丝线 --line，字退到三级灰——
-   * 一堆浅灰的小圆角框读起来是目录，一堆深灰描边读起来是一排开关。
+   * 十二个词排成一行，是目录不是按钮。上一轮试过完全无边：连读成一句话，
+   * 找不到切分处；于是退回圆角框。可十二个圆角框本身又成了「一排开关」。
+   * 这一轮换成两边都不用：词与词之间只留一条 1px 竖发丝线，最后一项不收口。
+   * 切分还在，框没了——目录的样子是「一行字」，不是「十二个药丸」。
    */
   font-size: 12px;
-  padding: 3px 9px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  padding: 2px 8px;
+  border: none;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
   color: var(--ink-3);
   background: transparent;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  transition: color 0.12s;
+}
+.qn-chip:last-child {
+  border-right: none;
 }
 .qn-chip:hover {
-  border-color: var(--accent);
   color: var(--accent);
-  background: var(--accent-bg);
 }
 
 /* ═══════ 判读刻度 ═══════ */

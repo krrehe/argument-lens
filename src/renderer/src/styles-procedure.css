@@ -211,7 +211,7 @@
   line-height: 1.6;
   color: var(--weak);
   background: var(--weak-bg);
-  border-left: 3px solid var(--weak);
+  border-left: 2px solid var(--weak);
   padding: 5px 9px;
   border-radius: 0 4px 4px 0;
 }
@@ -244,14 +244,15 @@
  * 混在行里会读成十六格里的又一格。
  */
 .wf-breach {
+  /* 整条铺底色是上一代的做法：一屏两条彩色横幅，比它们要说的字还抢眼。
+     状态交给红字与左侧 2px 细线，底色退回透明。 */
   margin: 0 0 9px;
   font-size: 12px;
   line-height: 1.7;
   color: var(--invalid);
-  background: var(--invalid-bg);
-  border-left: 3px solid var(--invalid);
-  padding: 7px 10px;
-  border-radius: 0 4px 4px 0;
+  background: transparent;
+  border-left: 2px solid var(--invalid);
+  padding: 3px 0 3px 10px;
   word-break: break-word;
 }
 
@@ -387,19 +388,23 @@
 }
 
 .wf-go {
-  border: 1px solid var(--line-strong);
-  background: var(--panel);
-  color: var(--ink-2);
-  border-radius: 8px;
+  /* 二十行每行右端一个带描边的小方框，一屏就是二十个框。
+     语义全在文字里（「看这一节」），改成下划线文字链接即可。 */
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
   font-size: 11px;
-  padding: 2px 6px;
+  padding: 0;
   cursor: pointer;
   white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
 }
 
 .wf-go:hover {
-  border-color: var(--accent);
   color: var(--accent);
+  text-decoration-color: var(--accent);
 }
 
 .wf-go-none {
@@ -429,9 +434,9 @@
   font-size: 12px;
   line-height: 1.6;
   color: var(--ink-2);
-  padding: 5px 8px;
-  border-left: 2px solid var(--accent);
-  background: var(--accent-bg);
+  padding: 3px 0 3px 10px;
+  border-left: 2px solid var(--line-strong);
+  background: transparent;
 }
 
 .dv {
@@ -811,7 +816,7 @@
 .ph-line {
   margin: 0 0 7px;
   padding: 6px 9px;
-  border-left: 2px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   background: var(--accent-bg);
   font-size: 12px;
 }

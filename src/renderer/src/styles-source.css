@@ -7,7 +7,7 @@
 
 .src-bar {
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
+  border-left: 2px solid var(--line-strong);
   border-radius: 8px;
   background: var(--panel-2);
   padding: 10px 13px;
@@ -22,25 +22,29 @@
 }
 
 .src-tag {
+  /* 「模型给出的判断 19 处」原来是个蓝底圆角块，和右边「本地复算 8 处」
+     两个色块并排，把这一行的重点从文字抢到了框上。现在蓝字加重即可。 */
   font-size: 12px;
   color: var(--accent);
-  background: var(--accent-bg);
-  border-radius: 8px;
-  padding: 2px 7px;
+  font-weight: 600;
+  padding: 0;
 }
 
 .src-toggle {
   font-size: 12px;
-  color: var(--ink-2);
-  background: var(--muted-bg);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 3px 9px;
+  color: var(--ink-3);
+  background: transparent;
+  border: none;
+  padding: 0;
   cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
 }
 
 .src-toggle:hover {
-  border-color: var(--line-strong);
+  color: var(--accent);
+  text-decoration-color: var(--accent);
 }
 
 .src-headline {
