@@ -41,6 +41,7 @@ export type SideSectionId =
   | 'defeat'
   | 'verdict'
   | 'confidence'
+  | 'rhetoric'
   | 'repair'
   | 'refutations'
   | 'labels'
@@ -68,6 +69,8 @@ export const SECTION_ORDER: { id: SideSectionId; label: string; key: string }[] 
   /* 把握紧跟在评级后面：同一份判断，一处说「几档」，一处说「这个判断有多把稳」。
      两者不许合并成一段——档位低而把握高（或反过来）本身就是该被看见的形状。 */
   { id: 'confidence', label: '把握', key: 'confidence' },
+  /* 修辞审计也在裁决层（D-03），紧接评级与把握：三册的顺序就是 D-01→D-02→D-03。 */
+  { id: 'rhetoric', label: '修辞审计', key: 'rhetoric' },
   { id: 'repair', label: '修补', key: 'repair' },
   { id: 'refutations', label: '反驳', key: 'refutations' },
   { id: 'labels', label: '命名候选', key: 'labels' },
@@ -208,6 +211,24 @@ export const FIELD_LABEL: Record<string, string> = {
   synergy: '协同闸门',
   protocol: '协议闸门',
   removed: '反事实移除测试',
+  /* 修辞审计（D-03）八列与替代链。同题复跑时这八列是最容易漂的地方——
+     同一段文本两次跑出不同的功能位置，差异表要能一眼读出是哪一格动了。 */
+  rhetoric: '修辞审计',
+  rows: '审计行',
+  ethos: '品格位置',
+  pathos: '情绪位置',
+  logos: '理由位置',
+  frame: '框架命中',
+  degree: '程度',
+  verifiable: '材料可核验',
+  corrections: '纠错入口',
+  relay: '转发链',
+  test: '四步测试',
+  harm: '后果类别',
+  chains: '替代链',
+  replaced: '顶掉的理由',
+  handoff: '移交或计次',
+  overlaps: '与强度超载重合',
   /* EPI 自评的七项与合计 */
   epi: 'EPI 自评',
   P1_source: 'EPI 1 来源',

@@ -333,6 +333,80 @@ export interface ReportConfidence {
   why: string;
 }
 
+/* ─────────── 修辞审计（D-03） ─────────── */
+
+/** 三诉求的功能位置。记位置，不记词频；不换算分数（D-03 4.2）。 */
+export type RhetoricFunction = 'primary' | 'secondary' | 'none';
+
+/** 框架四功能（Entman 1993）：问题界定、归因、道德评价、对策建议。 */
+export type FrameHit = 'problem' | 'cause' | 'moral' | 'remedy';
+
+/** 程度夸大三级：与前提承载力相符 / 高一级 / 高两级及以上（D-03 4.4）。 */
+export type DegreeLevel = 'match' | 'mild' | 'heavy';
+
+/** 四步测试的结论。untested 表示没跑测试——那是没做完，不是「没问题」。 */
+export type SubstituteVerdict = 'substitute' | 'accompany' | 'untested';
+
+/** 定损：替代造成了哪类后果。只写文本可观察的后果，不写心理判断。 */
+export type HarmKind = 'fabricated-support' | 'concealed-counter' | 'closed-inquiry';
+
+/** 被替代的理由类型：证据、推论桥、例外说明（D-03 4.6）。 */
+export type ReplacedReason = 'evidence' | 'bridge' | 'exception';
+
+/** 被替代成分的类型。故事单列：它既不是 êthos 也不是 pathos。 */
+export type SubstituteKind = 'ethos' | 'pathos' | 'story' | 'frame' | 'degree' | 'relay';
+
+/** 传播条件三格：材料可核验程度、纠错入口、转发链位置（D-03 4.5）。 */
+export type VerifiableLevel = 'yes' | 'partial' | 'no';
+export type CorrectionChannel = 'kept' | 'closed' | 'unclear';
+
+/**
+ * 审计表的一行（D-03 4.8 的八列）。
+ *
+ * 八列是：句位、三诉求功能、框架命中项、程度等级、传播条件三格、
+ * 替代测试结论、后果类别、移交或计次说明。这里按八列一一对应，
+ * 不为「好看」合并——合并之后第二位分析者就没法只凭句位重跑四步测试。
+ */
+export interface RhetoricRow {
+  /** 句位编号：报告里真实存在的那一句（S1…Sn 或 P1／C） */
+  at: string;
+  ethos: RhetoricFunction;
+  pathos: RhetoricFunction;
+  logos: RhetoricFunction;
+  /** 框架四功能命中项；空数组表示这一行不涉及框架 */
+  frame: FrameHit[];
+  degree: DegreeLevel;
+  verifiable: VerifiableLevel;
+  corrections: CorrectionChannel;
+  /** 转发链位置：写依据句位；没有就写「未发现」。不许凭平台印象填 */
+  relay: string;
+  test: SubstituteVerdict;
+  /** 仅 test='substitute' 时非空 */
+  harm: HarmKind[];
+  /** 移交（给 D-01）或计次说明 */
+  note: string;
+}
+
+/** 替代链：审计的核心交付物。没有替代链的审计表视为未完成（D-03 4.6）。 */
+export interface SubstituteChain {
+  kind: SubstituteKind;
+  /** 成分所在的句位 */
+  at: string;
+  /** 被它顶掉的理由类型 */
+  replaced: ReplacedReason;
+  harm: HarmKind;
+  /** 移交位置：写「移交 D-01」或「只记缺陷位置」 */
+  handoff: string;
+}
+
+export interface RhetoricAudit {
+  rows: RhetoricRow[];
+  chains: SubstituteChain[];
+  /** 与 C-01 结论强度超载重复的处数：同一缺陷只计一次，这里只记账不重复算 */
+  overlaps: number;
+}
+
+
 /* ─────────── 修补 ─────────── */
 
 export interface Repair {
@@ -743,6 +817,14 @@ export interface Diagnosis {
    * 旧存档没有这一栏，按「没记」处理，不回填假值。
    */
   confidence?: ReportConfidence;
+  /**
+   * 修辞审计（知识库「论证分析流程」D-03 v2.1）。
+   *
+   * 为什么单独一层而不是塞进 verdict：D-03 明写「只查替代，不查有无」，
+   * 而且审计结果不改档位、不改命题状态。它是一张可复核的表，不是第二份判定。
+   * 旧存档没有这一栏（2.9.0 之前），按「没做审计」处理，不补一张假表。
+   */
+  rhetoric?: RhetoricAudit | null;
   repair: Repair;
 
   /** 命名候选（名录透镜下是主输出，其他透镜下是末端注释，可空） */

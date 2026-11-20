@@ -26,7 +26,7 @@ import { blocksFor, REQUIRED_BLOCKS, type PromptBlock } from './blocks';
  * 每次改动提示词都必须改这里，并写清改了什么（见 docs/提示词工程.md 的变更表）。
  */
 
-export const PROMPT_VERSION = '2.8.0';
+export const PROMPT_VERSION = '2.9.0';
 
 /**
  * 变更记录。每次改版本号都要在这里留一行，说清改了什么、为什么。
@@ -36,6 +36,16 @@ export const PROMPT_VERSION = '2.8.0';
  * 没有这份记录，半年后有人会把它当冗余删掉，然后同一个 bug 再发生一次。
  */
 export const PROMPT_VERSION_NOTE: string[] = [
+  '2.9.0 user 模板加第 9 条「修辞审计」，rhetoric 按知识库「论证分析流程」D-03 v2.1 的八列写：' +
+    '句位、三诉求功能、框架四功能、程度等级、传播条件三格、替代测试结论、后果类别、移交／计次。' +
+    '起因：原来这套流程只给档位，而 D-03 的核心判据是「查替代，不查有无」——' +
+    '有情绪、引权威、讲故事本身什么都不说明（悼念文字有情绪、专业说明引权威），' +
+    '要问的是这些成分有没有站在理由的位置上；把「有情绪」当缺陷，是把修辞审计做成了文风点评。' +
+    '所以这一版把删去测试（定点／移除／判链／定损）写成必做四步，替代成立必须挂一条四项齐全的替代链，' +
+    '并把「只有一个手法不移交 D5」写死——D-03 4.7 只允许两个以上手法移交，本地核对据此拦「单点修辞当操纵」。' +
+    '同时写入四条反假阳性：不换算配比分数、不替 Entman 原文加「遮蔽」、不把转发链写成因果、不推断作者动机。' +
+    '这一版不改任何既有判据：审计结果不进档位、不进命题账，旧存档没有这一栏就照实说没有。' +
+    '真模型是否照做（会不会把伴随写成替代、把「语言偏激」当审计结论）未验，余额为空。',
   '2.8.0 user 模板加第 8 条「判档纪律」，verdict.grade 按知识库「论证分析流程」D-01 v2.1 ' +
     '的 D0–D5 六档写，顺序 D5→D4→D3→D2→D1→D0，D2 及以上必须带缺陷位置与降级条件，' +
     'D5 必须逐项记后果／协同／协议三道闸门与反事实移除测试；另加 confidence 一格，' +
@@ -364,6 +374,35 @@ export const SHARED_SCHEMA = `{
     "why": "凭什么这个置信度：取材是否完整、版本是否明确、有没有关键信息缺失"
   },
 
+  "rhetoric": {
+    "rows": [
+      {
+        "at": "句位编号：报告里真实存在的 S1／S2…或 P1／C。审计要落脚到具体位置，不许给全文贴标签",
+        "ethos": "primary|secondary|none（这一句的品格/身份资源占什么功能位置，不记词频）",
+        "pathos": "primary|secondary|none",
+        "logos": "primary|secondary|none（理由或证据的位置）",
+        "frame": ["problem|cause|moral|remedy（Entman 四功能：问题界定／归因／道德评价／对策建议）"],
+        "degree": "match|mild|heavy（措辞承诺比前提承载力：相符／高一级／高两级以上）",
+        "verifiable": "yes|partial|no（材料可核验程度：指向可取得的原始材料吗）",
+        "corrections": "kept|closed|unclear（纠错入口：留了追问与更正的路，还是关了）",
+        "relay": "转发链位置：写依据句位；没有就写「未发现」。不许写因果断定",
+        "test": "substitute|accompany|untested（四步测试结论；没跑就写 untested，不许默认成 accompany）",
+        "harm": ["fabricated-support|concealed-counter|closed-inquiry（仅 substitute 时写；定损只写文本可观察的后果）"],
+        "note": "移交或计次说明；与结论强度超载同一处的，写「同一缺陷的修辞侧面」"
+      }
+    ],
+    "chains": [
+      {
+        "kind": "ethos|pathos|story|frame|degree|relay（替掉理由的是哪一类成分）",
+        "at": "这一成分所在的句位",
+        "replaced": "evidence|bridge|exception（被它顶掉的理由类型）",
+        "harm": "fabricated-support|concealed-counter|closed-inquiry",
+        "handoff": "「移交 D-01」或「只记缺陷位置」"
+      }
+    ],
+    "overlaps": "与 C-01 结论强度超载重复的处数（同一缺陷只计一次；没有就 0）"
+  },
+
   "repair": {
     "missingPremise": "缺哪条未表达前提；没有就 null",
     "alternativeReading": "换另一副透镜看这段话会得到什么不同的结论。必填。",
@@ -622,8 +661,34 @@ const NO_GRADE_HINT =
   '本模式不评级：verdict.grade 写 null 或整个省略，confidence 也不必写。' +
   '给了档位会被程序置空并留痕——那不是解析错误，是模式定义。';
 
+/*
+ * 修辞审计（D-03）。
+ *
+ * 这一条最容易写反：把「有没有情绪／权威／故事」当成审计对象。
+ * 所以提示词先否定这件事，再给唯一可操作的判据（删去测试），
+ * 最后列四条反假阳性——它们正是模型最容易顺手写出的四种话。
+ * 篇幅压得紧：诊断模式的提示词已接近 16000 字符报警线。
+ */
+const RHETORIC_HINT =
+  '修辞审计（D-03）：查替代，不查有无。有情绪、引权威、讲故事本身都不是缺陷——悼念文字有情绪，专业说明引权威。' +
+  '要问的是位置：在推出结论的那条链上，本该由理由承担的工作是不是被它们替掉了。' +
+  '逐句填 rhetoric.rows（八列）；每个可疑成分跑四步：定点（句位与功能槽）、移除（删去后还剩哪些理由）、' +
+  '判链（剩下的理由能不能独立走到结论）、定损（伪造支持／隐瞒反证／剥夺追问）。' +
+  '能走到结论的写 accompany（伴随即不记缺陷）；不能的写 substitute，并给一条 chains（成分／句位／被顶掉的理由类型／后果／移交）。' +
+  '三诉求按功能位置记主／辅／无，不换算分数、不设最优配比；框架按四功能记命中，涉及省略项时不要替原文加词，' +
+  '只问「把省略项补回，结论还成不成立」；程度与结论强度超载同一处只计一次，note 写「同一缺陷的修辞侧面」；' +
+  '转发链只写依据句位，不写「必然误导」这类因果断定，也不推断作者动机。' +
+  '只有一个手法不移交 D5（handoff 写「只记缺陷位置」）；两个以上且各自单独不足才写「移交 D-01」。' +
+  '不写文风评语——「语言偏激」既没有句位也没有替代链，不是审计。';
+
+const NO_RHETORIC_HINT = '本模式不走到裁决层，修辞审计也不做：rhetoric 写 null 或整个省略。';
+
 function gradeDiscipline(mode: AnalysisMode): string {
   return MODE_META[mode].givesVerdict ? GRADE_HINT : NO_GRADE_HINT;
+}
+
+function rhetoricDiscipline(mode: AnalysisMode): string {
+  return MODE_META[mode].givesVerdict ? RHETORIC_HINT : NO_RHETORIC_HINT;
 }
 
 function userTemplateFor(theory: TheoryId, mode: AnalysisMode): string {
@@ -643,8 +708,9 @@ function userTemplateFor(theory: TheoryId, mode: AnalysisMode): string {
     `6. ${CONTEXT_SOURCE_HINT}`,
     `7. ${contextDiscipline(theory)}`,
     `8. ${gradeDiscipline(mode)}`,
-    ...extra.map((s, i) => `${9 + i}. ${s}`),
-    `${9 + extra.length}. ${tail}`,
+    `9. ${rhetoricDiscipline(mode)}`,
+    ...extra.map((s, i) => `${10 + i}. ${s}`),
+    `${10 + extra.length}. ${tail}`,
   ].join('\n');
 
   return `守卫：{delim}

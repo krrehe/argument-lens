@@ -254,6 +254,69 @@ export const MOCK: Diagnosis = {
     level: 'medium',
     why: '原文完整、版本明确；但受众与讨论阶段只能从措辞推断，没有明写。',
   },
+  /*
+   * 修辞审计的演示数据（D-03 八列）。
+   *
+   * 刻意做成「一处替代 + 一处伴随 + 一处程度放大」，让预览页能同时看到三种形状：
+   * 替代成立要挂链、伴随不记缺陷、与结论强度超载同一处只计一次。
+   * 链只有一条，所以 handoff 写「只记缺陷位置」——D-03 4.7：单个手法不移交 D5。
+   */
+  rhetoric: {
+    rows: [
+      {
+        at: 'P1',
+        ethos: 'none',
+        pathos: 'none',
+        logos: 'primary',
+        frame: [],
+        degree: 'match',
+        verifiable: 'partial',
+        corrections: 'unclear',
+        relay: '未发现',
+        test: 'accompany',
+        harm: [],
+        note: '数据本身就是理由，不涉及替代',
+      },
+      {
+        at: 'P2',
+        ethos: 'secondary',
+        pathos: 'none',
+        logos: 'primary',
+        frame: ['cause'],
+        degree: 'match',
+        verifiable: 'partial',
+        corrections: 'unclear',
+        relay: '未发现',
+        test: 'accompany',
+        harm: [],
+        note: '把下降归因到早读取消，是论证要走的那一步，不是替代',
+      },
+      {
+        at: 'C',
+        ethos: 'primary',
+        pathos: 'secondary',
+        logos: 'none',
+        frame: ['moral'],
+        degree: 'heavy',
+        verifiable: 'no',
+        corrections: 'closed',
+        relay: '未发现',
+        test: 'substitute',
+        harm: ['fabricated-support'],
+        note: '同一缺陷的修辞侧面：与结论强度超载是同一处，只计一次',
+      },
+    ],
+    chains: [
+      {
+        kind: 'ethos',
+        at: 'C',
+        replaced: 'bridge',
+        harm: 'fabricated-support',
+        handoff: '只记缺陷位置',
+      },
+    ],
+    overlaps: 1,
+  },
   repair: {
     missingPremise: '同期除早读外，没有其他足以解释一本率下降 6 个百分点的因素',
     alternativeReading: '换 ARS 三标准看，同一处会变成「相关性成立但充分性不足」；换语用辩证看，则会先判本透镜不适用，因为文本未以解决分歧为目标',

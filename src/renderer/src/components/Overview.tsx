@@ -44,6 +44,8 @@ function sectionsFor(d: Diagnosis) {
   const extra: { id: string; label: string }[] = [];
   if (propositionsOf(d).total > 0) extra.push({ id: 'sec-props', label: '命题账' });
   if (pivotOf(d).rows.length > 0) extra.push({ id: 'sec-pivot', label: '枢纽' });
+  /* 修辞审计只在真有表时进索引：旧存档没有这一栏，给一格会点成死入口。 */
+  if (d.rhetoric && d.rhetoric.rows.length > 0) extra.push({ id: 'sec-rhetoric', label: '修辞审计' });
   const nDisp = disputesIn(d).length;
   const disp = nDisp ? [{ id: 'sec-disputes', label: `争议 ${nDisp}` }] : [];
   /*

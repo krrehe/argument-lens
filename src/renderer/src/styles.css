@@ -2478,6 +2478,190 @@ pre.code {
   color: var(--ink);
 }
 
+/*
+ * 修辞审计卡（D-03）。八列一张表。
+ *
+ * 为什么是表而不是卡片流：D-03 的复核标准是「第二位分析者只凭句位编号重跑四步测试」，
+ * 八列必须能横着对（句位→功能→框架→程度→传播→测试→后果→移交）。
+ * 所以哪怕窄，也不把八列折成两行——折了之后「这一行里测试结论对应的是哪一格」就断开了。
+ * 列宽写死而不自适应：窄窗时让说明列变窄换行，其余七列保持可扫描。
+ */
+.rhetoric {
+  margin-top: 9px;
+  padding: 9px 12px 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.rh-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.rh-line {
+  font-size: 12px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.rh-ok {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--strong);
+}
+.rh-bad {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--invalid);
+}
+.rh-which {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.rh-table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.rh-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-3);
+  font-size: 10px;
+  padding: 3px 5px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.rh-table td {
+  padding: 4px 5px;
+  vertical-align: top;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+.rh-table tbody tr:nth-child(even) {
+  background: var(--muted-bg);
+}
+.rh-table th:nth-child(1),
+.rh-table td:nth-child(1) {
+  width: 46px;
+}
+.rh-table th:nth-child(2),
+.rh-table td:nth-child(2) {
+  width: 80px;
+}
+.rh-table th:nth-child(3),
+.rh-table td:nth-child(3) {
+  width: 64px;
+}
+.rh-table th:nth-child(4),
+.rh-table td:nth-child(4) {
+  width: 62px;
+}
+.rh-table th:nth-child(5),
+.rh-table td:nth-child(5) {
+  width: 106px;
+}
+.rh-table th:nth-child(6),
+.rh-table td:nth-child(6) {
+  width: 60px;
+}
+.rh-table th:nth-child(7),
+.rh-table td:nth-child(7) {
+  width: 72px;
+}
+.rh-at {
+  font-family: var(--mono);
+  color: var(--ink);
+}
+.rh-dim {
+  display: block;
+  color: var(--ink-3);
+}
+/* 三诉求各占一行：挤成一行「品格无·情绪辅·理由无」时，读的人要自己拆开。 */
+.rh-fn {
+  display: block;
+}
+/* 替代成立的行给一点重量：它是这张表里唯一会往 D-01 移交的东西。 */
+.rh-sub {
+  color: var(--invalid);
+  font-weight: 600;
+}
+.rh-note-cell {
+  color: var(--ink-3);
+}
+.rh-chains {
+  margin-top: 9px;
+  padding: 7px 9px;
+  background: var(--weak-bg);
+  border-radius: 3px;
+}
+.rh-ct {
+  font-size: 11px;
+  color: var(--weak);
+  margin-bottom: 3px;
+}
+.rh-chains ul {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.rh-close {
+  margin-top: 8px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.rh-iso {
+  color: var(--ink-2);
+}
+.rh-gaps {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+}
+.rh-gaps li {
+  font-size: 11px;
+  line-height: 1.6;
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+.rh-gaps li.blk {
+  background: var(--invalid-bg);
+  color: var(--invalid);
+}
+.rh-gaps li.wrn {
+  background: var(--weak-bg);
+  color: var(--weak);
+}
+.rh-boundary {
+  margin: 7px 0 0;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--ink-3);
+}
+.rh-none {
+  margin-top: 9px;
+  padding: 8px 11px;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  background: var(--muted-bg);
+  border-radius: 3px;
+}
+.rh-none b {
+  color: var(--ink);
+}
+
 .verdict-qual {
   margin-top: 8px;
   font-size: 12px;

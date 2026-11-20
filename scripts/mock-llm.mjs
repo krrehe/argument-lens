@@ -184,6 +184,68 @@ const payload = {
     level: 'medium',
     why: '原文只有单校单年的一组数据，未给样本量与统计口径；型式判读与 CQ 落点有原文支撑，故不低于 low',
   },
+  /*
+   * 修辞审计（D-03 八列）。做成「一处替代 + 两处伴随」：
+   * 结论句被身份与情绪顶掉了推论桥，链只有一条，所以 handoff 写「只记缺陷位置」——
+   * 单手法不移交 D5，这条路径正是端到端要验的那一条。
+   * at 用报告里真实存在的编号（P1／P2／C），不用 S9 这类指不到的句位。
+   */
+  rhetoric: {
+    rows: [
+      {
+        at: 'P1',
+        ethos: 'none',
+        pathos: 'none',
+        logos: 'primary',
+        frame: [],
+        degree: 'match',
+        verifiable: 'partial',
+        corrections: 'unclear',
+        relay: '未发现',
+        test: 'accompany',
+        harm: [],
+        note: '数据本身就是理由，不涉及替代',
+      },
+      {
+        at: 'P2',
+        ethos: 'none',
+        pathos: 'none',
+        logos: 'primary',
+        frame: ['cause'],
+        degree: 'match',
+        verifiable: 'partial',
+        corrections: 'unclear',
+        relay: '未发现',
+        test: 'accompany',
+        harm: [],
+        note: '归因是论证要走的那一步，不是替代',
+      },
+      {
+        at: 'C',
+        ethos: 'primary',
+        pathos: 'secondary',
+        logos: 'none',
+        frame: ['moral'],
+        degree: 'heavy',
+        verifiable: 'no',
+        corrections: 'closed',
+        relay: '未发现',
+        test: 'substitute',
+        harm: ['fabricated-support'],
+        note: '同一缺陷的修辞侧面：与结论强度超载同处，只计一次',
+      },
+    ],
+    chains: [
+      {
+        kind: 'ethos',
+        at: 'C',
+        replaced: 'bridge',
+        harm: 'fabricated-support',
+        handoff: '只记缺陷位置',
+      },
+    ],
+    overlaps: 1,
+  },
   repair: {
     missingPremise: '若取消早读，则一本率会下降（且这一影响大于同期其他因素）',
     alternativeReading: '换语用辩证透镜：这段话第 4 条（相干性）有问题——家长支持率与早读效果不相干；但同一段里对校长的引用并不违反任何规则，那里其实是合格的。换图尔敏透镜：担保是空的，「一本率下降」到「取消是错的」之间没有可陈述的担保',

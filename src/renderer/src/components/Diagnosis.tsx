@@ -53,6 +53,8 @@ import { coverageOf, coverageScopeText } from '@shared/coverage';
 import { AUDIENCE_KIND_LABEL, contextLoadOf, DIALOGUE_TYPE_LABEL, STAGE_LABEL } from '@shared/context-use';
 import { CtxCell } from './CtxCell';
 import { GradeCard } from './GradeCard';
+import { RhetoricCard } from './RhetoricCard';
+import { auditLine, rhetoricExpected } from '@shared/rhetoric';
 import { FieldTermsBar } from './FieldTermsBar';
 import { DensityBar, useDensity } from './Density';
 import { isLedgerSection, sectionKey } from '@shared/ui-density';
@@ -2070,6 +2072,25 @@ export function DiagnosisView({
           plain="指出十处措辞毛病，不如指出一次「你把 X 当起点用了，而 X 正是要争的那件事」。这一栏只攒两件事：结论经过谁，谁身上已经有反对意见。"
         >
           <PivotCard v={pivot} />
+        </Block>
+      )}
+
+      {/*
+        修辞审计。放在枢纽之后、争议之前，位置有三重理由：
+        判读与判档回答「几档」，命题账回答「哪几条不该由论证来定」，枢纽回答「压在谁身上」，
+        这一栏回答最后一个问题——「这一段是不是靠情绪、身份、故事顶掉了理由」。
+        它是裁决层三册里最后一册（D-01 档位、D-02 命题账、D-03 审计），所以排在这两层之后；
+        放在争议之前，是因为它与档位同属「这份判断怎么来的」，读者看完再去看学界吵什么。
+        旧存档没有这一栏：只说「当时还没有」，不补一张假表。
+      */}
+      {(d.rhetoric || rhetoricExpected(d)) && (
+        <Block
+          id="sec-rhetoric"
+          title="修辞审计"
+          sub={d.rhetoric ? auditLine(d.rhetoric) : '没有审计表'}
+          plain="有情绪、引权威、讲故事本身都不是缺陷——悼念文字有情绪，专业说明引权威。这一栏查的不是「有没有」，而是位置：在推出结论的那条链上，本该由理由承担的工作，是不是被它们替掉了。"
+        >
+          <RhetoricCard d={d} />
         </Block>
       )}
 

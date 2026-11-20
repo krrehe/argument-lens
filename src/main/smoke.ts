@@ -2204,6 +2204,35 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
       }
 
       /*
+       * 修辞审计卡（D-03）。
+       *
+       * 假模型给了一张完整表（3 行、1 条替代链、1 处与强度超载重合），所以这里走
+       * 「有表」那一支。核的是接线与来源：八列表头顺序、每行的测试结论、替代链的
+       * 被顶掉理由、隔离声明逐字、边界句在、索引里有一格。
+       * 单手法不移交 D5 这条由 check:rhetoric 的断言与反证守着，这里只核它真的
+       * 以「只记缺陷位置」的样子出现在界面上——两种写法在屏幕上长得一样，
+       * 只有走到 DOM 才分得出模型写的是哪一种。
+       */
+      {
+        const rh = await wc.executeJavaScript(`JSON.stringify({
+          has: !!document.querySelector('[data-rhetoric]'),
+          none: !!document.querySelector('[data-rhetoric-none]'),
+          rows: Number(document.querySelector('[data-rhetoric]')?.getAttribute('data-rhetoric-rows') ?? -1),
+          chains: Number(document.querySelector('[data-rhetoric]')?.getAttribute('data-rhetoric-chains') ?? -1),
+          subs: Number(document.querySelector('[data-rhetoric]')?.getAttribute('data-rhetoric-subs') ?? -1),
+          cols: [...document.querySelectorAll('[data-rhetoric] thead th')].map((e) => (e.textContent ?? '').trim()),
+          tests: [...document.querySelectorAll('[data-rhetoric-row]')].map((e) => e.getAttribute('data-rhetoric-test')),
+          chainText: [...document.querySelectorAll('[data-rhetoric-chain]')].map((e) => (e.textContent ?? '').replace(/\\s+/g, ' ').trim()),
+          replaced: [...document.querySelectorAll('[data-rhetoric-replaced]')].map((e) => e.getAttribute('data-rhetoric-replaced')),
+          iso: (document.querySelector('[data-rhetoric-iso]')?.textContent ?? '').trim(),
+          boundary: (document.querySelector('[data-rhetoric] .rh-boundary')?.textContent ?? '').trim(),
+          close: (document.querySelector('[data-rhetoric] .rh-close')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+          inIndex: [...document.querySelectorAll('[data-qnav]')].some((e) => e.getAttribute('data-qnav') === 'sec-rhetoric'),
+        })`);
+        add(`RHETRESULT ${rh}`);
+      }
+
+      /*
        * 「骨架缺口」：本地第一次对报告本身说「这里接不上」。
        *
        * 核的是接线与来源，不是算法：每条缺口都得带 `data-skeleton-from`，

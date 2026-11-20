@@ -1,17 +1,17 @@
 # 提示词：论证型式与批判性问题（诊断模式）
 
-> Argumentation Schemes & Critical Questions｜模式：诊断（diagnose）｜版本：v2.8.0
+> Argumentation Schemes & Critical Questions｜模式：诊断（diagnose）｜版本：v2.9.0
 > 判定类：给档位。
 > 这一份问的是：判断这段话站不站得住。
 > 判定单元：型式的一条批判性问题（CQ）
 > 原生刻度：型式强度：抗 CQ 的能力
 > 出处：Walton, Reed & Macagno, Argumentation Schemes (2008)；武宏志《非形式逻辑导论》附录A
 
-指纹 `6e701ef10630`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `38b6fca359c3`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `767a8750b5d0`
 
-字符 18218（预算：警戒 16000／上限 24000，当前接近上限）
-估算 7531 token｜采样温度上限 0.2｜输出上限 8192 token
+字符 19924（预算：警戒 16000／上限 24000，当前接近上限）
+估算 7971 token｜采样温度上限 0.2｜输出上限 8192 token
 规则块（11）：core.role、core.not-hunter、core.three-never、core.credibility、core.reconstruct、core.input-boundary、core.output-discipline、core.epistemic、core.language、core.gate-four、core.scope-gate
 
 ---
@@ -323,6 +323,35 @@
     "why": "凭什么这个置信度：取材是否完整、版本是否明确、有没有关键信息缺失"
   },
 
+  "rhetoric": {
+    "rows": [
+      {
+        "at": "句位编号：报告里真实存在的 S1／S2…或 P1／C。审计要落脚到具体位置，不许给全文贴标签",
+        "ethos": "primary|secondary|none（这一句的品格/身份资源占什么功能位置，不记词频）",
+        "pathos": "primary|secondary|none",
+        "logos": "primary|secondary|none（理由或证据的位置）",
+        "frame": ["problem|cause|moral|remedy（Entman 四功能：问题界定／归因／道德评价／对策建议）"],
+        "degree": "match|mild|heavy（措辞承诺比前提承载力：相符／高一级／高两级以上）",
+        "verifiable": "yes|partial|no（材料可核验程度：指向可取得的原始材料吗）",
+        "corrections": "kept|closed|unclear（纠错入口：留了追问与更正的路，还是关了）",
+        "relay": "转发链位置：写依据句位；没有就写「未发现」。不许写因果断定",
+        "test": "substitute|accompany|untested（四步测试结论；没跑就写 untested，不许默认成 accompany）",
+        "harm": ["fabricated-support|concealed-counter|closed-inquiry（仅 substitute 时写；定损只写文本可观察的后果）"],
+        "note": "移交或计次说明；与结论强度超载同一处的，写「同一缺陷的修辞侧面」"
+      }
+    ],
+    "chains": [
+      {
+        "kind": "ethos|pathos|story|frame|degree|relay（替掉理由的是哪一类成分）",
+        "at": "这一成分所在的句位",
+        "replaced": "evidence|bridge|exception（被它顶掉的理由类型）",
+        "harm": "fabricated-support|concealed-counter|closed-inquiry",
+        "handoff": "「移交 D-01」或「只记缺陷位置」"
+      }
+    ],
+    "overlaps": "与 C-01 结论强度超载重复的处数（同一缺陷只计一次；没有就 0）"
+  },
+
   "repair": {
     "missingPremise": "缺哪条未表达前提；没有就 null",
     "alternativeReading": "换另一副透镜看这段话会得到什么不同的结论。必填。",
@@ -563,7 +592,8 @@ CQ：CQ1 有无相反证据使该归类存疑？（守：归类的边界）；CQ
 6. context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；guess＝原文没写、为把分析做下去而假定。这两档都要给 ifChanged：这格换成别的样子，判定往哪边变。多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。
 7. 本透镜的判定要读 2 格语境：「对话类型」同一招式在不同对话类型下结论不同，类型判错，合法性跟着错；「阶段」逐条问 CQ 之前要先辨对话类型与阶段。这几格只要不是 known，ifChanged 就必须写，而且要有落点：写成「这格若是别的样子，哪一条检查或哪一个档位会跟着变」，不许写「影响很大」「结论可能不同」这种没有落点的话。
 8. verdict.grade 按 D0–D5 判档，顺序固定为 D5→D4→D3→D2→D1→D0，命中第一个即停，不许先觉得「问题不大」再逐档找理由：D0 无缺陷（三问与适用 CQ 全过、枢纽已处理）／D1 可加固（全过，但有一处一句话就能补的薄弱）／D2 支持不足（关键前提未获辩护、重度结论强度超载、合流结构一条支路失败）／D3 型式误用（型式与材料错配，或关键 CQ 未过仍按型式结论使用）／D4 结构性失效（断环正在枢纽、循环论证、多路实则单路）／D5 操纵（下面三道闸门全中）。D2 及以上必须写 at（缺陷位置，用报告里真实存在的 P／A／CQ 编号）与 downgrade（若 X 成立，本判改为 Y）；evidence 写必要证据，fix 写共享处置或可执行加固动作。同一处缺陷只记一次：它既表现为三问不过、又表现为某条 CQ 未过时，只挂一个位置。D5 必须逐项写 d5：后果闸门（剥夺追问／伪造证据状态／隐瞒有利反证）、协同闸门（至少两个手法，各自单独不足、合起来才造成）与协议闸门（当前对话协议下不该发生），并在 removed 里逐条写反事实移除测试——删去某手法后后果是否仍在。三处小毛病相加不是 D5：D5 是门槛，不是最高刻度；语气强硬、立场偏颇都不构成 D5。档位只评论证质量：不许由档位推出结论为假，也不许因为结论后来被证实就抬高档位。confidence 另写一格，评的是「这次分析可靠吗」——取材不详、版本冲突降它，不降档位。
-9. legitimateMoves 至少认真检查一遍。没有就给空数组，但要真的检查过。
-10. 本透镜的判定单元是「型式的一条批判性问题（CQ）」，原生刻度是「型式强度：抗 CQ 的能力」。
+9. 修辞审计（D-03）：查替代，不查有无。有情绪、引权威、讲故事本身都不是缺陷——悼念文字有情绪，专业说明引权威。要问的是位置：在推出结论的那条链上，本该由理由承担的工作是不是被它们替掉了。逐句填 rhetoric.rows（八列）；每个可疑成分跑四步：定点（句位与功能槽）、移除（删去后还剩哪些理由）、判链（剩下的理由能不能独立走到结论）、定损（伪造支持／隐瞒反证／剥夺追问）。能走到结论的写 accompany（伴随即不记缺陷）；不能的写 substitute，并给一条 chains（成分／句位／被顶掉的理由类型／后果／移交）。三诉求按功能位置记主／辅／无，不换算分数、不设最优配比；框架按四功能记命中，涉及省略项时不要替原文加词，只问「把省略项补回，结论还成不成立」；程度与结论强度超载同一处只计一次，note 写「同一缺陷的修辞侧面」；转发链只写依据句位，不写「必然误导」这类因果断定，也不推断作者动机。只有一个手法不移交 D5（handoff 写「只记缺陷位置」）；两个以上且各自单独不足才写「移交 D-01」。不写文风评语——「语言偏激」既没有句位也没有替代链，不是审计。
+10. legitimateMoves 至少认真检查一遍。没有就给空数组，但要真的检查过。
+11. 本透镜的判定单元是「型式的一条批判性问题（CQ）」，原生刻度是「型式强度：抗 CQ 的能力」。
    verdict.scale 与 verdict.scaleValue 要用这套刻度的话说，不要一律套用「强/弱/无效」。
 ```

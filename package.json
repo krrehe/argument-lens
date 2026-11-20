@@ -89,7 +89,8 @@
     "eval:bare": "node scripts/eval/run-bare.mjs",
     "eval:compare": "node scripts/eval/compare.mjs",
     "check:context-use": "node scripts/run-check-context-use.mjs",
-    "check:grading": "node scripts/run-check-grading.mjs"
+    "check:grading": "node scripts/run-check-grading.mjs",
+    "check:rhetoric": "node scripts/run-check-rhetoric.mjs"
   },
   "devDependencies": {
     "@argdown/core": "^2.0.1",

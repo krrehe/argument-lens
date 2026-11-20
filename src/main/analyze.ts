@@ -27,8 +27,23 @@ import type {
   WaltonLens,
   Grade,
   GradeRecord,
+  RhetoricAudit,
+  RhetoricRow,
+  SubstituteChain,
 } from '@shared/types';
 import { GRADE_BUCKET, GRADE_CLAUSE, GRADE_LABEL, GRADES, auditGrade } from '@shared/grading';
+import {
+  CORRECTION_VALUES,
+  DEGREE_VALUES,
+  FRAME_VALUES,
+  FUNC_VALUES,
+  HARM_VALUES,
+  KIND_VALUES,
+  REPLACED_VALUES,
+  TEST_VALUES,
+  VERIFIABLE_VALUES,
+  auditRhetoric,
+} from '@shared/rhetoric';
 import { DEFAULT_THEORY, THEORY_BY_ID, isTheoryId, type TheoryId } from '@shared/theories';
 import { auditReport } from '@shared/report-audit';
 import { normalizeBrief } from '@shared/brief';
@@ -435,6 +450,78 @@ function normalizeLens(raw: any, theory: TheoryId, diagnostics: Diagnostic[], pa
 }
 
 /* ─────────── 命名候选：三条门槛 ─────────── */
+
+/**
+ * 修辞审计表的归一化（D-03 4.8 的八列）。
+ *
+ * 只认词表里的取值：读不出来的一律退回缺省值并**留痕**——不猜一个近似的，
+ * 因为审计表的每一格都会被第二位分析者拿去重跑四步测试，猜出来的格子
+ * 看起来和真的一样，却复核不了。
+ *
+ * 缺省值的选择也有讲究：`test` 缺省是 untested（没跑）而不是 accompany（伴随）。
+ * 「伴随」是一个判断，替模型补上它，等于把「没做」写成「做过且没问题」。
+ */
+function normalizeRhetoric(raw: unknown, diagnostics: Diagnostic[]): RhetoricAudit | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, any>;
+  const unknown = new Set<string>();
+
+  const pick = <T extends string>(v: unknown, values: readonly T[], fallback: T, field: string): T => {
+    const s = typeof v === 'string' ? v.trim() : '';
+    if ((values as readonly string[]).includes(s)) return s as T;
+    if (s) unknown.add(`${field}=${s.slice(0, 16)}`);
+    return fallback;
+  };
+
+  const rows: RhetoricRow[] = arr<any>(r.rows)
+    .map((x): RhetoricRow => {
+      const o = x ?? {};
+      const frame = [...new Set(arr<unknown>(o.frame).map((f) => pick(f, FRAME_VALUES, 'problem', 'frame')))];
+      const harm = [...new Set(arr<unknown>(o.harm).map((h) => pick(h, HARM_VALUES, 'fabricated-support', 'harm')))];
+      return {
+        at: str(o.at).trim(),
+        ethos: pick(o.ethos, FUNC_VALUES, 'none', 'ethos'),
+        pathos: pick(o.pathos, FUNC_VALUES, 'none', 'pathos'),
+        logos: pick(o.logos, FUNC_VALUES, 'none', 'logos'),
+        frame,
+        degree: pick(o.degree, DEGREE_VALUES, 'match', 'degree'),
+        verifiable: pick(o.verifiable, VERIFIABLE_VALUES, 'partial', 'verifiable'),
+        corrections: pick(o.corrections, CORRECTION_VALUES, 'unclear', 'corrections'),
+        relay: str(o.relay),
+        /* 没写就是没跑：这一点不许替模型补成「伴随」。 */
+        test: pick(o.test, TEST_VALUES, 'untested', 'test'),
+        harm,
+        note: str(o.note),
+      };
+    })
+    /* 既没有句位又没有说明的行不是审计：它连「审计的是哪一处」都没说。 */
+    .filter((row) => row.at || row.note);
+
+  const chains: SubstituteChain[] = arr<any>(r.chains)
+    .map((x): SubstituteChain => {
+      const o = x ?? {};
+      return {
+        kind: pick(o.kind, KIND_VALUES, 'pathos', 'kind'),
+        at: str(o.at).trim(),
+        replaced: pick(o.replaced, REPLACED_VALUES, 'evidence', 'replaced'),
+        harm: pick(o.harm, HARM_VALUES, 'fabricated-support', 'harm'),
+        handoff: str(o.handoff),
+      };
+    })
+    .filter((c) => c.at || c.handoff);
+
+  if (unknown.size) {
+    diagnostics.push({
+      level: 'info',
+      code: 'RHETORIC_UNKNOWN_VALUE',
+      message: `审计表里有 ${unknown.size} 处取值不在 D-03 的词表里（${[...unknown].join('、')}），已按缺省值折算并留痕。不猜一个近似的：那一格要被拿去重跑四步测试。`,
+    });
+  }
+
+  if (!rows.length) return null;
+
+  return { rows, chains, overlaps: Math.max(0, Math.floor(Number(r.overlaps) || 0)) };
+}
 
 function normalizeLabels(raw: unknown, diagnostics: Diagnostic[], passage: string): LabelCandidate[] {
   const out: LabelCandidate[] = [];
@@ -899,6 +986,26 @@ export function normalizeDiagnosis(
     if (why || lv !== 'undetermined') confidence = { level: lv, why };
   }
 
+  /*
+   * 修辞审计（D-03）：查替代，不查有无。
+   *
+   * 本地对这张表做三件事：认下来（八列按封闭词表取值）、在走不到裁决层时置空、
+   * 核它做完没有（auditRhetoric，见下方报告建好之后那一段）。
+   * **一个字都不改它「这一处是替代还是伴随」的判断**——那要重新走 B-01 至 B-04
+   * 的重构，本地没有原文重构能力，替它改等于把审计变成第二种判定。
+   */
+  let rhetoric = normalizeRhetoric((raw as any).rhetoric, diagnostics);
+  if (rhetoric && (!givesVerdict || theory === 'copi' || !scope.applicable)) {
+    diagnostics.push({
+      level: 'info',
+      code: 'RHETORIC_STRIPPED',
+      message: givesVerdict
+        ? '透镜在本文本上不适用，修辞审计一并置空——审计的落脚点是「结论靠什么推出」，这里没有那个落点。'
+        : `本次是「${MODE_META[mode].label}」模式，不走到裁决层，修辞审计已置空。`,
+    });
+    rhetoric = null;
+  }
+
   const verdict = {
     scale: strNonEmpty(v.scale, THEORY_BY_ID[theory].scale),
     scaleValue: str(v.scaleValue),
@@ -1183,6 +1290,7 @@ export function normalizeDiagnosis(
     defeat,
     verdict,
     confidence,
+    rhetoric,
     repair,
     labels,
     legitimateMoves,
@@ -1238,6 +1346,19 @@ export function normalizeDiagnosis(
     diagnostics.push({
       level: g.severity === 'block' ? 'warn' : 'info',
       code: g.severity === 'block' ? 'GRADE_INCOMPLETE' : 'GRADE_NOTE',
+      message: `${g.text}（${g.kind}）`,
+    });
+  }
+
+  /*
+   * 修辞审计核对。与判档同理：只核「做完了没有」——替代成立的行有没有替代链、
+   * 链上四项缺不缺、说移交 D5 的够不够两条手法、有没有把文风评语当审计。
+   * 「这一处到底算不算替代」是模型的判断，本地不重跑删去测试。
+   */
+  for (const g of auditRhetoric(report)) {
+    diagnostics.push({
+      level: g.severity === 'block' ? 'warn' : 'info',
+      code: g.severity === 'block' ? 'RHETORIC_INCOMPLETE' : 'RHETORIC_NOTE',
       message: `${g.text}（${g.kind}）`,
     });
   }

@@ -32,6 +32,7 @@ import {
   gradeLine,
   promptHasGrade,
 } from '@shared/grading';
+import { versionAtLeast } from '@shared/version';
 import { PROMPT_VERSION, PROMPT_VERSION_NOTE, SHARED_SCHEMA, buildPrompt } from '../src/main/prompt';
 
 let passed = 0;
@@ -270,8 +271,13 @@ ok(!promptHasGrade(undefined), '没记版本按「没有」处理');
 
 /* ─────────── 四 · 提示词 ─────────── */
 
-ok(PROMPT_VERSION === '2.8.0', '提示词版本已递增到 2.8.0', PROMPT_VERSION);
-ok(PROMPT_VERSION_NOTE[0].startsWith('2.8.0'), '版本注记第一条写的是 2.8.0');
+/*
+ * 版本断言用「不低于」，不写等号：判档这一层从 2.8.0 起在，
+ * 后来加修辞审计把版本推到 2.9.0——写死等号会让每加一层就红一次，
+ * 而红的原因与判档无关。
+ */
+ok(versionAtLeast(PROMPT_VERSION, '2.8.0'), '提示词版本不低于 2.8.0（判档那一层在）', PROMPT_VERSION);
+ok(PROMPT_VERSION_NOTE.some((n) => n.startsWith('2.8.0')), '版本注记里留着 2.8.0 那一行（判档为什么加）');
 ok(GRADE_PROMPT_VERSION === '2.8.0', '共享层的「从哪版起有 D 档」与提示词版本一致');
 ok(/"grade"/.test(SHARED_SCHEMA) && /D0\|D1\|D2\|D3\|D4\|D5/.test(SHARED_SCHEMA), 'schema 里有 grade 与六档');
 ok(/"confidence"/.test(SHARED_SCHEMA), 'schema 里有独立的 confidence');

@@ -292,6 +292,10 @@ const CONSUMED = [
   // 判档记录（grading.ts）：只核记录完整性，不代模型改档位
   'grade', 'clause', 'at', 'evidence', 'fix', 'downgrade', 'd5',
   'consequence', 'synergy', 'protocol', 'removed',
+  // 修辞审计（rhetoric.ts）：八列 + 替代链，只核做没做完
+  'rhetoric', 'rows', 'ethos', 'pathos', 'logos', 'frame', 'degree',
+  'verifiable', 'corrections', 'relay', 'test', 'harm', 'note',
+  'chains', 'replaced', 'handoff', 'overlaps',
   'repair', 'missingPremise', 'alternativeReading', 'answerable', 'burdenStatus', 'repairedForm',
   'labels', 'name', 'nameEn', 'condition', 'whenLegitimate', 'riskOfError', 'landsOnCheck', 'tradition',
   'legitimateMoves', 'targetId', 'what', 'why',

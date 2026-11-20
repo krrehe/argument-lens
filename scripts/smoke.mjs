@@ -1777,6 +1777,37 @@ if (process.env.SMOKE_AGREEMENT === '1') {
 }
 
 /*
+ * 修辞审计卡（无条件跑）。
+ *
+ * 假模型给了一张完整表，所以走「有表」那一支。核的是接线与来源：
+ * 八列表头顺序、每行的测试结论、「替代成立」的行才带链、隔离声明逐字、
+ * 边界句在、索引里有一格、D5 的闸门不许在这里出现（审计只识别与移交，不判 D5）。
+ */
+{
+  const r = jOfLine('RHETRESULT');
+  const cols = Array.isArray(r.cols) ? r.cols : [];
+  const tests = Array.isArray(r.tests) ? r.tests : [];
+  const chains = Array.isArray(r.chainText) ? r.chainText : [];
+  const replaced = Array.isArray(r.replaced) ? r.replaced : [];
+  checks.push(
+    ['修辞审计：卡片出现了，且不是「没有审计表」那一支', r.has === true && r.none === false, JSON.stringify([r.has, r.none])],
+    ['修辞审计：三行都渲染出来（行数来自数据，不是写死）', r.rows === 3 && tests.length === 3, `${r.rows}/${tests.length}`],
+    [
+      '修辞审计：八列表头逐字是 D-03 4.8 的顺序',
+      cols.join('|') === '句位|三诉求功能|框架四功能|程度|传播条件|替代测试|后果|移交／计次',
+      cols.join('|'),
+    ],
+    ['修辞审计：三行里只有一行判替代成立', tests.filter((x) => x === 'substitute').length === 1 && r.subs === 1, tests.join(',')],
+    ['修辞审计：替代链一条，且写的是「顶掉推论桥」', r.chains === 1 && replaced.join(',') === 'bridge', `${r.chains}/${replaced.join(',')}`],
+    ['修辞审计：链上带着移交说明（单手法写「只记缺陷位置」）', /只记缺陷位置/.test(chains.join(' ')), chains.join(' ')],
+    ['修辞审计：与强度超载重复 1 处，明说只计一次', /重复 1 处/.test(String(r.close)) && /只计一次/.test(String(r.close)), String(r.close)],
+    ['修辞审计：隔离声明逐字在', String(r.iso) === '本表未改动任何事实或规范命题状态。', String(r.iso)],
+    ['修辞审计：边界句写明不改档位、不改命题真假', /不改档位/.test(String(r.boundary)) && /命题真假/.test(String(r.boundary)), String(r.boundary)],
+    ['修辞审计：速览索引里有这一格（有表才给）', r.inIndex === true, String(r.inIndex)],
+  );
+}
+
+/*
  * 骨架缺口（无条件跑：报告一出现它就在）。
  *
  * 核的是「这一层有没有真的把本地判定与报告自己的话分开」——

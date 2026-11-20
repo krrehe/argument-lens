@@ -1,17 +1,17 @@
 # 提示词：ARS 三标准（提问模式）
 
-> Acceptability · Relevance · Sufficiency｜模式：提问（interrogate）｜版本：v2.8.0
+> Acceptability · Relevance · Sufficiency｜模式：提问（interrogate）｜版本：v2.9.0
 > 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：不替你下结论，只给你一串可以直接问出口的问题。
 > 判定单元：单个前提上的一个标准，或单条推理链接上的一个标准
 > 原生刻度：三标准逐项符合度（每项独立评级，不合成总分）
 > 出处：Johnson & Blair, Logical Self-Defense；SEP, Informal Logic (Groarke, 2026)
 
-指纹 `81af4acd2b34`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `b7b09226f596`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `2120144ccb81`
 
-字符 14194（预算：警戒 16000／上限 24000，当前正常）
-估算 5744 token｜采样温度上限 0.4｜输出上限 8192 token
+字符 15448（预算：警戒 16000／上限 24000，当前正常）
+估算 6184 token｜采样温度上限 0.4｜输出上限 8192 token
 规则块（13）：q.role、q.not-cross-examiner、q.no-verdict、q.aim、q.three-never、q.credibility、q.answerable、core.input-boundary、core.output-discipline、q.epistemic、q.language、q.gate-four、q.scope-gate
 
 ---
@@ -359,6 +359,35 @@
     "why": "凭什么这个置信度：取材是否完整、版本是否明确、有没有关键信息缺失"
   },
 
+  "rhetoric": {
+    "rows": [
+      {
+        "at": "句位编号：报告里真实存在的 S1／S2…或 P1／C。审计要落脚到具体位置，不许给全文贴标签",
+        "ethos": "primary|secondary|none（这一句的品格/身份资源占什么功能位置，不记词频）",
+        "pathos": "primary|secondary|none",
+        "logos": "primary|secondary|none（理由或证据的位置）",
+        "frame": ["problem|cause|moral|remedy（Entman 四功能：问题界定／归因／道德评价／对策建议）"],
+        "degree": "match|mild|heavy（措辞承诺比前提承载力：相符／高一级／高两级以上）",
+        "verifiable": "yes|partial|no（材料可核验程度：指向可取得的原始材料吗）",
+        "corrections": "kept|closed|unclear（纠错入口：留了追问与更正的路，还是关了）",
+        "relay": "转发链位置：写依据句位；没有就写「未发现」。不许写因果断定",
+        "test": "substitute|accompany|untested（四步测试结论；没跑就写 untested，不许默认成 accompany）",
+        "harm": ["fabricated-support|concealed-counter|closed-inquiry（仅 substitute 时写；定损只写文本可观察的后果）"],
+        "note": "移交或计次说明；与结论强度超载同一处的，写「同一缺陷的修辞侧面」"
+      }
+    ],
+    "chains": [
+      {
+        "kind": "ethos|pathos|story|frame|degree|relay（替掉理由的是哪一类成分）",
+        "at": "这一成分所在的句位",
+        "replaced": "evidence|bridge|exception（被它顶掉的理由类型）",
+        "harm": "fabricated-support|concealed-counter|closed-inquiry",
+        "handoff": "「移交 D-01」或「只记缺陷位置」"
+      }
+    ],
+    "overlaps": "与 C-01 结论强度超载重复的处数（同一缺陷只计一次；没有就 0）"
+  },
+
   "repair": {
     "missingPremise": "缺哪条未表达前提；没有就 null",
     "alternativeReading": "换另一副透镜看这段话会得到什么不同的结论。必填。",
@@ -516,13 +545,14 @@ checks 按「前提 × 标准 + 整体充分性」生成：
 6. context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；guess＝原文没写、为把分析做下去而假定。这两档都要给 ifChanged：这格换成别的样子，判定往哪边变。多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。
 7. 本透镜的判定要读 2 格语境：「受众」可接受性是「对该受众可接受」，不是客观为真；「受众类型」受众类型决定可接受性的偏置方向：对立受众门槛天然更高。这几格只要不是 known，ifChanged 就必须写，而且要有落点：写成「这格若是别的样子，哪一条检查或哪一个档位会跟着变」，不许写「影响很大」「结论可能不同」这种没有落点的话。
 8. 本模式不评级：verdict.grade 写 null 或整个省略，confidence 也不必写。给了档位会被程序置空并留痕——那不是解析错误，是模式定义。
-9. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，labels 必须是空数组。
-10. 主输出是 refutations，但本模式下含义换成「你要问的问题」：
+9. 本模式不走到裁决层，修辞审计也不做：rhetoric 写 null 或整个省略。
+10. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，labels 必须是空数组。
+11. 主输出是 refutations，但本模式下含义换成「你要问的问题」：
    claim 是问什么，script 是可以直接发出去的原话，steelman 是他最可能怎么答，
    reply 是他答完之后你接什么。四段缺一段就补上。
-11. 每一问都必须对方答得上来。「你能证明不存在……」式的一律不许出现——
+12. 每一问都必须对方答得上来。「你能证明不存在……」式的一律不许出现——
    那是错置证明责任，问出口位置就反了。
-12. 本透镜的判定单元是「单个前提上的一个标准，或单条推理链接上的一个标准」，原生刻度是「三标准逐项符合度（每项独立评级，不合成总分）」。
+13. 本透镜的判定单元是「单个前提上的一个标准，或单条推理链接上的一个标准」，原生刻度是「三标准逐项符合度（每项独立评级，不合成总分）」。
    本模式不评级，但结构里的零件要按这套刻度命名：verdict.scale 与 verdict.scaleValue 照抄这套刻度的话，
    verdict.level 固定写 "undetermined"。
 ```

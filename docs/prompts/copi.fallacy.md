@@ -1,17 +1,17 @@
 # 提示词：教科书名录对照（查谬误模式）
 
-> Textbook Fallacy Catalogue｜模式：查谬误（fallacy）｜版本：v2.8.0
+> Textbook Fallacy Catalogue｜模式：查谬误（fallacy）｜版本：v2.9.0
 > 命名类：不给档位，给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：把可疑的地方对上教材里的名字——每个名字都要指得出原文哪一句，并说清它什么时候其实合法。
 > 判定单元：名录中的一个条目名
 > 原生刻度：条目匹配度。不构成有效性判定，永不给终局结论。
 > 出处：Copi & Cohen, Introduction to Logic；IEP, Fallacies (231 条)；Hong et al. 2024；Ramponi et al. 2025 (FAINA)
 
-指纹 `ea29e22476f1`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `c346a54d76b4`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `6eee91463e74`
 
-字符 18315（预算：警戒 16000／上限 24000，当前接近上限）
-估算 7713 token｜采样温度上限 0.15｜输出上限 8192 token
+字符 19569（预算：警戒 16000／上限 24000，当前接近上限）
+估算 8153 token｜采样温度上限 0.15｜输出上限 8192 token
 规则块（13）：fa.role、fa.not-hunter、fa.no-verdict、fa.price、fa.one-per-place、fa.legit、fa.empty、core.input-boundary、core.output-discipline、fa.epistemic、fa.language、fa.gate-four、fa.scope-gate
 
 ---
@@ -391,6 +391,35 @@ scope.outOfScopeAt 要写清是哪一条前提不成立，不要笼统说「不�
     "why": "凭什么这个置信度：取材是否完整、版本是否明确、有没有关键信息缺失"
   },
 
+  "rhetoric": {
+    "rows": [
+      {
+        "at": "句位编号：报告里真实存在的 S1／S2…或 P1／C。审计要落脚到具体位置，不许给全文贴标签",
+        "ethos": "primary|secondary|none（这一句的品格/身份资源占什么功能位置，不记词频）",
+        "pathos": "primary|secondary|none",
+        "logos": "primary|secondary|none（理由或证据的位置）",
+        "frame": ["problem|cause|moral|remedy（Entman 四功能：问题界定／归因／道德评价／对策建议）"],
+        "degree": "match|mild|heavy（措辞承诺比前提承载力：相符／高一级／高两级以上）",
+        "verifiable": "yes|partial|no（材料可核验程度：指向可取得的原始材料吗）",
+        "corrections": "kept|closed|unclear（纠错入口：留了追问与更正的路，还是关了）",
+        "relay": "转发链位置：写依据句位；没有就写「未发现」。不许写因果断定",
+        "test": "substitute|accompany|untested（四步测试结论；没跑就写 untested，不许默认成 accompany）",
+        "harm": ["fabricated-support|concealed-counter|closed-inquiry（仅 substitute 时写；定损只写文本可观察的后果）"],
+        "note": "移交或计次说明；与结论强度超载同一处的，写「同一缺陷的修辞侧面」"
+      }
+    ],
+    "chains": [
+      {
+        "kind": "ethos|pathos|story|frame|degree|relay（替掉理由的是哪一类成分）",
+        "at": "这一成分所在的句位",
+        "replaced": "evidence|bridge|exception（被它顶掉的理由类型）",
+        "harm": "fabricated-support|concealed-counter|closed-inquiry",
+        "handoff": "「移交 D-01」或「只记缺陷位置」"
+      }
+    ],
+    "overlaps": "与 C-01 结论强度超载重复的处数（同一缺陷只计一次；没有就 0）"
+  },
+
   "repair": {
     "missingPremise": "缺哪条未表达前提；没有就 null",
     "alternativeReading": "换另一副透镜看这段话会得到什么不同的结论。必填。",
@@ -584,16 +613,17 @@ meta=true 的是元问题：答否则后续检查项全部免除，直接写 not
 6. context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；guess＝原文没写、为把分析做下去而假定。这两档都要给 ifChanged：这格换成别的样子，判定往哪边变。多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。
 7. 本透镜的判定一步都不读语境七格——它只是给人看的地图。语境照实填，但不要把档位或结论归因到语境上，也不许写「因为受众是……所以判……」这种因果。
 8. 本模式不评级：verdict.grade 写 null 或整个省略，confidence 也不必写。给了档位会被程序置空并留痕——那不是解析错误，是模式定义。
-9. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，refutations 必须是空数组。
+9. 本模式不走到裁决层，修辞审计也不做：rhetoric 写 null 或整个省略。
+10. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，refutations 必须是空数组。
    这一份只回答「哪些位置对得上哪个名字」，不回答「这段话站不站得住」。
-10. 主输出是 labels，最多三条。每条必须带 quote（原文里能原样找到的一句）、condition、
+11. 主输出是 labels，最多三条。每条必须带 quote（原文里能原样找到的一句）、condition、
    whenLegitimate、riskOfError、landsOnCheck。缺 quote 或 landsOnCheck 挂不上检查项的条目，
    程序会直接丢掉，不显示——说不出是哪一句，就只是贴标签。
-11. 同一处位置只给一个名字。两个名字都说得通时，选与检查项对得更准的那个，
+12. 同一处位置只给一个名字。两个名字都说得通时，选与检查项对得更准的那个，
    另一个写进 selfCheck.unknowns，说明另一种叫法会把判断带到哪。
-12. 一个都没找到是正常结果：labels 给空数组，并在 unknowns 里说清是哪一种没有——
+13. 一个都没找到是正常结果：labels 给空数组，并在 unknowns 里说清是哪一种没有——
    这段文本本来就不是论证、名字都站不住、还是你没判断出来。不要用「可能有……的倾向」填空。
-13. 本透镜的判定单元是「名录中的一个条目名」，原生刻度是「条目匹配度。不构成有效性判定，永不给终局结论。」。
+14. 本透镜的判定单元是「名录中的一个条目名」，原生刻度是「条目匹配度。不构成有效性判定，永不给终局结论。」。
    本模式不评级，但结构里的零件要按这套刻度命名：verdict.scale 与 verdict.scaleValue 照抄这套刻度的话，
    verdict.level 固定写 "undetermined"。
 ```

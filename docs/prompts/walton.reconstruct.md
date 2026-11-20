@@ -1,17 +1,17 @@
 # 提示词：论证型式与批判性问题（重构模式）
 
-> Argumentation Schemes & Critical Questions｜模式：重构（reconstruct）｜版本：v2.8.0
+> Argumentation Schemes & Critical Questions｜模式：重构（reconstruct）｜版本：v2.9.0
 > 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：先别判。把这段话拆成结构图，看清它靠什么撑着。
 > 判定单元：型式的一条批判性问题（CQ）
 > 原生刻度：型式强度：抗 CQ 的能力
 > 出处：Walton, Reed & Macagno, Argumentation Schemes (2008)；武宏志《非形式逻辑导论》附录A
 
-指纹 `63c62ba01fd5`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `cb8f8230f8a1`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `030072c99b22`
 
-字符 18702（预算：警戒 16000／上限 24000，当前接近上限）
-估算 7890 token｜采样温度上限 0.1｜输出上限 8192 token
+字符 19956（预算：警戒 16000／上限 24000，当前接近上限）
+估算 8330 token｜采样温度上限 0.1｜输出上限 8192 token
 规则块（12）：rc.role、rc.not-evaluator、rc.no-verdict、rc.three-never、rc.structure、rc.ambiguity、core.input-boundary、core.output-discipline、rc.epistemic、rc.language、rc.gate-four、rc.scope-gate
 
 ---
@@ -369,6 +369,35 @@
     "why": "凭什么这个置信度：取材是否完整、版本是否明确、有没有关键信息缺失"
   },
 
+  "rhetoric": {
+    "rows": [
+      {
+        "at": "句位编号：报告里真实存在的 S1／S2…或 P1／C。审计要落脚到具体位置，不许给全文贴标签",
+        "ethos": "primary|secondary|none（这一句的品格/身份资源占什么功能位置，不记词频）",
+        "pathos": "primary|secondary|none",
+        "logos": "primary|secondary|none（理由或证据的位置）",
+        "frame": ["problem|cause|moral|remedy（Entman 四功能：问题界定／归因／道德评价／对策建议）"],
+        "degree": "match|mild|heavy（措辞承诺比前提承载力：相符／高一级／高两级以上）",
+        "verifiable": "yes|partial|no（材料可核验程度：指向可取得的原始材料吗）",
+        "corrections": "kept|closed|unclear（纠错入口：留了追问与更正的路，还是关了）",
+        "relay": "转发链位置：写依据句位；没有就写「未发现」。不许写因果断定",
+        "test": "substitute|accompany|untested（四步测试结论；没跑就写 untested，不许默认成 accompany）",
+        "harm": ["fabricated-support|concealed-counter|closed-inquiry（仅 substitute 时写；定损只写文本可观察的后果）"],
+        "note": "移交或计次说明；与结论强度超载同一处的，写「同一缺陷的修辞侧面」"
+      }
+    ],
+    "chains": [
+      {
+        "kind": "ethos|pathos|story|frame|degree|relay（替掉理由的是哪一类成分）",
+        "at": "这一成分所在的句位",
+        "replaced": "evidence|bridge|exception（被它顶掉的理由类型）",
+        "harm": "fabricated-support|concealed-counter|closed-inquiry",
+        "handoff": "「移交 D-01」或「只记缺陷位置」"
+      }
+    ],
+    "overlaps": "与 C-01 结论强度超载重复的处数（同一缺陷只计一次；没有就 0）"
+  },
+
   "repair": {
     "missingPremise": "缺哪条未表达前提；没有就 null",
     "alternativeReading": "换另一副透镜看这段话会得到什么不同的结论。必填。",
@@ -609,12 +638,13 @@ CQ：CQ1 有无相反证据使该归类存疑？（守：归类的边界）；CQ
 6. context.grounding 里每一格（contextGaps 除外）都要标出处，source 取 known｜inferred｜guess：known＝原文里能指出连续片段，basis 原样抄下那段；inferred＝由原文特征推的；guess＝原文没写、为把分析做下去而假定。这两档都要给 ifChanged：这格换成别的样子，判定往哪边变。多数文本没写明「听众是谁」「这是什么对话」，那几格常常就该是 guess。把猜的写成 known 比老实标 guess 更糟：可接受性与批判性问题都从这几格出发。
 7. 本透镜的判定要读 2 格语境：「对话类型」同一招式在不同对话类型下结论不同，类型判错，合法性跟着错；「阶段」逐条问 CQ 之前要先辨对话类型与阶段。这几格只要不是 known，ifChanged 就必须写，而且要有落点：写成「这格若是别的样子，哪一条检查或哪一个档位会跟着变」，不许写「影响很大」「结论可能不同」这种没有落点的话。
 8. 本模式不评级：verdict.grade 写 null 或整个省略，confidence 也不必写。给了档位会被程序置空并留痕——那不是解析错误，是模式定义。
-9. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，
+9. 本模式不走到裁决层，修辞审计也不做：rhetoric 写 null 或整个省略。
+10. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，
    refutations 与 labels 必须是空数组。这不是「可以不填」，是填了会被改回去。
-10. 主输出是结构与 supports。每一条 supports 里的 id 都必须真实存在——悬空的 id 会让结构图断线。
-11. 拆法有分歧的地方写进 selfCheck.unknowns 或 context.contextGaps，说明分歧在哪一步。
+11. 主输出是结构与 supports。每一条 supports 里的 id 都必须真实存在——悬空的 id 会让结构图断线。
+12. 拆法有分歧的地方写进 selfCheck.unknowns 或 context.contextGaps，说明分歧在哪一步。
    不要挑一种读法写下去、另一种提都不提：那等于替作者做了他没做的决定。
-12. 本透镜的判定单元是「型式的一条批判性问题（CQ）」，原生刻度是「型式强度：抗 CQ 的能力」。
+13. 本透镜的判定单元是「型式的一条批判性问题（CQ）」，原生刻度是「型式强度：抗 CQ 的能力」。
    本模式不评级，但结构里的零件要按这套刻度命名：verdict.scale 与 verdict.scaleValue 照抄这套刻度的话，
    verdict.level 固定写 "undetermined"。
 ```

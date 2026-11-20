@@ -170,7 +170,21 @@ if (!isolated) {
 writeFileSync(
   join(userData, 'settings.json'),
   JSON.stringify(
-    { baseUrl: `http://127.0.0.1:${PORT}/v1`, model: 'mock-argument-lens', temperature: 0.2, apiKeyCipher: '', apiKeyPlain: 'test' },
+    /*
+     * canary 必须是一串不可能自然出现的字符串。
+     *
+     * 原先这里是 'test'（四个字母），而报告里后来多了一个字段叫 `test`（修辞审计的四步测试结论），
+     * 于是「整份报告里搜不到 Key」这条断言对一份干净的报告判了泄漏——
+     * **假阳性比漏报更贵**：它会让人去查一个根本不存在的漏洞，然后顺手把这条断言删掉。
+     * 与 scripts/smoke.mjs 同一个口径：挑一个带前缀与随机段的值。
+     */
+    {
+      baseUrl: `http://127.0.0.1:${PORT}/v1`,
+      model: 'mock-argument-lens',
+      temperature: 0.2,
+      apiKeyCipher: '',
+      apiKeyPlain: 'sk-canary-4d8e2a-pack-do-not-leak',
+    },
     null,
     2
   ),

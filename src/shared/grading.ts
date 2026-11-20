@@ -23,6 +23,7 @@
  */
 
 import { MODE_META } from './types';
+import { versionAtLeast } from './version';
 import type { CheckItem, ConfidenceLevel, Diagnosis, Grade, GradeD5, GradeRecord, VerdictLevel } from './types';
 
 export type { Grade, GradeD5, GradeRecord };
@@ -233,21 +234,11 @@ export const GRADE_PROMPT_VERSION = '2.8.0';
 /**
  * 这一版提示词有没有 D 档层。
  *
- * 不写 `version === '2.8.0'`：那样 2.9.0 的报告会被当成旧档，
- * 而它其实有这一层——版本比较错向，比没有比较更误导。
- * 解析不出版本号时按「没有」处理：旧档确实没有，新档会带。
+ * 与修辞审计共用 `versionAtLeast`（shared/version）。原先这里是就地写的一段比较，
+ * 修辞审计又抄一遍——两份比较迟早有一份写成等号，于是 2.10.0 的报告被当成旧档。
  */
 export function promptHasGrade(version?: string): boolean {
-  if (!version) return false;
-  const a = version.split('.').map((x) => Number.parseInt(x, 10));
-  const b = GRADE_PROMPT_VERSION.split('.').map((x) => Number.parseInt(x, 10));
-  if (a.some((x) => Number.isNaN(x))) return false;
-  for (let i = 0; i < Math.max(a.length, b.length); i++) {
-    const x = a[i] ?? 0;
-    const y = b[i] ?? 0;
-    if (x !== y) return x > y;
-  }
-  return true;
+  return versionAtLeast(version, GRADE_PROMPT_VERSION);
 }
 
 /** 四档粗桶。没有 D 档时返回 null，界面据此显示「没有 D 档记录」。 */
