@@ -459,7 +459,7 @@ function ClaimCard({
       id={`cl-${claim.id}`}
       className={`claim-card ${isConclusion ? 'concl' : ''}`}
       onClick={onPick}
-      style={active ? { borderColor: 'var(--accent)', boxShadow: 'inset 0 0 0 1px var(--accent)' } : undefined}
+      style={active ? { borderColor: 'var(--accent)' } : undefined}
     >
       <div className="claim-top">
         <span className={`id-badge ${claim.implicit ? 'impl' : ''}`}>{claim.id}</span>

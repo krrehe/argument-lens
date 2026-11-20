@@ -28,7 +28,7 @@
   background: var(--panel-2);
 }
 .sb-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -43,10 +43,10 @@
   border: none;
   background: none;
   color: var(--ink-3);
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 .sb-x:hover {
   background: var(--muted-bg);
@@ -64,7 +64,7 @@
 .sb-bad {
   margin: 0;
   padding: 16px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--invalid);
 }
 
@@ -77,7 +77,7 @@
 }
 .sb-card {
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 9px 11px 10px;
   background: var(--panel);
 }
@@ -94,7 +94,7 @@
   gap: 8px;
 }
 .sb-side {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.06em;
 }
@@ -103,7 +103,7 @@
   color: var(--ink-2);
 }
 .sb-lv {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
   margin-left: auto;
 }
@@ -114,7 +114,7 @@
 }
 .sb-engine {
   margin-top: 3px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 
@@ -130,14 +130,14 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 11px;
+  font-size: 12px;
   padding: 2px 7px;
   border-radius: 999px;
   border: 1px solid var(--line);
 }
 .sb-flag i {
   font-style: normal;
-  font-size: 10px;
+  font-size: 12px;
 }
 .sb-flag.on {
   color: var(--ink-2);
@@ -152,7 +152,7 @@
 }
 .sb-size {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 
@@ -168,7 +168,7 @@
 
 .sb-line {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink);
   line-height: 1.6;
 }
@@ -177,7 +177,7 @@
   margin: 0;
   padding: 12px;
   border: 1px dashed var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   font-size: 12px;
   color: var(--ink-2);
   line-height: 1.7;
@@ -191,7 +191,7 @@
   flex-wrap: wrap;
 }
 .sb-chip {
-  font-size: 11px;
+  font-size: 12px;
   padding: 3px 8px;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -220,7 +220,7 @@
   gap: 8px;
 }
 .sb-secn {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
   color: var(--ink-3);
 }
@@ -263,7 +263,7 @@
   color: var(--ink-2);
 }
 .sb-kind {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 .sb-cell {
@@ -272,7 +272,7 @@
   font-size: 12px;
   line-height: 1.65;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--panel);
   color: var(--ink);
   white-space: pre-wrap;
@@ -292,7 +292,7 @@
 }
 .sb-cut {
   color: var(--ink-3);
-  font-size: 11px;
+  font-size: 12px;
   margin-left: 2px;
 }
 
@@ -307,12 +307,12 @@
   width: 100%;
   box-sizing: border-box;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-2);
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 8px;
   resize: vertical;
 }
@@ -329,24 +329,24 @@
   border-top: 1px dashed var(--line);
 }
 .ag-pick-h {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 .ag-pick-btn {
   min-width: 22px;
   height: 20px;
   padding: 0 5px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 18px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--panel);
   color: var(--ink-2);
   cursor: pointer;
 }
 .ag-pick-btn:hover {
-  border-color: var(--line-strong);
   color: var(--ink);
+  background: var(--muted-bg);
 }
 .ag-pick-btn.on {
   border-color: var(--ink-2);
@@ -358,9 +358,9 @@
   margin-left: 4px;
   height: 20px;
   padding: 0 9px;
-  font-size: 11px;
+  font-size: 12px;
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--panel-2);
   color: var(--ink);
   cursor: pointer;
@@ -375,11 +375,11 @@
 /* 每格自带的甲乙小字：滚过名片之后，它是唯一能分清左右的东西 */
 .sb-who {
   display: inline-block;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1;
   color: var(--ink-3);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 1px 3px;
   margin-right: 5px;
   vertical-align: 1px;

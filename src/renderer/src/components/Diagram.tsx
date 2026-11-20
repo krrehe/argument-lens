@@ -66,22 +66,22 @@ import { LEVEL_LABEL, THEORIES, type TheoryId } from '@shared/theories';
  * 表里任一项与 :root 对应变量不一致就红，不靠人记得同步。
  */
 export const C = {
-  ink: '#1d1d1f',
-  ink2: '#48484a',
-  ink3: '#68686d',
-  line: '#e6e6eb',
-  lineStrong: '#d2d2d7',
-  edge: '#a1a1a6',
-  accent: '#0066cc',
-  accentBg: '#ecf4ff',
-  strong: '#1d7a45',
-  strongBg: '#f2f2f5',
-  weak: '#8a5300',
-  weakBg: '#f2f2f5',
-  invalid: '#c0271d',
-  invalidBg: '#f2f2f5',
+  ink: '#37352f',
+  ink2: '#4a473f',
+  ink3: '#5f5c55',
+  line: '#e9e7e4',
+  lineStrong: '#d6d2c9',
+  edge: '#a8a39a',
+  accent: '#1668a0',
+  accentBg: '#efedea',
+  strong: '#2f6b4f',
+  strongBg: '#efedea',
+  weak: '#7d5510',
+  weakBg: '#efedea',
+  invalid: '#a82e26',
+  invalidBg: '#efedea',
   panel: '#ffffff',
-  panel2: '#fafafc',
+  panel2: '#f7f6f3',
 };
 
 const ACC_COLOR: Record<Claim['acceptability']['status'], string> = {
@@ -314,7 +314,7 @@ export function StructureMap({
                 width={NODE_W}
                 height={b.h}
                 rx="7"
-                fill={isConcl ? '#fdfcf7' : C.panel2}
+                fill={isConcl ? '#ffffff' : C.panel2}
                 stroke={c.implicit ? C.weak : C.lineStrong}
                 strokeWidth={c.implicit ? 1.1 : 1}
                 strokeDasharray={c.implicit ? '4 3' : undefined}

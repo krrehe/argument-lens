@@ -21,11 +21,11 @@
   color: var(--ink-2);
   background: var(--panel);
   white-space: nowrap;
-  transition: border-color 0.14s, background 0.14s, color 0.14s;
+  transition: border-color 150ms, background 150ms, color 150ms;
 }
 .usage-chip:hover {
-  border-color: var(--ink-3);
   color: var(--ink);
+  background: var(--muted-bg);
 }
 .uc-dot {
   width: 6px;
@@ -73,7 +73,7 @@
   text-align: left;
   margin-top: 8px;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: 4px;
   font-size: 12px;
   line-height: 1.6;
 }
@@ -111,13 +111,13 @@
   gap: 10px;
 }
 .u-head-sub {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
   color: var(--ink-3);
   letter-spacing: 0.02em;
 }
 .u-x {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1;
   color: var(--ink-3);
   padding: 0 2px;
@@ -135,7 +135,7 @@
   padding: 30px 0;
   text-align: center;
   color: var(--ink-3);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* 小节标题：右侧总能挂一句「这个数是哪来的」 */
@@ -150,7 +150,7 @@
   margin-bottom: 8px;
 }
 .u-sec-note {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
   letter-spacing: 0;
   color: var(--ink-3);
@@ -160,11 +160,10 @@
   color: var(--accent);
   padding: 2px 7px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--panel-2);
 }
 .u-mini:hover {
-  border-color: var(--accent);
   background: var(--accent-bg);
 }
 
@@ -179,14 +178,14 @@
   padding: 11px 14px;
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
 }
 .u-kpi.wide {
   background: var(--accent-bg);
   border-color: var(--line);
 }
 .u-kpi-label {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   color: var(--ink-3);
   margin-bottom: 3px;
@@ -205,7 +204,7 @@
    * 数据用无衬线 + 等宽数字，编辑体留给标题与引文。
    */
   font-family: var(--sans);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 650;
   line-height: 1.15;
   letter-spacing: -0.01em;
@@ -221,13 +220,13 @@
   color: var(--invalid);
 }
 .u-kpi-val b.u-unknown {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--ink-3);
   font-family: var(--sans);
   font-weight: 500;
 }
 .u-kpi-val span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
   line-height: 1.4;
 }
@@ -237,7 +236,7 @@
 .u-bar {
   display: flex;
   height: 10px;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
   border: 1px solid var(--line);
   background: var(--panel-2);
@@ -257,7 +256,7 @@
   display: flex;
   justify-content: space-between;
   margin-top: 5px;
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 .u-bar-legend .lb-used {
@@ -271,7 +270,7 @@
 .u-bar-empty {
   padding: 10px 12px;
   border: 1px dashed var(--line-strong);
-  border-radius: 8px;
+  border-radius: 4px;
   font-size: 12px;
   line-height: 1.72;
   color: var(--ink-3);
@@ -290,7 +289,7 @@
 .u-anchor-form input {
   padding: 6px 9px;
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: 4px;
   outline: none;
   font-size: 12px;
   background: var(--panel);
@@ -335,9 +334,9 @@
   display: block;
   width: 100%;
   background: var(--edge);
-  border-radius: 8px 3px 0 0;
+  border-radius: 4px 4px 0 0;
   min-height: 0;
-  transition: background 0.14s;
+  transition: background 150ms;
 }
 .u-day:hover .u-day-track i {
   background: var(--accent);
@@ -349,9 +348,10 @@
 .u-day-lb {
   position: absolute;
   bottom: -17px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
   color: var(--ink-3);
   white-space: nowrap;
 }
@@ -368,7 +368,7 @@
   font-size: 12px;
   color: var(--ink-3);
   border: 1px dashed var(--line-strong);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--panel-2);
 }
 
@@ -376,7 +376,7 @@
 
 .u-table {
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
 }
 .u-tr {
@@ -395,7 +395,7 @@
 .u-th {
   background: var(--panel-2);
   color: var(--ink-3);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   font-weight: 500;
 }
@@ -411,7 +411,7 @@
 }
 .u-tr.dead em {
   font-style: normal;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--invalid);
 }
 .u-table > .u-tr:not(.u-th):hover {
@@ -427,7 +427,7 @@
  * 认不出就等于没标。10px 是这套字号里最小的可读档。
  */
 sup.est {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--weak);
   margin-left: 2px;
   letter-spacing: 0;
@@ -437,7 +437,7 @@ sup.est {
 
 /* 「回填」：两字并排，不上标——上标会把两个字挤成一条细线，反而更难认 */
 .est-note {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--weak);
   margin-left: 3px;
   letter-spacing: 0.02em;
@@ -456,7 +456,7 @@ sup.est {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
   letter-spacing: 0.03em;
 }
@@ -464,7 +464,7 @@ sup.est {
   width: 108px;
   padding: 6px 9px;
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: 4px;
   outline: none;
   font-size: 12px;
   background: var(--panel);
@@ -482,7 +482,7 @@ sup.est {
 }
 
 .u-fine {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.75;
   color: var(--ink-3);
   margin-top: 8px;
@@ -500,16 +500,16 @@ sup.est {
 .u-ok.block {
   display: block;
   margin: 8px 0 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 .u-ok-block {
   margin-top: 8px;
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--strong);
   background: var(--strong-bg);
   border: 1px solid var(--strong);
-  border-radius: 8px;
+  border-radius: 4px;
   word-break: break-all;
 }
 .u-link {
@@ -517,7 +517,7 @@ sup.est {
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 2px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* ─────────── 这些数字有多硬 ─────────── */
@@ -526,7 +526,7 @@ sup.est {
   padding: 12px 14px;
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
 }
 .u-honest ul {
   list-style: none;
@@ -558,7 +558,7 @@ sup.est {
   padding: 11px 14px;
   border: 1px solid var(--line);
   background: var(--accent-bg);
-  border-radius: 8px;
+  border-radius: 4px;
 }
 .u-pricing.first .u-sec-title {
   color: var(--accent);
@@ -576,11 +576,11 @@ sup.est {
   flex-wrap: wrap;
   margin-bottom: 12px;
   padding: 5px 11px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   font-variant-numeric: tabular-nums;
 }
 .run-cost .rc-k {
@@ -593,7 +593,7 @@ sup.est {
   color: var(--line-strong);
 }
 .rc-link {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--weak);
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -606,7 +606,7 @@ sup.est {
   flex: 0 0 auto;
   padding: 3px 10px;
   border: 1px solid currentColor;
-  border-radius: 8px;
+  border-radius: 4px;
   font-size: 12px;
   opacity: 0.78;
   white-space: nowrap;
@@ -627,7 +627,7 @@ sup.est {
   align-self: flex-start;
   flex: 0 0 auto;
   padding: 0 4px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.2;
   opacity: 0.6;
 }

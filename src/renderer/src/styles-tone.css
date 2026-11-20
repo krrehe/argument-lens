@@ -11,7 +11,7 @@
   margin: 8px 0 6px;
   padding: 10px 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--panel-2);
 }
 
@@ -28,7 +28,7 @@
 }
 
 .tone-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--ink);
 }
@@ -60,7 +60,7 @@
 .tone-v {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.65;
   color: var(--ink);
   word-break: break-word;
@@ -68,10 +68,10 @@
 
 .tone-flag {
   flex: 0 0 auto;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 0 4px;
   white-space: nowrap;
 }
@@ -82,7 +82,7 @@
 }
 
 .tone-diffs li {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.7;
   color: var(--ink);
 }
@@ -109,7 +109,7 @@
 
 .tone-fine {
   margin-top: 8px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
   color: var(--ink-3);
 }

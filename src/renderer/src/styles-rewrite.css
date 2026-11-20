@@ -25,14 +25,14 @@
 /* 逐字片段：等宽只用在片段上，好和说明分得开。 */
 .claim-rewrite-detail {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--ink-3);
   word-break: break-word;
 }
 
 .claim-rewrite-note {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.55;
   color: var(--ink-3);
   word-break: break-word;

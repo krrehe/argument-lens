@@ -8,7 +8,7 @@
 
 .sk {
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--panel-2);
   padding: 11px 13px;
 }
@@ -16,7 +16,7 @@
 /* 总述那一句：整块的抬头，字号比正文略大一点，因为它是唯一一句总结。 */
 .sk-line {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.65;
   color: var(--ink);
   word-break: break-word;
@@ -49,17 +49,17 @@
  */
 .sk-from {
   align-self: flex-start;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   padding: 0 5px;
   border: 1px solid var(--line-strong);
-  border-radius: 8px;
+  border-radius: 4px;
   color: var(--ink-3);
   background: var(--muted-bg);
 }
 
 .sk-note {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.68;
   color: var(--ink);
   word-break: break-word;
@@ -68,7 +68,7 @@
 /* 要去核对的位置：等宽、浅色，和上面的句子分开，免得读成同一句话。 */
 .sk-at {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--ink-3);
   word-break: break-word;
@@ -77,7 +77,7 @@
 /* 四个缺口都为零时的说法：不描边，让它看起来是「一条说明」而不是「一个警报」。 */
 .sk-clear {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.7;
   color: var(--ink-2);
   word-break: break-word;

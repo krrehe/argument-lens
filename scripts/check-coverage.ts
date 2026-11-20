@@ -184,7 +184,16 @@ ok(/data-coverage-row=\{r\.index\}/.test(bar) && /data-coverage-note="1"/.test(b
 ok(/pinned === 0 && s\.sentences > 0/.test(bar), '只列「一句都没被落上」且确实含句子的段');
 ok(/previewTruncated \? '…' : ''/.test(bar), '截断的预览有省略号，不冒充完整段落');
 ok(/\.cv-bar/.test(css) && /\.cv-row/.test(css) && /\.cv-note/.test(css) && /\.cv-scroll/.test(css), '样式表里有收起栏、行、边界与滚动区');
-ok(/font-size: 11px/.test(css), '小字不小于 11px（整页截图里 10px 糊成黑块）');
+/*
+ * 原来钉的是「样式表里得有 font-size: 11px」——那是上一代苹果阶梯的下限。
+ * 换成 Notion 六档（12/14/16/20/24/32）之后，最小一档是 12px，比 11 更大、
+ * 更安全；但「查某个字面值在不在」这种探针挡不住有人把字改回 10px：
+ * 只要别处还有一处 11px，它就照绿。改成把这一栏所有字号读出来逐个比，
+ * 顺带要求落在阶梯内——下限与阶梯一起守，才是真的收紧。
+ */
+const covSizes = [...css.matchAll(/font-size:\s*(\d+)px/g)].map((m) => Number(m[1]));
+ok(covSizes.length >= 4 && covSizes.every((s) => [12, 14, 16, 20, 24, 32].includes(s)),
+  '覆盖账的字号都在 Notion 六档内且不小于 12px（整页截图里 10px 糊成黑块）');
 ok(/import '\.\/styles-coverage\.css'/.test(mainTsx) && /import '\.\/styles-coverage\.css'/.test(mockTsx), '真应用与预览页都引了样式');
 
 /*
