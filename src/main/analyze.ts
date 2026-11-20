@@ -44,6 +44,19 @@ import {
   VERIFIABLE_VALUES,
   auditRhetoric,
 } from '@shared/rhetoric';
+import {
+  COLUMN_STATUSES,
+  LEDGER_COLUMNS,
+  REASON_LABEL,
+  auditLedger,
+  type FactState,
+  type FallacyScreen,
+  type Ledger,
+  type LedgerColumn,
+  type LedgerRow,
+  type LedgerStatus,
+  type NoJudgeReason,
+} from '@shared/ledger';
 import { DEFAULT_THEORY, THEORY_BY_ID, isTheoryId, type TheoryId } from '@shared/theories';
 import { auditReport } from '@shared/report-audit';
 import { normalizeBrief } from '@shared/brief';
@@ -521,6 +534,88 @@ function normalizeRhetoric(raw: unknown, diagnostics: Diagnostic[]): RhetoricAud
   if (!rows.length) return null;
 
   return { rows, chains, overlaps: Math.max(0, Math.floor(Number(r.overlaps) || 0)) };
+}
+
+/**
+ * 命题账（D-02）：三栏、状态值、不判七项、双向谬误筛查。
+ *
+ * 这里只做「认下来」：取值按封闭词表对，对不上就**整行丢掉并留痕**——
+ * 这一点与修辞审计不同：那边缺省值 untested 是「没跑」，说的是真话；
+ * 这边若把未知状态默认成 open，等于替模型宣布「未决」，那是一句判决，
+ * 本地没有资格替它写。
+ */
+function normalizeLedger(raw: unknown, diagnostics: Diagnostic[]): Ledger | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, any>;
+  const unknown = new Set<string>();
+
+  const pick = <T extends string>(v: unknown, values: readonly T[], field: string): T | null => {
+    const s = typeof v === 'string' ? v.trim() : '';
+    if ((values as readonly string[]).includes(s)) return s as T;
+    if (s) unknown.add(`${field}=${s.slice(0, 16)}`);
+    return null;
+  };
+
+  const rows: LedgerRow[] = [];
+  let dropped = 0;
+  for (const x of arr<any>(o.rows)) {
+    const r = x ?? {};
+    const at = str(r.at).trim();
+    const column = pick<LedgerColumn>(r.column, LEDGER_COLUMNS, 'column');
+    if (!at || !column) {
+      dropped += 1;
+      continue;
+    }
+    const status = pick<LedgerStatus>(r.status, COLUMN_STATUSES[column], 'status');
+    if (!status) {
+      dropped += 1;
+      continue;
+    }
+    const nj = r.noJudge && typeof r.noJudge === 'object' ? (r.noJudge as Record<string, any>) : null;
+    const reason = nj ? pick<NoJudgeReason>(nj.reason, Object.keys(REASON_LABEL) as NoJudgeReason[], 'reason') : null;
+    rows.push({
+      at,
+      column,
+      status,
+      basis: str(r.basis),
+      reentry: str(r.reentry),
+      av: str(r.av),
+      factState: pick<FactState>(r.factState, ['verified', 'checkable', 'unavailable'], 'factState'),
+      conditional: str(r.conditional),
+      noJudge: nj && reason ? { reason, burden: oneOf(nj.burden, ['proponent', 'respondent', 'both', 'unclear'] as const, 'unclear'), reviewer: str(nj.reviewer) } : null,
+    });
+  }
+
+  const fallacies: FallacyScreen[] = [];
+  for (const x of arr<any>(o.fallacies)) {
+    const f = x ?? {};
+    const direction = pick<'forward' | 'reverse'>(f.direction, ['forward', 'reverse'], 'direction');
+    if (!direction) continue;
+    fallacies.push({
+      direction,
+      found: f.found === true || f.found === 'true',
+      at: str(f.at),
+      note: str(f.note),
+    });
+  }
+
+  if (unknown.size) {
+    diagnostics.push({
+      level: 'info',
+      code: 'LEDGER_UNKNOWN_VALUE',
+      message: `命题账里有 ${unknown.size} 处取值不在 D-02 的词表里（${[...unknown].join('、')}），对应的行已丢弃。状态值不猜：猜一个「未决」等于替模型宣布判决。`,
+    });
+  }
+  if (dropped) {
+    diagnostics.push({
+      level: 'warn',
+      code: 'LEDGER_ROWS_DROPPED',
+      message: `命题账有 ${dropped} 行缺编号、栏位或合法状态值，已丢弃。这几条命题在账上没有位置，等于没记。`,
+    });
+  }
+
+  if (!rows.length) return null;
+  return { rows, fallacies };
 }
 
 function normalizeLabels(raw: unknown, diagnostics: Diagnostic[], passage: string): LabelCandidate[] {
@@ -1006,6 +1101,26 @@ export function normalizeDiagnosis(
     rhetoric = null;
   }
 
+  /*
+   * 命题账（D-02）：两本账隔离。
+   *
+   * 本地做三件事：认下来（三栏 + 封闭状态值）、走不到裁决层时置空、
+   * 建好报告之后核一遍（auditLedger：有没有一条命题没上账、规范栏有没有写真假、
+   * 账里有没有出现 D0–D5、不判有没有按七项登记）。
+   * 状态值一个字都不改：那是模型按 D-02 记的判决。
+   */
+  let ledger = normalizeLedger((raw as any).ledger, diagnostics);
+  if (ledger && (!givesVerdict || theory === 'copi' || !scope.applicable)) {
+    diagnostics.push({
+      level: 'info',
+      code: 'LEDGER_STRIPPED',
+      message: givesVerdict
+        ? '透镜在本文本上不适用，命题账一并置空——没有可判的论证，就没有可归栏的命题。'
+        : `本次是「${MODE_META[mode].label}」模式，不走到裁决层，命题账已置空。`,
+    });
+    ledger = null;
+  }
+
   const verdict = {
     scale: strNonEmpty(v.scale, THEORY_BY_ID[theory].scale),
     scaleValue: str(v.scaleValue),
@@ -1291,6 +1406,7 @@ export function normalizeDiagnosis(
     verdict,
     confidence,
     rhetoric,
+    ledger,
     repair,
     labels,
     legitimateMoves,
@@ -1359,6 +1475,20 @@ export function normalizeDiagnosis(
     diagnostics.push({
       level: g.severity === 'block' ? 'warn' : 'info',
       code: g.severity === 'block' ? 'RHETORIC_INCOMPLETE' : 'RHETORIC_NOTE',
+      message: `${g.text}（${g.kind}）`,
+    });
+  }
+
+  /*
+   * 命题账核对。核的是「两本账有没有串」：状态值越栏、规范栏写真假、
+   * 账页上出现 D0–D5、同一条命题占两栏、不判缺七项。
+   * 「这条到底该判什么」是模型的判断，本地不重判——本地只按用词归栏，
+   * 归得不一样时记一条分歧，等第二位分析者裁决。
+   */
+  for (const g of auditLedger(report)) {
+    diagnostics.push({
+      level: g.severity === 'block' ? 'warn' : 'info',
+      code: g.severity === 'block' ? 'LEDGER_INCOMPLETE' : 'LEDGER_NOTE',
       message: `${g.text}（${g.kind}）`,
     });
   }

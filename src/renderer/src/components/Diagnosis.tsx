@@ -17,6 +17,7 @@ import { topicsOf, type TopicHit } from '@shared/topics';
 import { academicOf, BY_TOOL_LABEL, type AcademicView, type ByTool } from '@shared/academic';
 import { limitsOf } from '@shared/limits';
 import { propositionsOf } from '@shared/propositions';
+import { auditLedger } from '@shared/ledger';
 import { pivotOf } from '@shared/pivot';
 import { flowOf } from '@shared/flow';
 import { graphOf, graphSummary } from '@shared/prg-graph';
@@ -1612,6 +1613,8 @@ export function DiagnosisView({
    * 全本地推导，只读报告字段，不改任何判定——所以它和判读永远不会互相矛盾。
    */
   const props = useMemo(() => propositionsOf(d), [d]);
+  /* 账的缺口在这里算一次：组件要显示「哪几处按 D-02 还不算记完」，但它不该自己去核。 */
+  const ledgerGaps = useMemo(() => auditLedger(d), [d]);
   const pivot = useMemo(() => pivotOf(d), [d]);
   /**
    * 全流程账：这二十步做没做（v1.1 新增 F 段与 E4）。
@@ -2055,7 +2058,7 @@ export function DiagnosisView({
           sub={props.line}
           plain="判读只说了一件事：这段话站不站得住。这一栏说的是另一半——里面每一条主张本来该由什么来定。有的能去查，有的现在谁都给不出证据，有的是价值选择，论证再多也只能说明代价，不能把它判真判假。"
         >
-          <PropositionLedger v={props} />
+          <PropositionLedger v={props} gaps={ledgerGaps} />
         </Block>
       )}
 

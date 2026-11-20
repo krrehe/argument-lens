@@ -18,6 +18,7 @@
 import { ACCEPT_LABEL, ANSWER_LABEL, BURDEN_LABEL, CONF_LABEL, STRATEGY_LABEL, WHAT_REFUTED_LABEL } from './labels';
 import { limitsOf } from './limits';
 import { DECID_LABEL, propositionsOf } from './propositions';
+import { LEDGER_ISOLATION, rowLine } from './ledger';
 import { pivotOf } from './pivot';
 import { flowOf } from './flow';
 import { briefGaps, briefLine } from './brief';
@@ -239,7 +240,7 @@ export function reportToMarkdown(d: Diagnosis): string {
   if (props.total > 0) {
     out.push('## 每条主张该由什么来定');
     out.push('');
-    out.push('四类不是四个等级：能去查的、现在没证据的、只在自己体系内成立的、论证裁定不了的价值选择。');
+    out.push('三栏不是三个等级：能去查的、现在缺东西的（缺证据或缺把体系接到现实的那条前提）、只评证成强度的价值选择。');
     out.push('');
     if (props.routeLine) {
       out.push(`**路由**　${props.routeLine}`);
@@ -249,6 +250,20 @@ export function reportToMarkdown(d: Diagnosis): string {
       out.push(`- **${r.id}**（${r.roleLabel}${r.implicit ? '·补出的' : ''}）　${DECID_LABEL[r.decidability]}`);
       out.push(`  - 凭什么这么归：${oneLine(r.basis)}`);
       out.push(`  - 什么条件下改归：${oneLine(r.reclassifyIf)}`);
+      /* 账上那一行照录：状态值、依据、回栏条件、不判七项。导出件被转发出去之后，
+         这一行是唯一还能被人拿去对质的东西。旧存档没有账，就不写这一行，也不补。 */
+      if (r.ledger) out.push(`  - 账上：${oneLine(rowLine(r.ledger))}`);
+    }
+    if (props.ledger) {
+      for (const f of props.ledger.fallacies) {
+        out.push(
+          `- 谬误筛查（${f.direction === 'forward' ? '正向：推理差 → 结论假' : '反向：结论真 → 推理没问题'}）：${
+            f.found ? `发现于 ${oneLine(f.at)}` : '未发现'
+          }；${oneLine(f.note)}`,
+        );
+      }
+      out.push('');
+      out.push(`> ${LEDGER_ISOLATION}`);
     }
     out.push('');
   }

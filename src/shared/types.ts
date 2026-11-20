@@ -20,6 +20,7 @@
  */
 
 import type { TheoryId } from './theories';
+import type { Ledger } from './ledger';
 
 export type { TheoryId };
 
@@ -825,6 +826,16 @@ export interface Diagnosis {
    * 旧存档没有这一栏（2.9.0 之前），按「没做审计」处理，不补一张假表。
    */
   rhetoric?: RhetoricAudit | null;
+  /**
+   * 命题账（知识库「论证分析流程」D-02 v2.1）。
+   *
+   * 三栏的状态值是模型按 D-02 记的；本地只核记录齐不齐、有没有串账
+   * （规范栏写真假、账里出现 D0–D5），不改任何一个状态值。
+   * 与档位、置信度、修辞审计四层并列：档位评推理，置信度评这次分析，
+   * 修辞审计查替代，命题账记「这条断言按什么标准、处于什么状态」。
+   * 旧存档没有这一栏（2.10.0 之前），按「没有记账」处理，不补假值。
+   */
+  ledger?: Ledger | null;
   repair: Repair;
 
   /** 命名候选（名录透镜下是主输出，其他透镜下是末端注释，可空） */

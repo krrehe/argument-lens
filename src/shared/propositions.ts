@@ -1,4 +1,5 @@
 import type { Claim, ConfidenceLevel, Diagnosis, EpistemicTag } from './types';
+import type { Ledger, LedgerColumn, LedgerRow } from './ledger';
 import { BURDEN_LABEL, CONF_LABEL, TAG_LABEL } from './labels';
 
 /**
@@ -16,12 +17,16 @@ import { BURDEN_LABEL, CONF_LABEL, TAG_LABEL } from './labels';
  * 变成界面上看得见的一行。它只归类，不改 verdict、不改 acceptability、
  * 不改任何一个已有字段——本地推导，不调模型、不加 token。
  *
- * 四类，不是三类：
+ * 三栏，不是四类：
  *
- * 库里本来就有「框架」这个认识标签（符号体系内部自洽，不等于现实）。
- * 把它折进「不可裁」会丢掉它真正说的话——它不是没有证据，
- * 是它的真假只在自己那套体系里成立；拿到现实里用，中间还差一步。
- * 折进去，等于把「差一步」说成「差证据」，那是另一种假话。
+ * 早先这一栏按四组排，多出一组「框架·体系内成立」，理由是把它折进「不可裁」
+ * 会把「只在体系里成立」说成「缺证据」。但知识库 01_立案层 A-03 与 04_裁决层 D-02
+ * 用的是同一套三栏，且 A-03 五节写死「两册不得各造一套栏位名称」——
+ * 本地多出一栏，账与流程就对不上号，位号一错，后面所有引用都错。
+ *
+ * 折法不是抹掉那一层：框架命题留在「事实·不可裁」，理由写成
+ * 「缺的是把体系接到现实的那条桥接前提」，而不是「缺数据」。两句话都真，
+ * 但只有后一句能被人拿材料推翻——这就是可复核与不可复核的差别。
  *
  * 三条硬边界：
  *
@@ -31,35 +36,38 @@ import { BURDEN_LABEL, CONF_LABEL, TAG_LABEL } from './labels';
  *      不是这回事的），组内按报告顺序。
  *   3. 每行必须写「什么条件下改归另一类」。写不出改归条件的分类，
  *      和一句结论没有区别。
+ *
+ * 归栏只是本地读出来的那一栏；账上写什么由模型按 D-02 记（见 ledger.ts）。
+ * 两边不一致时登记成分歧，不静默取一。
  */
 
 /**
- * 可裁性。四个取值对应四种「该由什么来定」，不是一个刻度上的四档。
+ * 可裁性。三个取值对应三种「该由什么来定」，不是一条刻度上的三档。
  *
- * 所以它不参与排序：把「规范·不由论证裁定」排在「事实·证据不足」下面，
+ * 所以它不参与排序：把「规范·不由论证裁定」排在「事实·不可裁」下面，
  * 读起来就成了「更不可信」——那是把性质差别读成了程度差别。
+ *
+ * 类型直接取 D-02 的栏位名：两处共用一个名字，才谈得上「对得上号」。
  */
-export type Decidability = 'fact-decidable' | 'fact-insufficient' | 'framework-only' | 'norm-undecidable';
+export type Decidability = LedgerColumn;
 
 export const DECID_ORDER: readonly Decidability[] = [
   'fact-decidable',
-  'fact-insufficient',
-  'framework-only',
+  'fact-undecidable',
   'norm-undecidable',
 ] as const;
 
 export const DECID_LABEL: Record<Decidability, string> = {
   'fact-decidable': '事实·可裁',
-  'fact-insufficient': '事实·证据不足',
-  'framework-only': '框架·体系内成立',
-  'norm-undecidable': '规范·不由论证裁定',
+  'fact-undecidable': '事实·不可裁',
+  'norm-undecidable': '规范·不可裁',
 };
 
 /** 一句话说清这一组是「什么在挡着」。给的是理由，不是标签释义。 */
 export const DECID_GIST: Record<Decidability, string> = {
   'fact-decidable': '有门路核：去查哪份资料、回哪句原文、重算哪一步。这一组的对错能被证据推翻。',
-  'fact-insufficient': '两方都给不出可复现的东西，或者连该谁举证都没定。它不是「假的」，是「现在判不了」。',
-  'framework-only': '只在这套符号体系里成立，不等于现实如此。拿到现实里用，中间还差一步。',
+  'fact-undecidable':
+    '原则上能判真假，现在缺东西：可能是缺证据（谁去查哪份材料），也可能缺的是把它接到现实的那条前提（框架命题）。它不写「假」，只写缺什么、补齐后回哪一栏。',
   'norm-undecidable':
     '这是价值与制度选择。论证能说明它的后果与代价，不能把它判真判假；这一栏该给出的是一句条件式结论（若承认 X，则应 Y），不是真假。',
 };
@@ -164,6 +172,11 @@ export interface PropositionRow {
   burden: Claim['burden'];
   /** 谁该去证。没分配就直说没分配——那本身就是缺陷。 */
   burdenWho: string;
+  /**
+   * 账上这一条（模型按 D-02 记的）。旧存档没有账，这里就是 null：
+   * 界面照实说「没有记账」，不补一个「未决」——那是替模型宣布不判。
+   */
+  ledger: LedgerRow | null;
 }
 
 /**
@@ -186,6 +199,11 @@ export interface PropositionView {
   route: Route;
   /** 路由那句话：拆成几栏、各判什么。 */
   routeLine: string;
+  /**
+   * 账上的整份记录（含双向谬误筛查）。旧存档没有，界面照实说「没有记账」。
+   * 这里只带引用，不改：状态值是模型的判决，本地只核记录。
+   */
+  ledger: Ledger | null;
 }
 
 const ROLE_LABEL: Record<Claim['role'], string> = {
@@ -254,14 +272,19 @@ function decidabilityOf(d: Diagnosis, c: Claim): { kind: Decidability; basis: st
     return { kind: 'norm-undecidable', basis: why + also.map((x) => `；${x}`).join('') };
   }
   if (tag === 'framework') {
+    /*
+     * 框架命题：不是「缺数据」，是缺「把体系接到现实」的那条前提。
+     * 两句话都归「事实·不可裁」，但只有后一句能被材料推翻——
+     * 写成「证据不足」，读者会去翻资料；写成桥接前提，读者才知道要争的是哪一步。
+     */
     return {
-      kind: 'framework-only',
-      basis: `${tagText}——这条的真假只在所引的那套体系里成立`,
+      kind: 'fact-undecidable',
+      basis: `${tagText}——它的真假只在所引的那套体系里成立；要拿到现实里用，缺的是把体系接上现实的那条桥接前提，不是数据`,
     };
   }
   if (conf === 'undetermined' || tag === 'guess') {
     return {
-      kind: 'fact-insufficient',
+      kind: 'fact-undecidable',
       basis: `${confText}、${tagText}——两边都没有可核的东西`,
     };
   }
@@ -281,9 +304,10 @@ function reclassifyIf(kind: Decidability, c: Claim): string {
   switch (kind) {
     case 'norm-undecidable':
       return `把它换写成事实命题（这样做实际会造成什么后果），才进入可裁范围；本工具不替它换写`;
-    case 'framework-only':
-      return `只有当承认这套体系能映射现实时，它才${where}；在此之前它不能拿来判现实`;
-    case 'fact-insufficient':
+    case 'fact-undecidable':
+      if (c.acceptability.tag === 'framework') {
+        return `只有当承认这套体系能映射现实时，它才${where}；在此之前缺的是那条桥接前提，不是数据`;
+      }
       return c.burden === 'unclear'
         ? `先定该谁举证，再由任一方给出可复现的证据；现在连这一步都没做`
         : `任一方给出可复现的证据即${where}——目前${burdenWho(c.burden)}还没给出`;
@@ -306,10 +330,15 @@ function reclassifyIf(kind: Decidability, c: Claim): string {
 export function propositionsOf(d: Diagnosis): PropositionView {
   const counts: Record<Decidability, number> = {
     'fact-decidable': 0,
-    'fact-insufficient': 0,
-    'framework-only': 0,
+    'fact-undecidable': 0,
     'norm-undecidable': 0,
   };
+
+  /* 账上按编号取：模型给的账与本地归的栏是两件事，行上并列放，界面各说各的。 */
+  const ledgerOf = new Map<string, LedgerRow>();
+  for (const r of d.ledger?.rows ?? []) {
+    if (r?.at && !ledgerOf.has(r.at)) ledgerOf.set(r.at, r);
+  }
 
   /* 顺序照报告：结论在前，然后前提、中间结论各按原顺序。
      同一组里保持这个次序，读者才能在账上认出正文里那一行。 */
@@ -340,6 +369,7 @@ export function propositionsOf(d: Diagnosis): PropositionView {
       status: c.acceptability.status,
       burden: c.burden,
       burdenWho: burdenWho(c.burden),
+      ledger: ledgerOf.get(c.id) ?? null,
     });
   }
 
@@ -347,7 +377,7 @@ export function propositionsOf(d: Diagnosis): PropositionView {
   const line =
     total === 0
       ? '这份报告里没有可归账的命题'
-      : `共 ${total} 条｜可裁 ${counts['fact-decidable']}｜证据不足 ${counts['fact-insufficient']}｜体系内 ${counts['framework-only']}｜不由论证裁定 ${counts['norm-undecidable']}`;
+      : `共 ${total} 条｜可裁 ${counts['fact-decidable']}｜不可裁 ${counts['fact-undecidable']}｜规范 ${counts['norm-undecidable']}`;
 
   const normCount = counts['norm-undecidable'];
   const factCount = total - normCount;
@@ -369,5 +399,6 @@ export function propositionsOf(d: Diagnosis): PropositionView {
     implicitCount: rows.filter((r) => r.implicit).length,
     route,
     routeLine,
+    ledger: d.ledger ?? null,
   };
 }

@@ -2957,8 +2957,8 @@
 }
 
 /* ─────────── 命题账（每条主张该由什么来定） ───────────
-   按四组竖排，不做表格：一张表会让人横着比，而「证据不足」与
-   「不由论证裁定」不是同一条尺子的两档，是两件不同的事。
+   按三栏竖排，不做表格：一张表会让人横着比，而「事实·不可裁」与
+   「规范·不可裁」不是同一条尺子的两档，是两件不同的事。
    所以没有红黄绿，也不按严重程度排序——这一栏没有褒贬，只有性质。
    组分隔只靠一条细线，逐条之间用虚线，让十行读下来不糊成一片。 */
 .pl {
@@ -3118,6 +3118,147 @@
   margin-right: 7px;
   font-weight: 500;
   color: var(--accent);
+}
+
+/* 旧存档没有账。这句话必须占一块地方，不能只在角落标一行小字——
+   一份「只归了栏、没记状态」的账，看起来和一份记全了的账一模一样，
+   而它们的可复核程度差一整层。 */
+.pl-none {
+  padding: 7px 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 5px;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.pl-none b {
+  margin-right: 7px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+/* 账上那一行（模型按 D-02 记的）。与「本地归的栏」并排但不合并：
+   左边竖线把它与下面的「凭什么这么归」分开，读者一眼能看出这是两处来源。
+   不点颜色：状态值不是好坏，已证伪与已证真同属可裁栏。 */
+.pl-led {
+  margin: 2px 0 1px;
+  padding: 5px 0 5px 9px;
+  border-left: 2px solid var(--line-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pl-st {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.pl-st b {
+  font-weight: 500;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+.pl-stv {
+  color: var(--ink);
+  letter-spacing: 0.01em;
+}
+
+.pl-f {
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+
+.pl-f b {
+  margin-right: 6px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+/* 双向谬误筛查。两行必须并排出现：只显示查到的那一边，
+   就等于把「只禁一边」的双标又做进界面里。 */
+.pl-fal {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pl-fal-h {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.pl-fal-g {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.pl-fal-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.pl-fal-k {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.pl-fal-v {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink);
+}
+
+.pl-fal-n {
+  flex: 1;
+  min-width: 180px;
+  word-break: break-word;
+}
+
+/* 缺口。只列 block 级：warn 级（复核人没写、置信度混进来）在诊断里，
+   这里列全了会把真正拦住复核的那几条淹掉。 */
+.pl-gaps {
+  padding: 7px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--panel-2);
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.pl-gaps-h {
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+
+.pl-gaps ul {
+  margin: 0;
+  padding-left: 15px;
+}
+
+.pl-gaps li {
+  margin: 2px 0;
 }
 
 /* ─────────── 枢纽前提（这一段压在谁身上，而谁正是争点） ───────────

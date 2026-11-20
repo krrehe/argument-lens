@@ -26,7 +26,7 @@ import { blocksFor, REQUIRED_BLOCKS, type PromptBlock } from './blocks';
  * 每次改动提示词都必须改这里，并写清改了什么（见 docs/提示词工程.md 的变更表）。
  */
 
-export const PROMPT_VERSION = '2.9.0';
+export const PROMPT_VERSION = '2.10.0';
 
 /**
  * 变更记录。每次改版本号都要在这里留一行，说清改了什么、为什么。
@@ -36,6 +36,16 @@ export const PROMPT_VERSION = '2.9.0';
  * 没有这份记录，半年后有人会把它当冗余删掉，然后同一个 bug 再发生一次。
  */
 export const PROMPT_VERSION_NOTE: string[] = [
+  '2.10.0 user 模板加第 10 条「命题账」，ledger 按知识库「论证分析流程」D-02 v2.1 记：' +
+    '三栏（事实·可裁／事实·不可裁／规范·不可裁）、各栏封闭状态值、每条命题一行、' +
+    '规范栏必填 av／factState／conditional、不判七项、双向谬误筛查。' +
+    '起因：软件里本来就有一栏命题账，但那一栏是本地按用词归的类，只回答「这条该由什么来定」，' +
+    '回答不了 D-02 真正要的那件事——「它现在处于什么状态、凭什么、补什么材料能回栏」。' +
+    '本地按用词归栏还有一处硬伤：D-02 与 A-03 都用三栏，本地早先多出一栏「框架·体系内成立」，' +
+    '两册对不上号；这一版把框架折回「事实·不可裁」，理由写「缺的是把体系接到现实的那条桥接前提，不是数据」——' +
+    '两句话都真，但只有后一句能被材料推翻。同时把「不判也是判决」写死：只写「此处不判」不给理由、责任与回栏条件，本地判漏记。' +
+    '这一版不改档位、不改修辞审计：账上的状态值只进命题账，档位另按 D-01 判，两处结论允许不一致但必须分别写理由。' +
+    '真模型是否照做（会不会把「未决」当安全值全填、把价值前提写成「通常价值下」）未验，余额为空。',
   '2.9.0 user 模板加第 9 条「修辞审计」，rhetoric 按知识库「论证分析流程」D-03 v2.1 的八列写：' +
     '句位、三诉求功能、框架四功能、程度等级、传播条件三格、替代测试结论、后果类别、移交／计次。' +
     '起因：原来这套流程只给档位，而 D-03 的核心判据是「查替代，不查有无」——' +
@@ -403,6 +413,26 @@ export const SHARED_SCHEMA = `{
     "overlaps": "与 C-01 结论强度超载重复的处数（同一缺陷只计一次；没有就 0）"
   },
 
+  "ledger": {
+    "rows": [
+      {
+        "at": "P 编号（结论写 C）。报告里每一条命题都要有一行；缺一行等于没记",
+        "column": "fact-decidable|fact-undecidable|norm-undecidable（一条只能落一栏）",
+        "status": "事实·可裁写 true|false|open；事实·不可裁固定写 undecidable；规范·不可裁写 strong|weak|unjustified",
+        "basis": "依据位置（哪份资料、哪句原文、重算哪一步）；不可裁时写缺什么材料或哪条前提",
+        "reentry": "定案条件：什么材料到了就回栏重判。open／undecidable／unjustified 必填",
+        "av": "仅规范栏：价值前提 A_v 的具体内容，标「补出」。不许写「在通常价值下」",
+        "factState": "仅规范栏：verified|checkable|unavailable（已核验／可核验未核／不可得）",
+        "conditional": "仅规范栏：若接受 A_v，且事实前提处于某状态，则 C 得到／未得到证成",
+        "noJudge": {"reason": "material|value-premise|protocol（材料不足／价值前提未明示／协议不允许裁定）", "burden": "proponent|respondent|both|unclear（举证在谁；没定就写 unclear，不许写「双方」）", "reviewer": "谁来复核这条记录；没指定就写「未指定」，别留白"}
+      }
+    ],
+    "fallacies": [
+      {"direction": "forward", "found": false, "at": "在哪一句（没发现就写查过的范围）", "note": "发现了写改法；没发现写隐性版本怎么查的"},
+      {"direction": "reverse", "found": false, "at": "…", "note": "同上：结论为真不等于推理没问题，隐性版本是「事实就是这样」"}
+    ]
+  },
+
   "repair": {
     "missingPremise": "缺哪条未表达前提；没有就 null",
     "alternativeReading": "换另一副透镜看这段话会得到什么不同的结论。必填。",
@@ -683,12 +713,37 @@ const RHETORIC_HINT =
 
 const NO_RHETORIC_HINT = '本模式不走到裁决层，修辞审计也不做：rhetoric 写 null 或整个省略。';
 
+/*
+ * 命题账（D-02）。
+ *
+ * 这一条最容易被写成一张评分表，所以提示词先立栏位与封闭状态值，
+ * 再把三条「本地核得出来」的硬边界写死：规范栏不许写真假、账里不许出现 D0–D5、
+ * 不判必须按七项登记。最后逼它填两行谬误筛查——只禁一个方向，就是双标。
+ */
+const LEDGER_HINT =
+  '命题账（D-02）：写清「这句话写在谁的账上」。三栏，一条只能落一栏：' +
+  '事实·可裁（有门路核）／事实·不可裁（原则上能判，现在缺证据或缺把体系接到现实的那条前提）／' +
+  '规范·不可裁（应当、必须、值得、好坏，只评证成强度）。宽读严读不同栏时各占一行并注明不合并，不许取其一。' +
+  '事实栏写已证真／已证伪／未决；规范栏只写证成强／弱／未证成——规范栏写「真／假」是串账。' +
+  '未决、不可裁、未证成都算判决：必须写 reentry（定案条件）与 noJudge（理由类型／举证责任／复核人），' +
+  '只写「此处不判」是漏记，不是中立。规范栏必填 av（具体桥接命题，标「补出」，不许写「通常价值下」）、' +
+  'factState 与 conditional；条件式结论缺任一项即不合规。' +
+  '账页上不许出现 D0–D5（档位是另一本账）、不许拿置信度当状态理由、不拿情绪或权威叙事解释事实状态——那两样各有各的账。' +
+  '最后填 fallacies 两行：正向（推理有缺陷所以结论是假）与反向（结论被证实所以推理没问题）。' +
+  '都没发现也要写查过的范围与隐性版本——「这种说法站不住」「事实就是这样，论证自然成立」与明说同罪。';
+
+const NO_LEDGER_HINT = '本模式不走到裁决层，命题账也不做：ledger 写 null 或整个省略。';
+
 function gradeDiscipline(mode: AnalysisMode): string {
   return MODE_META[mode].givesVerdict ? GRADE_HINT : NO_GRADE_HINT;
 }
 
 function rhetoricDiscipline(mode: AnalysisMode): string {
   return MODE_META[mode].givesVerdict ? RHETORIC_HINT : NO_RHETORIC_HINT;
+}
+
+function ledgerDiscipline(mode: AnalysisMode): string {
+  return MODE_META[mode].givesVerdict ? LEDGER_HINT : NO_LEDGER_HINT;
 }
 
 function userTemplateFor(theory: TheoryId, mode: AnalysisMode): string {
@@ -709,8 +764,9 @@ function userTemplateFor(theory: TheoryId, mode: AnalysisMode): string {
     `7. ${contextDiscipline(theory)}`,
     `8. ${gradeDiscipline(mode)}`,
     `9. ${rhetoricDiscipline(mode)}`,
-    ...extra.map((s, i) => `${10 + i}. ${s}`),
-    `${10 + extra.length}. ${tail}`,
+    `10. ${ledgerDiscipline(mode)}`,
+    ...extra.map((s, i) => `${11 + i}. ${s}`),
+    `${11 + extra.length}. ${tail}`,
   ].join('\n');
 
   return `守卫：{delim}

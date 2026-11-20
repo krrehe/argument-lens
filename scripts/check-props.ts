@@ -87,12 +87,8 @@ const real = propositionsOf(MOCK);
 ok(real.total === 1 + (MOCK.premises?.length ?? 0) + (MOCK.intermediate?.length ?? 0), '每条命题都在账上', String(real.total));
 ok(new Set(real.rows.map((r) => r.id)).size === real.total, '一条只记一次（同 id 不重复上账）');
 ok(
-  real.counts['fact-decidable'] +
-    real.counts['fact-insufficient'] +
-    real.counts['framework-only'] +
-    real.counts['norm-undecidable'] ===
-    real.total,
-  '四类计数加起来等于总数',
+  DECID_ORDER.reduce((n, k) => n + real.counts[k], 0) === real.total,
+  '三栏计数加起来等于总数',
   JSON.stringify(real.counts)
 );
 ok(real.rows.every((r) => r.basis.length > 10), '每一行都写了「凭什么这么归」');
@@ -149,13 +145,18 @@ ok(/本次透镜/.test(ptaC.basis), '依据里说明「这是本次透镜的判�
 
 ok(only(cl('P7', '甲', { tag: 'known', conf: 'high' })).decidability === 'fact-decidable', '有据且置信高 → 可裁');
 ok(only(cl('P7', '甲', { tag: 'computed' })).decidability === 'fact-decidable', '算出来的 → 可裁（重算即可）');
-ok(only(cl('P7', '甲', { tag: 'guess' })).decidability === 'fact-insufficient', '猜测 → 证据不足');
+ok(only(cl('P7', '甲', { tag: 'guess' })).decidability === 'fact-undecidable', '猜测 → 事实·不可裁');
 ok(
-  only(cl('P7', '甲', { tag: 'known', conf: 'undetermined' })).decidability === 'fact-insufficient',
-  '置信未定 → 证据不足（哪怕标签写的是有据）'
+  only(cl('P7', '甲', { tag: 'known', conf: 'undetermined' })).decidability === 'fact-undecidable',
+  '置信未定 → 事实·不可裁（哪怕标签写的是有据）'
 );
-ok(only(cl('P7', '甲', { tag: 'framework' })).decidability === 'framework-only', '框架标签 → 体系内成立');
-ok(/体系里成立/.test(only(cl('P7', '甲', { tag: 'framework' })).basis), '体系内那组说清「只在体系里成立」');
+/* 框架不是第四栏：A-03 与 D-02 都只给三栏，多一栏两册就对不上号。
+   折的是位置，不是那层意思——依据里必须写清缺的是什么。 */
+const fw = only(cl('P7', '甲', { tag: 'framework' }));
+ok(fw.decidability === 'fact-undecidable', '框架标签 → 事实·不可裁（不是第四栏）');
+ok(/桥接前提/.test(fw.basis), '框架命题的依据写「缺的是桥接前提」，不是「缺数据」', fw.basis);
+ok(!/证据$/.test(fw.basis), '没有把「只在体系里成立」说成「缺证据」', fw.basis);
+ok(/体系里成立/.test(fw.basis), '体系内那层意思没被折掉');
 
 /* 举证责任没分配，是缺陷本身，要写出来 */
 const unassigned = only(cl('P6', '罪犯子女更易实施贪渎', { conf: 'undetermined', burden: 'unclear' }));
@@ -180,8 +181,8 @@ ok(
   !/verdict|acceptability\s*=\s*|\.status\s*=/.test(mod.replace(/\/\*[\s\S]*?\*\//g, '')),
   '这一栏不改判读与可接受性（只读已落盘字段）'
 );
-ok(DECID_ORDER.length === 4, '四类，不多不少', String(DECID_ORDER.length));
-ok(new Set(DECID_ORDER).size === 4, '四类互不重复');
+ok(DECID_ORDER.length === 3, '三栏，不多不少', String(DECID_ORDER.length));
+ok(new Set(DECID_ORDER).size === 3, '三栏互不重复');
 ok(DECID_ORDER.every((k) => !!DECID_LABEL[k] && DECID_LABEL[k].length >= 4), '每类都有中文名');
 ok(DECID_ORDER.every((k) => DECID_GIST[k].length > 20), '每类都说清「什么在挡着」，不是一个标签了事');
 
@@ -199,7 +200,7 @@ ok(
 const mixed = propositionsOf(withClaims([cl('P1', '甲'), cl('P2', '该制度应当废除')], C_FACT()));
 ok(mixed.route === 'mixed', '事实与规范混在一段 → 混合（不许整段一把尺子量）');
 ok(
-  mixed.routeLine.includes(`拆成 ${mixed.counts['fact-decidable'] + mixed.counts['fact-insufficient'] + mixed.counts['framework-only']} 条按证据判真假`) &&
+  mixed.routeLine.includes(`拆成 ${mixed.counts['fact-decidable'] + mixed.counts['fact-undecidable']} 条按证据判真假`) &&
     mixed.routeLine.includes(`${mixed.counts['norm-undecidable']} 条只判辩护成不成立`),
   '混合路由说清拆成几栏（数字与逐条计数一致）',
   mixed.routeLine
@@ -215,7 +216,8 @@ ok(/条件式结论/.test(DECID_GIST['norm-undecidable']), '规范那一组要�
 
 const diagTsx = src('src/renderer/src/components/Diagnosis.tsx');
 const ledger = src('src/renderer/src/components/PropositionLedger.tsx');
-ok(/<PropositionLedger v=\{props\} \/>/.test(diagTsx), '报告主体里真的渲染了命题账（不是只有 import）');
+ok(/<PropositionLedger v=\{props\} gaps=\{ledgerGaps\} \/>/.test(diagTsx), '报告主体里真的渲染了命题账（不是只有 import）');
+ok(/auditLedger\(d\)/.test(diagTsx), '账的缺口在报告层核一次，组件不自己判');
 ok(/props\.total > 0/.test(diagTsx), '没有可归账的命题时整块不出现（不摆空壳）');
 ok(
   diagTsx.indexOf('id="sec-props"') > diagTsx.indexOf('id="sec-verdict"') &&
@@ -225,7 +227,8 @@ ok(
 ok(/DECID_ORDER\.map/.test(ledger), '组件按固定组顺序渲染，不是手写四块');
 ok(/补出的/.test(ledger), '补出来的前提在界面上与原文主张分开标');
 ok(/凭什么这么归/.test(ledger) && /什么条件下改归/.test(ledger), '每一行都露出依据与改归条件');
-ok(/靠用词认/.test(ledger) && /不猜语义/.test(ledger), '界面上写明「含蓄的价值判断认不出来」——这一栏不假装全覆盖');
+ok(/靠用词认/.test(ledger) && /本地读不出来/.test(ledger), '界面上写明「含蓄的价值判断认不出来」——这一栏不假装全覆盖');
+ok(/账上/.test(ledger) && /凭什么这么归/.test(ledger), '账上的状态与本地归的栏并排摆，不合成一句');
 ok(/pl-route/.test(ledger) && /data-route/.test(ledger), '路由那一行在界面上真的渲染出来');
 ok(/两本账不许互相转账/.test(ledger), 'D2 的双向禁令写在界面上（两个方向都禁，不是只禁一边）');
 

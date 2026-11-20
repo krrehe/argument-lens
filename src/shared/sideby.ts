@@ -41,6 +41,7 @@ export type SideSectionId =
   | 'defeat'
   | 'verdict'
   | 'confidence'
+  | 'ledger'
   | 'rhetoric'
   | 'repair'
   | 'refutations'
@@ -69,7 +70,9 @@ export const SECTION_ORDER: { id: SideSectionId; label: string; key: string }[] 
   /* 把握紧跟在评级后面：同一份判断，一处说「几档」，一处说「这个判断有多把稳」。
      两者不许合并成一段——档位低而把握高（或反过来）本身就是该被看见的形状。 */
   { id: 'confidence', label: '把握', key: 'confidence' },
-  /* 修辞审计也在裁决层（D-03），紧接评级与把握：三册的顺序就是 D-01→D-02→D-03。 */
+  /* 命题账是 D-02，排在 D-01（评级＋把握）与 D-03（修辞审计）之间：
+     三册的顺序本来就是「判档 → 记账 → 查替代」，对照表跟着这个顺序读才对得上。 */
+  { id: 'ledger', label: '命题账', key: 'ledger' },
   { id: 'rhetoric', label: '修辞审计', key: 'rhetoric' },
   { id: 'repair', label: '修补', key: 'repair' },
   { id: 'refutations', label: '反驳', key: 'refutations' },
@@ -229,6 +232,19 @@ export const FIELD_LABEL: Record<string, string> = {
   replaced: '顶掉的理由',
   handoff: '移交或计次',
   overlaps: '与强度超载重合',
+  /* 命题账（D-02）。三栏名与状态值在账里是中文，这里补的是字段名：
+     对照表要能读出「这一行是栏位变了还是状态值变了」，两件事的后果完全不同。 */
+  ledger: '命题账',
+  fallacies: '谬误筛查',
+  column: '栏位',
+  reentry: '回栏条件',
+  av: '价值前提 A_v',
+  factState: '事实前提状态',
+  conditional: '条件式结论',
+  noJudge: '不判七项',
+  reviewer: '复核人',
+  direction: '筛查方向',
+  found: '是否发现',
   /* EPI 自评的七项与合计 */
   epi: 'EPI 自评',
   P1_source: 'EPI 1 来源',

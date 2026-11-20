@@ -1,17 +1,17 @@
 # 提示词：论证型式与批判性问题（提问模式）
 
-> Argumentation Schemes & Critical Questions｜模式：提问（interrogate）｜版本：v2.9.0
+> Argumentation Schemes & Critical Questions｜模式：提问（interrogate）｜版本：v2.10.0
 > 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：不替你下结论，只给你一串可以直接问出口的问题。
 > 判定单元：型式的一条批判性问题（CQ）
 > 原生刻度：型式强度：抗 CQ 的能力
 > 出处：Walton, Reed & Macagno, Argumentation Schemes (2008)；武宏志《非形式逻辑导论》附录A
 
-指纹 `53ddc3c95455`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `e3c148b82d30`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `2120144ccb81`
 
-字符 19719（预算：警戒 16000／上限 24000，当前接近上限）
-估算 8296 token｜采样温度上限 0.4｜输出上限 8192 token
+字符 20797（预算：警戒 16000／上限 24000，当前接近上限）
+估算 8691 token｜采样温度上限 0.4｜输出上限 8192 token
 规则块（13）：q.role、q.not-cross-examiner、q.no-verdict、q.aim、q.three-never、q.credibility、q.answerable、core.input-boundary、core.output-discipline、q.epistemic、q.language、q.gate-four、q.scope-gate
 
 ---
@@ -393,6 +393,26 @@
     "overlaps": "与 C-01 结论强度超载重复的处数（同一缺陷只计一次；没有就 0）"
   },
 
+  "ledger": {
+    "rows": [
+      {
+        "at": "P 编号（结论写 C）。报告里每一条命题都要有一行；缺一行等于没记",
+        "column": "fact-decidable|fact-undecidable|norm-undecidable（一条只能落一栏）",
+        "status": "事实·可裁写 true|false|open；事实·不可裁固定写 undecidable；规范·不可裁写 strong|weak|unjustified",
+        "basis": "依据位置（哪份资料、哪句原文、重算哪一步）；不可裁时写缺什么材料或哪条前提",
+        "reentry": "定案条件：什么材料到了就回栏重判。open／undecidable／unjustified 必填",
+        "av": "仅规范栏：价值前提 A_v 的具体内容，标「补出」。不许写「在通常价值下」",
+        "factState": "仅规范栏：verified|checkable|unavailable（已核验／可核验未核／不可得）",
+        "conditional": "仅规范栏：若接受 A_v，且事实前提处于某状态，则 C 得到／未得到证成",
+        "noJudge": {"reason": "material|value-premise|protocol（材料不足／价值前提未明示／协议不允许裁定）", "burden": "proponent|respondent|both|unclear（举证在谁；没定就写 unclear，不许写「双方」）", "reviewer": "谁来复核这条记录；没指定就写「未指定」，别留白"}
+      }
+    ],
+    "fallacies": [
+      {"direction": "forward", "found": false, "at": "在哪一句（没发现就写查过的范围）", "note": "发现了写改法；没发现写隐性版本怎么查的"},
+      {"direction": "reverse", "found": false, "at": "…", "note": "同上：结论为真不等于推理没问题，隐性版本是「事实就是这样」"}
+    ]
+  },
+
   "repair": {
     "missingPremise": "缺哪条未表达前提；没有就 null",
     "alternativeReading": "换另一副透镜看这段话会得到什么不同的结论。必填。",
@@ -634,13 +654,14 @@ CQ：CQ1 有无相反证据使该归类存疑？（守：归类的边界）；CQ
 7. 本透镜的判定要读 2 格语境：「对话类型」同一招式在不同对话类型下结论不同，类型判错，合法性跟着错；「阶段」逐条问 CQ 之前要先辨对话类型与阶段。这几格只要不是 known，ifChanged 就必须写，而且要有落点：写成「这格若是别的样子，哪一条检查或哪一个档位会跟着变」，不许写「影响很大」「结论可能不同」这种没有落点的话。
 8. 本模式不评级：verdict.grade 写 null 或整个省略，confidence 也不必写。给了档位会被程序置空并留痕——那不是解析错误，是模式定义。
 9. 本模式不走到裁决层，修辞审计也不做：rhetoric 写 null 或整个省略。
-10. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，labels 必须是空数组。
-11. 主输出是 refutations，但本模式下含义换成「你要问的问题」：
+10. 本模式不走到裁决层，命题账也不做：ledger 写 null 或整个省略。
+11. 不判定：verdict.level 必须是 "undetermined"，defeat.kind 必须是 "none"，labels 必须是空数组。
+12. 主输出是 refutations，但本模式下含义换成「你要问的问题」：
    claim 是问什么，script 是可以直接发出去的原话，steelman 是他最可能怎么答，
    reply 是他答完之后你接什么。四段缺一段就补上。
-12. 每一问都必须对方答得上来。「你能证明不存在……」式的一律不许出现——
+13. 每一问都必须对方答得上来。「你能证明不存在……」式的一律不许出现——
    那是错置证明责任，问出口位置就反了。
-13. 本透镜的判定单元是「型式的一条批判性问题（CQ）」，原生刻度是「型式强度：抗 CQ 的能力」。
+14. 本透镜的判定单元是「型式的一条批判性问题（CQ）」，原生刻度是「型式强度：抗 CQ 的能力」。
    本模式不评级，但结构里的零件要按这套刻度命名：verdict.scale 与 verdict.scaleValue 照抄这套刻度的话，
    verdict.level 固定写 "undetermined"。
 ```

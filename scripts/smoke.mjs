@@ -1808,6 +1808,41 @@ if (process.env.SMOKE_AGREEMENT === '1') {
 }
 
 /*
+ * 命题账（D-02）。
+ *
+ * 假模型给了四条命题的账，所以这里走「有账」那一支。核的是屏幕上真正能看见的东西：
+ * 每条命题都有一行账、栏位与状态值成对出现、规范栏露出 A_v 与条件式结论、
+ * 「不判」那一行看得到理由与复核人、两个方向各占一行、block 级缺口为 0。
+ * 「账该记成什么样」由 check:ledger 守，这里只核接线——两处都红才说明断的是界面。
+ */
+{
+  const l = jOfLine('LEDGERRESULT');
+  const rows = Array.isArray(l.rows) ? l.rows : [];
+  const props = Array.isArray(l.props) ? l.props : [];
+  const fal = Array.isArray(l.fal) ? l.fal : [];
+  const conds = Array.isArray(l.conds) ? l.conds.join(' ') : '';
+  checks.push(
+    ['命题账：有账（不是「这把尺子没记账」那一支）', l.none === false, String(l.none)],
+    ['命题账：四条命题各一行账，编号与正文对得上', rows.length === 4 && props.length === 4, `${rows.length}/${props.length}`],
+    [
+      '命题账：三栏都出现了，状态值落在各栏自己的词表里',
+      rows.includes('norm-undecidable:unjustified') &&
+        rows.includes('fact-decidable:true') &&
+        rows.includes('fact-undecidable:undecidable') &&
+        rows.includes('fact-decidable:open'),
+      rows.join(','),
+    ],
+    ['命题账：规范栏露出价值前提与条件式结论', /价值前提 A_v/.test(conds) && /条件式结论/.test(conds) && /若接受/.test(conds), conds.slice(0, 160)],
+    ['命题账：不判那一行看得到理由与复核人', /价值前提未明示/.test(conds) && /第二分析者/.test(conds), conds.slice(0, 160)],
+    ['命题账：两个方向的谬误筛查各占一行', fal.join(',') === 'forward,reverse', fal.join(',')],
+    ['命题账：没发现也写明「查过了」', /未发现/.test(String(l.falText)) && /隐性版本/.test(String(l.falText)), String(l.falText).slice(0, 160)],
+    ['命题账：这份账没有 block 级缺口', l.gaps === 0, String(l.gaps)],
+    ['命题账：两本账的隔离声明写在卡片里', /不许接一句/.test(String(l.d2)), String(l.d2).slice(0, 120)],
+    ['命题账：速览索引里有这一格', l.inIndex === true, String(l.inIndex)],
+  );
+}
+
+/*
  * 骨架缺口（无条件跑：报告一出现它就在）。
  *
  * 核的是「这一层有没有真的把本地判定与报告自己的话分开」——

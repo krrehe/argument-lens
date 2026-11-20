@@ -2233,6 +2233,30 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
       }
 
       /*
+       * 命题账（D-02）。
+       *
+       * 假模型给了四条命题的账：C 在规范栏（带 A_v 与条件式结论）、P1 已证真、
+       * P2 不可裁、P3 未决，两个方向的谬误筛查都写了「未发现」。这里走「有账」那一支。
+       * 核的是接线与形状：每条命题都有一行账、状态值与栏位对得上、规范栏露出 A_v、
+       * 「不判」那一行看得到理由与复核人、两个方向各占一行、缺口为 0、索引里有一格。
+       * 「账该记成什么样」归 check:ledger 的断言与反证守，这里只核它真的走到了屏幕上。
+       */
+      {
+        const led = await wc.executeJavaScript(`JSON.stringify({
+          none: !!document.querySelector('[data-ledger="none"]'),
+          rows: [...document.querySelectorAll('.pl-led')].map((e) => e.getAttribute('data-ledger') + ':' + e.getAttribute('data-status')),
+          props: [...document.querySelectorAll('[data-prop]')].map((e) => e.getAttribute('data-prop')),
+          conds: [...document.querySelectorAll('.pl-led[data-ledger="norm-undecidable"] .pl-f')].map((e) => (e.textContent ?? '').replace(/\\s+/g, ' ').trim()),
+          fal: [...document.querySelectorAll('.pl-fal-row')].map((e) => e.getAttribute('data-dir')),
+          falText: (document.querySelector('.pl-fal')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+          gaps: document.querySelectorAll('.pl-gaps').length,
+          d2: (document.querySelector('.pl-d2')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+          inIndex: [...document.querySelectorAll('[data-qnav]')].some((e) => e.getAttribute('data-qnav') === 'sec-props'),
+        })`);
+        add(`LEDGERRESULT ${led}`);
+      }
+
+      /*
        * 「骨架缺口」：本地第一次对报告本身说「这里接不上」。
        *
        * 核的是接线与来源，不是算法：每条缺口都得带 `data-skeleton-from`，

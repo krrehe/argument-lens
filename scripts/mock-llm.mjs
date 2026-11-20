@@ -246,6 +246,75 @@ const payload = {
     ],
     overlaps: 1,
   },
+  /*
+   * 命题账（D-02）。四条命题各落一栏：C 在规范栏（带 A_v 与条件式结论），
+   * P1 已证真（有原文数据），P2 不可裁（缺对照校），P3 未决（校长的话缺研究出处）。
+   * 三条「没判」都写了 noJudge 七项的一部分与定案条件——端到端要验的正是
+   * 「不判不是账外的沉默」：卡片上得看得到理由、举证与复核人。
+   */
+  ledger: {
+    rows: [
+      {
+        at: 'C',
+        column: 'norm-undecidable',
+        status: 'unjustified',
+        basis: '原文只有一年的数据，直接跳到「应当恢复早读」；价值前提一处也没写',
+        reentry: '作者明示价值前提，或把结论改写为「只看升学率的话应当恢复早读」',
+        av: '补出：凡使一本率下降的措施都应当取消（把升学率置于作息与睡眠之上）',
+        factState: 'checkable',
+        conditional:
+          '若接受上述价值前提，且一本率下降确由取消早读引起，则「应当恢复」得到弱证成；若该前提不成立，则本推理不支持该结论',
+        noJudge: { reason: 'value-premise', burden: 'proponent', reviewer: '第二分析者' },
+      },
+      {
+        at: 'P1',
+        column: 'fact-decidable',
+        status: 'true',
+        basis: '原文给出了具体数字，且指得到校内统计',
+        reentry: '',
+        av: '',
+        factState: null,
+        conditional: '',
+        noJudge: null,
+      },
+      {
+        at: 'P2',
+        column: 'fact-undecidable',
+        status: 'undecidable',
+        basis: '缺同期对照校数据与生源变化；只有「先后发生」不足以判因果',
+        reentry: '取得对照校同期数据与生源、师资变动记录即回栏',
+        av: '',
+        factState: null,
+        conditional: '',
+        noJudge: { reason: 'material', burden: 'proponent', reviewer: '第二分析者' },
+      },
+      {
+        at: 'P3',
+        column: 'fact-decidable',
+        status: 'open',
+        basis: '校长不是该领域研究者，且没给出可核的研究出处',
+        reentry: '取得该说法对应的研究或校内对照数据',
+        av: '',
+        factState: null,
+        conditional: '',
+        noJudge: { reason: 'material', burden: 'proponent', reviewer: '第二分析者' },
+      },
+    ],
+    fallacies: [
+      {
+        direction: 'forward',
+        found: false,
+        at: '全文四句',
+        note: '没有出现「论证不成立所以结论是假」；隐性版本（「这种说法站不住」）也逐句查过',
+      },
+      {
+        direction: 'reverse',
+        found: false,
+        at: '全文四句',
+        note: '没有出现「结论对所以推理没问题」；隐性版本「事实就是这样」在末句有一处苗头，但那句是作者的规范主张',
+      },
+    ],
+  },
   repair: {
     missingPremise: '若取消早读，则一本率会下降（且这一影响大于同期其他因素）',
     alternativeReading: '换语用辩证透镜：这段话第 4 条（相干性）有问题——家长支持率与早读效果不相干；但同一段里对校长的引用并不违反任何规则，那里其实是合格的。换图尔敏透镜：担保是空的，「一本率下降」到「取消是错的」之间没有可陈述的担保',

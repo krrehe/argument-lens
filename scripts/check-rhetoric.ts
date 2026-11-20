@@ -298,8 +298,8 @@ ok(versionAtLeast('2.9', '2.9.0'), '两段版本号与三段能比（2.9 视作 
 
 /* ─────────── 五 · 提示词 ─────────── */
 
-ok(PROMPT_VERSION === '2.9.0', '提示词版本已递增到 2.9.0', PROMPT_VERSION);
-ok(PROMPT_VERSION_NOTE[0].startsWith('2.9.0'), '版本注记第一条写的是 2.9.0');
+ok(versionAtLeast(PROMPT_VERSION, '2.9.0'), '提示词版本不低于 2.9.0（加版本不该让这一关红）', PROMPT_VERSION);
+ok(PROMPT_VERSION_NOTE.some((n) => n.startsWith('2.9.0')), '版本注记里留着 2.9.0 那一条（改版不等于抹掉上一版为什么改）');
 ok(/"rhetoric"/.test(SHARED_SCHEMA), 'schema 里有 rhetoric');
 ok(/"chains"/.test(SHARED_SCHEMA) && /"replaced"/.test(SHARED_SCHEMA) && /"handoff"/.test(SHARED_SCHEMA), 'schema 要求写替代链与移交位置');
 ok(/substitute\|accompany\|untested/.test(SHARED_SCHEMA), 'schema 把「没跑测试」写成一个可写的值，而不是省略');

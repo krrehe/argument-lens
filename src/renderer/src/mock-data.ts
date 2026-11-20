@@ -317,6 +317,74 @@ export const MOCK: Diagnosis = {
     ],
     overlaps: 1,
   },
+  /*
+   * 命题账（D-02）。这份样张刻意配齐四种形状，让预览页能同时看到：
+   * 规范栏的条件式结论、事实栏的「未决 + 不判七项」、不可裁的「缺什么」、
+   * 以及两个方向的谬误筛查（都写「未发现」，也要写查过的范围）。
+   */
+  ledger: {
+    rows: [
+      {
+        at: 'C',
+        column: 'norm-undecidable',
+        status: 'unjustified',
+        basis: '原文只有一年的数据，直接跳到「是错误决定」；价值前提一处也没写',
+        reentry: '作者明示价值前提，或把结论改写为「只看升学率的话应当恢复早读」',
+        av: '补出：凡使一本率下降的措施都应当取消（把升学率置于作息与睡眠之上）',
+        factState: 'checkable',
+        conditional:
+          '若接受上述价值前提，且一本率下降确由取消早读引起，则「应当取消」得到弱证成；若该前提不成立，则本推理不支持该结论',
+        noJudge: { reason: 'value-premise', burden: 'proponent', reviewer: '第二分析者' },
+      },
+      {
+        at: 'P1',
+        column: 'fact-decidable',
+        status: 'open',
+        basis: '校内可查，但报告没给统计口径与原始表',
+        reentry: '取得近三年一本率原始表与同期生源结构',
+        av: '',
+        factState: null,
+        conditional: '',
+        noJudge: { reason: 'material', burden: 'proponent', reviewer: '第二分析者' },
+      },
+      {
+        at: 'P2',
+        column: 'fact-undecidable',
+        status: 'undecidable',
+        basis: '缺同期对照校数据与生源变化；只有「先后发生」不足以判因果',
+        reentry: '取得对照校同期数据与生源、师资变动记录',
+        av: '',
+        factState: null,
+        conditional: '',
+        noJudge: { reason: 'material', burden: 'proponent', reviewer: '第二分析者' },
+      },
+      {
+        at: 'P3',
+        column: 'fact-decidable',
+        status: 'open',
+        basis: '校长不是该领域研究者，且没给出可核的研究出处',
+        reentry: '取得该说法对应的研究或校内对照数据',
+        av: '',
+        factState: null,
+        conditional: '',
+        noJudge: { reason: 'material', burden: 'proponent', reviewer: '第二分析者' },
+      },
+    ],
+    fallacies: [
+      {
+        direction: 'forward',
+        found: false,
+        at: '全文三句',
+        note: '没有出现「论证不成立所以结论是假的」；隐性版本（「这种说法站不住」）也未出现',
+      },
+      {
+        direction: 'reverse',
+        found: false,
+        at: '全文三句',
+        note: '没有出现「结论对所以推理没问题」；隐性版本「事实就是这样」在末句有一处苗头，但那句是作者的规范主张，不构成反向转账',
+      },
+    ],
+  },
   repair: {
     missingPremise: '同期除早读外，没有其他足以解释一本率下降 6 个百分点的因素',
     alternativeReading: '换 ARS 三标准看，同一处会变成「相关性成立但充分性不足」；换语用辩证看，则会先判本透镜不适用，因为文本未以解决分歧为目标',

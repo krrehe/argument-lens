@@ -1,4 +1,5 @@
 import { THEORIES } from '@shared/theories';
+import { LEDGER_FIELDS } from '@shared/ledger';
 import {
   ANALYSIS_MODES,
   MODE_META,
@@ -296,6 +297,11 @@ const CONSUMED = [
   'rhetoric', 'rows', 'ethos', 'pathos', 'logos', 'frame', 'degree',
   'verifiable', 'corrections', 'relay', 'test', 'harm', 'note',
   'chains', 'replaced', 'handoff', 'overlaps',
+  /* 命题账（ledger.ts）：三栏、状态值、不判七项、双向筛查。
+     这一组不再是手抄的——由 ledger.ts 自己导出（LEDGER_FIELDS），
+     因为同一份模块里就是读这些字段的 auditLedger。前两轮各手抄一遍，
+     每加一版就红一次；清单离读它的代码越远，腐化得越快。 */
+  ...LEDGER_FIELDS,
   'repair', 'missingPremise', 'alternativeReading', 'answerable', 'burdenStatus', 'repairedForm',
   'labels', 'name', 'nameEn', 'condition', 'whenLegitimate', 'riskOfError', 'landsOnCheck', 'tradition',
   'legitimateMoves', 'targetId', 'what', 'why',
