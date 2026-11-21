@@ -64,7 +64,7 @@ function tally(checks: CheckItem[]) {
  * 模型点名的那一关是它自己认的因果，比我按类型挑一条更可信；但它可能没点名
  * （defeat.checkId 为空），那时才退回按答案找。找不到任何一关，就说没有。
  */
-function pinOf(d: Diagnosis): CheckItem | null {
+export function pinOf(d: Diagnosis): CheckItem | null {
   const byId = d.defeat?.checkId ? d.checks.find((c) => c.id === d.defeat.checkId) : undefined;
   if (byId) return byId;
   return (

@@ -1,0 +1,245 @@
+/*
+ * 论证主线（报告开头那一条）。
+ *
+ * 这一块原来是一张卡：四行并列的「①…②…③…④…」，右端挂一枚徽章。
+ * 四行都对，但读起来像目录，不像一条推理；读者知道了四件事，仍然说不出
+ * 「所以他到底哪儿错了」——缺的是**因果**，不是信息。
+ *
+ * 现在它是一条竖线串五环：主张 → 承重 → 断点 → 档位 → 出路。
+ * 三条设计决定：
+ *   1. 不铺卡片。文档页里，导语是正文的一部分，不是浮在正文上的一块面板。
+ *      只用上下两条发丝线把它和封面、正文分开，与 Notion 的引用块同一套语法。
+ *   2. 竖线是「一条线」的那个线。环号是小圆节点，压在线上；节点之间不画箭头，
+ *      因为箭头会让人以为可以反向读（读者一旦从档位往回推，就会把断点读成理由）。
+ *   3. 每一环只留三样：名字、一句人话、从哪读来。「从哪读来」不许省——
+ *      省掉之后，读者无法分辨这是报告写的，还是软件替他判的。
+ */
+
+.quick.spine {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  margin-bottom: var(--spacing-24);
+}
+
+.quick.spine .quick-head {
+  padding: 14px 0 8px;
+  border-bottom: 0;
+}
+
+.quick.spine .qh-title {
+  font-size: var(--text-subheading);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0;
+}
+
+.quick.spine .qh-sub {
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+/* 一句主线：这一屏唯一一处 16px 的正文。它要能被抄下来、拿去复述。 */
+.sp-lead {
+  padding: 2px 0 4px;
+  font-size: var(--text-body-lg);
+  line-height: 1.75;
+  color: var(--ink);
+  max-width: 62ch;
+}
+
+/* 出路：比第一句低一档。它不是第二个结论，是「那怎么办」。 */
+.sp-outlet {
+  padding: 0 0 14px;
+  font-size: var(--text-body);
+  line-height: 1.7;
+  color: var(--ink-2);
+  max-width: 62ch;
+}
+
+.spine-list {
+  position: relative;
+  padding: 2px 0 0;
+}
+
+/* 竖线：从第一环的中心到最后一环的中心。上下各留 16px，不露出线头。
+ * 用 --line-strong 而不是发丝线：这条线是「一条主线」的那个线，看不见就不成立。 */
+.spine-list::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 22px;
+  bottom: 22px;
+  width: 1px;
+  background: var(--edge);
+}
+
+.spine-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'n t x'
+    'n b b';
+  align-items: baseline;
+  gap: 3px 10px;
+  padding: 12px 0 12px;
+  border-bottom: 0;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.spine-row:hover {
+  background: var(--panel-2);
+}
+
+.spine-row .qk {
+  grid-area: n;
+  justify-self: center;
+  align-self: start;
+  width: 20px;
+  height: 20px;
+  line-height: 18px;
+  text-align: center;
+  font-size: var(--text-label);
+  font-weight: var(--font-weight-regular);
+  color: var(--ink-3);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+}
+
+.spine-row .qt {
+  grid-area: t;
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+
+.spine-row .qb {
+  grid-area: b;
+  display: block;
+  -webkit-line-clamp: none;
+  overflow: visible;
+}
+
+.qb-say {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--text-body);
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.qb-from {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: var(--text-label);
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.qb-src {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sp-go {
+  flex: 0 0 auto;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.spine-row .qx {
+  grid-area: x;
+  justify-self: end;
+  align-self: baseline;
+  position: static;
+  font-size: var(--text-label);
+  background: none;
+}
+
+/* 断点那一环不用底色强调，靠环号变红——一屏只允许一处红。 */
+.spine-row.bad .qk {
+  color: var(--invalid);
+  border-color: var(--invalid);
+  background: var(--panel);
+}
+
+.spine-row.warn .qk {
+  color: var(--weak);
+}
+
+.spine-foot {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 0 12px;
+}
+
+.sp-note {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--text-label);
+  line-height: 1.55;
+  color: var(--ink-3);
+}
+
+.spine-flow {
+  flex: 0 0 auto;
+  padding: 3px 0;
+  font-size: var(--text-label);
+  font-family: var(--sans);
+  color: var(--accent);
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.spine-flow:hover {
+  background: var(--panel-2);
+}
+
+/*
+ * 栏头的环号。
+ *
+ * 主线说「断在这儿」，点下去落到「逐关检查」——如果那一栏的栏头没有任何记号，
+ * 读者要在两万像素之外自己确认「刚才说的是不是这里」。这一格就是那个记号。
+ * 只给被主线引用过的五栏挂；其余栏不编号，编号一多就变成了目录，不再是主线。
+ */
+.block-head[data-spine-no]::before {
+  content: attr(data-spine-no);
+  flex: 0 0 auto;
+  align-self: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  line-height: 16px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+}
+
+.quick.spine .quick-nav {
+  padding: 8px 0 12px;
+  border-top: 1px solid var(--hair);
+}
+
+@media (max-width: 720px) {
+  .spine-foot {
+    flex-direction: column;
+    gap: 6px;
+  }
+}

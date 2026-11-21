@@ -22,6 +22,7 @@ import { resolve } from 'node:path';
 import type { Diagnosis, Objection } from '@shared/types';
 import { digestLine, digestOf } from '@shared/objection-digest';
 import { findInReport, highlightParts, parseTerms, WHERE_LABEL } from '@shared/archive-search';
+import { spineOf } from '@shared/spine';
 
 let passed = 0;
 const failed: string[] = [];
@@ -411,6 +412,84 @@ ok(/if \(!terms\.length\) return empty/.test(findBody), '空查询不扫盘');
 
 const mockTs = src('src/renderer/src/mock.tsx');
 ok(/find: async \(q: string\)/.test(mockTs), '预览页也接了替身，否则一敲字就报错');
+
+/* ─────────── 〇 · 主线：这个论证为什么有问题 ───────────
+ *
+ * 首屏那一块原来叫「四句话」：四个并列格子，每格一句正确的话。
+ * 读完之后人知道四件事，却仍说不出「所以他到底哪儿错了」——缺的是因果。
+ * 现在换成五环：主张 → 承重 → 断点 → 档位 → 出路。
+ *
+ * 这一节守的是「五环真的来自五个字段，而不是又写了一段文案」：
+ *   1. 顺序固定。乱序读出来就不是因果，是清单。
+ *   2. 断点与判读栏共用同一个 pinOf。两处各挑一次，会出现「主线说倒在 CQ2、
+ *      判读栏说倒在 CQ5」，而两边都显得很确定。
+ *   3. 枚举不上屏。whatIsRefuted 存的是 argument-only，印出来等于让读者读 JSON。
+ *   4. 跳转目标必须存在。指向不存在的栏，点下去像「软件卡了一下」。
+ *   5. 行为断言拿仓库里的冻结报告真跑一遍——只查源码字面，写个空函数也能绿。
+ */
+const spineTs = src('src/shared/spine.ts');
+const ovTsx = src('src/renderer/src/components/Overview.tsx');
+
+ok(/export function spineOf/.test(spineTs), '主线是一个纯函数（界面只渲染，不自己判断）');
+ok(/spineOf\(d\)/.test(ovTsx), '首屏真的用了它（写完没接等于没做）');
+ok(/data-spine="1"/.test(ovTsx) && /data-spine-ring=\{r\.key\}/.test(ovTsx), '五环带探针，端到端认得出');
+ok(/data-spine-lead/.test(ovTsx) && /data-spine-outlet/.test(ovTsx), '因果句与出路句分两句，各带探针');
+
+const RING_ORDER = ['claim', 'ground', 'break', 'verdict', 'repair'];
+const ringAt = RING_ORDER.map((k) => spineTs.indexOf(`key: '${k}'`));
+ok(ringAt.every((i) => i > 0), '五环一个都不少');
+ok(ringAt.every((v, i) => i === 0 || v > ringAt[i - 1]), '五环顺序固定：主张 → 承重 → 断点 → 档位 → 出路（乱序就不是因果）');
+
+ok(/import \{ pinOf \} from '\.\/verdict-trail'/.test(spineTs), '断点复用判读栏的 pinOf（不另写一套顺序）');
+ok(!/d\.checks\.find\(/.test(spineTs), '主线不自己挑检查项（自己挑就会和判读栏挑到两处）');
+ok(/if \(outOfScope\) \{[\s\S]{0,600}\} else if \(bad\)/.test(spineTs), '判了不适用时先说范围，不去找「最薄的一处」（尺子都不用了，断点是假刻度）');
+
+ok(/WHAT_REFUTED_LABEL\[d\.verdict\.whatIsRefuted\]/.test(spineTs), '否证范围走中文表，不把 argument-only 印上屏');
+ok(/LEVEL_LABEL\[level\]/.test(spineTs) && /GRADE_LABEL\[grade\.level\]/.test(spineTs), '档位走标签表，不写死中文');
+
+const diagMain = src('src/renderer/src/components/Diagnosis.tsx');
+ok(['sec-structure', 'sec-pivot', 'sec-checks', 'sec-verdict', 'sec-repair'].every((t) => new RegExp(`id="${t}"`).test(diagMain)), '五环的跳转目标在正文里都有落点');
+const noCount = (diagMain.match(/spineNo=\{/g) ?? []).length;
+ok(noCount === 5, `栏头环号只给主线引用的五栏（现在 ${noCount} 处；编号一多就成目录，不再是主线）`);
+ok([1, 2, 3, 4, 5].every((n) => (diagMain.match(new RegExp(`spineNo=\\{${n}\\}`, 'g')) ?? []).length === 1), '五个环号 1–5 各挂一次，不重不漏');
+ok(
+  diagMain.indexOf('<QuickRead') > 0 && diagMain.indexOf('<QuickRead') < diagMain.indexOf('<DensityBar />'),
+  '主线压在阅读层级条与导出条之前（先有话说，再有工具条）',
+);
+ok(/onGotoCheck=\{\(id\) => setSel\(`#\$\{id\}`\)\}/.test(diagMain), '点断点环会把那一关真的选中（只滚过去等于让人在表里再找一遍）');
+ok(/checkId: bad\.id/.test(spineTs), '断点环带着那一关的 id，不是一个没有落点的标签');
+
+/* 拿仓库里那份冻结报告真跑一遍：空字段、枚举、错位都会在这一段露出来。 */
+const fx: Diagnosis = JSON.parse(readFileSync(resolve(process.cwd(), 'scripts/fixtures/replay/mvyvcxbt-wu2i2l.json'), 'utf8'));
+const sp = spineOf(fx);
+ok(sp.rings.length === 5, '真报告上仍然产出五环');
+ok(sp.rings.map((r) => r.key).join(',') === RING_ORDER.join(','), '真报告上的环序与声明一致');
+ok(sp.rings.every((r) => r.text.trim().length > 0 && r.from.trim().length > 0), '每一环都有话说、有出处');
+ok(sp.rings.every((r) => r.to.length > 0 && r.toLabel.trim().length > 0), '每一环都指得出地方');
+ok(/取消早读/.test(sp.lead), '因果句里带上了他的主张（不是一句「本段有问题」）');
+ok(/被削弱/.test(sp.lead), '因果句里带上了档位（这份基准判的是被削弱）');
+ok(sp.rings[2].from.includes('CQ2'), '断点环点到了那一关（基准倒在 CQ2）');
+ok(sp.rings[2].to === 'sec-checks', '断点环跳到逐关检查');
+ok(sp.outlet.length > 0 && !/undefined|NaN|\[object/.test(sp.outlet), '出路句非空且没有 undefined / NaN 漏上屏');
+ok(!/undefined|NaN|\[object/.test(sp.lead), '因果句没有 undefined / NaN 漏上屏');
+
+/*
+ * 两条分支必须各说各的话。
+ *
+ * 最容易犯的错不是文案不好，而是三种情况被糊成一句：
+ * 查谬误模式本来就不判、尺子判了不适用、模型这次没量出来——
+ * 这三件事对读者意味着完全不同的下一步，一句「未发现明显问题」会把它们全盖住。
+ */
+const fxNoVerdict: Diagnosis = { ...fx, mode: 'fallacy' };
+const spNo = spineOf(fxNoVerdict);
+ok(/不给档位/.test(spNo.rings[3].text), '查谬误模式：第④环说清「这个模式不给档位」，不是「没判出来」');
+ok(/不判档位/.test(spNo.lead), '查谬误模式：因果句不硬写一个档位');
+
+const fxOut: Diagnosis = { ...fx, scope: { ...fx.scope, applicable: false, reason: '这段是广告，不以解决分歧为目标。' } };
+const spOut = spineOf(fxOut);
+ok(/不适用/.test(spOut.rings[2].text), '判了不适用：第③环说清为什么量不了');
+ok(spOut.rings[2].to === 'sec-verdict', '判了不适用：第③环指向判读（范围与换透镜的出路在那儿），不指向逐关检查');
+ok(!/没过|没交代/.test(spOut.lead), '判了不适用：因果句不再说某一关不过（尺子都没用，那是假刻度）');
 
 /* ─────────── 收口 ─────────── */
 

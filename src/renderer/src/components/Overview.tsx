@@ -1,18 +1,23 @@
 import type { Diagnosis } from '@shared/types';
-import { LEVEL_LABEL } from '@shared/theories';
-import { GRADE_LABEL, auditGrade } from '@shared/grading';
+import { auditGrade } from '@shared/grading';
 import { coverageOf } from '@shared/coverage';
 import { disputesIn } from '@shared/disputes';
 import { propositionsOf } from '@shared/propositions';
 import { pivotOf } from '@shared/pivot';
+import { spineOf } from '@shared/spine';
 
 /**
- * 报告开头的「四句话」。
+ * 报告开头的「主线」。
  *
- * 一整页报告有十几栏，用户第一次打开时不知道从哪读起，最常见的结局是滚两下就关掉。
- * 这四句是整页的目录，也是整页的摘要：他要你信什么、哪里最薄、这说明到什么程度、怎么补。
+ * 一整页报告有二十来栏，用户第一次打开时不知道从哪读起，最常见的结局是滚两下就关掉。
+ * 原先这里是「四句话」：他要你信什么、哪里最薄、这说明到什么程度、怎么补。
+ * 四句都是对的，但它们是**四件并列的事**，不是一条能复述的推理——
+ * 读者读完了仍然说不清「所以他到底哪儿错了」。
  *
- * 每句都能点，点了直接滚到对应的栏。目录和正文互为索引——这是「相辅相成」最实在的一层：
+ * 现在换成一条线：主张 → 承重 → 断点 → 档位 → 出路，五环之间是因果，不是并列。
+ * 顶上那句是把五环压成一句人话的地方；说不清的时候，读者至少能带走这一句。
+ *
+ * 每环都能点，点了直接滚到对应的栏。目录和正文互为索引——这是「相辅相成」最实在的一层：
  * 不是再加一段说明文字，而是让读者随时能在「结论」和「依据」之间来回跳。
  */
 
@@ -49,7 +54,7 @@ function sectionsFor(d: Diagnosis) {
   const nDisp = disputesIn(d).length;
   const disp = nDisp ? [{ id: 'sec-disputes', label: `争议 ${nDisp}` }] : [];
   /*
-   * 顺序照正文：全流程账在最前（四句话之后就是它），判读之后依次是账、柱子、争议，
+   * 顺序照正文：全流程账在最前（主线之后就是它），判读之后依次是账、柱子、争议，
    * 然后才是透镜产物、反驳与修补。这一格不按数据现算——流程账每份报告都有，
    * 它是这一页的方位，不是可选栏。
    */
@@ -87,90 +92,79 @@ export function jumpTo(id: string) {
   else land();
 }
 
-function clip(s: string, n: number) {
-  const t = s.replace(/\s+/g, ' ').trim();
-  return t.length > n ? `${t.slice(0, n)}…` : t;
-}
-
-export function QuickRead({ d }: { d: Diagnosis }) {
-  const bad = d.checks.find((c) => c.answer === 'violated') ?? d.checks.find((c) => c.answer === 'unanswered');
+export function QuickRead({ d, onGotoCheck }: { d: Diagnosis; onGotoCheck?: (id: string) => void }) {
+  const v = spineOf(d);
+  const cov = coverageOf(d);
   /** 争议有几处。它决定导航里出不出现那一格——没碰到就不给一个点不动的入口。 */
   const nDisp = disputesIn(d).length;
   const sections = sectionsFor(d);
-  const levelClass =
-    d.verdict.level === 'withstands' ? 'ok' : d.verdict.level === 'fails' ? 'bad' : d.verdict.level === 'weakened' ? 'mid' : '';
-  /*
-   * 第③句是速览里最容易被当成「整篇的结论」的一句。长文只落上少数几句时，
-   * 这里必须带上「引文钉住几句」，否则读者看不到这句判定的边界——
-   * 详细口径在报告里的覆盖账，这里只放一个数。
-   */
-  const cov = coverageOf(d);
-  const covTag = cov.partial ? ` · 引文 ${cov.pinned}/${cov.sentences} 句` : '';
-  /*
-   * 档位这一格优先写体系档位 D0–D5：速览是「一屏看完」，
-   * 而「削弱」说不清是补证据（D2）还是换型式（D3）。没有 D 档的旧报告照旧写四档。
-   */
   const grade = d.verdict.grade;
-  const verdictTag = grade
-    ? `${grade.level} ${GRADE_LABEL[grade.level]}`
-    : LEVEL_LABEL[d.verdict.level];
+  /* 判档记录缺项时不改档位，只在这里说一句「记录不全」——它解释的是「凭什么」，不是「几档」。 */
   const gradeGap = grade ? auditGrade(d).filter((x) => x.severity === 'block').length : 0;
 
-  const rows = [
-    {
-      k: '①',
-      title: '他想让你信的是',
-      body: d.conclusion.text,
-      to: 'sec-structure',
-      extra: d.premises.length ? `他摆了 ${d.premises.length} 条依据` : '没有摆出依据',
-    },
-    {
-      k: '②',
-      title: '最薄的一处',
-      body: d.scope.applicable === false
-        ? `这把尺子在这段话上不适用：${clip(d.scope.reason, 70)}`
-        : bad
-          ? `${bad.label} —— ${clip(bad.basis || '未写依据', 80)}`
-          : '把每一关都过了一遍，没有找到明显的断裂处。这不等于论证正确，只等于这一套问题它都答上了。',
-      to: 'sec-checks',
-      extra: bad ? `${bad.id} · ${bad.answer === 'violated' ? '没过' : '没答'}` : '未发现断点',
-    },
-    {
-      k: '③',
-      title: '所以这算说明到什么程度',
-      body: clip(d.verdict.statement, 110),
-      to: 'sec-verdict',
-      extra: `${verdictTag}${gradeGap ? '（记录不全）' : ''}${covTag}`,
-      extraClass: levelClass,
-    },
-    {
-      k: '④',
-      title: '想让它站住，得补上',
-      body: d.repair.missingPremise ?? d.repair.repairedForm ?? '未给出补法——这本身是一种结论：可能补不上，也可能这不是个能补的论证。',
-      to: 'sec-repair',
-      extra: '修补',
-    },
-  ];
-
   return (
-    <section className="quick">
+    <section className="quick spine" data-spine="1">
       <div className="quick-head">
-        <span className="qh-title">四句话看懂这份报告</span>
+        <span className="qh-title">主线</span>
         <span className="qh-sub">
-          不想读整页，读这四句就够；想核，点进去看依据
+          先读这一句；想核，点每一环去看依据
           {nDisp > 0 && `。另有 ${nDisp} 处判断在学界有分歧，见「争议」`}
         </span>
       </div>
-      <ol className="quick-list">
-        {rows.map((r) => (
-          <li key={r.k} onClick={() => jumpTo(r.to)} className="quick-row">
-            <span className="qk">{r.k}</span>
+
+      {/*
+        一句主线：不是摘要，是把五环压成一句能被人复述的话。
+        它只拼报告里已有的名字与计数，不添评价词——读者若要反驳，反驳的是这句里的某一环。
+        出路单起一句：它答的是「那怎么办」，与「哪儿断了」不是同一件事，挤在一行会读丢。
+      */}
+      <p className="sp-lead" data-spine-lead>
+        {v.lead}
+      </p>
+      <p className="sp-outlet" data-spine-outlet>
+        {v.outlet}
+      </p>
+
+      <ol className="quick-list spine-list">
+        {v.rings.map((r) => (
+          <li
+            key={r.key}
+            className={`quick-row spine-row ${r.tone}`}
+            data-spine-ring={r.key}
+            onClick={() => {
+              /* 先选中那一关再滚：滚过去时表里那一行必须已经是亮的，否则读者还要再找一遍。 */
+              if (r.checkId && onGotoCheck) onGotoCheck(r.checkId);
+              jumpTo(r.to);
+            }}
+          >
+            <span className="qk">{r.n}</span>
             <span className="qt">{r.title}</span>
-            <span className="qb">{r.body}</span>
-            <span className={`qx ${r.extraClass ?? ''}`} data-quick-cover={r.to === 'sec-verdict' && cov.partial ? '1' : undefined}>{r.extra}</span>
+            <span className="qb">
+              <span className="qb-say">{r.text}</span>
+              <span className="qb-from">
+                <span className="qb-src">
+                  {r.from}
+                  {r.key === 'verdict' && gradeGap > 0 && ` · 判档记录不全 ${gradeGap} 处`}
+                </span>
+                <span className="sp-go">{r.toLabel} →</span>
+              </span>
+            </span>
+            <span
+              className={`qx ${r.tone === 'bad' ? 'bad' : r.tone === 'warn' ? 'mid' : r.tone === 'ok' ? 'ok' : ''}`}
+              data-quick-cover={r.to === 'sec-verdict' && cov.partial ? '1' : undefined}
+            >
+              {r.tag ?? ''}
+            </span>
           </li>
         ))}
       </ol>
+
+      <div className="spine-foot">
+        <span className="sp-note">{v.note}</span>
+        <button className="spine-flow" data-spine-flow onClick={() => jumpTo('sec-flow')}>
+          这份报告是按流程走出来的吗 →
+        </button>
+      </div>
+
       <nav className="quick-nav">
         <span className="qn-label">跳到</span>
         {sections.map((s) => (

@@ -72,6 +72,7 @@ function Block({
   sub,
   plain,
   disputes,
+  spineNo,
   children,
 }: {
   id?: string;
@@ -81,6 +82,14 @@ function Block({
   plain?: string;
   /** 这一栏的内容碰到了哪几处理论争议。点了跳到那一条——从结论回到分歧。 */
   disputes?: DisputeId[];
+  /**
+   * 这一栏是主线的第几环。
+   *
+   * 主线在首屏串了五环，读者点「看这一关」跳到这里时，得能立刻确认
+   * 「对，就是刚才那一条」——否则跳转只是把人扔进另一屏。
+   * 只标被主线引用过的五栏；其余各栏是「凭什么这么说」的证据，不占环号。
+   */
+  spineNo?: number;
   children: ReactNode;
 }) {
   const p = usePlain();
@@ -96,19 +105,13 @@ function Block({
       data-density-tier={ledger ? 'ledger' : 'core'}
       data-collapsed={collapsed ? '1' : '0'}
     >
-      <div className="block-head">
-        {ledger && density === 'compact' && (
-          <button
-            type="button"
-            className="block-fold"
-            data-fold={key}
-            aria-expanded={!collapsed}
-            title={collapsed ? '展开这一栏' : '收起这一栏'}
-            onClick={() => toggle(key)}
-          >
-            {collapsed ? '展开' : '收起'}
-          </button>
-        )}
+      {/*
+        环号用 data-spine-no + CSS 伪元素画，不写成文本节点。
+        端到端探针按「栏头文字以栏名开头」找节（/^判读/）；标题前多一个「4」，
+        textContent 变成「4判读…」，整条探针会判成「没有这一节」——
+        界面看起来完全正常，冒烟里那五条却一起红。
+      */}
+      <div className="block-head" data-spine-no={spineNo ?? undefined}>
         <span className="t">{title}</span>
         {sub && <span className="s">{sub}</span>}
         {disputes && disputes.length > 0 && (
@@ -1620,7 +1623,7 @@ export function DiagnosisView({
   /**
    * 全流程账：这二十步做没做（v1.1 新增 F 段与 E4）。
    *
-   * 放在最前面（四句话之后）而不是最后：它答的是「这份报告是按流程走的吗」，
+   * 放在最前面（主线之后）而不是最后：它答的是「这份报告是按流程走的吗」，
    * 属于读之前的方位感；放到报告末尾，读者已经读完了才知道自己读的那份跳过立案。
    * 与它同一层的骨架缺口紧接着——一个说「流程走到哪」，一个说「报告哪儿是空的」。
    */
@@ -1708,6 +1711,14 @@ export function DiagnosisView({
           </div>
         </div>
       )}
+
+      {/*
+        主线放在这一屏的第一块，压在阅读层级条与导出条之前。
+        它答的是「这个论证为什么有问题」，其余那二十来栏答的是「凭什么这么说」。
+        工具条再顺手，也不该比这句话更早出现——读者一旦先看到一排按钮，
+        就会把它当工具用，而不是当一份诊断读。
+      */}
+      <QuickRead d={d} onGotoCheck={(id) => setSel(`#${id}`)} />
 
       {/*
         阅读层级放第一行：一进报告就得知道「还有一整层核对栏被收着」，
@@ -1843,11 +1854,9 @@ export function DiagnosisView({
         </div>
       )}
 
-      <QuickRead d={d} />
-
       {/*
-        全流程账紧接四句话：四句话说「这份报告说了什么」，这一栏说
-        「它是照流程走出来的，还是跳着走的」。两件事都不改报告一个字，
+        全流程账紧接主线：主线说「这个论证哪儿出了问题」，这一栏说
+        「这份报告是照流程走出来的，还是跳着走的」。两件事都不改报告一个字，
         但第二件决定了第一件该被信几分——所以它排在所有正文之前。
       */}
       <Block
@@ -1866,7 +1875,7 @@ export function DiagnosisView({
       <SkeletonCard d={d} />
 
       {/*
-        挑图放在目录之后、正文之前：读者刚看完四句话，正决定「要深看哪一层」。
+        挑图放在目录之后、正文之前：读者刚看完主线，正决定「要深看哪一层」。
         再往后放，他已经在读正文了，选择条就成了事后才发现的开关。
       */}
       <ViewBar views={views} picked={picked} onPick={setWanted} initialOpen={!!initialViews} />
@@ -1886,6 +1895,7 @@ export function DiagnosisView({
 
       <Block
         id="sec-structure"
+        spineNo={1}
         title="结构图"
         sub="左：依据 → 右：结论"
         disputes={at('sec-structure')}
@@ -1898,6 +1908,7 @@ export function DiagnosisView({
 
       <Block
         id="sec-checks"
+        spineNo={3}
         title="逐关检查"
         sub={d.scope.applicable ? `${t.unit}｜${d.checks.length} 项` : '不适用，无检查项'}
         disputes={at('sec-checks')}
@@ -1961,6 +1972,7 @@ export function DiagnosisView({
 
       <Block
         id="sec-verdict"
+        spineNo={4}
         title={SEC.verdictTitle}
         sub={SEC.verdictSub(t.name, d.verdict.scale)}
         disputes={at('sec-verdict')}
@@ -2077,6 +2089,7 @@ export function DiagnosisView({
       {pivot.rows.length > 0 && (
         <Block
           id="sec-pivot"
+          spineNo={2}
           title="枢纽前提"
           sub={pivot.line}
           plain="指出十处措辞毛病，不如指出一次「你把 X 当起点用了，而 X 正是要争的那件事」。这一栏只攒两件事：结论经过谁，谁身上已经有反对意见。"
@@ -2382,6 +2395,7 @@ export function DiagnosisView({
 
       <Block
         id="sec-repair"
+        spineNo={5}
         title="修补"
         sub={SEC.repairSub}
         plain={SEC.repairPlain}

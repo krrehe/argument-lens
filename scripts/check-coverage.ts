@@ -207,7 +207,17 @@ ok(/cov\.partial && \([\s\S]{0,200}data-verdict-scope/.test(diagTsx), '范围句
 ok(/coverageScopeText\(cov\.pinned, cov\.sentences, cov\.untouched\)/.test(diagTsx), '范围句的三个数字来自纯函数，不写死');
 ok(/\.verdict-scope \{/.test(cssMain), '范围句有自己的样式，不是裸文字');
 ok(/import \{ coverageOf \} from '@shared\/coverage'/.test(overviewTsx), '速览也读同一份覆盖口径');
-ok(/cov\.partial \? ` · 引文 \$\{cov\.pinned\}\/\$\{cov\.sentences\} 句`/.test(overviewTsx), '速览第③句在长文上带「引文 N/M 句」');
+/*
+ * 「引文 N/M 句」从速览的行内拼串搬进了主线的第④环（share/spine.ts）。
+ * 守的东西没变：长文上这个范围数字必须跟着判定一起出现，不能只剩「削弱」两个字。
+ * 第二条防的是「算了但没挂上」——变量写在函数里、join 里没接，断言若只看变量名会假绿。
+ */
+const spineTs = src('src/shared/spine.ts');
+ok(
+  /if \(cov\.partial\) rangeBits\.push\(`引文 \$\{cov\.pinned\}\/\$\{cov\.sentences\} 句`\)/.test(spineTs),
+  '主线第④环在长文上带「引文 N/M 句」',
+);
+ok(/from: rangeBits\.join\(' · '\)/.test(spineTs), '范围数字真的挂进第④环的出处行，不是只算不用');
 ok(/data-quick-cover=\{r\.to === 'sec-verdict' && cov\.partial/.test(overviewTsx), '速览的覆盖标记挂在 partial 上，可被探针抓');
 
 /* 预览入口：一份长文本、一个锚点，两者都挂上 */

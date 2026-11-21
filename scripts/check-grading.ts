@@ -329,7 +329,14 @@ ok(!/answer\s*===\s*'violated'/.test(card), '卡片不按检查项自己算档�
 ok(!/level:\s*'D[0-5]'/.test(card), '卡片里没有写死的档位');
 
 const ov = src('src/renderer/src/components/Overview.tsx');
-ok(/GRADE_LABEL/.test(ov) && /auditGrade/.test(ov), '速览档位优先写 D 档，并标出记录不全');
+/*
+ * 档位徽章与「记录不全」从速览行搬到了主线：D 档写在 share/spine.ts 的第④环，
+ * 「记录不全 N 处」仍由 Overview 用 auditGrade 现算、挂在同一环的出处行上。
+ * 两处一起守——只守一边，搬家之后另一半会悄悄消失，而界面上看起来照常有档位。
+ */
+const spine = src('src/shared/spine.ts');
+ok(/GRADE_LABEL\[grade\.level\]/.test(spine), '主线档位优先写 D 档');
+ok(/auditGrade\(d\)/.test(ov) && /判档记录不全/.test(ov), '记录不全标在主线第④环的出处行上');
 
 const mock = src('src/renderer/src/mock-data.ts');
 ok(/level: 'D2'/.test(mock) && /clause: '4\.4'/.test(mock), '预览数据带一条完整 D2 记录（截图与预览能看到形状）');

@@ -1963,7 +1963,7 @@ export default function App() {
                       </div>
                       <div className="step">
                         <b>3</b>
-                        <span>点「分析」，先看开头那四句话</span>
+                        <span>点「分析」，先看开头那条主线</span>
                       </div>
                     </div>
                     {/* 目录与逐节读只出现在报告页，首屏不提一句就没人知道它们存在。
@@ -1983,7 +1983,7 @@ export default function App() {
                         <div className="em-steps">
                           <div>
                             <b>①</b>
-                            <span>开头四句话把结论说完，不用读整页</span>
+                            <span>开头那条主线把结论说完，不用读整页</span>
                           </div>
                           <div>
                             <b>②</b>

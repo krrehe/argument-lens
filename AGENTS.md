@@ -167,7 +167,7 @@ src/shared/agreement.ts    同题复跑（纯函数）：指纹+透镜+模式+�
 src/shared/portfolio.ts    样本账（纯函数）：本地存档 → 固定排序 → 按字面重合分堆 → 只数事实；读不出来的文件不许静默
 src/shared/nextline.ts + src/main/nextlines.ts  下一句：只数逐字相同的次数，不判断算不算空泛｜落盘 userData/nextlines.jsonl，只追加，删除按原样的行重写
 src/shared/{modal,rewrite}.ts  口气与逐字比（纯函数）：原文那句 vs 报告那句，按软化/硬化/因果三张表读字面；LCS 切片段贴在主主张卡上；只在有证据时说话，读不到就说读不到
-src/shared/{propositions,pivot}.ts  命题账与枢纽前提（纯函数）：每条该由什么来定（证据 / 没证据 / 体系内 / 不由论证裁定）｜这一段压在谁身上（承重 × 有争），只读 supports 与已落盘信号，不打分
+src/shared/{propositions,pivot}.ts  命题账与枢纽前提（纯函数）：每条该由什么来定（证据 / 没证据 / 体系内 / 不由论证裁定）｜这一段压在谁身上（承重 × 有争），只读 supports 与已落盘信号，不打分｜**论证主线**（`src/shared/spine.ts`，纯函数）：报告已写下的五处判断按「主张 → 承重 → 断点 → 档位 → 出路」串起来，不新增判断（断点复用 `verdict-trail.pinOf`）；界面在 `Overview.tsx` 的 `QuickRead`，样式在 `styles-spine.css`——**`main.tsx` 与 `mock.tsx` 两处都要 import**，漏一处截图不变而一切照绿
 scripts/replay-lib.ts      读存档 → 重新解析 → 重跑裁决；不联网、不读设置
 src/renderer/src/components/{Reread,Rescale,Condition}Screen.tsx  三块「换整屏」，各自只依赖 React 与自己的 @shared 模块；Diagnosis.tsx 只放报告主体
 scripts/check-arch.mjs    架构边界（只读源码）；src/shared/excerpt.ts  摘录长度唯一的家｜scripts/fixtures/replay/  冻结的模型原文 + 当时的产物（check:replay 基准）；docs/路线图.md 接下来做什么、明确不做什么
