@@ -18,8 +18,9 @@ import {
   UsageRecord,
   UsageSummary,
 } from '@shared/types';
-import { DEFAULT_THEORY, THEORIES, THEORY_BY_ID, type TheoryId } from '@shared/theories';
+import { DEFAULT_THEORY, THEORIES, THEORY_BY_ID, LEVEL_LABEL, type TheoryId } from '@shared/theories';
 import { DiagnosisView } from './components/Diagnosis';
+import { DocHead } from './components/DocHead';
 import { TheoryBrief } from './components/TheoryBrief';
 import { TheoryBaseDialog } from './components/TheoryBase';
 import { PromptView } from './components/PromptView';
@@ -1635,6 +1636,26 @@ export default function App() {
             </aside>
 
             <main className="main">
+              {/*
+                文档页头：把「这份报告是谁」换成 Notion 文档页的呈现方式
+                （面包屑 + 封面 + emoji + 大标题 + meta 胶囊 + Callout）。
+                只在有报告时出现——空状态不该摆一份空报告的封面。
+                字段全部来自 diag / profile，不新增业务数据。
+              */}
+              {diag && !loading && (
+                <DocHead
+                  crumbs={['论证镜', '分析报告', profile.name]}
+                  title={profile.name}
+                  subtitle={profile.plainClaim}
+                  status={LEVEL_LABEL[diag.verdict.level]}
+                  meta={[`${diag.passage.length} 字`, profile.unit]}
+                  callout={
+                    <>
+                      这一档是<b>这副透镜量出来的结果，不是判决书</b>。下面逐条给出依据、限定条件与可以反对的地方。
+                    </>
+                  }
+                />
+              )}
               {/*
                 长文台账放在报告之前：它是这一批报告的身份——「下面这份是第 5 段」。
                 放在报告之后，读者会先读到一份完整的报告，再被告知它其实只是一段。

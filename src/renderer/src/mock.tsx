@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { THEORIES, THEORY_BY_ID } from '@shared/theories';
+import { THEORIES, THEORY_BY_ID, LEVEL_LABEL } from '@shared/theories';
 import { disputesIn } from '@shared/disputes';
 import { DiagnosisView } from './components/Diagnosis';
 import { HistoryPanel, when } from './components/History';
@@ -44,9 +44,11 @@ import { planLongform, type LongItem, type LongLedger } from '@shared/longform';
 import { LongformLedger } from './components/LongformLedger';
 import { SegmentBar } from './components/SegmentBar';
 import { DensityProvider, BriefFold } from './components/Density';
+import { DocHead } from './components/DocHead';
 import { PREVIEW_DENSITY } from '@shared/ui-density';
 import './styles-density.css';
 import './styles-longform.css';
+import './styles-docpage.css';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。
@@ -1071,6 +1073,18 @@ function Preview() {
           </BriefFold>
         </aside>
         <main className="main">
+          <DocHead
+            crumbs={['论证镜', '分析报告', t.name]}
+            title={t.name}
+            subtitle={t.plainClaim}
+            status={LEVEL_LABEL[D.verdict.level]}
+            meta={[`${D.passage.length} 字`, t.unit]}
+            callout={
+              <>
+                这一档是<b>这副透镜量出来的结果，不是判决书</b>。下面逐条给出依据、限定条件与可以反对的地方。
+              </>
+            }
+          />
           {/* ?longform=1：长文台账。夹具里有跑成 / 失败 / 没跑三种行，缺一种就等于没核过。 */}
           {LONGFORM && (
             <LongformLedger

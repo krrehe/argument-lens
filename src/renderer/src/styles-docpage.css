@@ -1,0 +1,190 @@
+/*
+ * 文档页外壳（Notion Showcase 那张图的形态）。
+ *
+ * 为什么有这一层：
+ * 之前的主窗口是「三栏工具台」——顶栏 + 透镜条 + 400px 输入框 + 报告区。
+ * 用户给的截图是 Notion 的文档展示页：窄导航侧栏 + 面包屑 + 封面 +
+ * emoji + 大标题 + 一行 meta 胶囊 + 708px 居中的读列 + Callout 块。
+ * 配色已经对了，缺的是这套「文档页」的骨架。这里只补骨架，不动任何判定、
+ * 档位、报告内容——报告仍原样排在文档头下面。
+ *
+ * 全部颜色走契约层/语义层变量，不自带 hex；字号只用 12/14/16/20/24/32；
+ * 圆角只 4px 与 999px 胶囊；无渐变、无投影、无位移、hover 只变背景色。
+ */
+
+/* ── 文档页容器：封面铺满报告区，正文读列居中 ───────────────
+ * 报告区的宽度由 .main>* 的 1240px 上限管，这里不再另设 708——
+ * 否则封面只有半栏宽、下面的报告铺满，会出现「上窄下宽」的割裂。
+ * 真正 708px 的读列是里面的 .doc-inner。截图正是这个结构：
+ * 封面横跨整栏，emoji / 标题 / 正文收在居中的文档读列里。 */
+.doc-page {
+  width: 100%;
+  padding: 0 0 var(--spacing-24);
+}
+
+/* 708px 居中读列：正文、标题、emoji 都收在这里。 */
+.doc-inner {
+  width: 100%;
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+}
+
+/* ── 面包屑：StyleKit / Notion Style / Showcase 那种一行浅灰路径 ── */
+.doc-crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  line-height: var(--leading-label);
+  padding: var(--spacing-8) var(--spacing-16) var(--spacing-12);
+}
+/* 每一截面包屑：分隔符与文字同一行，避免换行时把「/」甩到行首 */
+.crumb-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-8);
+}
+.doc-crumbs .crumb {
+  color: var(--ink-3);
+}
+.doc-crumbs .crumb.here {
+  color: var(--ink);
+  font-weight: var(--font-weight-medium);
+}
+.doc-crumbs .sep {
+  color: var(--color-line-strong);
+}
+
+/* ── 封面：一条纯色带（不是渐变、不是图片），低到只剩一道色块 ── */
+.doc-cover {
+  height: 120px;
+  background: var(--muted-bg);
+  border-radius: var(--radius-cards);
+  border: 1px solid var(--hair);
+}
+
+/* ── emoji 图标：压在封面下沿，文档页的视觉锚点 ───────────── */
+.doc-emoji {
+  width: 64px;
+  height: 64px;
+  margin-top: -32px;
+  margin-left: var(--spacing-8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-display);
+  line-height: 1;
+  background: var(--panel);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-cards);
+  position: relative;
+}
+
+/* ── 标题区 ───────────────────────────────────────────────── */
+.doc-head {
+  padding: var(--spacing-24) var(--spacing-8) 0;
+}
+.doc-title {
+  font-family: var(--display);
+  font-size: var(--text-display);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink);
+  margin: 0 0 var(--spacing-8);
+}
+.doc-subtitle {
+  font-size: var(--text-body-lg);
+  line-height: var(--leading-body-lg);
+  color: var(--ink-3);
+  margin: 0 0 var(--spacing-16);
+}
+
+/* ── meta 胶囊行：Created / Status / Category / Version ────── */
+.doc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-8);
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  line-height: var(--leading-label);
+  padding-bottom: var(--spacing-16);
+  border-bottom: 1px solid var(--hair);
+}
+.doc-meta .mi {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+.doc-meta .mi b {
+  color: var(--ink-2);
+  font-weight: var(--font-weight-medium);
+}
+.doc-meta .dot {
+  color: var(--color-line-strong);
+}
+/* Status 胶囊：唯一带底色的 meta，999px 圆角，压深绿字 */
+.doc-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--spacing-8);
+  border-radius: var(--radius-pills);
+  background: var(--muted-bg);
+  color: var(--strong);
+  font-size: var(--text-label);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--leading-label);
+}
+
+/* ── Callout 块：浅灰底 + 左图标位 + 4px 圆角 ─────────────── */
+.doc-callout {
+  display: flex;
+  gap: var(--spacing-8);
+  padding: var(--spacing-12) var(--spacing-16);
+  margin: var(--spacing-24) var(--spacing-8);
+  background: var(--muted-bg);
+  border-radius: var(--radius-cards);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  color: var(--ink-2);
+}
+.doc-callout .ci {
+  flex: 0 0 16px;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.doc-callout b {
+  color: var(--ink);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── 正文小标题与段落 ─────────────────────────────────────── */
+.doc-h2 {
+  font-size: var(--text-heading);
+  line-height: var(--leading-heading);
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink);
+  margin: var(--spacing-32) var(--spacing-8) var(--spacing-8);
+}
+.doc-h3 {
+  font-size: var(--text-subheading);
+  line-height: var(--leading-subheading);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink);
+  margin: var(--spacing-24) var(--spacing-8) var(--spacing-8);
+}
+.doc-p {
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  color: var(--ink-2);
+  margin: 0 var(--spacing-8) var(--spacing-12);
+  max-width: var(--read-measure);
+}
+
+/* ── 键盘焦点：2px 描边环，不是光晕 ───────────────────────── */
+.doc-page :focus-visible {
+  outline: 2px solid var(--color-link-blue);
+  outline-offset: 1px;
+}

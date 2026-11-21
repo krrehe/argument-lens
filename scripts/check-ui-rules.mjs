@@ -109,6 +109,11 @@ const reactCss = readdirSync(reactDir)
   .map((f) => readFileSync(path.join(reactDir, f), 'utf8'))
   .join('\n');
 const both = html + '\n' + reactCss;
+/* 文档页外壳：样式表 + 组件 + 两套骨架都要读，否则只守一半会假绿。 */
+const docCss = readFileSync(path.join(reactDir, 'styles-docpage.css'), 'utf8');
+const docComp = readFileSync(path.join(reactDir, 'components/DocHead.tsx'), 'utf8');
+const appSrc = readFileSync(path.join(reactDir, 'App.tsx'), 'utf8');
+const mockSrc = readFileSync(path.join(reactDir, 'mock.tsx'), 'utf8');
 ck(reactCss.length > 20000,
   `React 主窗口的样式表没读进来（只读到 ${reactCss.length} 字符）：字号与圆角会漏掉整个主界面`);
 
@@ -336,7 +341,11 @@ ck(blockTitleRule.length > 0, '找不到 .block-head .t 这条规则，区段标
 ck(/font-size:\s*20px/.test(blockTitleRule), '区段标题不是 20px（subheading 档）：与正文同号时报告会读成一片');
 
 /* ── 1j. 圆角只 4px / 999px，形状不算 ─────────────────────── */
-const radii = [...both.matchAll(/border-radius:\s*([^;}]+)/g)].map((m) => m[1].trim());
+/* 圆角可以写成契约层变量（var(--radius-cards)），要先解成字面值再比对，
+ * 否则「文档页外壳用了变量」会被误判成多出一种圆角。变量必须解到契约层的
+ * 合法字面值才算过关——放宽成「凡 var(...) 都放过」会是假绿。 */
+const resolveRadius = (v) => v.replace(/var\(\s*(--[\w-]+)\s*\)/g, (_, name) => decl[name] ?? '');
+const radii = [...both.matchAll(/border-radius:\s*([^;}]+)/g)].map((m) => resolveRadius(m[1].trim()));
 const uniqRadii = [...new Set(radii)].sort();
 const OK_RADIUS = ['4px', '999px', '50%', '1px', '0', '0 4px 4px 0', '4px 4px 0 0'];
 const oddRadius = uniqRadii.filter((r) => !OK_RADIUS.includes(r));
@@ -466,6 +475,55 @@ if (guide) {
 }
 const st = need('.status', '状态栏');
 ck(!/background:var\(--accentbg\)/.test(st), '状态栏又整条铺强调色了：屏幕最大的一块颜色不该是最不重要的一行');
+
+/* ── 1m. 文档页外壳（Notion Showcase 那张图的骨架） ───────────
+ * 用户明确要求「像截图那样」重排，这里守住那套骨架不被悄悄改回去：
+ * 面包屑 + 封面 + emoji + 大标题 + meta 胶囊 + Callout，正文收在 708px 读列。
+ * 两套骨架（真实 App 与截图用 mock）都必须用同一个 DocHead，避免预览页
+ * 好看、真应用没有的假绿。 */
+const docRule = (sel) => {
+  const m = docCss.match(new RegExp(`(?:^|[}\\n])\\s*${esc(sel)}\\s*\\{([^}]*)\\}`));
+  return m ? m[1] : '';
+};
+ck(docCss.length > 800, 'styles-docpage.css 没读进来：文档页外壳无从核对');
+ck(/\/\*[\s\S]*doc-page[\s\S]*\*\//.test(docCss), '文档页样式表缺少说明用途的头部注释');
+/* 结构：DocHead 必须吐出面包屑 / 封面 / emoji / 标题 / meta / 胶囊 / callout 七个部件 */
+for (const [cls, why] of [
+  ['doc-crumbs', '面包屑'], ['doc-cover', '封面'], ['doc-emoji', 'emoji 图标'],
+  ['doc-title', '大标题'], ['doc-subtitle', '副标题'], ['doc-meta', 'meta 行'],
+  ['doc-pill', '状态胶囊'], ['doc-callout', 'Callout 块'],
+]) {
+  /* 精确匹配到闭合引号：用 className="doc-cover 这种无闭合引号的前缀匹配，
+   * 会把 doc-cover-old 也算命中，改坏了还绿（反证第 9/10 组抓到的假绿）。 */
+  ck(docComp.includes(`className="${cls}"`),
+    `DocHead 组件缺少 ${cls}（${why}）：文档页骨架不完整`);
+}
+/* 读列：.doc-inner 必须 708px 上限（走契约变量）且居中 */
+const inner = docRule('.doc-inner');
+ck(/max-width:\s*var\(--page-max-width\)/.test(inner) && /margin:\s*0 auto/.test(inner),
+  '文档页正文读列没有用 708px 契约变量居中：封面与正文会一样宽，失去文档感');
+/* 封面铺满整栏：.doc-page 不得再自设 708px，否则「上窄下宽」割裂 */
+const page = docRule('.doc-page');
+ck(!/max-width/.test(page) && /width:\s*100%/.test(page),
+  '.doc-page 又自设了 max-width：封面会比下方报告窄，出现上窄下宽的割裂');
+/* 胶囊圆角走 999px 契约变量；Callout 走 4px 与 hover 灰底 */
+ck(/border-radius:\s*var\(--radius-pills\)/.test(docRule('.doc-pill')),
+  '状态胶囊没用 999px 契约圆角');
+const callout = docRule('.doc-callout');
+ck(/border-radius:\s*var\(--radius-cards\)/.test(callout) && /background:\s*var\(--muted-bg\)/.test(callout),
+  'Callout 不是 Notion 的 4px 圆角 + 浅灰底');
+/* 文档页样式表不许自带 hex（颜色只能来自契约层），封面不许写成渐变 */
+ck(!/#[0-9a-fA-F]{6}/.test(stripCssComments(docCss)),
+  '文档页样式表里出现了字面 hex：颜色必须走契约层变量');
+ck(!/gradient\(/.test(stripCssComments(docCss)), '文档页封面用了渐变：Notion 纸面是纯色');
+/* 两套骨架都要真的插入 DocHead；用 LEVEL_LABEL 取档位而非编造 */
+ck(/import \{ DocHead \}/.test(appSrc) && /<DocHead[\s>]/.test(appSrc),
+  '真实应用 App.tsx 没有渲染 DocHead：只有预览页好看是假绿');
+ck(/import \{ DocHead \}/.test(mockSrc) && /<DocHead[\s>]/.test(mockSrc),
+  '预览页 mock.tsx 没有渲染 DocHead：截图页会是旧工具台');
+ck(/import \{ DocHead \}/.test(appSrc) && /import \{ DocHead \}/.test(mockSrc) &&
+  /LEVEL_LABEL\[diag\.verdict\.level\]/.test(appSrc) && /LEVEL_LABEL\[D\.verdict\.level\]/.test(mockSrc),
+  '文档头的状态胶囊没有走真实档位字段，而是写死文本');
 
 if (bad.length) {
   for (const x of bad) console.error(`  ✗ ${x}`);

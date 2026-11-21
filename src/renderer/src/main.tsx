@@ -17,6 +17,7 @@ import './styles-coverage.css';
 import './styles-procedure.css';
 import './styles-density.css';
 import './styles-longform.css';
+import './styles-docpage.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
