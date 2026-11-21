@@ -12,11 +12,23 @@
  * 圆角只 4px 与 999px 胶囊；无渐变、无投影、无位移、hover 只变背景色。
  */
 
-/* ── 文档页容器：封面铺满报告区，正文读列居中 ───────────────
- * 报告区的宽度由 .main>* 的 1240px 上限管，这里不再另设 708——
- * 否则封面只有半栏宽、下面的报告铺满，会出现「上窄下宽」的割裂。
- * 真正 708px 的读列是里面的 .doc-inner。截图正是这个结构：
- * 封面横跨整栏，emoji / 标题 / 正文收在居中的文档读列里。 */
+/* ── 主区统一读列：文档头与报告从同一条左边缘起排 ─────────────
+ *
+ * 这一条是这一轮的修正。上一版只把文档头收在 708px，下面的报告仍铺满
+ * 整栏——量出来文档头左边缘在 605px、正文在 433px，横向错开 170px，
+ * 看着就是「一张窄文档浮在宽工具台上」，还是两套皮。
+ *
+ * 现在 .main 的每个直接子块都收进同一条 708px 居中列：文档头、长文台账、
+ * 错误横幅、报告正文全部对齐。这正是 Notion 的结构——页宽就一条读列，
+ * 需要更宽的东西（表格、画布）自己横向滚，不撑破页宽。
+ */
+.main > * {
+  width: 100%;
+  max-width: var(--page-max-width);
+  margin-inline: auto;
+}
+
+/* ── 文档页容器：封面与正文同宽，不再另设宽度 ───────────────── */
 .doc-page {
   width: 100%;
   padding: 0 0 var(--spacing-24);
@@ -37,7 +49,9 @@
   font-size: var(--text-label);
   color: var(--ink-3);
   line-height: var(--leading-label);
-  padding: var(--spacing-8) var(--spacing-16) var(--spacing-12);
+  /* 8px 与标题、Callout 同一档内缩：面包屑此前是 16px，比大标题多缩进 8px，
+   * 量出来是 613 vs 605，看着像没对齐。 */
+  padding: var(--spacing-8) var(--spacing-8) var(--spacing-12);
 }
 /* 每一截面包屑：分隔符与文字同一行，避免换行时把「/」甩到行首 */
 .crumb-wrap {
@@ -56,34 +70,37 @@
   color: var(--color-line-strong);
 }
 
-/* ── 封面：一条纯色带（不是渐变、不是图片），低到只剩一道色块 ── */
+/* ── 封面：一条纯色带（不是渐变、不是图片） ──────────────────
+ * 去掉了 4px 圆角与四周描边：Notion 的封面是通栏的，圆角一上就成了
+ * 「一张空卡片」，配上纯色更像图片没加载出来。压到 96px 也是这个缘故——
+ * 120px 的纯灰带子中间什么都没有，留白多到发虚。 */
 .doc-cover {
-  height: 120px;
+  height: 96px;
   background: var(--muted-bg);
-  border-radius: var(--radius-cards);
-  border: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair);
 }
 
-/* ── emoji 图标：压在封面下沿，文档页的视觉锚点 ───────────── */
+/* ── emoji 图标：Notion 页面的视觉锚点，裸字不套框 ─────────────
+ * 上一版给了白色底 + 1px 描边，本想做成「图标方块」，实际渲染出来
+ * 是个灰底方块——看着像图片加载失败。Notion 的页面图标本身就是一枚
+ * 裸 emoji，没有任何底与框，这里照素的来。 */
 .doc-emoji {
   width: 64px;
   height: 64px;
-  margin-top: -32px;
+  margin-top: var(--spacing-16);
   margin-left: var(--spacing-8);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: var(--text-display);
   line-height: 1;
-  background: var(--panel);
-  border: 1px solid var(--hair);
-  border-radius: var(--radius-cards);
-  position: relative;
+  background: transparent;
+  border: none;
 }
 
 /* ── 标题区 ───────────────────────────────────────────────── */
 .doc-head {
-  padding: var(--spacing-24) var(--spacing-8) 0;
+  padding: var(--spacing-8) var(--spacing-8) 0;
 }
 .doc-title {
   font-family: var(--display);

@@ -235,19 +235,36 @@ ok(
   /flex:\s*1 1 auto/.test(headS) && /min-width:\s*0/.test(headS),
   '副标题去让位（能收缩，不把栏头撑破）',
 );
-/* 1920 全屏时整栏铺到近 1500px，卡片被拉成横带——宽屏收成一条阅读列，但只许在宽屏生效。 */
-const wide = /@media \(min-width: 1680px\)[\s\S]{0,400}?max-width: 1240px/.test(styles);
-ok(wide, '宽屏把内容收在 1240px 以内');
-/* 只数声明，注释里提到同一个数字不算数——否则注释删了断言就红。 */
-ok((styles.match(/max-width:\s*1240px/g) ?? []).length === 1, '行长上限只有一处，不散落在别处');
+/*
+ * 版式从「宽屏才收 1240px」改成「全宽度一条 708px 读列」。
+ * 起因是量出来的错位：文档头左边缘 605、报告正文 433，横向差 170px，
+ * 看着像两套皮拼的。现在 .main 的每个子块都收进同一条居中列。
+ *
+ * 规则住在 styles-docpage.css，所以这里必须同时读那个文件——
+ * 只读 styles.css 会看不到真规则，一条都不红（上一版就是这么假绿的）。
+ */
+const docCss = src('src/renderer/src/styles-docpage.css');
+/* 去注释再判：注释里出现「max-width: 708px」只是说明文字，不该判红。
+ * 反过来剥掉注释也挡住了「把规则注释掉冒充合规」这条假绿路。 */
+const noComment = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '');
+ok(!/(?<!-)max-width:\s*1240px/.test(noComment(styles)), '旧的 1240px 宽屏上限已撤销，不许留下被覆盖的死规则');
+const mainCol = (noComment(docCss).match(/\.main > \*\s*\{([^}]*)\}/) ?? [])[1] ?? '';
 ok(
-  !/^\.main > \* \{\s*max-width/m.test(styles),
-  '行长上限不许无条件生效（窄窗口会跟着缩）',
+  /width:\s*100%/.test(mainCol) &&
+    /max-width:\s*var\(--page-max-width\)/.test(mainCol) &&
+    /margin-inline:\s*auto/.test(mainCol),
+  '主区每个子块都收在同一条 708px 居中读列（文档头与报告才从同一条左边缘起排）',
+);
+ok(
+  /* 前面的 (?<!-) 是必须的：:root 里那句 `--page-max-width: 708px`
+   * 本身就以 `max-width: 708px` 结尾，不加这个负向后顾会把变量定义自己判成写死。 */
+  !/(?<!-)max-width:\s*(708|1240)px/.test(noComment(docCss) + noComment(styles)),
+  '读列宽度必须走 --page-max-width 变量，不许写死 px',
 );
 
 /*
- * 连续散文的读列。1240px 管的是块容器，不是行长——目录关着时正文
- * 铺满可用宽度，14px 宋体能排九十来字，换行后找不回行首。
+ * 连续散文的读列。708px 管的是块容器，不是行长——目录关着时正文
+ * 在块里铺满，14px 字体一行仍能排五十来字，换行后找不回行首。
  * 读列用 ch：中文一字约 2ch，舒适区 25—40 字 ⇒ 50—80ch。
  * 钉「变量在舒适区」+「.passage 真用了它」，删掉或拉到极端都当场红。
  */

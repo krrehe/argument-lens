@@ -339,6 +339,16 @@ ck(sizes.filter((s) => ALLOWED_SIZE.includes(s)).length >= 4, '六档里实际�
 const blockTitleRule = cssRule(reactCss, '.block-head .t');
 ck(blockTitleRule.length > 0, '找不到 .block-head .t 这条规则，区段标题的字号无从核对');
 ck(/font-size:\s*20px/.test(blockTitleRule), '区段标题不是 20px（subheading 档）：与正文同号时报告会读成一片');
+/* 区段头带不许铺底色。铺一条 --panel-2 的灰带，单看只是「标题条」，
+ * 可是报告里二十来个区段叠下来就是一排灰横杠，整屏看着像表格行。
+ * 分隔交给标题层级与下面那条发丝线——这一条是 2026-11-21 定的。 */
+/* 只读 styles.css，不用拼接后的 reactCss：styles-density.css 里有一条
+ * `.block.is-collapsed > .block-head`，indexOf('.block-head {') 会先撞上它，
+ * 断言就一直在看折叠态、永远绿（2026-11-21 反证抓到的假绿）。 */
+const blockHeadRule = cssRule(stylesCss, '.block-head');
+ck(blockHeadRule.length > 0, '找不到 .block-head 这条规则，头带底色无从核对');
+ck(!/background:\s*var\(--panel-2\)/.test(blockHeadRule),
+  '区段头带又铺回了 --panel-2 灰底：二十来个区段会叠成一排灰横杠');
 
 /* ── 1j. 圆角只 4px / 999px，形状不算 ─────────────────────── */
 /* 圆角可以写成契约层变量（var(--radius-cards)），要先解成字面值再比对，
