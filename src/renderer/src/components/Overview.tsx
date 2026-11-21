@@ -124,39 +124,49 @@ export function QuickRead({ d, onGotoCheck }: { d: Diagnosis; onGotoCheck?: (id:
         {v.outlet}
       </p>
 
-      <ol className="quick-list spine-list">
-        {v.rings.map((r) => (
-          <li
-            key={r.key}
-            className={`quick-row spine-row ${r.tone}`}
-            data-spine-ring={r.key}
-            onClick={() => {
-              /* 先选中那一关再滚：滚过去时表里那一行必须已经是亮的，否则读者还要再找一遍。 */
-              if (r.checkId && onGotoCheck) onGotoCheck(r.checkId);
-              jumpTo(r.to);
-            }}
-          >
-            <span className="qk">{r.n}</span>
-            <span className="qt">{r.title}</span>
-            <span className="qb">
-              <span className="qb-say">{r.text}</span>
-              <span className="qb-from">
-                <span className="qb-src">
-                  {r.from}
-                  {r.key === 'verdict' && gradeGap > 0 && ` · 判档记录不全 ${gradeGap} 处`}
+      {v.segments.map((seg) => (
+        <section className="sp-seg" data-spine-seg={seg.key} key={seg.key}>
+          <div className="sp-seg-head">
+            <span className="sp-seg-n">{seg.label}</span>
+            <span className="sp-seg-t">{seg.title}</span>
+            <span className="sp-seg-hint">{seg.hint}</span>
+            <span className="sp-seg-rule" aria-hidden="true" />
+          </div>
+          <ol className="quick-list spine-list">
+            {seg.rings.map((r) => (
+              <li
+                key={r.key}
+                className={`quick-row spine-row ${r.tone}`}
+                data-spine-ring={r.key}
+                onClick={() => {
+                  /* 先选中那一关再滚：滚过去时表里那一行必须已经是亮的，否则读者还要再找一遍。 */
+                  if (r.checkId && onGotoCheck) onGotoCheck(r.checkId);
+                  jumpTo(r.to);
+                }}
+              >
+                <span className="qk">{r.n}</span>
+                <span className="qt">{r.title}</span>
+                <span className="qb">
+                  <span className="qb-say">{r.text}</span>
+                  <span className="qb-from">
+                    <span className="qb-src">
+                      {r.from}
+                      {r.key === 'verdict' && gradeGap > 0 && ` · 判档记录不全 ${gradeGap} 处`}
+                    </span>
+                    <span className="sp-go">{r.toLabel} →</span>
+                  </span>
                 </span>
-                <span className="sp-go">{r.toLabel} →</span>
-              </span>
-            </span>
-            <span
-              className={`qx ${r.tone === 'bad' ? 'bad' : r.tone === 'warn' ? 'mid' : r.tone === 'ok' ? 'ok' : ''}`}
-              data-quick-cover={r.to === 'sec-verdict' && cov.partial ? '1' : undefined}
-            >
-              {r.tag ?? ''}
-            </span>
-          </li>
-        ))}
-      </ol>
+                <span
+                  className={`qx ${r.tone === 'bad' ? 'bad' : r.tone === 'warn' ? 'mid' : r.tone === 'ok' ? 'ok' : ''}`}
+                  data-quick-cover={r.to === 'sec-verdict' && cov.partial ? '1' : undefined}
+                >
+                  {r.tag ?? ''}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
 
       <div className="spine-foot">
         <span className="sp-note">{v.note}</span>

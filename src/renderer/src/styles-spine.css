@@ -65,16 +65,64 @@
   padding: 2px 0 0;
 }
 
-/* 竖线：从第一环的中心到最后一环的中心。上下各留 16px，不露出线头。
- * 用 --line-strong 而不是发丝线：这条线是「一条主线」的那个线，看不见就不成立。 */
-.spine-list::before {
-  content: '';
-  position: absolute;
-  left: 12px;
-  top: 22px;
-  bottom: 22px;
-  width: 1px;
-  background: var(--edge);
+/*
+ * 三级台阶：是什么 → 为什么 → 所以呢。
+ *
+ * 段标不是「小标题」，是台阶的立边。它上面那一段已经把话答完，下面这一段才有意义——
+ * 所以段标右端拖一根发丝线到栏宽，把「这一段到此为止」画出来，读者接着往下走。
+ * 段标不画成卡片、不加底色：它属于正文节奏，一旦做成面板，三段就退化成三张卡。
+ */
+.sp-seg {
+  position: relative;
+}
+
+.sp-seg-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  /* 离上一段 32px、离本段第一环 14px：台阶的「上一级」与「这一级」要分开看。 */
+  padding: 20px 0 2px;
+}
+
+.sp-seg-n {
+  flex: 0 0 26px;
+  text-align: center;
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+.sp-seg-t {
+  flex: 0 0 auto;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink-2);
+}
+
+/*
+ * 提示紧贴段名，发丝线收在行尾。
+ * 把线放在中间（段名—线—提示）会让提示被推到栏的最右，读者要横跨半屏
+ * 才能把「为什么」和「两步：…」连起来；而它俩本来是一句话的两半。
+ */
+.sp-seg-hint {
+  flex: 0 1 auto;
+  max-width: 66%;
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+/* 段名与提示之间要有一口气：不加分隔，两句会读成「是什么先把他的话复述准」。 */
+.sp-seg-hint::before {
+  content: '· ';
+  color: var(--edge);
+}
+
+.sp-seg-rule {
+  flex: 1 1 16px;
+  align-self: center;
+  height: 1px;
+  min-width: 16px;
+  background: var(--line-strong);
 }
 
 .spine-row {
@@ -96,6 +144,24 @@
   background: var(--panel-2);
 }
 
+/*
+ * 竖线画在环上，不画在容器上。
+ *
+ * 容器级的一条线只能靠 top/bottom 猜端点：它不知道最后一环的正文有几行，
+ * 于是线的下端会插进正文行间，像一根没剪断的线头（截图里一眼能看到）。
+ * 改成每个环替下一环搭一段桥——最后一环没有下一环，线就收在它的圆边上，
+ * 不需要任何补偿值；单环的那一级也自然没有线。
+ */
+.spine-row:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 32px;
+  bottom: -12px;
+  width: 1px;
+  background: var(--edge);
+}
+
 .spine-row .qk {
   grid-area: n;
   justify-self: center;
@@ -112,10 +178,14 @@
   border-radius: 999px;
 }
 
+/*
+ * 每环的标题是问句。它是这一层的「引导」：读者先在心里答一遍，再往下读答案。
+ * 所以它比出处行重一档、比正文轻一档——看得见，但不抢答案。
+ */
 .spine-row .qt {
   grid-area: t;
   font-size: var(--text-label);
-  color: var(--ink-3);
+  color: var(--ink-2);
   letter-spacing: 0.02em;
 }
 

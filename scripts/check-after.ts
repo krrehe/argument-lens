@@ -458,6 +458,11 @@ ok(
 );
 ok(/onGotoCheck=\{\(id\) => setSel\(`#\$\{id\}`\)\}/.test(diagMain), '点断点环会把那一关真的选中（只滚过去等于让人在表里再找一遍）');
 ok(/checkId: bad\.id/.test(spineTs), '断点环带着那一关的 id，不是一个没有落点的标签');
+ok(
+  /v\.segments\.map/.test(ovTsx) && /data-spine-seg=\{seg\.key\}/.test(ovTsx),
+  '界面真的按三级台阶渲染（纯函数分了段，界面还按老的五环平铺，等于没做）',
+);
+ok(/seg\.rings\.map/.test(ovTsx), '每段只渲染自己那几环（渲染全量，分组就只活在数据里）');
 
 /* 拿仓库里那份冻结报告真跑一遍：空字段、枚举、错位都会在这一段露出来。 */
 const fx: Diagnosis = JSON.parse(readFileSync(resolve(process.cwd(), 'scripts/fixtures/replay/mvyvcxbt-wu2i2l.json'), 'utf8'));
@@ -472,6 +477,37 @@ ok(sp.rings[2].from.includes('CQ2'), '断点环点到了那一关（基准倒在
 ok(sp.rings[2].to === 'sec-checks', '断点环跳到逐关检查');
 ok(sp.outlet.length > 0 && !/undefined|NaN|\[object/.test(sp.outlet), '出路句非空且没有 undefined / NaN 漏上屏');
 ok(!/undefined|NaN|\[object/.test(sp.lead), '因果句没有 undefined / NaN 漏上屏');
+
+/*
+ * ── 三级台阶 ──
+ *
+ * 五环平铺时，读者同时要拿住五个带正文的块，超出工作记忆容量（Cowan 2001，4±1），
+ * 于是退回「扫标题」——那正是这份报告最想避免的读法。分三段、每段至多两环，
+ * 同一屏要拿住的东西压到四个以内；段名用读者脑子里依次冒出来的三个词。
+ *
+ * 这几条守的是「递进真的存在」：段的次序、每段容量、环不被复制成两份、
+ * 每一问都是问句（先自答再对照），以及第二问与第三问之间的指代链——
+ * 抽掉中间那一环，后一问就指空，这是「层层递进」唯一可被机器检验的含义。
+ */
+ok(sp.segments && sp.segments.length === 3, '主线分三级台阶（不是五条并列）');
+ok(sp.segments.map((s) => s.title).join(',') === '是什么,为什么,所以呢', '三级台阶的顺序固定：是什么 → 为什么 → 所以呢');
+ok(sp.segments.every((s) => s.rings.length >= 1 && s.rings.length <= 2), '每级最多两环（同一屏要拿住的不超过四个组块）');
+ok(sp.segments.reduce((n, s) => n + s.rings.length, 0) === 5, '三级台阶正好装下五环，不重不漏');
+ok(
+  sp.segments.flatMap((s) => s.rings).every((r, i) => r === sp.rings[i]) &&
+    sp.segments.reduce((n, s) => n + s.rings.length, 0) === sp.rings.length,
+  '台阶用同一批环对象（各造一份，改文案时必漏一处）',
+);
+ok(sp.segments.every((s) => s.hint.trim().length >= 6), '每级都说清这一级在问什么（占位空话不算）');
+ok(new Set(sp.segments.map((s) => s.hint)).size === 3, '三级的提示各不相同（同一句复制三遍等于没分组）');
+
+const isAsk = (t: string) => /[？?]$/.test(t) || /什么|哪|凭什么|吗|多少/.test(t);
+ok(sp.rings.every((r) => isAsk(r.title)), '每一环的标题都是问句（读者先自答、再对照）');
+ok(new Set(sp.rings.map((r) => r.title)).size === 5, '五个问句互不重复（重复的那一环等于没问）');
+ok(
+  /哪一句/.test(sp.rings[1].title) && /那一句/.test(sp.rings[2].title),
+  '第二问与第三问构成指代链：先问压在哪一句，再问那一句凭什么（抽掉中间一环，后一问就指空）',
+);
 
 /*
  * 两条分支必须各说各的话。
