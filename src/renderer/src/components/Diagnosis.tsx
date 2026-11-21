@@ -105,14 +105,20 @@ function Block({
       data-density-tier={ledger ? 'ledger' : 'core'}
       data-collapsed={collapsed ? '1' : '0'}
     >
-      {/*
-        环号用 data-spine-no + CSS 伪元素画，不写成文本节点。
-        端到端探针按「栏头文字以栏名开头」找节（/^判读/）；标题前多一个「4」，
-        textContent 变成「4判读…」，整条探针会判成「没有这一节」——
-        界面看起来完全正常，冒烟里那五条却一起红。
-      */}
       <div className="block-head" data-spine-no={spineNo ?? undefined}>
         <span className="t">{title}</span>
+        {/*
+          环号跟在栏名后面，不放在前面。
+          放前面有两个代价：整列栏名要多缩 26px，而二十来个区段里只有五栏有号，
+          左边缘立刻参差；端到端探针又按「栏头文字以栏名开头」找节（/^判读/），
+          前面多一个「4」就判成「没有这一节」——界面完全正常，冒烟里那五条一起红。
+          跟在后面两个问题一起没有，textContent 仍以栏名开头。
+        */}
+        {spineNo != null && (
+          <span className="bl-no" aria-hidden="true">
+            {spineNo}
+          </span>
+        )}
         {sub && <span className="s">{sub}</span>}
         {disputes && disputes.length > 0 && (
           <button

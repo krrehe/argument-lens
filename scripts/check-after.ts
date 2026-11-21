@@ -510,6 +510,102 @@ ok(
 );
 
 /*
+ * ── 版式：一条轴，三级 ──
+ *
+ * 排版不是装饰。这一页要回答「为什么这个论证有问题」，读者的眼睛得先看见
+ * 层级，再读字：
+ *
+ *   一  是什么                          ← 段名 16 半粗，离上一级 32px，右侧一根线收口
+ *     ① 他想让你信什么                  ← 问句 14 半粗（先自答）
+ *        取消早读是错误决定               ← 答案 16 常规
+ *        他摆了 3 条依据 · 看结构图 →      ← 出处 12，链接跟在同行
+ *
+ * 这几条守的是「层级真的存在」，不是「好不好看」：
+ *
+ *   1. 一条左边缘。文档头、主线、二十来个区段全从 0px 起排。卡片自带 18px
+ *      内边距，留着就是两套左边缘——量出来的错位会被读成「没对齐」。
+ *   2. 三级字号 + 一条间距。段名 16 / 问句 14 / 答案 16 / 出处 12；
+ *      问句与答案同号，只剩字重能分，所以字重必须压上；台阶间距是段内
+ *      环距的三倍——分级靠距离，不靠再加一层字号。
+ *   3. 没有第三列。右端一列小标签会让五个环的右边缘各差几十像素，
+ *      读者先看见一条参差竖列，再看见内容；链接浮到最右同理。
+ *   4. 不二次截断。长度由 spine 的 clip() 按字数定，界面再 clamp 一次就是
+ *      两把尺子，截掉的那半句还看不出是谁截的。
+ */
+const cssStyles = src('src/renderer/src/styles.css');
+const cssSpine = src('src/renderer/src/styles-spine.css');
+/** 去注释再判：注释里写着「border: 0」之类的说明，不该被当成规则。 */
+const noC = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\r\n/g, '\n');
+function ruleBody(text: string, sel: string): string {
+  const t = noC(text);
+  const i = t.indexOf(`${sel} {`);
+  if (i < 0) return '';
+  const open = t.indexOf('{', i);
+  const close = t.indexOf('}', open);
+  return close < 0 ? '' : t.slice(open + 1, close);
+}
+const tokenPx = (name: string): number =>
+  Number((noC(cssStyles).match(new RegExp(`--${name}:\\s*(\\d+)px`)) ?? [])[1]);
+/** 取一条声明里的像素值：先认 var(--token)，再认字面值。 */
+const num = (body: string, prop: string): number => {
+  const v = body.match(new RegExp(`${prop}:\\s*var\\(--([a-z0-9-]+)\\)`));
+  if (v) return tokenPx(v[1]);
+  const p = body.match(new RegExp(`${prop}:\\s*(\\d+)px`));
+  return p ? Number(p[1]) : NaN;
+};
+
+const blockRule = ruleBody(cssStyles, '.block');
+ok(
+  /background:\s*transparent/.test(blockRule) &&
+    /border:\s*0(;|\s)/.test(blockRule) &&
+    /box-shadow:\s*none/.test(blockRule),
+  '报告正文是一条连续读列，不再是一叠卡片（卡片自带 18px 内边距 = 第二套左边缘）',
+);
+ok(/padding:\s*0 0 \d+px/.test(ruleBody(cssStyles, '.block-head')), '栏头与读列同一条左边缘（左右内边距归零）');
+ok(/padding:\s*\d+px 0 0/.test(ruleBody(cssStyles, '.block-body')), '区段正文与栏名同一条左边缘');
+ok(/padding:\s*\d+px 0(;|\s)/.test(ruleBody(cssStyles, '.block-plain')), '「人话」行不另设缩进');
+
+const rowRule = ruleBody(cssSpine, '.spine-row');
+ok(/'n t'/.test(rowRule) && /'n b'/.test(rowRule) && !/'n t x'/.test(rowRule), '每环两列两行：轨道 + 正文，不设第三列');
+const badgeRule = ruleBody(cssSpine, '.spine-row .qx');
+ok(
+  /display:\s*inline-block/.test(badgeRule) && !/grid-area/.test(badgeRule),
+  '判定徽章在问句行内，不另起一列（右端一列小标签会排成参差竖列）',
+);
+const fromRule = ruleBody(cssSpine, '.qb-from');
+const goRule = ruleBody(cssSpine, '.sp-go');
+ok(
+  /display:\s*block/.test(fromRule) && !/flex/.test(goRule) && !/margin-left:\s*auto/.test(goRule),
+  '出处与「看哪一栏」读在同一行，不再推到栏最右',
+);
+
+const qtRule = ruleBody(cssSpine, '.spine-row .qt');
+const sayRule = ruleBody(cssSpine, '.qb-say');
+ok(num(qtRule, 'font-size') === 14 && num(sayRule, 'font-size') === 16, '问句 14 / 答案 16：问句是小一号的引导，不是脚注');
+ok(
+  /font-weight:\s*var\(--font-weight-semibold\)/.test(qtRule) && !/font-weight/.test(sayRule),
+  '问句靠字重与答案分开（同屏同号的两行，只剩字重能分）',
+);
+ok(!/line-clamp/.test(sayRule), '答案不做二次截断（长度已由 clip() 按字数截过）');
+
+const segGap = num(ruleBody(cssSpine, '.sp-seg + .sp-seg .sp-seg-head'), 'padding-top');
+const rowGap = num(rowRule, 'padding');
+ok(segGap >= rowGap * 2, '台阶之间的距离远大于段内环距（分级靠间距，不靠再加一层字号）');
+ok(
+  /flex:\s*0 0 26px/.test(ruleBody(cssSpine, '.sp-seg-n')) && /grid-template-columns:\s*26px/.test(rowRule),
+  '段号与环号共用同一条 26px 轨道（两套编号串在一根轴上）',
+);
+ok(
+  !/max-width/.test(ruleBody(cssSpine, '.sp-lead')) && !/max-width/.test(ruleBody(cssSpine, '.sp-outlet')),
+  '导语与答案共用一条读列（一屏只有一种行宽）',
+);
+
+const tAt = diagMain.indexOf('<span className="t">{title}</span>');
+const noAt = diagMain.indexOf('className="bl-no"');
+ok(tAt > 0 && noAt > tAt, '栏头环号跟在栏名后（放前面整列栏名要右移，左边缘立刻参差）');
+ok(!/\[data-spine-no\]::before/.test(noC(cssSpine)), '环号不再画成伪元素前缀（那样只有五栏有号、其余没有，左边缘参差）');
+
+/*
  * 两条分支必须各说各的话。
  *
  * 最容易犯的错不是文案不好，而是三种情况被糊成一句：

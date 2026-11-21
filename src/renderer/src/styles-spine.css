@@ -43,12 +43,18 @@
 }
 
 /* 一句主线：这一屏唯一一处 16px 的正文。它要能被抄下来、拿去复述。 */
+/*
+ * 导语与答案共用一条读列（整栏 708px），不再各自设 62ch 上限：
+ * 同一屏里四种宽度会让换行位置看起来是随机的，读者用右边缘对不齐任何东西。
+ * text-wrap: pretty 交给浏览器避行尾孤字——中文里最后一行只剩一个「素」
+ * 是很常见的，靠字数算不出来，只有排版引擎知道。
+ */
 .sp-lead {
   padding: 2px 0 4px;
   font-size: var(--text-body-lg);
   line-height: 1.75;
   color: var(--ink);
-  max-width: 62ch;
+  text-wrap: pretty;
 }
 
 /* 出路：比第一句低一档。它不是第二个结论，是「那怎么办」。 */
@@ -57,7 +63,7 @@
   font-size: var(--text-body);
   line-height: 1.7;
   color: var(--ink-2);
-  max-width: 62ch;
+  text-wrap: pretty;
 }
 
 .spine-list {
@@ -81,22 +87,38 @@
   align-items: baseline;
   flex-wrap: wrap;
   gap: 0 8px;
-  /* 离上一段 32px、离本段第一环 14px：台阶的「上一级」与「这一级」要分开看。 */
-  padding: 20px 0 2px;
+  /* 离本段第一环 10px、离上一级 32px：帖得比上一级近，才看得出它在管下面那几行。 */
+  padding: 8px 0 10px;
 }
 
+/*
+ * 台阶之间的距离 = 32px，是段内环距（10px）的三倍多。
+ * 分级如果不靠间距，就只能靠字号——而字号一动，段名就会和环标题抢。
+ * 第一级不加这 32px：它上面是导语，不是上一级台阶。
+ */
+.sp-seg + .sp-seg .sp-seg-head {
+  padding-top: var(--spacing-32);
+}
+
+/* 段号与环号共用一条 26px 轨道：三段的三颗字与五环的五个圆串在同一条竖轴上。 */
 .sp-seg-n {
   flex: 0 0 26px;
   text-align: center;
   font-size: var(--text-label);
-  color: var(--ink-3);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-2);
 }
 
+/*
+ * 段名是三级台阶的顶：16px 半粗、正文色。
+ * 此前是 14px 半粗、次要色，与环标题（12px）、答案（14px）挤在同一档，
+ * 三个层级只剩一个字重之差，读者看不出「这一步在管下面那几行」。
+ */
 .sp-seg-t {
   flex: 0 0 auto;
-  font-size: var(--text-body);
+  font-size: var(--text-body-lg);
   font-weight: var(--font-weight-semibold);
-  color: var(--ink-2);
+  color: var(--ink);
 }
 
 /*
@@ -128,13 +150,17 @@
 .spine-row {
   position: relative;
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) auto;
+  /* 两列：轨道 + 正文。徽章不再单占一列——右端一列小标签会让五个环的右边缘
+   * 各差几十像素，读者扫下来先看见一条参差的竖列，再看见内容。 */
+  grid-template-columns: 26px minmax(0, 1fr);
   grid-template-areas:
-    'n t x'
-    'n b b';
+    'n t'
+    'n b';
   align-items: baseline;
-  gap: 3px 10px;
-  padding: 12px 0 12px;
+  /* 问句与答案之间留 5px：两行 14/16px 的字贴在一起会读成一段，
+     分开之后「这一问 → 这一答」才是一问一答。 */
+  gap: 5px 10px;
+  padding: 10px 0 10px;
   border-bottom: 0;
   cursor: pointer;
   transition: background 150ms;
@@ -182,11 +208,17 @@
  * 每环的标题是问句。它是这一层的「引导」：读者先在心里答一遍，再往下读答案。
  * 所以它比出处行重一档、比正文轻一档——看得见，但不抢答案。
  */
+/*
+ * 问句 14px 半粗：与答案同号，靠字重分开。
+ * 此前是 12px 次要色——一屏里最小的字却是整条主线的骨架，
+ * 眼睛先落在答案上，问句成了脚注，「先自答再对照」也就不成立了。
+ */
 .spine-row .qt {
   grid-area: t;
-  font-size: var(--text-label);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.5;
   color: var(--ink-2);
-  letter-spacing: 0.02em;
 }
 
 .spine-row .qb {
@@ -196,44 +228,56 @@
   overflow: visible;
 }
 
+/*
+ * 答案 16px。
+ *
+ * 注意这里没有 -webkit-line-clamp：长度已经由 spine 的 clip() 按字数截过，
+ * 界面再截一次就是两把尺子——截到第 3 行时，clip 没截掉的半句会被吃掉，
+ * 而截断处看不出是被界面裁的。
+ */
 .qb-say {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-size: var(--text-body);
-  line-height: 1.65;
+  display: block;
+  font-size: var(--text-body-lg);
+  line-height: 1.7;
   color: var(--ink);
+  text-wrap: pretty;
 }
 
+/*
+ * 出处行一行读完：事实 + 去哪儿核。
+ *
+ * 此前是 flex 两端对齐，把「看结构图 →」推到栏最右——五个环就是五个右对齐的
+ * 短链接，在同一条竖线上排成一列，读者会先数它们再看内容。现在链接跟在事实
+ * 后面，一行读得完；换行时 nowrap 保证「看什么 →」不被拆开。
+ */
 .qb-from {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-top: 3px;
+  display: block;
+  margin-top: 4px;
   font-size: var(--text-label);
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--ink-3);
 }
 
-.qb-src {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
 .sp-go {
-  flex: 0 0 auto;
+  margin-left: 6px;
   color: var(--accent);
   white-space: nowrap;
 }
 
+.sp-go::before {
+  content: ' · ';
+  color: var(--edge);
+}
+
+/* 徽章跟在问句后面，像一条旁注：它答的是「这一问的判定」，不是另一列数据。 */
 .spine-row .qx {
-  grid-area: x;
-  justify-self: end;
-  align-self: baseline;
-  position: static;
+  display: inline-block;
+  margin-left: 8px;
   font-size: var(--text-label);
+  font-weight: var(--font-weight-regular);
+  letter-spacing: 0;
   background: none;
+  vertical-align: 1px;
 }
 
 /* 断点那一环不用底色强调，靠环号变红——一屏只允许一处红。 */
@@ -285,14 +329,16 @@
  * 主线说「断在这儿」，点下去落到「逐关检查」——如果那一栏的栏头没有任何记号，
  * 读者要在两万像素之外自己确认「刚才说的是不是这里」。这一格就是那个记号。
  * 只给被主线引用过的五栏挂；其余栏不编号，编号一多就变成了目录，不再是主线。
+ *
+ * 记号跟在栏名后面、不占正文的缩进。放在栏名前面时整列栏名要右移 26px，
+ * 而二十来个区段里只有五栏有号——左边缘就参差了，读者会以为「有号的更靠右」。
  */
-.block-head[data-spine-no]::before {
-  content: attr(data-spine-no);
+.bl-no {
   flex: 0 0 auto;
   align-self: center;
   width: 18px;
   height: 18px;
-  margin-right: 8px;
+  margin-left: 1px;
   line-height: 16px;
   text-align: center;
   font-family: var(--mono);

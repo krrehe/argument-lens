@@ -145,22 +145,28 @@ export function QuickRead({ d, onGotoCheck }: { d: Diagnosis; onGotoCheck?: (id:
                 }}
               >
                 <span className="qk">{r.n}</span>
-                <span className="qt">{r.title}</span>
+                <span className="qt">
+                  {r.title}
+                  {/*
+                    判定跟在问句后面，不另起一列。
+                    右端一列小标签看起来整齐，实际是五条长短不一的旁注各自右对齐，
+                    读者扫下来先看见一条参差的竖列；而「枢纽 / 没答 / D2」答的
+                    本来就是「这一问判成什么」，接在问句后面才读得通。
+                  */}
+                  <span
+                    className={`qx ${r.tone === 'bad' ? 'bad' : r.tone === 'warn' ? 'mid' : r.tone === 'ok' ? 'ok' : ''}`}
+                    data-quick-cover={r.to === 'sec-verdict' && cov.partial ? '1' : undefined}
+                  >
+                    {r.tag ?? ''}
+                  </span>
+                </span>
                 <span className="qb">
                   <span className="qb-say">{r.text}</span>
                   <span className="qb-from">
-                    <span className="qb-src">
-                      {r.from}
-                      {r.key === 'verdict' && gradeGap > 0 && ` · 判档记录不全 ${gradeGap} 处`}
-                    </span>
+                    {r.from}
+                    {r.key === 'verdict' && gradeGap > 0 && ` · 判档记录不全 ${gradeGap} 处`}
                     <span className="sp-go">{r.toLabel} →</span>
                   </span>
-                </span>
-                <span
-                  className={`qx ${r.tone === 'bad' ? 'bad' : r.tone === 'warn' ? 'mid' : r.tone === 'ok' ? 'ok' : ''}`}
-                  data-quick-cover={r.to === 'sec-verdict' && cov.partial ? '1' : undefined}
-                >
-                  {r.tag ?? ''}
                 </span>
               </li>
             ))}

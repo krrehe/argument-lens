@@ -1117,22 +1117,31 @@ select {
  * 边界靠底色差与阴影给，描边只用发丝线兜一下——描边一重，整页就像表格。
  */
 .block {
-  background: var(--panel);
-  border: 1px solid var(--hair);
-  border-radius: 4px;
-  box-shadow: var(--shadow-1);
-  margin-bottom: 14px;
-  overflow: hidden;
+  /*
+   * 报告正文不再是一张张卡片。
+   *
+   * 文档页里二十来个「白底 + 描边 + 圆角 + 投影」的盒子叠下来，读者看到的是
+   * 二十个盒子，不是一篇有章节的文章；而且卡片自带 18px 内边距，正文因此比
+   * 上面的文档头、主线整体右移 18px——两套左边缘，怎么排都像拼的。
+   *
+   * 现在是一条连续读列：区段之间只靠一条发丝线与 32px 留白分开，
+   * 与文档头、主线共用同一条左边缘（0px）。盒子留给真正需要边界的东西
+   * （表格、图、账目），不再包在整栏外面。
+   */
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin-bottom: var(--spacing-32);
+  overflow: visible;
 }
 .block-head {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  padding: 13px 18px 11px;
+  gap: 8px;
+  /* 栏头是这一栏的第一行字，与正文同一条左边缘；贴合只剩下面那条发丝线。 */
+  padding: 0 0 10px;
   border-bottom: 1px solid var(--hair);
-  /* 头带原本铺了一层 --panel-2（比卡片略灰）。那层灰把区段标题变成了一条
-   * 「标签条」，二十来个区段叠下来就是一排灰横杠。改成与卡片同底，
-   * 只留下面那条发丝线——标题回到文字层，分隔交给线。 */
   background: transparent;
 }
 .block-head .t {
@@ -1156,7 +1165,8 @@ select {
   font-family: var(--mono);
 }
 .block-body {
-  padding: 15px 18px 16px;
+  /* 正文与栏头同一条左边缘：内边距只在上下留白，左右归零。 */
+  padding: 12px 0 0;
 }
 
 .banner {
@@ -2254,7 +2264,7 @@ pre.code {
  */
 .block-plain {
   margin: 0;
-  padding: 9px 18px 10px;
+  padding: 10px 0;
   font-size: 12px;
   line-height: 1.68;
   color: var(--ink-2);
