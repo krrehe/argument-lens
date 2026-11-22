@@ -13,6 +13,7 @@
  * 跑法：npm run check:export
  */
 import { ANSWER_LABEL, WHAT_REFUTED_LABEL } from '@shared/labels';
+import { digestOf } from '@shared/digest';
 import { prescriptionsOf } from '@shared/prescriptions';
 import { markdownFileName, reportToMarkdown } from '@shared/report-markdown';
 import type { Diagnosis } from '@shared/types';
@@ -120,6 +121,64 @@ ok(!md.includes('这条只是提示'), 'info 级诊断不进导出件', '记流�
   ok(reportToMarkdown(warned).includes('某处自相矛盾'), 'warn 的内容被带出');
 }
 
+/* ── 七之二 · 总结：界面上排第一的那块，文件里也必须在 ── */
+
+/*
+ * 这一节防的不是格式，是「界面上有、文件里没有」。
+ *
+ * 报告首屏先给五行总结与一条逻辑链，导出件原先却从「全流程走了哪几步」开始——
+ * 带走的那份文件里没有「这段话在争什么」。人都已经关掉应用、在写作软件里对着
+ * 文件改稿了，缺了这一节也不会有人回来告诉你。所以断言分三类：
+ * 该在的都在（五行、链、断点、接不回结论的条目）、层级真的是层级、
+ * 以及**不许把界面上的按钮搬进文件**（文件里没有那些按钮，写了就是指向空气）。
+ */
+{
+  const g = digestOf(full);
+  const iDigest = md.indexOf('## 总结');
+  const iFlow = md.indexOf('## 全流程走了哪几步');
+  ok(iDigest > 0, '导出件有总结一节');
+  ok(iDigest > 0 && iFlow > 0 && iDigest < iFlow, '总结排在流程账之前', '界面是第一块，文件也必须是');
+
+  for (const row of g.gist) ok(md.includes(`**${row.key}**`), `总结带「${row.key}」这一行`);
+  {
+    const order = g.gist.map((r) => md.indexOf(`**${r.key}**`));
+    ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), '五行按「说的什么→要信什么→怎么推的→推到哪→最要紧」排');
+  }
+  ok(g.gist.length > 0 && md.includes(g.gist[0].text.slice(0, 24)), '总结逐字取自 digestOf，不在这里另写一份');
+
+  ok(md.includes('### 论证逻辑链'), '链有自己的一节');
+  ok(/\n  - \*\*P1\*\*/.test(md), '第二层理由真的缩进了一层', '平铺成同层就看不出谁支撑谁');
+  ok(/\*\*C\*\*[^\n]*结论/.test(md), '结论在链顶');
+  ok(md.includes('（承重；被反驳）'), '链上带着承重与被反驳两个标记');
+
+  const digestSec = iDigest > 0 && iFlow > iDigest ? md.slice(iDigest, iFlow) : '';
+  ok(
+    digestSec.length > 0 && !/骨架|取证|点「|点节点|关系图/.test(digestSec),
+    '不把界面按钮与指路语搬进文件',
+    '「点展开」「见关系图」在文件里都没有落点'
+  );
+
+  ok(md.includes('**推理断在这一步**') && md.includes('CQ2'), '断点单独一行，带检查项名');
+
+  /* 成环的两条接不回结论：必须在文件里单列，不能从树里悄悄消失。 */
+  const cyc = diag({
+    premises: [
+      { ...claim('P1', 'premise', '甲支撑乙', 0), supports: ['P2'] },
+      { ...claim('P2', 'premise', '乙支撑甲', 0), supports: ['P1'] },
+    ],
+  });
+  const cycMd = reportToMarkdown(cyc);
+  ok(cycMd.includes('接不回结论的 2 条'), '接不回结论的条数写出来');
+  ok(cycMd.includes('**P1**') && cycMd.includes('**P2**'), '接不回结论的两条都列在文件里');
+
+  /* 不适用也照给：界面在不适用时同样显示这块总结。 */
+  const offMd2 = reportToMarkdown(
+    diag({ scope: { applicable: false, reason: '这是一段广告文案', outOfScopeAt: null, partialNote: null }, checks: [] })
+  );
+  const offAt = offMd2.indexOf('## 总结');
+  ok(offAt > 0 && offAt < offMd2.indexOf('## 这副透镜在本文本上不适用'), '不适用时也有总结，且排在「不适用」之前');
+}
+
 /* ── 八 · 不适用：不许假装分析过 ── */
 
 {
@@ -174,7 +233,7 @@ ok(markdownFileName(full).endsWith('.md'), '文件名以 .md 结尾');
 ok(!/\n{3,}/.test(md), '没有连续空行堆出的空洞', '空段会被读成「这里本来该有东西」');
 
 /* 断言总数兜底：少跑就是静默跳过 */
-ok(passed >= 45, '断言总数不少于 45 项', `实际 ${passed}`);
+ok(passed >= 62, '断言总数不少于 62 项', `实际 ${passed}`);
 
 if (failed.length) {
   console.error(`\n✗ 导出件检查失败 ${failed.length} 项（通过 ${passed} 项）`);

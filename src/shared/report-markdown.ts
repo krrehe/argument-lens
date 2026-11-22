@@ -33,6 +33,7 @@ import {
 } from './divergence';
 import { prescriptionsOf } from './prescriptions';
 import { promptHistoryMarkdown, promptHistoryOf } from './prompt-history';
+import { digestOf, type DigestNode } from './digest';
 import { LEVEL_LABEL, THEORY_BY_ID } from './theories';
 import { MODE_META, type Claim, type Diagnosis } from './types';
 
@@ -55,6 +56,72 @@ function claimLine(c: Claim): string {
   if (c.acceptability?.status) bits.push(ACCEPT_LABEL[c.acceptability.status] ?? c.acceptability.status);
   if (c.implicit) bits.push('隐含前提');
   return `- **${c.id}**　${oneLine(c.text)}${bits.length ? `　（${bits.join('，')}）` : ''}`;
+}
+
+/**
+ * 总结那一节：先说这段说了什么，再说它站不站得住。
+ *
+ * 界面首屏第一块就是这块总结，导出件原先直接从「全流程走了哪几步」开始——
+ * 带走的那份文件里没有「这段话在争什么」。一份给写作者对着改稿的清单，
+ * 最该在第一行的恰恰是这一句；缺了它，人打开文件先看到的是七步流程账。
+ *
+ * 与界面同源的三件：五行 gist、逻辑链、断点与接不回结论的条目，全部取自
+ * `digestOf`，这里一个判断都不另算。
+ *
+ * 与界面刻意不同的两件：
+ *   - **不搬按钮语言。** 颗粒度（骨架／展开／取证）是屏幕上的开关，文件里没有按钮；
+ *     写成「还有下一层，点展开」等于指向一个不存在的东西。层数由「怎么推的」说清，
+ *     树本身也把层数摆在那儿。
+ *   - **不指向界面。** 链尾那句边界原本写「完整连线见关系图」，导出件里没有关系图，
+ *     这里换成一句自足的说明。
+ */
+function digestMarkdown(d: Diagnosis): string[] {
+  const g = digestOf(d);
+  const out: string[] = [];
+
+  out.push('## 总结');
+  out.push('');
+  for (const row of g.gist) out.push(`- **${row.key}**　${oneLine(row.text)}`);
+  out.push('');
+  out.push('### 论证逻辑链');
+  out.push('');
+
+  /*
+   * 缩进一层就是「支撑上一层的理由」。用嵌套列表而不是缩进文本：
+   * 读者把它贴进 Word / 笔记软件时，层级仍然是一条条列表，不会塌成一段。
+   */
+  const emit = (n: DigestNode, depth: number): void => {
+    const pad = '  '.repeat(depth);
+    const marks = n.marks.length ? `　（${n.marks.join('；')}）` : '';
+    const quote = n.quote ? `　原文：「${oneLine(n.quote)}」` : '';
+    out.push(`${pad}- **${n.id}**　${n.roleLabel}　${oneLine(n.text)}${marks}${quote}`);
+    for (const c of n.children) emit(c, depth + 1);
+  };
+  emit(g.conclusion, 0);
+
+  if (g.orphans.length) {
+    /*
+     * 单列并说明为什么单列。直接接在树后面，读者会以为它是另一条直接理由；
+     * 而它恰恰是「写着有，却接不回结论」的那几条——藏起来会让结构显得比实际完整。
+     */
+    out.push('');
+    out.push(`**接不回结论的 ${g.orphans.length} 条**：`);
+    out.push('');
+    for (const o of g.orphans) out.push(`- **${o.id}**　${o.roleLabel}　${oneLine(o.text)}`);
+  }
+
+  out.push('');
+  if (g.breakLine) {
+    out.push(
+      `**推理断在这一步**：${oneLine(g.breakLine.cuts)}${g.breakLine.check ? `（${g.breakLine.check}）` : ''}。`
+    );
+    out.push('');
+  }
+  out.push(
+    '> 这条链按报告里每条主张「支撑谁」排；一条理由同时支撑多处时只挂在第一处，其余位置在下面的「依据」与检查项里能查到。总结只压缩报告已有字段，不另评一句。'
+  );
+
+  return out;
 }
 
 export function reportToMarkdown(d: Diagnosis): string {
@@ -114,6 +181,14 @@ export function reportToMarkdown(d: Diagnosis): string {
   }
   head.push('> 每一条判断都附了原文句子；对不上原文的地方，以原文为准，不以本文件为准。');
   out.push(head.join('\n'));
+  out.push('');
+
+  /*
+   * 总结放在抬头之后、所有判断之前。界面是这个顺序，导出件也必须是——
+   * 「这段说了什么」先于「它站不站得住」，正是这一版报告整理出来的读法。
+   * 不适用也照给：界面在不适用时同样显示这一块，缺了它又是一处「界面上有、文件里没有」。
+   */
+  out.push(...digestMarkdown(d));
   out.push('');
 
   /* ── 范围：不适用就到此为止 ── */

@@ -124,6 +124,21 @@ function clip(s: string | null | undefined, n: number) {
   return t.length > n ? `${t.slice(0, n)}…` : t;
 }
 
+/**
+ * 放进「」里的一段：内部引号降一级，截断切掉的右引号补回来。
+ *
+ * `inner` 解决「引文套引文」，但一截断就可能把成对的引号切成一个：
+ * 真实报告里有一句写着「…也未辩护“制度偏向以男性为标准”」，截到 80 字时
+ * 正好停在引号里面，屏幕上于是出现一个没有收口的 “。补一个右引号，
+ * 读者至少看得出这句话是被截断的，而不是标点坏了。
+ */
+function quoted(s: string | null | undefined, n: number) {
+  const t = inner(clip(s, n));
+  const open = (t.match(/“/g) ?? []).length;
+  const close = (t.match(/”/g) ?? []).length;
+  return close < open ? `${t}”` : t;
+}
+
 /** 引来的句子自带句末标点就不再补一个，免得出现「…。 。」或与下一句粘住。 */
 function endSentence(s: string) {
   return /[。！？；…]$/.test(s) ? s : `${s}。`;
@@ -289,19 +304,25 @@ export function digestOf(d: Diagnosis): DigestView {
   const gist: DigestGist[] = [
     {
       key: '说的什么',
-      text: `这段话在争「${clip(d.context.issue, 60) || '报告没写争议之点'}」；说话者站在「${
-        clip(d.context.speakerPosition, 40) || '报告没写立场'
+      text: `这段话在争「${quoted(d.context.issue, 60) || '报告没写争议之点'}」；说话者站在「${
+        quoted(d.context.speakerPosition, 40) || '报告没写立场'
       }」。${
         d.context.dialogueType
           ? `对话类型是「${DIALOGUE_TYPE_LABEL[d.context.dialogueType] ?? d.context.dialogueType}」${
-              d.context.audience ? `，说给${clip(d.context.audience, 24)}听` : ''
+              /*
+               * 受众这一格常常比 24 字长，截断之后原先直接写「说给……听」，
+               * 省略号落在句子中间，读成「说给一些可能持不同看法的…听」——
+               * 像是话说了一半。给它加一层「」，省略号就明显是「引文被截断」，
+               * 而不是这个句子没写完。
+               */
+              d.context.audience ? `，说给「${quoted(d.context.audience, 24)}」听` : ''
             }。`
           : ''
       }`,
     },
     {
       key: '要你信什么',
-      text: `结论是「${clip(d.conclusion.text, 90)}」。${
+      text: `结论是「${quoted(d.conclusion.text, 90)}」。${
         all.length
           ? `为了让你信它，他给了 ${premise.length} 条依据${mid.length ? `、${mid.length} 条中间结论` : ''}。`
           : '报告没从这段话里拆出依据——结论是直接摆出来的。'
@@ -335,9 +356,9 @@ export function digestOf(d: Diagnosis): DigestView {
     },
     {
       key: '最要紧的一处',
-      text: `${pivot.top ? `整段压在「${inner(clip(pivot.top.text, 46))}」上` : '报告没有指出唯一的承重句'}${
+      text: `${pivot.top ? `整段压在「${quoted(pivot.top.text, 46)}」上` : '报告没有指出唯一的承重句'}${
         pin
-          ? `；断在「${inner(clip(pin.label, 28))}」：${inner(clip(pin.basis, 80)) || '报告没写依据'}`
+          ? `；断在「${quoted(pin.label, 28)}」：${quoted(pin.basis, 80) || '报告没写依据'}`
           : '；没有找到明显断点'
       }。`,
     },

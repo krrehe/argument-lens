@@ -212,6 +212,73 @@ ok(
   find(gB, '怎么推的'),
 );
 
+/*
+ * 受众比 24 字长时会被截断。原先直接「说给……听」，省略号落在句中，
+ * 读成「说给一些可能持不同看法的…听」——像话说了一半。加「」才看得出是引文被截。
+ * 这一条来自真实报告：mwr4t9pn 那份的 audience 是三十个字，界面上就是这么断的。
+ */
+const gAud = digestOf(
+  diag({
+    conclusion: claim('C', 'conclusion', '取消早读是错的'),
+    context: {
+      ...diag().context,
+      audience: '视频观众（一般公众），包括可能持评论者类似看法的人，以及转发这条视频的账号',
+    },
+  })
+);
+ok(
+  /说给「[^」]*…」听/.test(find(gAud, '说的什么')),
+  '受众被截断时用「」包住，省略号在引号里（否则读成话没说完）',
+  find(gAud, '说的什么'),
+);
+
+/* 结论自己就带「」时，外层再包一层会读成两句引文。真实报告里这一句很常见。 */
+const gNest = digestOf(
+  diag({
+    conclusion: claim('C', 'conclusion', '评论者所说的「女性特权」其实是把阶级特权当成了性别特权'),
+    premises: [P('P1', ['C'])],
+  })
+);
+ok(
+  !/「[^「」]*「/.test(find(gNest, '要你信什么')),
+  '结论自己带「」时降级成 “ ”（否则一层引文套一层引文）',
+  find(gNest, '要你信什么'),
+);
+
+/*
+ * 截断可能正好停在引号里。真实报告里那句「…也未辩护“制度偏向以男性为标准”」
+ * 截到 80 字时右引号被切掉，界面上就是一个没有收口的 “。补回来。
+ */
+const gQuote = digestOf(
+  diag({
+    conclusion: claim('C', 'conclusion', '取消早读是错的'),
+    premises: [P('P1', ['C'])],
+    checks: [
+      {
+        ...checkItem('CQ2', 'violated', 'P1 → C 的因果一步', 'CQ2 因果方向'),
+        basis:
+          '从“制度环境更有利于男性”到“男性拥有性别特权”需要一条担保：“凡制度环境系统性地更有利于某性别，该性别即拥有性别特权”，作者未明说，也未辩护“制度偏向以男性为标准”',
+      },
+    ],
+    defeat: {
+      kind: 'undermining',
+      checkId: 'CQ2',
+      cuts: '切断了 P1 与 C 之间的因果联结',
+      explanation: '缺一环',
+      tag: 'argued',
+      confidence: 'medium',
+    },
+  })
+);
+{
+  const t = find(gQuote, '最要紧的一处');
+  ok(
+    (t.match(/“/g) ?? []).length === (t.match(/”/g) ?? []).length && t.includes('“'),
+    '截断把引号切成一个时补上右引号（不出现没有收口的 “）',
+    t
+  );
+}
+
 const pImplicit = { ...P('P1', ['C']), implicit: true, implicitBasis: '若不假定 X，则推不出' };
 const gF = digestOf(diag({ conclusion: claim('C', 'conclusion', '取消早读是错的'), premises: [pImplicit] }));
 ok(find(gF, '怎么推的').includes('1 条是隐含的'), '隐含前提的条数取自 implicit 字段（隐含前提不读出来，读者会以为原文写了）', find(gF, '怎么推的'));
