@@ -199,6 +199,18 @@ export function QuickRead({
           </div>
         </div>
 
+        {/*
+          断在推理的哪一步，单独一行。
+          它以前挂在结论节点上（「结论 C［未答］」），读者读成「结论没人答」；
+          实际意思是某一步断了——报告里 `defeat.cuts` 写的就是这一步。
+        */}
+        {g.breakLine && (
+          <p className="dg-break" data-digest-break="1">
+            推理断在这一步：<b>{g.breakLine.cuts}</b>
+            {g.breakLine.check ? `（${g.breakLine.check}）` : ''}。
+          </p>
+        )}
+
         <ol className="dg-tree">
           <ChainNode n={g.conclusion} max={depth} sel={sel} onPick={onPick} />
         </ol>

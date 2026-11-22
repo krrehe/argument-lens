@@ -5,6 +5,7 @@ import { GRADE_LABEL } from './grading';
 import { DIALOGUE_TYPE_LABEL } from './context-use';
 import { pivotOf } from './pivot';
 import { pinOf } from './verdict-trail';
+import { ANSWER_LABEL } from './labels';
 
 /**
  * 全文总结与论证逻辑链。
@@ -46,7 +47,13 @@ export interface DigestNode {
   depth: number;
   parentId: string | null;
   children: DigestNode[];
-  /** 节点旁的短标记：承重 / 断点 / 隐含 / 被反驳 / 另支撑 2 处。 */
+  /**
+   * 节点旁的短标记：承重 / 隐含 / 被反驳 / 不可接受 / 可疑 / 另支撑 2 处。
+   *
+   * 「断点」不在这里——它曾经挂在结论上，界面于是写着「结论 C［未答］」，
+   * 读起来像「结论没人答」。断点是一条**推理边上**的事实（某一关没答、
+   * 某一步断了），不属于任何一条主张，所以单独一行，见 `breakLine`。
+   */
   marks: string[];
   tone: 'ok' | 'warn' | 'bad' | 'none';
 }
@@ -76,6 +83,13 @@ export interface DigestView {
   };
   /** 三档颗粒度。界面按这个渲染按钮，不在组件里另写一套。 */
   levels: { n: number; label: string; hint: string }[];
+  /**
+   * 推理断在哪一步。没有明确断点时为 null（不是「没有断点」，是报告没说）。
+   *
+   * 分成两格而不是一整句：界面要把「切断了哪一步」加重、把「哪一关」放在括号里，
+   * 测试也要能分别断言这两格，而不必去比对一句拼好的中文。
+   */
+  breakLine: { cuts: string; check: string } | null;
   boundary: string;
 }
 
@@ -94,6 +108,11 @@ function clip(s: string | null | undefined, n: number) {
   const t = (s ?? '').replace(/\s+/g, ' ').trim();
   if (!t) return '';
   return t.length > n ? `${t.slice(0, n)}…` : t;
+}
+
+/** 引来的句子自带句末标点就不再补一个，免得出现「…。 。」或与下一句粘住。 */
+function endSentence(s: string) {
+  return /[。！？；…]$/.test(s) ? s : `${s}。`;
 }
 
 export function digestOf(d: Diagnosis): DigestView {
@@ -122,10 +141,6 @@ export function digestOf(d: Diagnosis): DigestView {
     if (c.implicit) {
       marks.push('隐含');
       if (tone === 'none') tone = 'warn';
-    }
-    if (d.conclusion.id === c.id && pin) {
-      marks.push(pin.answer === 'violated' ? '断点' : '未答');
-      tone = 'bad';
     }
     if (refuted.has(c.id)) {
       marks.push('被反驳');
@@ -200,41 +215,84 @@ export function digestOf(d: Diagnosis): DigestView {
   const grade = d.verdict.grade;
   const gives = MODE_META[d.mode]?.givesVerdict !== false;
 
+  const maxDepth = [...nodes.values()].reduce((m, n) => Math.max(m, n.depth), 0);
+  const implicitCount = all.filter((c) => c.implicit).length;
+
+  /*
+   * 断点单独一行，不挂在任何节点上。
+   *
+   * 原来它挂在结论上（`d.conclusion.id === c.id` 时打「断点」或「未答」），
+   * 界面于是显示「结论 C［未答］」——读者读成「结论没人答」，
+   * 而实际意思是「某一关没答，P1 → C 那一步没有支撑」。报告自己把这件事
+   * 说得很清楚（`defeat.cuts`：切断的是哪一步），这里照抄它。
+   */
+  const cuts = (d.defeat?.cuts ?? '').trim();
+  const breakLine =
+    d.defeat && d.defeat.kind !== 'none' && cuts
+      ? {
+          /*
+           * 报告里这一句常写成「切断了 P1 与 C 之间的因果联结」，而界面这儿已经写着
+           * 「推理断在这一步：」——照抄就连读成「断在……切断……」。
+           * 只摘掉句首那个动词，不动后面的内容。
+           */
+          cuts: (cuts.replace(/[。；]+$/, '').replace(/^切(断|掉)了?/, '').trim() || cuts),
+          check: pin ? `${pin.id} ${ANSWER_LABEL[pin.answer] ?? pin.answer}` : '',
+        }
+      : null;
+
   const gist: DigestGist[] = [
     {
       key: '说的什么',
       text: `这段话在争「${clip(d.context.issue, 60) || '报告没写争议之点'}」；说话者站在「${
         clip(d.context.speakerPosition, 40) || '报告没写立场'
-      }」。`,
+      }」。${
+        d.context.dialogueType
+          ? `对话类型是「${DIALOGUE_TYPE_LABEL[d.context.dialogueType] ?? d.context.dialogueType}」${
+              d.context.audience ? `，说给${clip(d.context.audience, 24)}听` : ''
+            }。`
+          : ''
+      }`,
     },
     {
       key: '要你信什么',
-      text: `结论是「${clip(d.conclusion.text, 90)}」。他给了 ${premise.length} 条依据${
-        mid.length ? `、${mid.length} 条中间结论` : ''
-      }；${direct === all.length ? '全部直接接到结论' : `其中 ${direct} 条直接接到结论`}。`,
+      text: `结论是「${clip(d.conclusion.text, 90)}」。${
+        all.length
+          ? `为了让你信它，他给了 ${premise.length} 条依据${mid.length ? `、${mid.length} 条中间结论` : ''}。`
+          : '报告没从这段话里拆出依据——结论是直接摆出来的。'
+      }`,
     },
     {
+      /*
+       * 这一行说的是**推法的形状**，不是「报告拆出几个节点」。
+       * 上一版写「报告按 supports 拆出 3 个节点」——那是数据结构，
+       * 读者要知道的是：全靠直接理由，还是中间转了几道；有没有隐含前提；
+       * 有没有哪条根本接不回去。
+       */
       key: '怎么推的',
-      text: `对话类型是「${DIALOGUE_TYPE_LABEL[d.context.dialogueType] ?? d.context.dialogueType}」${
-        d.context.audience ? `，说给${clip(d.context.audience, 24)}听` : ''
-      }。报告按 supports 拆出 ${all.length} 个节点，${
-        orphans.length ? `有 ${orphans.length} 条接不回结论` : '每条都接得回结论'
-      }。`,
+      text: all.length
+        ? `这 ${all.length} 条${implicitCount ? `（其中 ${implicitCount} 条是隐含的，原文没有明说）` : ''}${
+            maxDepth <= 1
+              ? '都直接接到结论，中间没有中转'
+              : `分 ${maxDepth} 层接到结论${mid.length ? '，中间过了中间结论' : ''}`
+          }${orphans.length ? `；另有 ${orphans.length} 条接不回结论，在下面单列` : ''}。`
+        : '报告没拆出前提或中间结论，这一步的推法无从展开。',
     },
     {
       key: '推到哪',
       text: !d.scope.applicable
-        ? `这副透镜判了不适用：${clip(d.scope.reason, 80)}，所以不判档位。`
+        ? `这副透镜判了不适用：${endSentence(clip(d.scope.reason, 80))}所以不判档位。`
         : !gives
           ? `本次用「${theory}」量；这个模式不给档位，只给检查与问题。`
           : `本次用「${theory}」量，判到「${level}」${
               grade ? `（${grade.level} ${GRADE_LABEL[grade.level]}）` : ''
-            }：${clip(d.verdict.statement, 90)}`,
+            }：${endSentence(clip(d.verdict.statement, 90))}`,
     },
     {
       key: '最要紧的一处',
       text: `${pivot.top ? `整段压在「${inner(clip(pivot.top.text, 46))}」上` : '报告没有指出唯一的承重句'}${
-        pin ? `；断在「${clip(pin.label, 28)}」：${inner(clip(pin.basis, 80)) || '报告没写依据'}` : '；没有找到明显断点'
+        pin
+          ? `；断在「${inner(clip(pin.label, 28))}」：${inner(clip(pin.basis, 80)) || '报告没写依据'}`
+          : '；没有找到明显断点'
       }。`,
     },
   ];
@@ -252,6 +310,7 @@ export function digestOf(d: Diagnosis): DigestView {
       { n: 2, label: '展开', hint: '加上中间结论' },
       { n: 3, label: '取证', hint: '连原文引用一起看' },
     ],
+    breakLine,
     boundary:
       '总结只压缩报告已经落盘的结论、前提、语境与判定，不新增一句评价；每条都能在下面的逻辑链或正文里找到出处。一条理由同时支撑多处时，树里只挂在第一处，完整连线见「关系图」。',
   };

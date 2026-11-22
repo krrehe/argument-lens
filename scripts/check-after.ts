@@ -233,18 +233,22 @@ ok(
   '「下一步」不再单列一段：标题写着修补与下一步，两件事在同一处回答',
 );
 
-const digestTs = src('src/shared/digest.ts');
-ok(/function parentsOf\(c: Claim\): string\[\]/.test(digestTs) && /c\.supports/.test(digestTs), '逻辑链的父子关系取自 supports，不按字数或重要性排');
-ok(/const queue: DigestNode\[\] = \[root\]/.test(digestTs) && /depth > 6/.test(digestTs), '从结论往下按层建树，并给深度封顶（成环时不会无限往下长）');
-ok(
-  /orphans: DigestNode\[\]/.test(digestTs) && /marks: \[\.\.\.n\.marks, '接不回结论'\]/.test(digestTs),
-  '接不回结论的主张单独列出、逐条打标记（只计数不标记，读者不知道是哪些）',
-);
-ok(/levels: \[\s*\{ n: 1, label: '骨架'/.test(digestTs), '三档颗粒度是数据（骨架/展开/取证），不在组件里另写一套');
+/*
+ * 逻辑链本身的四件事（树按 supports 长、深度封顶、孤儿打标、三档是数据）
+ * 已经搬进 `check:digest` 用**造出来的报告**验。原来在这里查源码里有没有
+ * `/orphans: DigestNode\[\]/` 与 /接不回结论/——而「接不回结论」这几个字
+ * 提示语里也有，把孤儿身上的标记删掉，检查照绿。行为断言不会这样。
+ *
+ * 这里只留界面接线：组件有没有真的用上那份数据。
+ */
 ok(/data-digest-orphans=\{g\.orphans\.length\}/.test(ov) && /g\.orphans\.map/.test(ov), '界面把孤儿那一块真的渲染出来，数量与列表同源');
 ok(/g\.levels\.map/.test(ov) && /setDepth\(l\.n\)/.test(ov), '三档按钮改的是显示深度，不是重新算一份数据');
 ok(/const g = digestOf\(d\)/.test(ov) && /g\.gist\.map/.test(ov), '首屏那五行总结来自 digestOf，不在组件里另拼');
 ok(/data-digest-gist-row=\{i\}/.test(ov), '五行各有自己的位置标记（行序被重排时端到端能发现）');
+ok(
+  /g\.breakLine &&/.test(ov) && /data-digest-break="1"/.test(ov),
+  '断点在链头与树之间单独一行，带位置标记（没有断点时整行不出现，不占位）',
+);
 
 /* ─────────── 九 · 接着读：重开时那句话不说假话 ─────────── */
 

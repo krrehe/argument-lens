@@ -81,6 +81,7 @@
     "check:after": "node scripts/run-check-after.mjs",
     "check:props": "node scripts/run-check-props.mjs",
     "check:pivot": "node scripts/run-check-pivot.mjs",
+    "check:digest": "node scripts/run-check-digest.mjs",
     "check:flow": "node scripts/run-check-flow.mjs",
     "check:divergence": "node scripts/run-check-divergence.mjs",
     "check:density": "node scripts/run-check-density.mjs",

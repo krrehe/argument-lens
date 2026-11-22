@@ -214,6 +214,20 @@
   color: var(--ink-3);
 }
 
+.dg-break {
+  margin: 2px 0 16px;
+  padding-left: 10px;
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--ink-2);
+  border-left: 2px solid var(--invalid);
+}
+
+.dg-break b {
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink);
+}
+
 .dg-chain-note {
   margin-top: 8px;
   padding-top: 8px;
