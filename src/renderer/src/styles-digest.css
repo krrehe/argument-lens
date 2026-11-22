@@ -72,6 +72,13 @@
   margin-left: auto;
 }
 
+.dg-depth-note {
+  margin: -2px 0 10px;
+  font-size: var(--text-label);
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
 .dg-depth-b {
   padding: 3px 9px;
   font-size: var(--text-label);
@@ -192,11 +199,17 @@
   background: var(--invalid-bg);
 }
 
-/* 子层缩进 22px 并挂一条竖轨：层级靠位置，不靠字号再降一档。 */
+/*
+ * 子层缩进 22px 并挂一条竖轨：层级靠位置，不靠字号再降一档。
+ *
+ * 竖轨用 --edge 而不是 --hair：hair（#e9e7e4）是分隔线的颜色，1px 竖线在正文旁边
+ * 几乎看不见，读者只看到「这一段缩进了」，看不出「它挂在上面那一条下面」。
+ * 层级是这一块唯一要传达的信息，那条线必须看得见——但它只有 1px，不会抢正文。
+ */
 .dg-kids {
   margin-left: 14px;
   padding-left: 22px;
-  border-left: 1px solid var(--hair);
+  border-left: 1px solid var(--edge);
 }
 
 .dg-quote {

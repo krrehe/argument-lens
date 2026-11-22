@@ -199,10 +199,40 @@ function withPromptHistory(d: Diagnosis, q: string): Diagnosis {
   if (q === 'mismatch') return { ...d, prompt: { ...current, fingerprint: 'ffffffffffff' } };
   return { ...d, prompt: current };
 }
+/*
+ * ?chain=deep：给预览数据配一条两层链。
+ *
+ * 六份基准全是「结论 + 三条直接理由」，于是「骨架／展开」两档、树的缩进与竖轨
+ * 在真数据上一次都没被走到过——绿的只是最浅那条路。这里**只改结构、不编新句子**：
+ * 把 P2 改成支撑 P1、P1 升为中间结论，于是 C → P1 → P2 三层用的都是原文已有的话。
+ * 它只给截图用，不进任何统计，也不出现在正常流程里。
+ */
+function withDeepChain(d: Diagnosis): Diagnosis {
+  const p1 = d.premises.find((p) => p.id === 'P1');
+  const p2 = d.premises.find((p) => p.id === 'P2');
+  if (!p1 || !p2) return d;
+  return {
+    ...d,
+    premises: d.premises
+      .filter((p) => p.id !== 'P1')
+      .map((p) => (p.id === 'P2' ? { ...p, supports: ['P1'] } : p)),
+    intermediate: [
+      ...(d.intermediate ?? []),
+      { ...p1, role: 'intermediate' as const, supports: [d.conclusion.id] },
+    ],
+  };
+}
+
 const D = withPromptHistory(
   withDivergence(
     withBrief(
-      new URLSearchParams(location.search).get('gaps') === 'clean' ? withNoGaps(LONG_DEMO) : LONG_DEMO,
+      new URLSearchParams(location.search).get('chain') === 'deep'
+        ? withDeepChain(
+            new URLSearchParams(location.search).get('gaps') === 'clean' ? withNoGaps(LONG_DEMO) : LONG_DEMO
+          )
+        : new URLSearchParams(location.search).get('gaps') === 'clean'
+          ? withNoGaps(LONG_DEMO)
+          : LONG_DEMO,
       new URLSearchParams(location.search).get('brief') ?? ''
     ),
     new URLSearchParams(location.search).get('divergence') ?? ''

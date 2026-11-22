@@ -81,8 +81,17 @@ export interface DigestView {
     failed: number;
     unanswered: number;
   };
-  /** 三档颗粒度。界面按这个渲染按钮，不在组件里另写一套。 */
+  /**
+   * 能真的改变画面的颗粒度档位。界面按这个渲染按钮，不在组件里另写一套。
+   *
+   * 只有一层链时这里是**空的**，不是三个按钮——六份基准全是「结论 + 三条直接理由」，
+   * 三档点哪个都一样，摆在那儿就是三个点了没反应的按钮。空数组让界面去说那句话。
+   */
   levels: { n: number; label: string; hint: string }[];
+  /** 链的最大层数（结论算第 0 层）。界面用它选默认档，测试用它断档位是不是按数据给的。 */
+  maxDepth: number;
+  /** 没有可切换的档位时，界面显示这一句；有档位时为空串。 */
+  levelNote: string;
   /**
    * 推理断在哪一步。没有明确断点时为 null（不是「没有断点」，是报告没说）。
    *
@@ -102,6 +111,11 @@ const ROLE_LABEL: Record<Claim['role'], string> = {
 /** 已经套在一层「」里的文字，把内部引号降一级；否则会出现「…「…」…」。 */
 function inner(s: string) {
   return s.replace(/「/g, '“').replace(/」/g, '”');
+}
+
+/** 比一句话是否同一句时用：空白差异不算不同。 */
+function norm(s: string) {
+  return s.replace(/\s+/g, ' ').trim();
 }
 
 function clip(s: string | null | undefined, n: number) {
@@ -160,7 +174,15 @@ export function digestOf(d: Diagnosis): DigestView {
       role: c.role,
       roleLabel: ROLE_LABEL[c.role],
       text: c.text,
-      quote: c.quote,
+      /*
+       * 引文只在「与主张文字不同」时保留。
+       *
+       * 很多报告的 quote 就是 text 本身（样本工厂造出来的一律如此）。照抄到「取证」
+       * 那一档，就是同一句话在上面一遍、下面引号里又一遍，读者会以为漏了什么。
+       * 这一档要给人看的是**原文怎么说的**，与概括一致时它没有新信息。
+       */
+      quote:
+        c.quote && norm(c.quote) !== norm(c.text) ? c.quote : null,
       implicit: c.implicit,
       depth,
       parentId,
@@ -240,6 +262,30 @@ export function digestOf(d: Diagnosis): DigestView {
         }
       : null;
 
+  /*
+   * 档位是按「点了会不会变」给的，不是按名义上的三档给的。
+   *
+   * 骨架只有在有第二层时才与展开不同；取证只有在「还有更深的层」或「有原文引用可看」
+   * 时才与展开不同。否则那两个按钮就是装饰——点了没反应，读者会以为软件坏了，
+   * 或者以为自己点错了。宁少一个按钮，不多一个假动作。
+   */
+  const anyQuote = [...nodes.values()].some((n) => !!n.quote);
+  const levels =
+    maxDepth >= 2
+      ? [
+          { n: 1, label: '骨架', hint: '只看结论和直接理由' },
+          { n: 2, label: '展开', hint: '加上中间结论' },
+          ...(maxDepth >= 3 || anyQuote
+            ? [{ n: 3, label: '取证', hint: '连原文引用一起看' }]
+            : []),
+        ]
+      : [];
+  const levelNote = levels.length
+    ? ''
+    : all.length
+      ? '只有一层，没有可展开的中间结论。'
+      : '报告没拆出依据，这条链只有结论本身。';
+
   const gist: DigestGist[] = [
     {
       key: '说的什么',
@@ -305,11 +351,9 @@ export function digestOf(d: Diagnosis): DigestView {
     conclusion: root,
     orphans,
     counts: { premises: premise.length, intermediate: mid.length, direct, total: all.length, orphan: orphans.length, failed, unanswered },
-    levels: [
-      { n: 1, label: '骨架', hint: '只看结论和直接理由' },
-      { n: 2, label: '展开', hint: '加上中间结论' },
-      { n: 3, label: '取证', hint: '连原文引用一起看' },
-    ],
+    levels,
+    maxDepth,
+    levelNote,
     breakLine,
     boundary:
       '总结只压缩报告已经落盘的结论、前提、语境与判定，不新增一句评价；每条都能在下面的逻辑链或正文里找到出处。一条理由同时支撑多处时，树里只挂在第一处，完整连线见「关系图」。',

@@ -47,7 +47,8 @@ function walk(n: DigestNode, out: DigestNode[] = []): DigestNode[] {
 const cA = claim('C', 'conclusion', '取消早读是错的');
 const mA = M('M1', ['C']);
 const pA1 = P('P1', ['M1']);
-const pA2 = P('P2', ['C']);
+/* P2 带一段与主张文字不同的原文——「取证」那一档要给人看的正是这个差异。 */
+const pA2 = { ...P('P2', ['C']), quote: '原话：早读让孩子少睡一小时，上课反而更困' };
 /* P3 同时支撑结论与中间结论：树里只挂第一处（C），但要标出来。 */
 const pA3 = P('P3', ['C', 'M1']);
 
@@ -268,16 +269,54 @@ ok(
 
 ok(
   gA.levels.length === 3 && gA.levels.map((l) => l.n).join('') === '123',
-  '三档颗粒度（骨架／展开／取证）是数据里的 levels，界面照它渲染按钮',
+  '有原文引用时给三档（骨架／展开／取证）——第三档真有东西可看',
+  gA.levels.map((l) => l.label).join('/'),
 );
 ok(
   gA.levels.every((l) => l.label && l.hint),
   '每档都有一句「这一档给你看什么」（只有名字，读者不知道差在哪）',
 );
 ok(
-  gA.levels[0].label === '骨架' && gA.levels[2].label === '取证',
+  gA.levels[0]?.label === '骨架' && gA.levels[2]?.label === '取证',
   '档名固定：骨架 → 展开 → 取证（顺序换了，读者会以为第一档最细）',
 );
+
+/*
+ * 档位是「点了会不会变」给的，不是名义上就有三档。
+ *
+ * 六份基准全是「结论 + 三条直接理由」，三档点哪个画面都一样——摆着就是三个
+ * 没反应的按钮。所以一层链必须给空数组 + 一句说明，而不是三个按钮。
+ */
+const noQuote = (id: string, supports: string[]): Claim => ({ ...P(id, supports), quote: null });
+const gL1 = digestOf(
+  diag({
+    conclusion: claim('C', 'conclusion', '取消早读是错的'),
+    premises: [P('P1', ['C']), P('P2', ['C'])],
+  }),
+);
+ok(gL1.maxDepth === 1, '一层链的 maxDepth 是 1（结论 0 层、理由 1 层）', String(gL1.maxDepth));
+ok(gL1.levels.length === 0, '一层链不给档位按钮（三档点哪个画面都一样，等于三个假动作）', JSON.stringify(gL1.levels));
+ok(gL1.levelNote.includes('只有一层'), '一层链改说一句「只有一层」，不是留白让读者以为坏了', gL1.levelNote);
+ok(
+  gL1.conclusion.quote === null,
+  '结论的引文与主张是同一句时不再引一遍（同一句出现两次，读者会以为漏了什么）',
+  String(gL1.conclusion.quote),
+);
+
+const gL2 = digestOf(
+  diag({
+    conclusion: claim('C', 'conclusion', '取消早读是错的'),
+    premises: [noQuote('P1', ['M1'])],
+    intermediate: [noQuote('M1', ['C'])],
+  }),
+);
+ok(
+  gL2.maxDepth === 2 && gL2.levels.map((l) => l.label).join('/') === '骨架/展开',
+  '没有引文时不给「取证」（它与「展开」是同一幅画面，多一个按钮只是多一次空点）',
+  `${gL2.maxDepth} ${gL2.levels.map((l) => l.label).join('/')}`,
+);
+ok(gL2.levels.every((l) => l.n <= gL2.maxDepth), '档位不深过这棵树（点进去是空的档位不该出现）', JSON.stringify(gL2.levels));
+ok(gL2.levelNote === '', '有档位时不再说那句说明（两句话同时出现，读者不知道该信哪句）', gL2.levelNote);
 
 /* ─────────── 八 · 只压缩，不动报告 ─────────── */
 

@@ -94,11 +94,14 @@ export function jumpTo(id: string) {
 function ChainNode({
   n,
   max,
+  nextLabel,
   sel,
   onPick,
 }: {
   n: DigestNode;
   max: number;
+  /** 再展开一档叫什么（展开／取证）。没有下一档时为空串，那句提示就不提按钮。 */
+  nextLabel: string;
   sel?: string | null;
   onPick?: (id: string) => void;
 }) {
@@ -132,11 +135,15 @@ function ChainNode({
       {n.children.length > 0 && !more && (
         <ol className="dg-kids">
           {n.children.map((c) => (
-            <ChainNode key={c.id} n={c} max={max} sel={sel} onPick={onPick} />
+            <ChainNode key={c.id} n={c} max={max} nextLabel={nextLabel} sel={sel} onPick={onPick} />
           ))}
         </ol>
       )}
-      {more && <div className="dg-more">下一层还有 {n.children.length} 条；点「展开」或「取证」继续</div>}
+      {more && (
+        <div className="dg-more">
+          下一层还有 {n.children.length} 条{nextLabel ? `；点「${nextLabel}」继续` : ''}
+        </div>
+      )}
     </li>
   );
 }
@@ -184,20 +191,34 @@ export function QuickRead({
         <div className="dg-chain-head">
           <span className="dg-chain-t">论证逻辑链</span>
           <span className="dg-chain-sub">结论在上，理由往下；点节点可在正文里定位</span>
-          <div className="dg-depth" role="group" aria-label="逻辑链颗粒度">
-            {g.levels.map((l) => (
-              <button
-                key={l.n}
-                className={`dg-depth-b ${depth === l.n ? 'on' : ''}`}
-                data-digest-depth={l.n}
-                onClick={() => setDepth(l.n)}
-                title={l.hint}
-              >
-                {l.label}
-              </button>
-            ))}
-          </div>
+          {g.levels.length > 0 ? (
+            <div className="dg-depth" role="group" aria-label="逻辑链颗粒度">
+              {g.levels.map((l) => (
+                <button
+                  key={l.n}
+                  className={`dg-depth-b ${depth === l.n ? 'on' : ''}`}
+                  data-digest-depth={l.n}
+                  onClick={() => setDepth(l.n)}
+                  title={l.hint}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
+
+        {/*
+          只有一层链时不摆三个按钮，改在这里说一句。
+          六份基准全是「结论 + 三条直接理由」，三档点哪个画面都一样——摆着就是
+          三个没反应的按钮，读者会以为软件坏了或自己点错了。这句说的是
+          「为什么没有按钮」，不是「这一栏坏了」，所以放在链头下面、树的上方。
+        */}
+        {g.levels.length === 0 && (
+          <p className="dg-depth-note" data-digest-levels="0">
+            {g.levelNote}
+          </p>
+        )}
 
         {/*
           断在推理的哪一步，单独一行。
@@ -212,7 +233,13 @@ export function QuickRead({
         )}
 
         <ol className="dg-tree">
-          <ChainNode n={g.conclusion} max={depth} sel={sel} onPick={onPick} />
+          <ChainNode
+            n={g.conclusion}
+            max={depth}
+            nextLabel={g.levels.find((l) => l.n > depth)?.label ?? ''}
+            sel={sel}
+            onPick={onPick}
+          />
         </ol>
 
         {g.orphans.length > 0 && (
