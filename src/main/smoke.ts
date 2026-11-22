@@ -891,6 +891,21 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               ).length,
               sameCount: document.querySelector('.same-bar')?.getAttribute('data-same') ?? '',
               sameText: (document.querySelector('.same-bar .sb-v')?.textContent ?? '').slice(0, 80),
+              /*
+               * v1.0 内容层：整体分析与三种改法。
+               *
+               * 读的是真实报告上的 DOM，不是预览页：假模型这次会返回 overall/revisions，
+               * 所以这里能验到「解析 → 报告 → 渲染 → 目录」整条链。
+               * 只数有内容的部分：摘要有几段、只改一处有没有、改法几条、每条有没有代价。
+               */
+              overallSection: !!document.getElementById('sec-overall'),
+              overallParas: document.querySelectorAll('[data-overall] .ov-p').length,
+              overallChange: !!document.querySelector('[data-overall-change]'),
+              revisionsSection: !!document.getElementById('sec-revisions'),
+              revisionItems: document.querySelectorAll('[data-revisions] .rv-item').length,
+              revisionCosts: document.querySelectorAll('[data-revisions] .rv-meta dd').length,
+              qnavOverall: !!document.querySelector('[data-qnav="sec-overall"]'),
+              qnavRevisions: !!document.querySelector('[data-qnav="sec-revisions"]'),
               text: (document.body.innerText || '').replace(/\\s+/g, ' ').slice(0, 240),
             })`
           );
@@ -963,11 +978,15 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             const el = document.getElementById('sec-flow');
             if (!el) return null;
             const b = el.getBoundingClientRect();
+            const y = Math.max(0, Math.round(b.top));
             return {
               x: Math.max(0, Math.round(b.left)),
-              y: Math.max(0, Math.round(b.top)),
+              y,
               width: Math.round(b.width),
-              height: Math.min(2400, Math.round(b.height)),
+              /* 与「这把尺子」那一栏同一条：超出视口的矩形会让 capturePage 抛
+                 UnknownVizError。报告变长（v1.0 加了整体分析与改法）之后，
+                 全流程账可能落到视口下沿之外，所以高度扣掉剩余空间。 */
+              height: Math.max(0, Math.min(2400, Math.round(b.height), window.innerHeight - y)),
             };
           })()`)) as { x: number; y: number; width: number; height: number } | null;
           if (box && box.width > 200 && box.height > 100) {
@@ -1130,11 +1149,19 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             const el = document.querySelector('#__alNav');
             if (!el) return null;
             const b = el.getBoundingClientRect();
+            const x = Math.max(0, Math.round(b.left) - 6);
+            const y = Math.max(0, Math.round(b.top) - 6);
+            /*
+             * 目录会随报告里真实有哪几栏变长（v1.0 加了「整体分析」「三种改法」两格）。
+             * capturePage 拿到超出视口的矩形会抛 UnknownVizError，整趟自检断在这里，
+             * 后面几十条断言一起假红到「应用没启动」。所以高度扣掉视口剩余空间：
+             * 截到的是看得见的部分，不是一张不存在的整图。
+             */
             return {
-              x: Math.max(0, Math.round(b.left) - 6),
-              y: Math.max(0, Math.round(b.top) - 6),
+              x,
+              y,
               width: Math.round(b.width) + 12,
-              height: Math.round(b.height) + 12,
+              height: Math.max(0, Math.min(Math.round(b.height) + 12, window.innerHeight - y)),
             };
           })()`);
           if (navRect) {
@@ -1269,11 +1296,12 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               const el = document.querySelector('#__alNav');
               if (!el) return null;
               const b = el.getBoundingClientRect();
+              const y = Math.max(0, Math.round(b.top) - 6);
               return {
                 x: Math.max(0, Math.round(b.left) - 6),
-                y: Math.max(0, Math.round(b.top) - 6),
+                y,
                 width: Math.round(b.width) + 12,
-                height: Math.round(b.height) + 12,
+                height: Math.max(0, Math.min(Math.round(b.height) + 12, window.innerHeight - y)),
               };
             })()`);
             if (segRect) {

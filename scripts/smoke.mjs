@@ -629,6 +629,37 @@ const checks = [
     }
   })()],
   /*
+   * v1.0 内容层：整体分析与三种改法。
+   *
+   * 这一组守的是「解析 → 报告 → 渲染」整条链：假模型这次返回了 overall/revisions，
+   * 只要解析层把字段丢了、界面没挂上、或目录没给格，这三条就会各红一处。
+   * 不查措辞好不好——那只能人眼判断。
+   */
+  ['整体分析：栏在、摘要有正文、只改一处也在', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      return r.overallSection === true && Number(r.overallParas ?? 0) >= 2 && r.overallChange === true;
+    } catch {
+      return false;
+    }
+  })()],
+  ['三种改法：三条都渲染出来，每条都带代价', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      return Number(r.revisionItems ?? 0) === 3 && Number(r.revisionCosts ?? 0) >= 3;
+    } catch {
+      return false;
+    }
+  })()],
+  ['整体分析与改法都进了「跳到」目录（不是藏在页面里）', (() => {
+    try {
+      const r = JSON.parse(resultLine.slice(resultLine.indexOf('{')));
+      return r.qnavOverall === true && r.qnavRevisions === true;
+    } catch {
+      return false;
+    }
+  })()],
+  /*
    * 全流程账：v1.1 二十步、顺序（F 在 D 之后 E 之前，不按字母序）、
    * 以及「立案填没填」与报告那边说的是不是同一件事。
    *

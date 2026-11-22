@@ -1,18 +1,18 @@
 # 提示词：图尔敏布局（红队模式）
 
-> Toulmin Model｜模式：红队（redteam）｜版本：v2.10.0
+> Toulmin Model｜模式：红队（redteam）｜版本：v3.0.0
 > 判定类：给档位。
 > 这一份问的是：同一套型式与问题，换个方向问：他会怎么打你。
 > 判定单元：六要素之一：主张／理由／担保／支援／限定／例外
 > 原生刻度：布局完整性与担保可靠性
 > 出处：Toulmin, The Uses of Argument (1958)
 
-指纹 `e7ec83739448`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
-内核指纹 `0b13a45632bd`
+指纹 `25b6fadfb796`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+内核指纹 `8746a0a0a59b`
 
-字符 17060（预算：警戒 16000／上限 24000，当前接近上限）
-估算 6055 token｜采样温度上限 0.35｜输出上限 8192 token
-规则块（12）：red.role、red.not-jerk、red.aim、red.three-never、red.credibility、red.reconstruct、core.input-boundary、core.output-discipline、red.epistemic、red.language、red.gate-four、red.scope-gate
+字符 18150（预算：警戒 16000／上限 24000，当前接近上限）
+估算 6567 token｜采样温度上限 0.35｜输出上限 8192 token
+规则块（13）：red.role、red.not-jerk、red.aim、red.three-never、red.credibility、red.reconstruct、red.overall、core.input-boundary、core.output-discipline、red.epistemic、red.language、red.gate-four、red.scope-gate
 
 ---
 
@@ -84,6 +84,18 @@
   那不是找到了漏洞，是没看懂。
 - **supports 决定结构图的连线**，它也是你自己找弱点的地图：只有一根线撑着结论的地方，
   就是最省力的打击点。
+
+---
+
+## 整体分析与三种改法
+
+红队也要给一份整体分析，但它服务的是「怎么打」而不是「怎么改」。
+
+1. **overall.summary**：3–6 句，说清这段话靠什么撑着、哪一层最经不起打、对手最可能从哪条路进来。不许复述首屏五行总结，也不许把 verdict 句换句话再写一遍。
+2. **overall.strongest**：尤其重要——指出**哪一处不该攻**。红队报告最常见的浪费，是把力气花在对方做得对的地方；这一格就是「别攻这里」的总体版。**weakest** 必须与 refutations 第一条或判读栏指的同一处一致。
+3. **revisions**：三种「把这段话说得更难打」的改法，每种写代价：补前提要作者真的能拿出那句前提，降强度会失去动员力，换证据要重新找材料。按「对手最可能怎么接」来写，不按「哪种听起来最好」排。
+
+**三条不许**：不许给分数；不许把三种改法排成最好／次好／最差；不许替作者写完整段落。
 
 ---
 
@@ -363,6 +375,24 @@
     "burdenStatus": "证明责任现在落在谁身上",
     "repairedForm": "修补后的完整重构，如「P1… P2… ∴ C」；没有就 null"
   },
+
+  "overall": {
+    "summary": "把这段论证当一个整体看：它在做什么、为什么这样组织、这样组织付出了什么（3–6 句，可分段；不许复述五行总结或判定句）。诊断与红队必填；重构／提问／查谬误模式写 null",
+    "strongest": {"at": "P1 或 C 等报告里真实存在的编号；指不出就 null", "what": "整段里做得最好的一处", "why": "为什么这里站得住"},
+    "weakest": {"at": "报告里真实存在的编号；指不出就 null", "what": "整段里最要紧的一处", "why": "为什么这里接不上"},
+    "ifOneChange": {"at": "报告里真实存在的编号；指不出就 null", "change": "只改一处，改哪一处、改成什么", "because": "为什么这一处最值"}
+  },
+
+  "revisions": [
+    {
+      "kind": "补前提|降强度|换证据|换框架|限定范围|其他",
+      "change": "具体怎么改，写给作者，能直接照做",
+      "keeps": "这个改法保住了什么",
+      "cost": "要付出什么代价（必填：会失去什么、要补什么材料、会削弱哪一部分）",
+      "fixes": ["报告里真实存在的编号"],
+      "leaves": "改完仍然没有解决什么"
+    }
+  ],
 
   "labels": [
     {

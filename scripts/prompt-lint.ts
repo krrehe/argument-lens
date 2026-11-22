@@ -303,6 +303,9 @@ const CONSUMED = [
      每加一版就红一次；清单离读它的代码越远，腐化得越快。 */
   ...LEDGER_FIELDS,
   'repair', 'missingPremise', 'alternativeReading', 'answerable', 'burdenStatus', 'repairedForm',
+  // 整体分析与三种改法（shared/overall.ts）：本地只核形状与落点，文字逐字来自模型
+  'overall', 'summary', 'strongest', 'weakest', 'ifOneChange', 'change', 'because',
+  'revisions', 'keeps', 'cost', 'fixes', 'leaves',
   'labels', 'name', 'nameEn', 'condition', 'whenLegitimate', 'riskOfError', 'landsOnCheck', 'tradition',
   'legitimateMoves', 'targetId', 'what', 'why',
   'refutations', 'strategy', 'claim', 'script', 'steelman', 'reply', 'evidenceNeeded', 'burdenAfter',

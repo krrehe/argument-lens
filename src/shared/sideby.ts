@@ -37,12 +37,14 @@ export type SideSectionId =
   | 'conclusion'
   | 'premises'
   | 'intermediate'
+  | 'overall'
   | 'checks'
   | 'defeat'
   | 'verdict'
   | 'confidence'
   | 'ledger'
   | 'rhetoric'
+  | 'revisions'
   | 'repair'
   | 'refutations'
   | 'labels'
@@ -64,6 +66,9 @@ export const SECTION_ORDER: { id: SideSectionId; label: string; key: string }[] 
   { id: 'conclusion', label: '结论', key: 'conclusion' },
   { id: 'premises', label: '前提', key: 'premises' },
   { id: 'intermediate', label: '中间结论', key: 'intermediate' },
+  /* 整体分析跟着重构走：它读的就是结论与依据的整体形状，
+     放在逐条检查之前，与报告正文的六段顺序一致。 */
+  { id: 'overall', label: '整体分析', key: 'overall' },
   { id: 'checks', label: '检查项', key: 'checks' },
   { id: 'defeat', label: '击败', key: 'defeat' },
   { id: 'verdict', label: '评级', key: 'verdict' },
@@ -74,6 +79,9 @@ export const SECTION_ORDER: { id: SideSectionId; label: string; key: string }[] 
      三册的顺序本来就是「判档 → 记账 → 查替代」，对照表跟着这个顺序读才对得上。 */
   { id: 'ledger', label: '命题账', key: 'ledger' },
   { id: 'rhetoric', label: '修辞审计', key: 'rhetoric' },
+  /* 三种改法排在修补之前：先看「可以怎么改、各付什么代价」，
+     再看「补完的那一版长什么样」。两段不合并：修一是结果，改法是选择。 */
+  { id: 'revisions', label: '三种改法', key: 'revisions' },
   { id: 'repair', label: '修补', key: 'repair' },
   { id: 'refutations', label: '反驳', key: 'refutations' },
   { id: 'labels', label: '命名候选', key: 'labels' },
@@ -175,6 +183,19 @@ export const FIELD_LABEL: Record<string, string> = {
   weakestLink: '最弱的一环',
   couldBeStronger: '还能更强的地方',
   summary: '小结',
+  /* 整体分析与三种改法（v3.0）：每个字段都要有一个人话名字，
+     否则对照表里会露出英文单词。 */
+  overall: '整体分析',
+  strongest: '最强的一处',
+  weakest: '最弱的一处',
+  ifOneChange: '如果只改一处',
+  change: '怎么改',
+  because: '为什么这一处最值',
+  revisions: '三种改法',
+  keeps: '保住了什么',
+  cost: '代价',
+  fixes: '修的是哪几处',
+  leaves: '仍然没解决什么',
   keywords: '关键词',
   entries: '条目',
   values: '取值',

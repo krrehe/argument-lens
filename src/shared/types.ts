@@ -419,6 +419,71 @@ export interface Repair {
   repairedForm: string | null;
 }
 
+/* ─────────── 整体分析与三种改法（v3.0 内容层） ─────────── */
+
+/**
+ * 整体分析里的一处「落点」。
+ *
+ * 为什么不写成一句自由文字：读者读完「最弱的一处」第一句话就是「哪一处」。
+ * 指不出位置的整体评价，与它反对的「谬误名单」是同一种东西——
+ * 都对不上原文，都只能争论算不算。
+ *
+ * `at` 允许为 null：模型给了一个报告里不存在的编号时，本地不替它猜，
+ * 只把位置丢掉并留一条诊断；文字照常显示，读者至少知道它没定位。
+ */
+export interface OverallPoint {
+  at: string | null;
+  what: string;
+  why: string;
+}
+
+/** 「只改一处」：位置、改法与理由三件都要，缺一件就不显示这一格。 */
+export interface OverallChange {
+  at: string | null;
+  change: string;
+  because: string;
+}
+
+/**
+ * 整体分析（模型写，本地只排版）。
+ *
+ * 与首屏五行总结的分工：
+ *   总结回答「这段话说了什么」，只压缩、不评价；
+ *   整体分析回答「把这段话当一个整体看，它在做什么、哪里最强、哪里最弱」。
+ * 两者都由模型写；本地不在这里补一句判断，也不把 `weakest` 与判读档位互相折算。
+ *
+ * 旧存档没有这一栏（v3.0 之前），按「没写」处理，不回填。
+ */
+export interface OverallAnalysis {
+  /** 成篇的分析（可含空行分段）。不许复述五行总结或判读句，要回答「为什么这样组织」。 */
+  summary: string;
+  strongest: OverallPoint | null;
+  weakest: OverallPoint | null;
+  ifOneChange: OverallChange | null;
+}
+
+/**
+ * 一种改法与它的代价。
+ *
+ * 为什么必须写代价：只给「你可以补一句前提」是许愿，不是建议。
+ * 每一种改法都会失去点什么——降强度会失去力度，换证据要重新找材料，
+ * 补前提会把作者没说过的话算到他头上。代价那一栏空着，这条改法就不显示。
+ */
+export interface RevisionPath {
+  /** 改法的名字，由模型写（如「补前提」「降强度」「换证据」）。 */
+  kind: string;
+  /** 具体怎么改，写给作者，能直接照做。 */
+  change: string;
+  /** 这个改法保住了什么。 */
+  keeps: string;
+  /** 要付出什么代价。空着就不显示这一条。 */
+  cost: string;
+  /** 它修的是哪几处（报告里真实存在的编号）。 */
+  fixes: string[];
+  /** 改完仍然没有解决什么。 */
+  leaves: string;
+}
+
 /* ─────────── 命名候选 ─────────── */
 
 /**
@@ -837,6 +902,15 @@ export interface Diagnosis {
    */
   ledger?: Ledger | null;
   repair: Repair;
+
+  /**
+   * 整体分析与三种改法（v3.0 新增内容层）。
+   *
+   * 由模型在一次调用里写出；本地只做形状核对与排版，不补一句判断。
+   * 旧存档没有这一栏（v3.0 之前），按「没写」处理，不回填、不推断。
+   */
+  overall?: OverallAnalysis | null;
+  revisions?: RevisionPath[] | null;
 
   /** 命名候选（名录透镜下是主输出，其他透镜下是末端注释，可空） */
   labels: LabelCandidate[];

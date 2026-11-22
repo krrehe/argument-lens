@@ -1,17 +1,17 @@
 # 提示词：型式周期表三特征（提问模式）
 
-> Periodic Table of Arguments (PTA)｜模式：提问（interrogate）｜版本：v2.10.0
+> Periodic Table of Arguments (PTA)｜模式：提问（interrogate）｜版本：v3.0.0
 > 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：不替你下结论，只给你一串可以直接问出口的问题。
 > 判定单元：三个正交特征：阶（一阶／二阶）× 轴（谓词／主词）× 陈述类型（事实／价值／政策）
 > 原生刻度：定位一致性与型内恰当运用（不是好坏评分）
 > 出处：Wagemans, Periodic Table of Arguments；ATIP 识别程序
 
-指纹 `78686b8f175c`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `2858da61adba`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `2120144ccb81`
 
-字符 17118（预算：警戒 16000／上限 24000，当前接近上限）
-估算 6851 token｜采样温度上限 0.4｜输出上限 8192 token
+字符 17779（预算：警戒 16000／上限 24000，当前接近上限）
+估算 7131 token｜采样温度上限 0.4｜输出上限 8192 token
 规则块（13）：q.role、q.not-cross-examiner、q.no-verdict、q.aim、q.three-never、q.credibility、q.answerable、core.input-boundary、core.output-discipline、q.epistemic、q.language、q.gate-four、q.scope-gate
 
 ---
@@ -417,6 +417,24 @@
     "burdenStatus": "证明责任现在落在谁身上",
     "repairedForm": "修补后的完整重构，如「P1… P2… ∴ C」；没有就 null"
   },
+
+  "overall": {
+    "summary": "把这段论证当一个整体看：它在做什么、为什么这样组织、这样组织付出了什么（3–6 句，可分段；不许复述五行总结或判定句）。诊断与红队必填；重构／提问／查谬误模式写 null",
+    "strongest": {"at": "P1 或 C 等报告里真实存在的编号；指不出就 null", "what": "整段里做得最好的一处", "why": "为什么这里站得住"},
+    "weakest": {"at": "报告里真实存在的编号；指不出就 null", "what": "整段里最要紧的一处", "why": "为什么这里接不上"},
+    "ifOneChange": {"at": "报告里真实存在的编号；指不出就 null", "change": "只改一处，改哪一处、改成什么", "because": "为什么这一处最值"}
+  },
+
+  "revisions": [
+    {
+      "kind": "补前提|降强度|换证据|换框架|限定范围|其他",
+      "change": "具体怎么改，写给作者，能直接照做",
+      "keeps": "这个改法保住了什么",
+      "cost": "要付出什么代价（必填：会失去什么、要补什么材料、会削弱哪一部分）",
+      "fixes": ["报告里真实存在的编号"],
+      "leaves": "改完仍然没有解决什么"
+    }
+  ],
 
   "labels": [
     {

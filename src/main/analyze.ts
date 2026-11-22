@@ -62,6 +62,7 @@ import { auditReport } from '@shared/report-audit';
 import { normalizeBrief } from '@shared/brief';
 import { normalizeGrounding } from '@shared/context-grounding';
 import { normalizeDivergence } from '@shared/divergence';
+import { normalizeOverall, normalizeRevisions } from '@shared/overall';
 import { buildPrompt, renderPrompt, SAMPLING } from './prompt';
 import { chat, extractJson, LlmError, type ChatResult } from './llm';
 import { locate } from './locator';
@@ -1142,6 +1143,30 @@ export function normalizeDiagnosis(
   };
 
   /*
+   * 整体分析与三种改法（v3.0）。
+   *
+   * 位置核对放在这里，是因为这一段能引用报告里的编号，而编号到这一行才齐。
+   * 本地只做一件事：指错的落点丢掉并留痕，不替模型挑一条最像的挂上去——
+   * 「最弱的一处」挂到错误的位置，比不挂更误导，读者会照着错的位置去改。
+   */
+  const knownIds = new Set<string>([
+    conclusion.id,
+    ...premises.map((p) => p.id),
+    ...intermediate.map((m) => m.id),
+    ...checks.map((c) => c.id),
+  ]);
+  const overallParsed = normalizeOverall(raw.overall, knownIds);
+  const revisionsParsed = normalizeRevisions(raw.revisions, knownIds);
+  for (const p of overallParsed.problems) {
+    diagnostics.push({ level: 'warn', code: 'OVERALL_SHAPE', message: `整体分析：${p}` });
+  }
+  for (const p of revisionsParsed.problems) {
+    diagnostics.push({ level: 'warn', code: 'REVISIONS_SHAPE', message: `三种改法：${p}` });
+  }
+  const overall = overallParsed.value;
+  const revisions = revisionsParsed.value;
+
+  /*
    * 命名候选：名录透镜从 lens 取，其余从顶层取。
    *
    * 门控用 allowsLabels，不再用 givesVerdict。
@@ -1378,6 +1403,14 @@ export function normalizeDiagnosis(
     selfCheck.unknowns = selfCheck.unknowns.map(reId);
     for (const r of refutations) r.targetId = redirect.get(r.targetId) ?? r.targetId;
     for (const m of legitimateMoves) m.targetId = redirect.get(m.targetId) ?? m.targetId;
+    if (overall) {
+      if (overall.strongest?.at) overall.strongest.at = redirect.get(overall.strongest.at) ?? overall.strongest.at;
+      if (overall.weakest?.at) overall.weakest.at = redirect.get(overall.weakest.at) ?? overall.weakest.at;
+      if (overall.ifOneChange?.at) overall.ifOneChange.at = redirect.get(overall.ifOneChange.at) ?? overall.ifOneChange.at;
+    }
+    if (revisions) {
+      for (const rv of revisions) rv.fixes = rv.fixes.map((x) => redirect.get(x) ?? x);
+    }
   }
 
   const report: Diagnosis = {
@@ -1408,6 +1441,8 @@ export function normalizeDiagnosis(
     rhetoric,
     ledger,
     repair,
+    overall,
+    revisions,
     labels,
     legitimateMoves,
     refutations,

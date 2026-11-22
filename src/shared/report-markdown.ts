@@ -34,6 +34,7 @@ import {
 import { prescriptionsOf } from './prescriptions';
 import { promptHistoryMarkdown, promptHistoryOf } from './prompt-history';
 import { digestOf, type DigestNode } from './digest';
+import { revisionShortfall } from './overall';
 import { LEVEL_LABEL, THEORY_BY_ID } from './theories';
 import { MODE_META, type Claim, type Diagnosis } from './types';
 
@@ -190,6 +191,38 @@ export function reportToMarkdown(d: Diagnosis): string {
    */
   out.push(...digestMarkdown(d));
   out.push('');
+
+  /*
+   * ── 整体分析 ──
+   *
+   * 界面上它在「整体分析」一段的最前面，导出件跟着同一顺序：
+   * 先给整段话的判断，再给逐条检查。文字逐字来自模型；
+   * 这里只做分段与排版，不替它加一句总结，也不把 strongest/weakest 改写成结论。
+   */
+  if (d.overall) {
+    out.push('## 整体分析');
+    out.push('');
+    for (const p of d.overall.summary
+      .split(/\r?\n{2,}/)
+      .map((x) => x.trim())
+      .filter(Boolean)) {
+      out.push(oneLine(p));
+      out.push('');
+    }
+    const point = (label: string, v: NonNullable<Diagnosis['overall']>['strongest'], withWhy: boolean): void => {
+      if (!v) return;
+      const at = v.at ? `（${v.at}）` : '';
+      out.push(`**${label}${at}**：${oneLine(v.what)}${withWhy && v.why ? `　——　${oneLine(v.why)}` : ''}`);
+      out.push('');
+    };
+    point('最强的一处', d.overall.strongest, true);
+    point('最弱的一处', d.overall.weakest, true);
+    if (d.overall.ifOneChange) {
+      const c = d.overall.ifOneChange;
+      out.push(`**如果只改一处${c.at ? `（${c.at}）` : ''}**：${oneLine(c.change)}${c.because ? `　——　${oneLine(c.because)}` : ''}`);
+      out.push('');
+    }
+  }
 
   /* ── 范围：不适用就到此为止 ── */
   if (!d.scope.applicable) {
@@ -445,6 +478,34 @@ export function reportToMarkdown(d: Diagnosis): string {
       out.push(oneLine(d.defeat.explanation));
       out.push('');
     }
+  }
+
+  /* ── 三种改法与代价 ── */
+  if (d.revisions && d.revisions.length) {
+    out.push('## 三种改法与代价');
+    out.push('');
+    const short = revisionShortfall(d.revisions);
+    if (short) {
+      out.push(`> ${short}`);
+      out.push('');
+    }
+    d.revisions.forEach((r, i) => {
+      out.push(`### ${i + 1}. ${oneLine(r.kind)}`);
+      out.push('');
+      out.push(oneLine(r.change));
+      out.push('');
+      if (r.fixes.length) {
+        out.push(`- 修的是：${r.fixes.join('、')}`);
+      }
+      if (r.keeps) {
+        out.push(`- 保住了：${oneLine(r.keeps)}`);
+      }
+      out.push(`- 代价：${oneLine(r.cost)}`);
+      if (r.leaves) {
+        out.push(`- 仍然没解决：${oneLine(r.leaves)}`);
+      }
+      out.push('');
+    });
   }
 
   /* ── 下一步：这份文件的主要用途 ── */

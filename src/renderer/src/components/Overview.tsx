@@ -7,6 +7,7 @@ import { propositionsOf } from '@shared/propositions';
 import { pivotOf } from '@shared/pivot';
 import { spineOf } from '@shared/spine';
 import { digestOf, type DigestNode } from '@shared/digest';
+import { expectsOverall, expectsRevisions } from '@shared/overall';
 import { StructureMap } from './Diagram';
 
 /**
@@ -53,6 +54,9 @@ function sectionsFor(d: Diagnosis) {
   const nDisp = disputesIn(d).length;
   const disp = nDisp ? [{ id: 'sec-disputes', label: `争议 ${nDisp}` }] : [];
   const pivot = pivotOf(d).rows.length > 0 ? [{ id: 'sec-pivot', label: '承重' }] : [];
+  const overall = d.overall || expectsOverall(d) ? [{ id: 'sec-overall', label: '整体分析' }] : [];
+  const revisions =
+    (d.revisions && d.revisions.length > 0) || expectsRevisions(d) ? [{ id: 'sec-revisions', label: '三种改法' }] : [];
   /*
    * 顺序必须与正文 DOM 完全一致：先逻辑链，再承重、检查、判读，
    * 判读之后才是命题账 / 修辞 / 争议，最后修补与附录。
@@ -60,11 +64,13 @@ function sectionsFor(d: Diagnosis) {
    */
   return [
     { id: 'sec-structure', label: '逻辑链' },
+    ...overall,
     ...pivot,
     { id: 'sec-checks', label: '逐关检查' },
     { id: 'sec-verdict', label: '判读' },
     ...after,
     ...disp,
+    ...revisions,
     { id: 'sec-repair', label: '修补' },
     { id: 'sec-flow', label: '全流程' },
     { id: 'sec-divergence', label: '分歧账' },

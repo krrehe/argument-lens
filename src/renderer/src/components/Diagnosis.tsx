@@ -37,6 +37,9 @@ import { crossNote, toneAudit } from '@shared/modal';
 import { VIEW_ORDER, normalizeViews, sanitizeViews, viewsOf, type ViewId, type ViewSpec } from '@shared/views';
 import { DisputeStrip, focusDispute } from './Disputes';
 import { QuickRead, jumpTo } from './Overview';
+import { OverallCard } from './OverallCard';
+import { RevisionsCard } from './RevisionsCard';
+import { expectsOverall, expectsRevisions, revisionShortfall } from '@shared/overall';
 import { Term, usePlain } from './Term';
 import { ObjectBtn } from './Objection';
 import { ObjectionDigest } from './ObjectionDigest';
@@ -1987,6 +1990,22 @@ export function DiagnosisView({
           </>
         }
       >
+      {(d.overall || expectsOverall(d)) && (
+        <Block
+          id="sec-overall"
+          title="整体分析"
+          sub="把这段话当一个整体看：在做什么、哪里最强、哪里最弱、只改一处改哪里"
+          plain="逐条判断回答「每一步对不对」，这一栏回答「整段话到底在干什么」。两处说法不一致时，以判读栏为准——这一栏是模型写的整体判断，不另算一次档位。"
+        >
+          {d.overall ? (
+            <OverallCard d={d} />
+          ) : (
+            <p className="hint" data-overall-missing="1">
+              这份报告没有给出整体分析（提示词 v3.0.0 起要求这一栏）。本地不补写——补出来的「整体判断」没有位置，读起来像一句通用评价。
+            </p>
+          )}
+        </Block>
+      )}
       {pivot.rows.length > 0 && (
         <Block
           id="sec-pivot"
@@ -2453,6 +2472,22 @@ export function DiagnosisView({
           </>
         }
       >
+      {(d.revisions?.length || expectsRevisions(d)) && (
+        <Block
+          id="sec-revisions"
+          title="三种改法与代价"
+          sub="改哪里、保住什么、要付什么代价、改完还剩什么"
+          plain="三种改法不是三个档位，也不排序：一种保住力度但要多找材料，一种不必找材料但结论会变弱。代价那一栏空着的改法不会显示——只写「补充证据」是许愿，不是方案。"
+        >
+          {d.revisions?.length ? (
+            <RevisionsCard d={d} />
+          ) : (
+            <p className="hint" data-revisions-missing="1">
+              {revisionShortfall(null)}
+            </p>
+          )}
+        </Block>
+      )}
       <Block
         id="sec-repair"
         spineNo={5}

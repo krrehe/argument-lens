@@ -6,6 +6,168 @@
  * 颜色只取既有语义层变量，这里不新写 hex——换主题时这两块跟着走。
  */
 
+/* ── 整体分析（v1.0 内容层） ── */
+
+.ov {
+  display: block;
+}
+
+.ov-p {
+  margin: 0 0 14px;
+  font-size: var(--text-body-lg);
+  line-height: 1.8;
+  color: var(--ink);
+  max-width: var(--read-measure);
+  text-wrap: pretty;
+}
+
+.ov-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  padding: 16px 0;
+  border-top: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair);
+  margin-bottom: 16px;
+}
+
+/* 窄窗口两列会各剩不到 20 个字，读起来像两段断句；收成一列，顺序不变。 */
+@media (max-width: 1100px) {
+  .ov-pair {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
+.ov-cell {
+  min-width: 0;
+}
+
+.ov-k {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: var(--text-label);
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.ov-at {
+  font-size: var(--text-label);
+  color: var(--ink-2);
+}
+
+.ov-what {
+  font-size: var(--text-body-lg);
+  line-height: 1.7;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.ov-why {
+  margin-top: 4px;
+  font-size: var(--text-body);
+  line-height: 1.7;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.ov-one {
+  padding: 14px 16px;
+  border-radius: var(--radius-cards);
+  background: var(--panel-2);
+  margin-bottom: 14px;
+}
+
+.ov-note {
+  margin: 4px 0 0;
+  font-size: var(--text-label);
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+/* ── 三种改法与代价 ── */
+
+.rv {
+  display: block;
+}
+
+.rv-short {
+  margin: 0 0 10px;
+  font-size: var(--text-body);
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.rv-item {
+  padding: 16px 0;
+}
+
+.rv-item + .rv-item {
+  border-top: 1px solid var(--hair);
+}
+
+.rv-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rv-no {
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+.rv-kind {
+  font-size: var(--text-body-lg);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.rv-fix {
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+.rv-change {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  line-height: 1.75;
+  color: var(--ink);
+  max-width: var(--read-measure);
+  text-wrap: pretty;
+}
+
+.rv-meta {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  font-size: var(--text-body);
+  line-height: 1.7;
+}
+
+.rv-meta dt {
+  color: var(--ink-3);
+}
+
+.rv-meta dd {
+  margin: 0;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.rv-note {
+  margin: 4px 0 0;
+  font-size: var(--text-label);
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
 /* ── 五句总结 ── */
 
 .quick.digest {

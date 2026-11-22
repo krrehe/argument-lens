@@ -1,6 +1,6 @@
 {
   "name": "argument-lens",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "论证镜 — 非形式逻辑的论证诊断工作台",
   "author": "kk",
@@ -82,6 +82,7 @@
     "check:props": "node scripts/run-check-props.mjs",
     "check:pivot": "node scripts/run-check-pivot.mjs",
     "check:digest": "node scripts/run-check-digest.mjs",
+    "check:overall": "node scripts/run-check-overall.mjs",
     "check:flow": "node scripts/run-check-flow.mjs",
     "check:divergence": "node scripts/run-check-divergence.mjs",
     "check:density": "node scripts/run-check-density.mjs",

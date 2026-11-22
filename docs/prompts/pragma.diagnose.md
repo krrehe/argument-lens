@@ -1,18 +1,18 @@
 # 提示词：语用辩证（十规则）（诊断模式）
 
-> Pragma-Dialectics: Ten Rules for Critical Discussion｜模式：诊断（diagnose）｜版本：v2.10.0
+> Pragma-Dialectics: Ten Rules for Critical Discussion｜模式：诊断（diagnose）｜版本：v3.0.0
 > 判定类：给档位。
 > 这一份问的是：判断这段话站不站得住。
 > 判定单元：四阶段 × 十条规则中的某一条
 > 原生刻度：规则违反：哪条规则、在哪个阶段、被哪个言语行为违反
 > 出处：van Eemeren & Grootendorst, Speech Acts in Argumentative Discussions；十规则（10／17 两版）
 
-指纹 `7dd6f96a2f5e`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
-内核指纹 `767a8750b5d0`
+指纹 `bcb3521990d9`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+内核指纹 `13b3e667c4fe`
 
-字符 18094（预算：警戒 16000／上限 24000，当前接近上限）
-估算 6693 token｜采样温度上限 0.2｜输出上限 8192 token
-规则块（11）：core.role、core.not-hunter、core.three-never、core.credibility、core.reconstruct、core.input-boundary、core.output-discipline、core.epistemic、core.language、core.gate-four、core.scope-gate
+字符 19329（预算：警戒 16000／上限 24000，当前接近上限）
+估算 7285 token｜采样温度上限 0.2｜输出上限 8192 token
+规则块（12）：core.role、core.not-hunter、core.three-never、core.credibility、core.reconstruct、core.overall、core.input-boundary、core.output-discipline、core.epistemic、core.language、core.gate-four、core.scope-gate
 
 ---
 
@@ -90,6 +90,18 @@
 - **不要替文本补全它没说的话**。作者没说的地方，写进 contextGaps 或 unknowns。
 - **supports 是给界面画图用的**。它决定结构图上那条线连到谁。填错等于把图画错，比不填更糟：
   拿不准就写 ["C"]，界面会按最朴素的重构处理。
+
+---
+
+## 整体分析与三种改法
+
+逐条判断之后，再回答一个问题：**把这段话当一个整体看，它到底在做什么。** 这一层写三块，都要落在报告已有的位置上。
+
+1. **overall.summary**：3–6 句，分段用空行。说清它在用什么路数把读者从前提带到结论（数据、权威、类比、情绪、框架、共同常识），为什么这样组织，这样组织让读者付出了什么。**不许复述**首屏五行总结，也不许把 verdict.statement 换个说法再写一遍——那两块已经有各自的位置。
+2. **overall.strongest / weakest / ifOneChange**：每一格都要指回报告里真实存在的编号（P1、C、CQ2 这类）；指不出就写 null，不要拿「整体结构」这种没有位置的话凑数。**weakest 必须与判读栏指的那一处一致**；两处对不上时以判读栏为准，不要另造一处「最弱」。
+3. **revisions**：给三种改法，每种都必须写代价。代价不是客套话：降强度会失去力度，补前提会把作者没说过的话算到他头上，换证据要重新找材料，限定范围会缩小结论的适用范围。只写「建议补充证据」这类许愿，不算一种改法。
+
+**三条不许**：不许给分数；不许把三种改法排成最好／次好／最差；不许替作者写完整段落——给的是改法，不是代写。
 
 ---
 
@@ -376,6 +388,24 @@
     "burdenStatus": "证明责任现在落在谁身上",
     "repairedForm": "修补后的完整重构，如「P1… P2… ∴ C」；没有就 null"
   },
+
+  "overall": {
+    "summary": "把这段论证当一个整体看：它在做什么、为什么这样组织、这样组织付出了什么（3–6 句，可分段；不许复述五行总结或判定句）。诊断与红队必填；重构／提问／查谬误模式写 null",
+    "strongest": {"at": "P1 或 C 等报告里真实存在的编号；指不出就 null", "what": "整段里做得最好的一处", "why": "为什么这里站得住"},
+    "weakest": {"at": "报告里真实存在的编号；指不出就 null", "what": "整段里最要紧的一处", "why": "为什么这里接不上"},
+    "ifOneChange": {"at": "报告里真实存在的编号；指不出就 null", "change": "只改一处，改哪一处、改成什么", "because": "为什么这一处最值"}
+  },
+
+  "revisions": [
+    {
+      "kind": "补前提|降强度|换证据|换框架|限定范围|其他",
+      "change": "具体怎么改，写给作者，能直接照做",
+      "keeps": "这个改法保住了什么",
+      "cost": "要付出什么代价（必填：会失去什么、要补什么材料、会削弱哪一部分）",
+      "fixes": ["报告里真实存在的编号"],
+      "leaves": "改完仍然没有解决什么"
+    }
+  ],
 
   "labels": [
     {

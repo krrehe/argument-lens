@@ -1,17 +1,17 @@
 # 提示词：ARS 三标准（查谬误模式）
 
-> Acceptability · Relevance · Sufficiency｜模式：查谬误（fallacy）｜版本：v2.10.0
+> Acceptability · Relevance · Sufficiency｜模式：查谬误（fallacy）｜版本：v3.0.0
 > 命名类：不给档位，给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：把可疑的地方对上教材里的名字——每个名字都要指得出原文哪一句，并说清它什么时候其实合法。
 > 判定单元：单个前提上的一个标准，或单条推理链接上的一个标准
 > 原生刻度：三标准逐项符合度（每项独立评级，不合成总分）
 > 出处：Johnson & Blair, Logical Self-Defense；SEP, Informal Logic (Groarke, 2026)
 
-指纹 `c19fc2825a6c`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
+指纹 `8d436dadb6d4`（内容变则指纹变，可用于判断两份报告是否同一把尺子量的）
 内核指纹 `6eee91463e74`
 
-字符 17376（预算：警戒 16000／上限 24000，当前接近上限）
-估算 6972 token｜采样温度上限 0.15｜输出上限 8192 token
+字符 18037（预算：警戒 16000／上限 24000，当前接近上限）
+估算 7252 token｜采样温度上限 0.15｜输出上限 8192 token
 规则块（13）：fa.role、fa.not-hunter、fa.no-verdict、fa.price、fa.one-per-place、fa.legit、fa.empty、core.input-boundary、core.output-discipline、fa.epistemic、fa.language、fa.gate-four、fa.scope-gate
 
 ---
@@ -441,6 +441,24 @@ scope.outOfScopeAt 要写清是哪一条前提不成立，不要笼统说「不�
     "burdenStatus": "证明责任现在落在谁身上",
     "repairedForm": "修补后的完整重构，如「P1… P2… ∴ C」；没有就 null"
   },
+
+  "overall": {
+    "summary": "把这段论证当一个整体看：它在做什么、为什么这样组织、这样组织付出了什么（3–6 句，可分段；不许复述五行总结或判定句）。诊断与红队必填；重构／提问／查谬误模式写 null",
+    "strongest": {"at": "P1 或 C 等报告里真实存在的编号；指不出就 null", "what": "整段里做得最好的一处", "why": "为什么这里站得住"},
+    "weakest": {"at": "报告里真实存在的编号；指不出就 null", "what": "整段里最要紧的一处", "why": "为什么这里接不上"},
+    "ifOneChange": {"at": "报告里真实存在的编号；指不出就 null", "change": "只改一处，改哪一处、改成什么", "because": "为什么这一处最值"}
+  },
+
+  "revisions": [
+    {
+      "kind": "补前提|降强度|换证据|换框架|限定范围|其他",
+      "change": "具体怎么改，写给作者，能直接照做",
+      "keeps": "这个改法保住了什么",
+      "cost": "要付出什么代价（必填：会失去什么、要补什么材料、会削弱哪一部分）",
+      "fixes": ["报告里真实存在的编号"],
+      "leaves": "改完仍然没有解决什么"
+    }
+  ],
 
   "labels": [
     {

@@ -42,6 +42,7 @@ import {
 } from '@shared/ledger';
 import { DECID_LABEL, DECID_ORDER } from '@shared/propositions';
 import { PROMPT_VERSION, PROMPT_VERSION_NOTE, SHARED_SCHEMA, buildPrompt } from '../src/main/prompt';
+import { versionAtLeast } from '@shared/version';
 
 let passed = 0;
 const failed: string[] = [];
@@ -312,8 +313,8 @@ ok(/缺同期对照/.test(rowLine(full.rows[2])), '不可裁那一行带「缺�
 
 /* ─────────── 十 · 提示词与版本 ─────────── */
 
-ok(PROMPT_VERSION === '2.10.0', '提示词版本已递增到 2.10.0', PROMPT_VERSION);
-ok(PROMPT_VERSION_NOTE[0].startsWith('2.10.0'), '版本注记第一条写的是 2.10.0');
+ok(versionAtLeast(PROMPT_VERSION, '2.10.0'), '提示词版本不低于 2.10.0（命题账那一版）', PROMPT_VERSION);
+ok(PROMPT_VERSION_NOTE[0].startsWith(PROMPT_VERSION), '版本注记第一条写的是当前版本号', PROMPT_VERSION_NOTE[0].slice(0, 16));
 ok(SHARED_SCHEMA.includes('"ledger"'), 'schema 里有 ledger 块');
 const schemaBlock = SHARED_SCHEMA.slice(SHARED_SCHEMA.indexOf('"ledger"')).split('"repair"')[0];
 for (const f of ['at', 'column', 'status', 'basis', 'reentry', 'av', 'factState', 'conditional', 'noJudge']) {

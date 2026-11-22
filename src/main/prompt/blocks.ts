@@ -132,6 +132,34 @@ const RECONSTRUCT_CORE: PromptBlock = {
   拿不准就写 ["C"]，界面会按最朴素的重构处理。`,
 };
 
+const CORE_OVERALL: PromptBlock = {
+  id: 'core.overall',
+  title: '## 整体分析与三种改法',
+  source: ['P', 'E'],
+  modes: ['diagnose'],
+  body: `逐条判断之后，再回答一个问题：**把这段话当一个整体看，它到底在做什么。** 这一层写三块，都要落在报告已有的位置上。
+
+1. **overall.summary**：3–6 句，分段用空行。说清它在用什么路数把读者从前提带到结论（数据、权威、类比、情绪、框架、共同常识），为什么这样组织，这样组织让读者付出了什么。**不许复述**首屏五行总结，也不许把 verdict.statement 换个说法再写一遍——那两块已经有各自的位置。
+2. **overall.strongest / weakest / ifOneChange**：每一格都要指回报告里真实存在的编号（P1、C、CQ2 这类）；指不出就写 null，不要拿「整体结构」这种没有位置的话凑数。**weakest 必须与判读栏指的那一处一致**；两处对不上时以判读栏为准，不要另造一处「最弱」。
+3. **revisions**：给三种改法，每种都必须写代价。代价不是客套话：降强度会失去力度，补前提会把作者没说过的话算到他头上，换证据要重新找材料，限定范围会缩小结论的适用范围。只写「建议补充证据」这类许愿，不算一种改法。
+
+**三条不许**：不许给分数；不许把三种改法排成最好／次好／最差；不许替作者写完整段落——给的是改法，不是代写。`,
+};
+
+const RED_OVERALL: PromptBlock = {
+  id: 'red.overall',
+  title: '## 整体分析与三种改法',
+  source: ['P', 'E'],
+  modes: ['redteam'],
+  body: `红队也要给一份整体分析，但它服务的是「怎么打」而不是「怎么改」。
+
+1. **overall.summary**：3–6 句，说清这段话靠什么撑着、哪一层最经不起打、对手最可能从哪条路进来。不许复述首屏五行总结，也不许把 verdict 句换句话再写一遍。
+2. **overall.strongest**：尤其重要——指出**哪一处不该攻**。红队报告最常见的浪费，是把力气花在对方做得对的地方；这一格就是「别攻这里」的总体版。**weakest** 必须与 refutations 第一条或判读栏指的同一处一致。
+3. **revisions**：三种「把这段话说得更难打」的改法，每种写代价：补前提要作者真的能拿出那句前提，降强度会失去动员力，换证据要重新找材料。按「对手最可能怎么接」来写，不按「哪种听起来最好」排。
+
+**三条不许**：不许给分数；不许把三种改法排成最好／次好／最差；不许替作者写完整段落。`,
+};
+
 const EPISTEMIC: PromptBlock = {
   id: 'core.epistemic',
   title: '## 认识论标签与置信度',
@@ -1114,6 +1142,7 @@ export const PROMPT_BLOCKS: PromptBlock[] = [
   THREE_NEVER,
   CREDIBILITY,
   RECONSTRUCT_CORE,
+  CORE_OVERALL,
   /* 红队 */
   RED_ROLE,
   RED_NOT_JERK,
@@ -1121,6 +1150,7 @@ export const PROMPT_BLOCKS: PromptBlock[] = [
   RED_THREE_NEVER,
   RED_CREDIBILITY,
   RED_RECONSTRUCT,
+  RED_OVERALL,
   /* 重构 */
   RC_ROLE,
   RC_NOT_EVALUATOR,
@@ -1190,6 +1220,7 @@ export const REQUIRED_BLOCKS: Record<AnalysisMode, string[]> = {
     'core.three-never',
     'core.credibility',
     'core.reconstruct',
+    'core.overall',
     'core.epistemic',
     'core.language',
     'core.input-boundary',
@@ -1204,6 +1235,7 @@ export const REQUIRED_BLOCKS: Record<AnalysisMode, string[]> = {
     'red.three-never',
     'red.credibility',
     'red.reconstruct',
+    'red.overall',
     'red.epistemic',
     'red.language',
     'core.input-boundary',
