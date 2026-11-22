@@ -39,7 +39,7 @@ export interface Land {
 export const LANDING: Record<string, Land[]> = {
   /* ── 一 · 论证是什么 ── */
   'T1-01': [
-    { k: 'ui', ref: 'Diagnosis.tsx#sec-structure', at: '结构与语境分成两栏，结论与前提画进结构图，这段话在做什么进语境栏' },
+    { k: 'ui', ref: 'Overview.tsx#sec-structure', at: '首屏逻辑链按 supports 拆层级，关系图在同一个模块里；结论与前提不再另起一栏' },
     { k: 'code', ref: 'src/shared/types.ts#Diagnosis', at: '结构字段与 context.issue 并存，不合并成一个「大意」' },
   ],
   'T1-02': [

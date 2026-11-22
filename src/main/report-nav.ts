@@ -657,6 +657,16 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
   /* 冒烟专用：把目录当成「刚打开这份报告」重走一遍 scan（换报告时真应用派发
      al:report-change 走的是同一条路，只是带 fresh）。只重读、不替读者点任何东西。 */
   window.__alNavRescan = function(){ scan(); return true; };
+  /* 冒烟专用：把这一份的位置记录真的忘掉。
+     只删 localStorage 不够——记录在内存里也有一份（MARKS + POS_READY），
+     删完盘面、界面仍会照着内存里那条把「接着读」摆出来，下一次滚动又把它写回去。
+     测试要验的是「没有记录时界面说什么」，就必须连内存一起清。 */
+  window.__alNavForget = function(){
+    MARKS = {}; POS_READY = true; saveMarks();
+    LAST_SEG = -2;
+    syncResume();
+    return true;
+  };
   /* 冒烟专用、只读：位置记录与当前高亮节各是什么。用来分清一条记录是谁写的
      （软件写错了，还是自检自己滚出来的），不写盘、不改任何状态。 */
   window.__alNavDebug = function(){

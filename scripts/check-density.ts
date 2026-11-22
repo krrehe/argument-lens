@@ -98,7 +98,8 @@ ok(DENSITY_BOUNDS.some((b) => b.includes('跳到') && b.includes('展开')), '�
 /* ─────────── 2. 常量表与真实界面对得上 ─────────── */
 
 const diag = src('src/renderer/src/components/Diagnosis.tsx');
-for (const id of CORE_SECTIONS) ok(diag.includes(`id="${id}"`), `主线 ${id} 真的在报告里`);
+const ov = src('src/renderer/src/components/Overview.tsx');
+for (const id of CORE_SECTIONS) ok(`${diag}${ov}`.includes(`id="${id}"`), `主线 ${id} 真的在报告里`);
 for (const id of LEDGER_SECTIONS) ok(diag.includes(`id="${id}"`), `核对层 ${id} 真的在报告里`);
 for (const t of LEDGER_TITLES) ok(diag.includes(`title="${t}"`), `按标题归层的 ${t} 真的在报告里`);
 

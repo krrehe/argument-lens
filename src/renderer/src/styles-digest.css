@@ -1,0 +1,423 @@
+/*
+ * 报告首屏：全文总结 + 逻辑链；正文的六个阶段标。
+ *
+ * 两份样式都守着同一件事：**层级靠结构与距离，不靠再加一层字号**。
+ * 总结用两列（标签 / 内容），逻辑链用一条缩进轨，阶段标用一条通栏发丝线。
+ * 颜色只取既有语义层变量，这里不新写 hex——换主题时这两块跟着走。
+ */
+
+/* ── 五句总结 ── */
+
+.quick.digest {
+  padding-top: 2px;
+}
+
+.dg-gist {
+  margin-top: 4px;
+  border-top: 1px solid var(--hair);
+}
+
+.dg-gist-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--hair);
+}
+
+.dg-gist-k {
+  font-size: var(--text-label);
+  line-height: 1.7;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.dg-gist-t {
+  min-width: 0;
+  font-size: var(--text-body);
+  line-height: 1.7;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+/* ── 逻辑链 ── */
+
+.dg-chain {
+  margin-top: 26px;
+}
+
+.dg-chain-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--hair);
+}
+
+.dg-chain-t {
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink);
+}
+
+.dg-chain-sub {
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+.dg-depth {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.dg-depth-b {
+  padding: 3px 9px;
+  font-size: var(--text-label);
+  line-height: 1.5;
+  color: var(--ink-3);
+  background: transparent;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.dg-depth-b:hover {
+  background: var(--muted-bg);
+}
+
+.dg-depth-b.on {
+  color: var(--ink);
+  font-weight: var(--font-weight-semibold);
+  background: var(--muted-bg);
+  border-color: var(--edge);
+}
+
+.dg-tree,
+.dg-kids {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dg-tree {
+  padding-top: 4px;
+}
+
+.dg-node {
+  position: relative;
+}
+
+.dg-node-main {
+  display: grid;
+  grid-template-columns: 34px 62px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  width: 100%;
+  padding: 8px 6px 8px 0;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.dg-node-main:hover,
+.dg-node-main.on {
+  background: var(--muted-bg);
+}
+
+.dg-id {
+  font-family: var(--mono);
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.dg-role {
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.dg-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.dg-text {
+  min-width: 0;
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.dg-marks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* 结论那一行是这一屏唯一加粗的正文：它是树根，也是全文的主张。 */
+.dg-node[data-digest-depth='0'] .dg-text {
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+.dg-mark {
+  padding: 1px 6px;
+  font-size: var(--text-label);
+  line-height: 1.5;
+  color: var(--ink-3);
+  white-space: nowrap;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+}
+
+.dg-mark.pivot {
+  color: var(--accent);
+  border-color: var(--accent-off);
+}
+
+.dg-mark.bad {
+  color: var(--invalid);
+  border-color: var(--invalid-bg);
+  background: var(--invalid-bg);
+}
+
+/* 子层缩进 22px 并挂一条竖轨：层级靠位置，不靠字号再降一档。 */
+.dg-kids {
+  margin-left: 14px;
+  padding-left: 22px;
+  border-left: 1px solid var(--hair);
+}
+
+.dg-quote {
+  margin: 0 0 6px 46px;
+  padding: 2px 0 2px 10px;
+  font-size: var(--text-label);
+  line-height: 1.6;
+  color: var(--ink-3);
+  border-left: 2px solid var(--hair);
+}
+
+.dg-more {
+  margin: 0 0 6px 46px;
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+.dg-chain-note {
+  margin-top: 8px;
+  padding-top: 8px;
+  font-size: var(--text-label);
+  line-height: 1.65;
+  color: var(--ink-3);
+  border-top: 1px solid var(--hair);
+}
+
+.dg-orphans {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--invalid);
+  background: var(--invalid-bg);
+}
+
+.dg-orphan-t {
+  font-size: var(--text-label);
+  font-weight: var(--font-weight-semibold);
+  color: var(--invalid);
+}
+
+.dg-orphan {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 0;
+}
+
+.dg-orphan .dg-text {
+  font-size: var(--text-body);
+}
+
+.dg-orphan-note {
+  margin: 4px 0 0;
+  font-size: var(--text-label);
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+/* ── 两个折叠层：关系图 / 五步判断链 ── */
+
+.dg-graph,
+.dg-why {
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hair);
+}
+
+.dg-graph > summary,
+.dg-why > summary,
+.qn-more > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--text-label);
+  color: var(--ink-2);
+}
+
+.dg-graph > summary::-webkit-details-marker,
+.dg-why > summary::-webkit-details-marker,
+.qn-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dg-graph > summary::before,
+.dg-why > summary::before,
+.qn-more > summary::before {
+  content: '▸ ';
+  color: var(--ink-3);
+}
+
+.dg-graph[open] > summary::before,
+.dg-why[open] > summary::before,
+.qn-more[open] > summary::before {
+  content: '▾ ';
+}
+
+.dg-why .sp-lead {
+  margin-top: 10px;
+}
+
+/* ── 阶段标：总结 / 逐条 / 整体 / 修补 / 补充 / 附录 ── */
+
+.rpart {
+  margin: 0 0 44px;
+}
+
+.rpart-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 12px 0 8px;
+  border-top: 1px solid var(--edge);
+}
+
+#part-summary .rpart-head {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.rpart-n {
+  font-family: var(--mono);
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+.rpart-t {
+  font-size: var(--text-subheading);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.rpart-hint {
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+.rpart-rule {
+  flex: 1 1 24px;
+  align-self: center;
+  height: 1px;
+  min-width: 16px;
+  background: var(--hair);
+}
+
+.rpart-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  margin: 0 0 16px;
+  font-size: var(--text-label);
+  line-height: 1.65;
+  color: var(--ink-3);
+}
+
+.rpart-note b {
+  margin-right: 4px;
+  font-weight: var(--font-weight-medium);
+  color: var(--ink-2);
+}
+
+/* ── 目录：六个阶段 + 收起的细目 ── */
+
+.qn-stage {
+  padding: 3px 9px;
+  font-size: var(--text-label);
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.qn-stage:hover {
+  background: var(--muted-bg);
+}
+
+.qn-more {
+  margin-left: 2px;
+}
+
+.qn-more > summary {
+  padding: 3px 0;
+}
+
+.qn-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 6px;
+}
+
+/* 「修补」与「下一步」合并后的分界：同一条发丝线，不另起一张卡。 */
+.rp-next {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hair);
+}
+
+.rp-next-t {
+  margin-bottom: 8px;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink);
+}
+
+.dg-off {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 0 2px;
+  font-size: var(--text-label);
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.dg-off-btn {
+  padding: 0;
+  font-size: var(--text-label);
+  color: var(--accent);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}

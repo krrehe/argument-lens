@@ -390,7 +390,7 @@ const briefTsx = src('src/renderer/src/components/BriefCard.tsx');
 
 ok(diagTsx.includes('id="sec-flow"'), '报告里有这一节');
 ok(diagTsx.includes('<FlowLedger v={flow} />'), '这一节真的渲染了组件');
-ok(diagTsx.indexOf('id="sec-flow"') < diagTsx.indexOf('id="sec-structure"'), '位置在正文之前（读完才发现跳过立案就晚了）');
+ok(diagTsx.indexOf('id="sec-repair"') < diagTsx.indexOf('id="sec-flow"'), '放在附录：修补之后（先看结论与补法，再核对流程是否跳过）');
 ok(diagTsx.includes('id="sec-selfcheck"'), '自检有落点（E3 的「看这一节」点得过去）');
 ok(/flowOf\(d\)/.test(diagTsx), '界面用的是同一份纯函数');
 

@@ -50,6 +50,7 @@ import './styles-density.css';
 import './styles-longform.css';
 import './styles-docpage.css';
 import './styles-spine.css';
+import './styles-digest.css';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。

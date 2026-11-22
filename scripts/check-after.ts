@@ -195,18 +195,56 @@ ok(/field: 'verdict'/.test(mock) && /field: 'check'/.test(mock), '演示数据�
  */
 const ov = src('src/renderer/src/components/Overview.tsx');
 
-ok(/function sectionsFor\(d: Diagnosis\)/.test(ov), '跳转条按这一份的数据现算，不是一张写死的表');
-ok(/if \(propositionsOf\(d\)\.total > 0\) extra\.push\(\{ id: 'sec-props'/.test(ov), '有命题才给「命题账」那一格');
-ok(/if \(pivotOf\(d\)\.rows\.length > 0\) extra\.push\(\{ id: 'sec-pivot'/.test(ov), '有枢纽才给「枢纽」那一格');
+ok(/if \(propositionsOf\(d\)\.total > 0\) after\.push\(\{ id: 'sec-props'/.test(ov), '有命题才给「命题账」那一格');
+ok(/const pivot = pivotOf\(d\)\.rows\.length > 0/.test(ov), '有枢纽才给「枢纽」那一格');
 ok(/props\.total > 0/.test(diagTsx) && /pivot\.rows\.length > 0/.test(diagTsx), '正文那边用的是同一个判据（两边判错方向就成了死入口）');
-ok(/BASE_SECTIONS\.slice\(0, 3\),\s*\.\.\.extra,\s*\.\.\.disp,\s*\.\.\.BASE_SECTIONS\.slice\(3\)/.test(ov), '两格插在「判读」之后——与正文从上往下的顺序一致');
-ok(/return \[\s*\{ id: 'sec-flow', label: '全流程' \}/.test(ov), '「全流程」那一格排在最前（正文里它也在最前）');
+const navBlock = ov.slice(ov.indexOf('  return [', ov.indexOf('function sectionsFor')), ov.indexOf('  ];', ov.indexOf('function sectionsFor')));
+ok(navBlock.indexOf("sec-structure") < navBlock.indexOf('...pivot') && navBlock.indexOf('...pivot') < navBlock.indexOf("sec-checks") && navBlock.indexOf("sec-checks") < navBlock.indexOf("sec-verdict") && navBlock.indexOf("sec-verdict") < navBlock.indexOf('...after'), '细目顺序与正文一致：逻辑链 → 承重 → 检查 → 判读 → 命题账');
+ok(/sec-repair[\s\S]{0,200}sec-flow[\s\S]{0,200}sec-divergence/.test(ov), '全流程在附录：修补之后、分歧账之前（不再抢在结论前）');
 ok(/data-qnav=\{s\.id\}/.test(ov), '每格带着要跳去的区块 id（探针不靠按钮文字认）');
 
 const chipTargets = [...ov.matchAll(/id: '(sec-[a-z]+)'/g)].map((m) => m[1]);
-const dead = chipTargets.filter((id) => !diagTsx.includes(`id="${id}"`));
+const dead = chipTargets.filter((id) => !`${diagTsx}${ov}`.includes(`id=\"${id}\"`));
 ok(chipTargets.length >= 8 && dead.length === 0, '跳转条里的每个 id 在报告里都有落点', dead.join(',') || `只找到 ${chipTargets.length} 格`);
 ok(chipTargets.includes('sec-props') && chipTargets.includes('sec-pivot'), '这两格确实在这份清单里', chipTargets.join(','));
+
+/* ─────────── 八之二 · 六段骨架与逻辑链：先说内容，再说判断 ─────────── */
+
+/*
+ * 这一轮把二十来栏收进六段，并在最前面加一层「全文总结 + 逻辑链」。
+ * 守四件事，都是「坏了照样渲染得出来」的那种：
+ *   ① 先说内容、后给判断——总结必须在逐条/整体之前，不能又滑回「打开就直接判」；
+ *   ② 每段都要写清输入/输出/边界——只排先后而不说这一段吃什么、吐什么、不做什么，
+ *      读者仍然分不清「没检查」与「检查了没结论」；
+ *   ③ 修补与下一步是一件事（同一段里），拆成两段就是让人在两处读同一套动作；
+ *   ④ 逻辑链按 supports 建树、孤儿不静默丢、颗粒度只改显示不改数据——三条都在 digest.ts 里。
+ */
+const partOrder = ['part-summary', 'part-items', 'part-overall', 'part-repair', 'part-more', 'part-appendix'].map(
+  (id) => diagTsx.indexOf(`id="${id}"`),
+);
+ok(partOrder.every((i) => i > 0), '六段都真的在正文里（少一段就是有一批栏无处安放）', partOrder.join(','));
+ok(partOrder.every((v, i) => i === 0 || partOrder[i - 1] < v), '六段顺序：总结 → 逐条 → 整体 → 修补 → 补充 → 附录', partOrder.join(','));
+const partNotes = (diagTsx.match(/<b>输入<\/b>/g) ?? []).length;
+const partOut = (diagTsx.match(/<b>输出<\/b>/g) ?? []).length;
+const partEdge = (diagTsx.match(/<b>边界<\/b>/g) ?? []).length;
+ok(partNotes === 6 && partOut === 6 && partEdge === 6, '六段各写一次输入/输出/边界（写了不等于写全，缺一格就是这一段自己没说清）', `${partNotes}/${partOut}/${partEdge}`);
+ok(
+  diagTsx.indexOf('id="sec-next"') < 0 && /title="修补与下一步"/.test(diagTsx),
+  '「下一步」不再单列一段：标题写着修补与下一步，两件事在同一处回答',
+);
+
+const digestTs = src('src/shared/digest.ts');
+ok(/function parentsOf\(c: Claim\): string\[\]/.test(digestTs) && /c\.supports/.test(digestTs), '逻辑链的父子关系取自 supports，不按字数或重要性排');
+ok(/const queue: DigestNode\[\] = \[root\]/.test(digestTs) && /depth > 6/.test(digestTs), '从结论往下按层建树，并给深度封顶（成环时不会无限往下长）');
+ok(
+  /orphans: DigestNode\[\]/.test(digestTs) && /marks: \[\.\.\.n\.marks, '接不回结论'\]/.test(digestTs),
+  '接不回结论的主张单独列出、逐条打标记（只计数不标记，读者不知道是哪些）',
+);
+ok(/levels: \[\s*\{ n: 1, label: '骨架'/.test(digestTs), '三档颗粒度是数据（骨架/展开/取证），不在组件里另写一套');
+ok(/data-digest-orphans=\{g\.orphans\.length\}/.test(ov) && /g\.orphans\.map/.test(ov), '界面把孤儿那一块真的渲染出来，数量与列表同源');
+ok(/g\.levels\.map/.test(ov) && /setDepth\(l\.n\)/.test(ov), '三档按钮改的是显示深度，不是重新算一份数据');
+ok(/const g = digestOf\(d\)/.test(ov) && /g\.gist\.map/.test(ov), '首屏那五行总结来自 digestOf，不在组件里另拼');
+ok(/data-digest-gist-row=\{i\}/.test(ov), '五行各有自己的位置标记（行序被重排时端到端能发现）');
 
 /* ─────────── 九 · 接着读：重开时那句话不说假话 ─────────── */
 
@@ -448,10 +486,10 @@ ok(/WHAT_REFUTED_LABEL\[d\.verdict\.whatIsRefuted\]/.test(spineTs), '否证范�
 ok(/LEVEL_LABEL\[level\]/.test(spineTs) && /GRADE_LABEL\[grade\.level\]/.test(spineTs), '档位走标签表，不写死中文');
 
 const diagMain = src('src/renderer/src/components/Diagnosis.tsx');
-ok(['sec-structure', 'sec-pivot', 'sec-checks', 'sec-verdict', 'sec-repair'].every((t) => new RegExp(`id="${t}"`).test(diagMain)), '五环的跳转目标在正文里都有落点');
+ok(['sec-structure', 'sec-pivot', 'sec-checks', 'sec-verdict', 'sec-repair'].every((t) => new RegExp(`id=\"${t}\"`).test(`${diagMain}${ov}`)), '五环的跳转目标在正文里都有落点');
 const noCount = (diagMain.match(/spineNo=\{/g) ?? []).length;
-ok(noCount === 5, `栏头环号只给主线引用的五栏（现在 ${noCount} 处；编号一多就成目录，不再是主线）`);
-ok([1, 2, 3, 4, 5].every((n) => (diagMain.match(new RegExp(`spineNo=\\{${n}\\}`, 'g')) ?? []).length === 1), '五个环号 1–5 各挂一次，不重不漏');
+ok(noCount === 4 && /data-spine-no=\{1\}/.test(ov), `环号 2–5 挂在四栏，1 挂在逻辑链本身（现在栏头 ${noCount} 处；编号一多就成目录）`);
+ok([2, 3, 4, 5].every((n) => diagMain.split(`spineNo={${n}}`).length - 1 === 1), '四栏环号 2–5 各挂一次，不重不漏');
 ok(
   diagMain.indexOf('<QuickRead') > 0 && diagMain.indexOf('<QuickRead') < diagMain.indexOf('<DensityBar />'),
   '主线压在阅读层级条与导出条之前（先有话说，再有工具条）',

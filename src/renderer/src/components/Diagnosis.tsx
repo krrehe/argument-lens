@@ -137,6 +137,45 @@ function Block({
 }
 
 /**
+ * 报告的一个阶段。
+ *
+ * 二十来栏平铺时，读者看到的是二十个同等权重的盒子；分成六段之后，
+ * 每段只回答一个问题，段标上写清「输入 / 输出 / 边界」——
+ * 这不是装饰，是让「这一栏为什么存在、不做什么」在界面上就能读到。
+ *
+ * 段标用一条通栏发丝线与上一段分开，不套卡片：模板已经证明卡片会让正文
+ * 多出一套 18px 左边缘（见 styles.css 的 .block 注释）。
+ */
+function Part({
+  id,
+  n,
+  title,
+  hint,
+  note,
+  children,
+}: {
+  id: string;
+  n: string;
+  title: string;
+  hint: string;
+  note: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rpart" id={id} data-part={n}>
+      <div className="rpart-head">
+        <span className="rpart-n">{n}</span>
+        <span className="rpart-t">{title}</span>
+        <span className="rpart-hint">{hint}</span>
+        <span className="rpart-rule" aria-hidden="true" />
+      </div>
+      <div className="rpart-note">{note}</div>
+      {children}
+    </section>
+  );
+}
+
+/**
  * 图被用户关掉时占的那一行。
  *
  * 为什么不让整个栏目消失：目录里的「结构图」入口还指着它，跳过来会落到空处；
@@ -1724,7 +1763,29 @@ export function DiagnosisView({
         工具条再顺手，也不该比这句话更早出现——读者一旦先看到一排按钮，
         就会把它当工具用，而不是当一份诊断读。
       */}
-      <QuickRead d={d} onGotoCheck={(id) => setSel(`#${id}`)} />
+      <Part
+        id="part-summary"
+        n="一"
+        title="总结"
+        hint="先知道这段说了什么，再谈它站不站得住"
+        note={
+          <>
+            <span><b>输入</b>原文、已拆出的结论与依据</span>
+            <span><b>输出</b>内容总结、可调颗粒度的逻辑链</span>
+            <span><b>边界</b>只压缩报告已有字段，不另评一句</span>
+          </>
+        }
+      >
+        <QuickRead
+          d={d}
+          onGotoCheck={(id) => setSel(`#${id}`)}
+          sel={sel}
+          onPick={setSel}
+          structureOn={picked.includes('structure')}
+          structureBlocked={views.find((x) => x.id === 'structure')?.blocked ?? null}
+          onOpenStructure={() => turnOn('structure')}
+        />
+      </Part>
 
       {/*
         阅读层级放第一行：一进报告就得知道「还有一整层核对栏被收着」，
@@ -1860,25 +1921,9 @@ export function DiagnosisView({
         </div>
       )}
 
-      {/*
-        全流程账紧接主线：主线说「这个论证哪儿出了问题」，这一栏说
-        「这份报告是照流程走出来的，还是跳着走的」。两件事都不改报告一个字，
-        但第二件决定了第一件该被信几分——所以它排在所有正文之前。
-      */}
-      <Block
-        id="sec-flow"
-        title="全流程账"
-        sub={`${flow.depthLabel}档｜${flow.rows.length} 步走了 ${flow.counts.ok} 步`}
-        plain="这份报告是按「立案 → 重构 → 检验 → 裁决 → 分歧收口 → 交付」一步步走出来的，还是跳着走的。软件只数做没做，不判做得对不对——哪一步做得准不准，它算不出来。"
-      >
-        <FlowLedger v={flow} />
-      </Block>
 
-      {/*
-        骨架缺口跟在流程账之后：流程账说「步骤走到哪」，它说「报告哪儿是空的」。
-        再往后放就成了读到一半才发现的附注，而它恰恰是对整份报告的核对。
-      */}
-      <SkeletonCard d={d} />
+
+
 
       {/*
         挑图放在目录之后、正文之前：读者刚看完主线，正决定「要深看哪一层」。
@@ -1886,6 +1931,19 @@ export function DiagnosisView({
       */}
       <ViewBar views={views} picked={picked} onPick={setWanted} initialOpen={!!initialViews} />
 
+      <Part
+        id="part-items"
+        n="二"
+        title="逐条分析"
+        hint="原句 → 主张 → 可接受性"
+        note={
+          <>
+            <span><b>输入</b>原文与逐句切分</span>
+            <span><b>输出</b>每句的角色、引用、可接受性</span>
+            <span><b>边界</b>只标关系，不裁真假</span>
+          </>
+        }
+      >
       <Block
         title="原文"
         sub="点黄色处 → 上面定位条和图上一起亮；虚线句是报告没引用的"
@@ -1900,17 +1958,48 @@ export function DiagnosisView({
       </Block>
 
       <Block
-        id="sec-structure"
-        spineNo={1}
-        title="结构图"
-        sub="左：依据 → 右：结论"
-        disputes={at('sec-structure')}
-        plain="把这段话画成一张图。左边是他摆出的依据，右边是他要你信的那句，中间的线就是「凭什么」。线断了，就是说这一步接不上。"
+        title="重构"
+        sub={`${d.premises.length} 条前提 · ${d.intermediate.length} 条中间结论 · 结论 1 条`}
+        plain="一条一条摊开给他看：他给了几条依据、结论是哪句、哪些是他没说出口的。图上那几格，就是这里的几条。"
       >
-        <Gated id="structure" views={views} picked={picked} onOpen={() => turnOn('structure')}>
-          <StructureMap d={d} sel={sel} onPick={setSel} />
-        </Gated>
+        <ClaimCard claim={d.conclusion} isConclusion active={sel === 'C'} onPick={() => setSel('C')} />
+        <ToneCard d={d} />
+        {d.intermediate.map((m) => (
+          <ClaimCard key={m.id} claim={m} active={sel === m.id} onPick={() => setSel(m.id)} />
+        ))}
+        {d.premises.map((pr) => (
+          <ClaimCard key={pr.id} claim={pr} active={sel === pr.id} onPick={() => setSel(pr.id)} />
+        ))}
       </Block>
+
+      </Part>
+
+      <Part
+        id="part-overall"
+        n="三"
+        title="整体分析"
+        hint="承重、检查、档位与争议"
+        note={
+          <>
+            <span><b>输入</b>报告已落盘的判断与检查</span>
+            <span><b>输出</b>哪一句承重、断在哪一关、算到哪一档</span>
+            <span><b>边界</b>一副尺子量到底，不跨透镜比大小</span>
+          </>
+        }
+      >
+      {pivot.rows.length > 0 && (
+        <Block
+          id="sec-pivot"
+          spineNo={2}
+          title="枢纽前提"
+          sub={pivot.line}
+          plain="指出十处措辞毛病，不如指出一次「你把 X 当起点用了，而 X 正是要争的那件事」。这一栏只攒两件事：结论经过谁，谁身上已经有反对意见。"
+        >
+          <PivotCard v={pivot} />
+        </Block>
+      )}
+
+
 
       <Block
         id="sec-checks"
@@ -1945,36 +2034,9 @@ export function DiagnosisView({
         )}
       </Block>
 
-      {/*
-        专题分析。放在逐关检查之后：关卡是「这副透镜要问的」，专题是「这类论证
-        文献上公认还要问的」。未命中的专题照列并写明为什么——只显示命中的，
-        用户就分不清「没命中」和「没检查」，后者是假绿。
-      */}
-      <Block
-        id="sec-topics"
-        title="专题分析"
-        sub={`六个专题｜命中 ${topicsHit} 个｜本地推导，不给档位`}
-        plain="每个专题是一类论证（类比、因果、来源、实践、定义、预设）在文献里的共识问题清单。命中与否由本次分析已经落盘的判断和原文用词推出来，不再调一次模型——所以它不花钱，也永远可复现。它给的是该问什么，不是第几分。"
-      >
-        {topics.map((t) => (
-          <TopicRow key={t.sub} t={t} />
-        ))}
-      </Block>
 
-      {/*
-        学术分析。放在专题分析之后：专题说「这类论证该问什么」，
-        这一栏说「哪些你自己得去核、哪些本工具根本核不了」。
-        两者都不调模型，都靠本地推导——所以它们可以一起看，不会互相矛盾。
-      */}
-      <Block
-        id="sec-academic"
-        title="学术分析"
-        sub={`${academic.genre.label}｜${academic.traces.length} 处待核｜${academic.norms.length} 条规范｜本地推导，不调模型`}
-        plain="如果这段话是从论文、书评或报告里摘出来的，这一栏替你分清两件事：哪些本工具查过了，哪些只能你自己回原文查。引用是否忠实、数据是否真实、方法是否恰当——这三条它一概查不了，所以它把它们指出来，而不是装作没看见。最后一小节讲的是：要反驳，先从哪一层下手。"
-      >
-        <AcademicBlock a={academic} onOpenClaim={onOpenClaim} />
-        <FieldTermsBar d={d} initialOpen={!!initialTerms} initialWords={initialTermsWords} />
-      </Block>
+
+
 
       <Block
         id="sec-verdict"
@@ -2092,17 +2154,7 @@ export function DiagnosisView({
         「这一段其实压在谁身上」——两问合起来才够用：知道哪条不是证据能定的，
         还得知道哪一条是整段的承重墙。位置也照顾读法：先看全账，再看那根柱子。
       */}
-      {pivot.rows.length > 0 && (
-        <Block
-          id="sec-pivot"
-          spineNo={2}
-          title="枢纽前提"
-          sub={pivot.line}
-          plain="指出十处措辞毛病，不如指出一次「你把 X 当起点用了，而 X 正是要争的那件事」。这一栏只攒两件事：结论经过谁，谁身上已经有反对意见。"
-        >
-          <PivotCard v={pivot} />
-        </Block>
-      )}
+
 
       {/*
         修辞审计。放在枢纽之后、争议之前，位置有三重理由：
@@ -2280,20 +2332,7 @@ export function DiagnosisView({
         )}
       </Block>
 
-      <Block
-        title="重构"
-        sub={`${d.premises.length} 条前提 · ${d.intermediate.length} 条中间结论 · 结论 1 条`}
-        plain="一条一条摊开给他看：他给了几条依据、结论是哪句、哪些是他没说出口的。图上那几格，就是这里的几条。"
-      >
-        <ClaimCard claim={d.conclusion} isConclusion active={sel === 'C'} onPick={() => setSel('C')} />
-        <ToneCard d={d} />
-        {d.intermediate.map((m) => (
-          <ClaimCard key={m.id} claim={m} active={sel === m.id} onPick={() => setSel(m.id)} />
-        ))}
-        {d.premises.map((pr) => (
-          <ClaimCard key={pr.id} claim={pr} active={sel === pr.id} onPick={() => setSel(pr.id)} />
-        ))}
-      </Block>
+
 
       <LensPanel d={d} />
 
@@ -2399,12 +2438,27 @@ export function DiagnosisView({
         </Block>
       )}
 
+      </Part>
+
+      <Part
+        id="part-repair"
+        n="四"
+        title="修补"
+        hint="缺什么、怎么补、补完看哪一条"
+        note={
+          <>
+            <span><b>输入</b>未过的检查与缺的前提</span>
+            <span><b>输出</b>要补的形状、验收标准、可回填的一版</span>
+            <span><b>边界</b>不代写；补不补、怎么补由人定</span>
+          </>
+        }
+      >
       <Block
         id="sec-repair"
         spineNo={5}
-        title="修补"
+        title="修补与下一步"
         sub={SEC.repairSub}
-        plain={SEC.repairPlain}
+        plain="修补给的是补完的样子，这一步说的是每一处空着的地方要填什么形状的内容、补完该看哪一条变。两件事必须挨着：分开两屏，人只会记住那份重构版，记不住它凭什么成立。"
       >
         <Gated id="repair" views={views} picked={picked} onOpen={() => turnOn('repair')}>
           <RepairMap d={d} />
@@ -2436,54 +2490,135 @@ export function DiagnosisView({
             </span>
           </div>
         )}
+
+
+        {/*
+          原来「下一步」是单独一栏。它和修补回答的是同一个问题——「缺什么、怎么补」，
+          只是修补给结果、下一步给验收标准。分成两屏，读者看完前者就走了；
+          合到这里，补完的样子与「补成什么样才算过」在同一屏。
+        */}
+        <div className="rp-next">
+          <div className="rp-next-t">下一步：每一处空着的地方，要填什么</div>
+                  {rx.emptyReason && <div className="rx-empty">{rx.emptyReason}</div>}
+          
+                  {/* 缺的前提单列在最前：它是最直接能动的一处，而且补完之后会被继续追问 */}
+                  {rx.missingPremise && (
+                    <div className="rx-item rx-lead">
+                      <div className="rx-head">
+                        <span className="rx-state rx-viol">先补这句</span>
+                        <span className="rx-ring">依据与结论之间的那一步</span>
+                      </div>
+                      <div className="rx-need">「{rx.missingPremise.text}」</div>
+                      <div className="rx-accept">{rx.missingPremise.accept}</div>
+                      <div className="rx-cost">{rx.missingPremise.cost}</div>
+                    </div>
+                  )}
+          
+                  {rx.groups.map((g) => (
+                    <div className="rx-group" key={g.site}>
+                      <div className="rx-gtitle">{g.title}</div>
+                      <div className="rx-gist">{g.gist}</div>
+                      {g.items.map((it) => (
+                        <div className="rx-item" key={it.checkId}>
+                          <div className="rx-head">
+                            <span className={`rx-state ${it.state === 'violated' ? 'rx-viol' : 'rx-open'}`}>
+                              {it.state === 'violated' ? '没过' : '未答'}
+                            </span>
+                            <span className="rx-ring">{it.ring}</span>
+                            <code className="rx-cid">{it.checkId}</code>
+                          </div>
+                          <div className="rx-need">{it.need}</div>
+                          <div className="rx-accept">{it.accept}</div>
+                          <div className="rx-cost">{it.cost}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+        </div>
+      </Block>
+
+
+
+      </Part>
+
+      <Part
+        id="part-more"
+        n="五"
+        title="补充视角"
+        hint="专题与学术：该问什么、该核什么"
+        note={
+          <>
+            <span><b>输入</b>原文用词与本地推导规则</span>
+            <span><b>输出</b>这类论证该问什么、哪些只能自己回原文核</span>
+            <span><b>边界</b>不调模型、不给档位</span>
+          </>
+        }
+      >
+      {/*
+        专题分析。放在逐关检查之后：关卡是「这副透镜要问的」，专题是「这类论证
+        文献上公认还要问的」。未命中的专题照列并写明为什么——只显示命中的，
+        用户就分不清「没命中」和「没检查」，后者是假绿。
+      */}
+      <Block
+        id="sec-topics"
+        title="专题分析"
+        sub={`六个专题｜命中 ${topicsHit} 个｜本地推导，不给档位`}
+        plain="每个专题是一类论证（类比、因果、来源、实践、定义、预设）在文献里的共识问题清单。命中与否由本次分析已经落盘的判断和原文用词推出来，不再调一次模型——所以它不花钱，也永远可复现。它给的是该问什么，不是第几分。"
+      >
+        {topics.map((t) => (
+          <TopicRow key={t.sub} t={t} />
+        ))}
       </Block>
 
       {/*
-        下一步：把「这一环空着」翻译成「要填什么形状的东西」。
-        放在修补之后，是因为修补给的是补完的样子，这一栏说的是每一步为什么那样补。
-        两条信息必须挨着看：分开两屏，用户只会记住那份重构版，记不住它凭什么成立。
+        学术分析。放在专题分析之后：专题说「这类论证该问什么」，
+        这一栏说「哪些你自己得去核、哪些本工具根本核不了」。
+        两者都不调模型，都靠本地推导——所以它们可以一起看，不会互相矛盾。
       */}
       <Block
-        title="下一步"
-        sub="每一处空着的地方，要填什么形状的东西"
-        plain="诊断说完就走，等于把最费力的一步留给用户。这一栏把「CQ2 未答」翻译成这一环要填什么形状的内容，并且给出验收标准——补完之后该是哪一条变过。它不给答案，也不承诺补得上。"
+        id="sec-academic"
+        title="学术分析"
+        sub={`${academic.genre.label}｜${academic.traces.length} 处待核｜${academic.norms.length} 条规范｜本地推导，不调模型`}
+        plain="如果这段话是从论文、书评或报告里摘出来的，这一栏替你分清两件事：哪些本工具查过了，哪些只能你自己回原文查。引用是否忠实、数据是否真实、方法是否恰当——这三条它一概查不了，所以它把它们指出来，而不是装作没看见。最后一小节讲的是：要反驳，先从哪一层下手。"
       >
-        {rx.emptyReason && <div className="rx-empty">{rx.emptyReason}</div>}
-
-        {/* 缺的前提单列在最前：它是最直接能动的一处，而且补完之后会被继续追问 */}
-        {rx.missingPremise && (
-          <div className="rx-item rx-lead">
-            <div className="rx-head">
-              <span className="rx-state rx-viol">先补这句</span>
-              <span className="rx-ring">依据与结论之间的那一步</span>
-            </div>
-            <div className="rx-need">「{rx.missingPremise.text}」</div>
-            <div className="rx-accept">{rx.missingPremise.accept}</div>
-            <div className="rx-cost">{rx.missingPremise.cost}</div>
-          </div>
-        )}
-
-        {rx.groups.map((g) => (
-          <div className="rx-group" key={g.site}>
-            <div className="rx-gtitle">{g.title}</div>
-            <div className="rx-gist">{g.gist}</div>
-            {g.items.map((it) => (
-              <div className="rx-item" key={it.checkId}>
-                <div className="rx-head">
-                  <span className={`rx-state ${it.state === 'violated' ? 'rx-viol' : 'rx-open'}`}>
-                    {it.state === 'violated' ? '没过' : '未答'}
-                  </span>
-                  <span className="rx-ring">{it.ring}</span>
-                  <code className="rx-cid">{it.checkId}</code>
-                </div>
-                <div className="rx-need">{it.need}</div>
-                <div className="rx-accept">{it.accept}</div>
-                <div className="rx-cost">{it.cost}</div>
-              </div>
-            ))}
-          </div>
-        ))}
+        <AcademicBlock a={academic} onOpenClaim={onOpenClaim} />
+        <FieldTermsBar d={d} initialOpen={!!initialTerms} initialWords={initialTermsWords} />
       </Block>
+
+      </Part>
+
+      <Part
+        id="part-appendix"
+        n="六"
+        title="附录"
+        hint="这份报告是怎么来的"
+        note={
+          <>
+            <span><b>输入</b>流程记录、自检、版本</span>
+            <span><b>输出</b>可追溯性与撤回条件</span>
+            <span><b>边界</b>不参与判定，只供核对</span>
+          </>
+        }
+      >
+      {/*
+        全流程账紧接主线：主线说「这个论证哪儿出了问题」，这一栏说
+        「这份报告是照流程走出来的，还是跳着走的」。两件事都不改报告一个字，
+        但第二件决定了第一件该被信几分——所以它排在所有正文之前。
+      */}
+      <Block
+        id="sec-flow"
+        title="全流程账"
+        sub={`${flow.depthLabel}档｜${flow.rows.length} 步走了 ${flow.counts.ok} 步`}
+        plain="这份报告是按「立案 → 重构 → 检验 → 裁决 → 分歧收口 → 交付」一步步走出来的，还是跳着走的。软件只数做没做，不判做得对不对——哪一步做得准不准，它算不出来。"
+      >
+        <FlowLedger v={flow} />
+      </Block>
+
+      {/*
+        骨架缺口跟在流程账之后：流程账说「步骤走到哪」，它说「报告哪儿是空的」。
+        再往后放就成了读到一半才发现的附注，而它恰恰是对整份报告的核对。
+      */}
+      <SkeletonCard d={d} />
 
       <Block
         id="sec-selfcheck"
@@ -2630,6 +2765,7 @@ export function DiagnosisView({
           <span>提示词版本不同的两份报告不能直接对照——判定口径可能已经变了。</span>
         </div>
       )}
+      </Part>
     </>
   );
 }

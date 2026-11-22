@@ -19,6 +19,7 @@ import './styles-density.css';
 import './styles-longform.css';
 import './styles-docpage.css';
 import './styles-spine.css';
+import './styles-digest.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -910,6 +910,7 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           }
         }
 
+
         /*
          * 报告出来之后的第一件事——把全文复制走。默认就跑，不需要开关：
          * 它不花钱、不发请求、只多等半秒，而「点了没反应」正是这个按钮最可能的坏法。
@@ -1033,6 +1034,19 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         if (!canceled) {
           /* 换报告要等渲染层派发 al:report-change（App 里 180ms 防抖）——
              目录没收到那份通知就不知道「这是哪一份」，位置也就无从记起。 */
+          /*
+           * 先清掉这一份的位置记录，再重扫一次。
+           *
+           * 为什么必须清：上面几步（全流程账截图、去填立案）把视口滚到报告深处，
+           * 目录按设计把这当成「读者读到了这里」并落了一条记录——那是软件该做的事，
+           * 不是 bug。但这一段要验的是「没有记录时界面说不说那句话」，
+           * 留着自检自己写的那条，验的就不是这件事了。
+           */
+          await wc.executeJavaScript(`(() => {
+            if (window.__alNavForget) window.__alNavForget();
+            if (window.__alNavRescan) window.__alNavRescan();
+            return true;
+          })()`);
           await sleep(400);
           const rBefore = JSON.parse(
             await wc.executeJavaScript(`JSON.stringify((() => {
@@ -1062,9 +1076,18 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             b.click();
             return true;
           })()`);
-          await sleep(1500);
-          const rRec = JSON.parse(
-            await wc.executeJavaScript(`JSON.stringify((() => {
+          /*
+           * 等记录落盘，不写死时长。
+           *
+           * 记录是 350ms 防抖后写的，而平滑滚动期间每跨过一节内的一块就重新计时一次：
+           * 从附录底部（一万八千像素）点「先看判读」跳到第五节，实测滚动约 1 秒，
+           * 加上 350ms 防抖，落盘落在点击后约 1.4 秒——写死 1500ms 正好卡在边界上，
+           * 同一份代码两次跑，一次读到记录、一次读到空。改成轮询到写出来为止。
+           */
+          let rRec = null;
+          for (let i = 0; i < 40; i += 1) {
+            rRec = JSON.parse(
+              await wc.executeJavaScript(`JSON.stringify((() => {
               let all = {};
               try { all = JSON.parse(localStorage.getItem('alPos.v1') || '{}'); } catch (e) { /* @allow-silent: 探针读本机记录，读坏了按「没有记录」处理，只看界面说不说那句话 */ }
               const ks = Object.keys(all);
@@ -1077,7 +1100,10 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
                 sections: document.querySelectorAll('#__alNav .nlist .ni').length,
               };
             })())`)
-          );
+            );
+            if (Number(rRec.count) > 0) break;
+            await sleep(120);
+          }
           const rScrollBefore = await wc.executeJavaScript(
             `(() => { const m = document.querySelector('.main'); return m ? Math.round(m.scrollTop) : -1; })()`
           );
@@ -1161,6 +1187,16 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
            * 否则「记的是别人的第三段」这条断言看不出来。
            */
           if (!canceled) {
+            /*
+             * 等「点了接着读」那个窗口过去，再滚。
+             *
+             * 点目录/接着读之后的 1500ms 里，目录把「滚到哪」记成「点的哪一节、哪一段」——
+             * 那是为了不让平滑滚动途中的中间站覆盖掉点击结果。这一条要验的却是
+             * 「人自己滚到某一节中间时记下的是不是那一块」，落在窗口里就会记成
+             * 上一步点的那一段（实测记录成第 1 段，而屏幕上停在第 5 段）。
+             * 窗口是写死的 1500ms（见 focusSection），所以这里等它过去。
+             */
+            await sleep(1600);
             const segPrep = JSON.parse(
               await wc.executeJavaScript(`JSON.stringify((() => {
                 const hs = [].slice.call(document.querySelectorAll('.main .block-head'));
@@ -1173,7 +1209,19 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
                 const body = sec ? sec.querySelector('.block-body') : null;
                 const kids = body ? [].slice.call(body.children) : [];
                 if (kids.length < 2) return { ok: false, why: 'one-block', kids: kids.length };
-                const mid = Math.floor(kids.length / 2);
+                /*
+                 * 挑最高的一块，不是中间那一块。
+                 *
+                 * 「顶线」（容器顶往下 72px）要落在这一块**里面**，才谈得上「记的是哪一段」。
+                 * 判读这一节里有一块只有一行高（一条提示），把顶线放在它上面 32px 处，
+                 * 顶线已经越过它、压进下一块了——探针就会去比错对象，红得莫名其妙。
+                 * 取最高的一块，这个前提就与排版无关了。
+                 */
+                let mid = 0, best = -1;
+                for (let i = 0; i < kids.length; i += 1) {
+                  const h = kids[i].getBoundingClientRect().height;
+                  if (h > best) { best = h; mid = i; }
+                }
                 const box = document.querySelector('.main');
                 const top = kids[mid].getBoundingClientRect().top
                   - box.getBoundingClientRect().top + box.scrollTop - 40;

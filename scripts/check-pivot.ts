@@ -219,9 +219,9 @@ const card = src('src/renderer/src/components/PivotCard.tsx');
 ok(/<PivotCard v=\{pivot\} \/>/.test(diagTsx), '报告主体里真的渲染了这一栏（不是只有 import）');
 ok(/pivot\.rows\.length > 0/.test(diagTsx), '没有可推敲的命题时整块不出现');
 ok(
-  diagTsx.indexOf('id="sec-pivot"') > diagTsx.indexOf('id="sec-props"') &&
-    diagTsx.indexOf('id="sec-pivot"') < diagTsx.indexOf('id="sec-disputes"'),
-  '位置在命题账之后、争议之前（哪些不能裁 → 压在谁身上 → 哪里有分歧）'
+  diagTsx.indexOf('id="sec-pivot"') < diagTsx.indexOf('id="sec-checks"') &&
+    diagTsx.indexOf('id="sec-pivot"') < diagTsx.indexOf('id="sec-verdict"'),
+  '位置在检查与判读之前（先知道压在哪一句，再问过不过关、算到哪一档）'
 );
 ok(/data-pivot=/.test(card), '每一条在界面上带自己的 id（好让异议与检索落得住）');
 ok(/pvt-head/.test(card) && /headline/.test(card), '主句单独占一行，不混进卡片里');

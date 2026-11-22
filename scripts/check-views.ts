@@ -41,6 +41,7 @@ function ok(cond: boolean, label: string, detail = ''): void {
 const SRC = (p: string) => readFileSync(resolve(p), 'utf-8');
 const DIAG = SRC('src/renderer/src/components/Diagnosis.tsx');
 const BAR = SRC('src/renderer/src/components/ViewBar.tsx');
+const OV = SRC('src/renderer/src/components/Overview.tsx');
 const MORE = SRC('src/renderer/src/components/DiagramMore.tsx');
 
 /* ─────────── 样本 ─────────── */
@@ -332,10 +333,24 @@ ok(
   '挑图条在「四句话」之后（读者决定深看哪一层的位置）',
   `QuickRead@${DIAG.indexOf('<QuickRead')} ViewBar@${DIAG.indexOf('<ViewBar')}`,
 );
-ok((DIAG.match(/<Gated /g) ?? []).length >= 5, '五张图都过了闸门', String((DIAG.match(/<Gated /g) ?? []).length));
+ok((DIAG.match(/<Gated /g) ?? []).length >= 4 && /data-view-gate="structure"/.test(OV), '五张图都过了闸门（结构图在首屏模块里，另四张在正文）', String((DIAG.match(/<Gated /g) ?? []).length));
 ok(
   /data-view-off=\{id\}/.test(DIAG),
   '关掉的图有一行占位（不是整栏消失——目录还指着它）',
+);
+/*
+ * 结构图那张关掉时的占位是手写的（它在 Overview 里，不走 Gated），
+ * 所以必须单独守一次：少了 `data-view-off` 这个记号，界面照常显示一句人话，
+ * 而挑图那一栏与打包自检再也认不出「是哪一张被关了」——上一版就是只写了人话。
+ * 同一处还要守「画不出来」与「自己关掉」是两支：前者不给「打开」按钮。
+ */
+ok(
+  /data-view-off="structure"/.test(OV) && /data-view-off-open="structure"/.test(OV),
+  '结构图关掉时的占位带着记号与「打开这张图」按钮（只写一句人话，外面认不出是哪一张）',
+);
+ok(
+  /structureBlocked \? \(/.test(OV) && OV.indexOf('structureBlocked ?') < OV.indexOf('data-view-off="structure"'),
+  '「画不出来」与「自己关掉」分成两支：前者把原因摆出来，不给打开按钮',
 );
 ok(/localStorage\.setItem\(STORE_KEY/.test(BAR), '选择写进本机存储（下次打开还是这次的选法）');
 ok(/sanitizeViews\(readStoredViews\(\)\)/.test(DIAG), '读回来的存储先过 sanitizeViews（被手改坏也不白屏）');
