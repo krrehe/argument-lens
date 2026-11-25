@@ -1,0 +1,9 @@
+case_id,annotator,item_id,answer,confidence,note
+cal-0001,,verdict,,,
+cal-0001,,CQ1,,,
+cal-0001,,CQ2,,,
+cal-0001,,CQ3,,,
+cal-0002,,verdict,,,
+cal-0002,,T1,,,
+cal-0002,,T2,,,
+cal-0002,,T3,,,
