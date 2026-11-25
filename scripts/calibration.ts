@@ -519,12 +519,12 @@ function printReport(r: Report): void {
 
 /* ── 盲标表 ── */
 
-function writeTemplate(outPath: string): void {
+function writeTemplate(outPath: string, annotator = ''): void {
   const cases = loadCases();
   const rows: (string | number | null)[][] = [['case_id', 'annotator', 'item_id', 'answer', 'confidence', 'note']];
   for (const c of cases) {
-    if (c.verdict_expected !== false) rows.push([c.id, '', 'verdict', '', '', '']);
-    for (const q of c.checks) rows.push([c.id, '', q.id, '', '', '']);
+    if (c.verdict_expected !== false) rows.push([c.id, annotator, 'verdict', '', '', '']);
+    for (const q of c.checks) rows.push([c.id, annotator, q.id, '', '', '']);
   }
   mkdirSync(join(ROOT, 'calibration/labels'), { recursive: true });
   writeCsv(outPath, rows);
@@ -642,10 +642,12 @@ const includeDraft = flags.includes('--include-draft');
 const asJson = flags.includes('--json');
 const outFlag = flags.find((x) => x.startsWith('--out='));
 const outPath = outFlag ? outFlag.slice('--out='.length) : join(LABELS_DIR, 'template.csv');
+const annotatorFlag = flags.find((x) => x.startsWith('--annotator='));
+const annotator = annotatorFlag ? annotatorFlag.slice('--annotator='.length).trim() : '';
 
 try {
   if (cmd === 'template') {
-    writeTemplate(outPath);
+    writeTemplate(outPath, annotator);
   } else if (cmd === 'self-test') {
     selfTest();
   } else if (cmd === 'score') {
