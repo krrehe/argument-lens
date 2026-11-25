@@ -5,9 +5,9 @@
   "lens": "toulmin",
   "mode": "diagnose",
   "checks": [
-    { "id": "T1", "question": "从「收入提高」到「应当继续」的担保是什么？" },
-    { "id": "T2", "question": "这条担保有没有 backing？" },
-    { "id": "T3", "question": "有没有写出例外或限定（谁不适用、什么条件下不成立）？" }
+    { "id": "T1", "question": "文本有没有说出从「收入提高」到「应当继续」的担保？" },
+    { "id": "T2", "question": "这条担保有没有 backing（独立依据）？" },
+    { "id": "T3", "question": "文本有没有写出例外或限定（谁不适用、什么条件下不成立）？" }
   ],
   "notes": "示例病例。补上至少两位标注者的盲标后，把 status 改成 ready。"
 }

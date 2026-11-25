@@ -21,6 +21,8 @@ const VERDICTS = ['withstands', 'weakened', 'fails', 'undetermined'] as const;
 type Verdict = (typeof VERDICTS)[number];
 const CHECK_ANSWERS = ['passed', 'unanswered', 'violated', 'na'] as const;
 type CheckAnswer = (typeof CHECK_ANSWERS)[number];
+const LENSES = ['walton', 'pragma', 'ars', 'pta', 'toulmin', 'copi'] as const;
+const MODES = ['diagnose', 'deep', 'redteam', 'fallacy', 'reconstruct', 'interrogate'] as const;
 
 interface CalibrationCase {
   id: string;
@@ -28,6 +30,8 @@ interface CalibrationCase {
   passage: string;
   lens: string;
   mode: string;
+  /** 默认 true；查谬误/重构/提问等不给档位的模式写 false。 */
+  verdict_expected?: boolean;
   checks: { id: string; question: string }[];
   notes?: string;
 }
@@ -164,10 +168,18 @@ function loadCases(): CalibrationCase[] {
     if (ids.has(c.id)) throw new Error(`${f}: id 重复：${c.id}`);
     ids.add(c.id);
     if (c.status !== 'draft' && c.status !== 'ready') throw new Error(`${f}: status 只能是 draft 或 ready`);
+    if (!LENSES.includes(c.lens as (typeof LENSES)[number])) throw new Error(`${f}: 未知透镜 ${c.lens}`);
+    if (!MODES.includes(c.mode as (typeof MODES)[number])) throw new Error(`${f}: 未知模式 ${c.mode}`);
+    if (c.verdict_expected !== undefined && typeof c.verdict_expected !== 'boolean') {
+      throw new Error(`${f}: verdict_expected 必须是布尔值`);
+    }
     if (!c.passage || c.passage.trim().length < 20) throw new Error(`${f}: passage 太短`);
     if (!Array.isArray(c.checks) || c.checks.length === 0) throw new Error(`${f}: 至少要有一道检查问题`);
+    const itemIds = new Set<string>();
     for (const q of c.checks) {
       if (!q.id || q.id === 'verdict') throw new Error(`${f}: 检查问题 id 不能为空或叫 verdict`);
+      if (itemIds.has(q.id)) throw new Error(`${f}: 检查问题 id 重复：${q.id}`);
+      itemIds.add(q.id);
       if (!q.question || q.question.trim().length < 4) throw new Error(`${f}: ${q.id} 的问题太短`);
     }
     out.push(c);
@@ -511,7 +523,7 @@ function writeTemplate(outPath: string): void {
   const cases = loadCases();
   const rows: (string | number | null)[][] = [['case_id', 'annotator', 'item_id', 'answer', 'confidence', 'note']];
   for (const c of cases) {
-    rows.push([c.id, '', 'verdict', '', '', '']);
+    if (c.verdict_expected !== false) rows.push([c.id, '', 'verdict', '', '', '']);
     for (const q of c.checks) rows.push([c.id, '', q.id, '', '', '']);
   }
   mkdirSync(join(ROOT, 'calibration/labels'), { recursive: true });

@@ -13,6 +13,10 @@
         "passage": { "type": "string", "minLength": 20 },
         "lens": { "enum": ["walton", "pragma", "ars", "pta", "toulmin", "copi"] },
         "mode": { "enum": ["diagnose", "deep", "redteam", "fallacy", "reconstruct", "interrogate"] },
+        "verdict_expected": {
+          "type": "boolean",
+          "description": "false 表示这个模式不给档位（查谬误/重构/提问）；盲标表不再生成 verdict 行。"
+        },
         "checks": {
           "type": "array",
           "minItems": 1,

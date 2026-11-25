@@ -1,0 +1,14 @@
+{
+  "id": "cal-0006",
+  "status": "draft",
+  "verdict_expected": false,
+  "passage": "我认识的三个程序员都内向，所以程序员都内向。",
+  "lens": "copi",
+  "mode": "fallacy",
+  "checks": [
+    { "id": "C1", "question": "文本有没有从少数样本直接推到全体？" },
+    { "id": "C2", "question": "「三个」这个样本量足以支撑「都」吗？" },
+    { "id": "C3", "question": "文本有没有说明这三个程序员能代表整体？" }
+  ],
+  "notes": "查谬误模式不给档位，因此不出 verdict 行；只核对命名候选与原文位置。"
+}
