@@ -1,4 +1,5 @@
 import { MODE_META, normalizeMode } from '@shared/types';
+import { applyDeepChallenges, validateDeep } from '@shared/deep';
 import type {
   AnalysisMode,
   ArsLens,
@@ -1528,6 +1529,26 @@ export function normalizeDiagnosis(
     });
   }
 
+  /*
+   * 深查账本。只核落点、引文、理论依据与状态，不判发现真假；
+   * 第一遍没给 deep 时不许当成「没有发现问题」——记一条可见的诊断。
+   */
+  if (report.mode === 'deep') {
+    if (raw?.deep == null) {
+      diagnostics.push({
+        level: 'warn',
+        code: 'DEEP_MISSING',
+        message:
+          '深查模式没有返回发现账本。下面这份只是第一遍诊断，不能当成深查结果；这一栏空着不是「没有问题」。',
+      });
+      report.deep = null;
+    } else {
+      const v = validateDeep(raw.deep, report, passage);
+      report.deep = v.deep;
+      for (const d of v.diagnostics) diagnostics.push(d);
+    }
+  }
+
   return report;
 }
 
@@ -1699,6 +1720,94 @@ export async function runAnalysis(
     throw new LlmError('BAD_JSON', parseError);
   }
 
+  /*
+   * 深查第二遍：逐条反驳第一遍的发现。
+   *
+   * 只在第一遍真的有 findings 时调用；没有发现就不花第二笔钱。
+   * 第二遍失败不丢掉第一遍：基诊断与发现都保留，发现全部标未决，并留一条诊断。
+   * 这一笔的用量也必须记：它可能已经把请求发出去了，只是没拿到可解析的回话。
+   */
+  const baseCalls = calls.length;
+  const baseText = calls[baseCalls - 1].text;
+  const rawFindings = Array.isArray((parsed as any)?.deep?.findings)
+    ? ((parsed as any).deep.findings as unknown[])
+    : [];
+  /*
+   * 两遍之间也有一个缺口：第一遍刚回来、第二遍还没发出去时按了停。
+   * 不在这里判，第二遍会照常发出，界面已经说「已停」，请求却还在跑。
+   * 判一次的成本几乎为零，漏掉的代价是界面说了假话。
+   */
+  if (opts.signal?.aborted) {
+    throw new LlmError('CANCELED', '已停止。第一遍诊断已经回来，第二遍没有发出去。');
+  }
+  let challengeText = '';
+  let challengeParsed: unknown = null;
+  let challengeError = '';
+  if (mode === 'deep' && rawFindings.length) {
+    onProgress('verdict', '逐条反驳发现', 78);
+    const challengeUser = `第二阶段：逐条反驳。
+
+下面是原文与第一阶段 JSON。只输出 {"challenges":[...]}，不要新增发现，不要改 verdict。
+
+原文：
+${passage}
+
+第一阶段 JSON：
+${JSON.stringify(parsed)}`;
+    const startedAt = Date.now();
+    try {
+      const res = await chat(sys, challengeUser, {
+        json: true,
+        maxTokens: plan.maxTokens,
+        temperature,
+        signal: opts.signal,
+      });
+      const u = res.usage;
+      const measured =
+        typeof u?.prompt_tokens === 'number' || typeof u?.completion_tokens === 'number';
+      const cacheHit =
+        typeof u?.prompt_cache_hit_tokens === 'number'
+          ? u.prompt_cache_hit_tokens
+          : typeof u?.prompt_tokens_details?.cached_tokens === 'number'
+            ? u.prompt_tokens_details.cached_tokens
+            : undefined;
+      const rec = recordChatUsage({
+        ok: true,
+        ...ledger,
+        promptTokens: typeof u?.prompt_tokens === 'number' ? u.prompt_tokens : estimateTokens(sys + challengeUser),
+        completionTokens:
+          typeof u?.completion_tokens === 'number' ? u.completion_tokens : estimateTokens(res.text),
+        estimated: !measured,
+        cacheHitTokens: cacheHit,
+        ms: Date.now() - startedAt,
+      });
+      calls.push({ rec, text: res.text });
+      challengeText = res.text;
+      try {
+        challengeParsed = extractJson(res.text);
+      } catch (e) {
+        challengeError = (e as Error).message;
+      }
+    } catch (err) {
+      const failedRec = recordChatUsage({
+        ok: false,
+        ...ledger,
+        promptTokens: estimateTokens(sys + challengeUser),
+        completionTokens: 0,
+        estimated: true,
+        ms: Date.now() - startedAt,
+      });
+      calls.push({ rec: failedRec, text: '' });
+      /*
+       * 按停不是「第二遍失败」：失败要保留第一遍诊断，按停要整份停下来。
+       * 混成一条，用户按了停却收到一份标满「未决」的报告，而界面以为已经停了。
+       * 失败用量的记录留在上面——那一笔可能真的花出去了。
+       */
+      if (err instanceof LlmError && err.code === 'CANCELED') throw err;
+      challengeError = (err as Error)?.message ?? '第二遍调用失败';
+    }
+  }
+
   // 多次调用时，界面上显示的「本次用量」是各次之和——账本里也是这几笔，两边必须能对上
   const usage: UsageRecord =
     calls.length === 1
@@ -1744,6 +1853,37 @@ export async function runAnalysis(
   });
 
   /*
+   * 把第二遍的反驳合并回账本。
+   * 第二遍没跑/没解析成功时，发现全部按未决显示；第一遍诊断不受影响。
+   */
+  if (diagnosis.mode === 'deep') {
+    const baseDeep = diagnosis.deep ?? { findings: [], unlocated: [] };
+    if (challengeParsed) {
+      const merged = applyDeepChallenges(baseDeep, challengeParsed);
+      diagnosis.deep = merged.deep;
+      diagnosis.diagnostics.push(...merged.diagnostics);
+      const list = Array.isArray((challengeParsed as any)?.challenges)
+        ? ((challengeParsed as any).challenges as unknown[])
+        : [];
+      if (!list.length && baseDeep.findings.length) {
+        diagnosis.diagnostics.push({
+          level: 'warn',
+          code: 'DEEP_CHALLENGE_EMPTY',
+          message: '深查第二遍没有逐条反驳任何发现；所有发现按「未决」显示，不把没被反驳当成站住。',
+        });
+      }
+    } else if (challengeError) {
+      const merged = applyDeepChallenges(baseDeep, { challenges: [] });
+      diagnosis.deep = merged.deep;
+      diagnosis.diagnostics.push({
+        level: 'warn',
+        code: 'DEEP_INCOMPLETE',
+        message: `深查第二遍没有完成：${challengeError}。${merged.deep.findings.length} 条发现全部标为未决；第一遍诊断仍然可读。`,
+      });
+    }
+  }
+
+  /*
    * 把模型原文一并存下。
    *
    * 放在 normalizeDiagnosis 之后，是因为这里才确定「哪一次的输出被采用了」——
@@ -1752,8 +1892,9 @@ export async function runAnalysis(
    * 有了它，才可能在不调模型的前提下重跑整条解析与裁决链路。
    */
   diagnosis.raw = {
-    text: calls[calls.length - 1].text,
-    attempts: calls.length,
+    text: baseText,
+    attempts: baseCalls,
+    ...(challengeText ? { challenge: { text: challengeText, attempts: 1 } } : {}),
   };
 
   /*
@@ -1775,11 +1916,11 @@ export async function runAnalysis(
   if (divergence) diagnosis.divergence = divergence;
 
   /* 运行时的工程事实也要留痕：模型调用了几次、温度有没有被裁、提示词是否超预算 */
-  if (calls.length > 1) {
+  if (baseCalls > 1) {
     diagnosis.diagnostics.push({
       level: 'info',
       code: 'JSON_REPAIRED',
-      message: `第一次输出无法解析为 JSON，已要求模型重出一次（共 ${calls.length} 次调用）。用量按 ${calls.length} 笔记录，可在「用量」页逐笔核对。`,
+      message: `第一次输出无法解析为 JSON，已要求模型重出一次（共 ${baseCalls} 次调用）。用量按 ${baseCalls} 笔记录，可在「用量」页逐笔核对。`,
     });
   }
   if (clamped) {

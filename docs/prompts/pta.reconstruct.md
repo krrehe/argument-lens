@@ -1,6 +1,6 @@
 # 提示词：型式周期表三特征（重构模式）
 
-> Periodic Table of Arguments (PTA)｜模式：重构（reconstruct）｜版本：v3.0.0
+> Periodic Table of Arguments (PTA)｜模式：重构（reconstruct）｜版本：v3.2.0
 > 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：先别判。把这段话拆成结构图，看清它靠什么撑着。
 > 判定单元：三个正交特征：阶（一阶／二阶）× 轴（谓词／主词）× 陈述类型（事实／价值／政策）

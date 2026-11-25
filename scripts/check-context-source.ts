@@ -9,7 +9,7 @@
  *   2. 说 known 却指不出原文的，本地降级为 inferred 并留痕——不猜它本来想说什么，
  *      也不静默放过（静默放过会让界面显示一份「全部都能回原文」的报告，而那是假的）；
  *   3. 旧存档没有这一层时，空对象、七条 missing、不抛错；
- *   4. 规则真的进了全部 30 份提示词，不是只写在 schema 里；
+ *   4. 规则真的进了全部 36 份提示词，不是只写在 schema 里；
  *   5. 界面照实说旧档没有标注，且不把版本号硬编码进去（硬编码必然会过时）。
  *
  * 反证另做（改源码逐条看红），因为这里改不了自己脚下踩的文件。
@@ -135,7 +135,7 @@ for (const t of THEORIES) {
     if (!all.includes('context.grounding 里每一格')) missingHint.push(`${t.id}.${m}`);
   }
 }
-ok(missingHint.length === 0, '30 份提示词都带上了语境出处那条规则', missingHint.slice(0, 5).join('、'));
+ok(missingHint.length === 0, '36 份提示词都带上了语境出处那条规则', missingHint.slice(0, 5).join('、'));
 
 /* ── 六、接进了解析 ─────────── */
 const an = src('src/main/analyze.ts');
@@ -171,5 +171,5 @@ if (failed.length) {
   process.exit(1);
 }
 console.log(
-  `✓ check:context-source 通过 ${passed} 条｜三档可验、指不出原文就降级、旧档不补假、30 份提示词都带规则`,
+  `✓ check:context-source 通过 ${passed} 条｜三档可验、指不出原文就降级、旧档不补假、36 份提示词都带规则`,
 );

@@ -210,11 +210,7 @@
   color: var(--accent);
 }
 
-/* 完整态不额外多一行：预览页与旧截图看到的仍是原来那面说明。 */
-:root[data-density='full'] .brief-fold > .bf-sum {
-  display: none;
-}
-
+/* 完整态也保留这一行：说明书可以展开，但不能变成一个没有出口的墙。 */
 :root[data-density='compact'] .brief-fold:not([open]) {
   flex: 0 0 auto;
 }
@@ -252,8 +248,42 @@
   display: none;
 }
 
+/*
+ * 简洁态里透镜条默认只露当前那一副；点开「换一副」之后，六颗芯片
+ * 应以完整的名字 + 判定单元铺成网格。上面那条只收常驻行，不该把菜单也收掉：
+ * 选择时正需要读「这一副量的是什么」，只给名字等于把比较的依据藏了。
+ */
+:root[data-density='compact'] .lens-grid .lens-chip {
+  width: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 7px 11px;
+}
+
+:root[data-density='compact'] .lens-grid .lens-chip .n {
+  font-size: 14px;
+}
+
+:root[data-density='compact'] .lens-grid .lens-chip .u {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+}
+
 :root[data-density='compact'] .block {
   margin-bottom: 10px;
+}
+
+/* 立案头的「A1 取材 · A2 准入」在简洁态让位给摘要：那一行本来就窄，
+   副标题占掉一百多像素，后果句「结论只能算就文论文」就被省略号吃掉了。 */
+:root[data-density='compact'] .bf-sub {
+  display: none;
+}
+
+/* 「重跑一次能看出…」是劝告，不是事实；简洁态只留上面那句已经跑过的读数。 */
+:root[data-density='compact'] .sb-why {
+  display: none;
 }
 
 :root[data-density='compact'] .block-body {

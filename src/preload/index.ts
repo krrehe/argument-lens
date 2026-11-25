@@ -25,6 +25,8 @@ import type { CaptureStatus } from '@shared/capture';
 import type { Sameness } from '@shared/sameness';
 import type { PortfolioView } from '@shared/portfolio';
 import type { AgreementView } from '@shared/agreement';
+import type { CrossLensView } from '@shared/cross-lens';
+import type { DeepArchiveView } from '@shared/deep-archive';
 import type { NextLineView } from '@shared/nextline';
 
 
@@ -251,6 +253,24 @@ const api = {
      */
     agreement: (): Promise<{ view: AgreementView; dirError: string | null }> =>
       ipcRenderer.invoke('archive:agreement'),
+    /**
+     * 深查发现库：跨报告汇总历次深查的发现。
+     *
+     * 纯读。dirError 非空时 view 不完整；badFiles 是读不出来的报告份数，
+     * 界面要把这两个数说出来，不能把「少读了几份」当成「没有那些发现」。
+     */
+    deep: (): Promise<{ view: DeepArchiveView; dirError: string | null; badFiles: number }> =>
+      ipcRenderer.invoke('archive:deep'),
+    /**
+     * 同一段文字下，六副透镜各盯住了哪里。
+     *
+     * 纯读。当前这份报告一起传过去，免得刚跑完还没入索引时看到旧的一份。
+     * dirError / badFiles 必须回传：少读几份不能当成「那几副没跑过」。
+     */
+    cross: (
+      current: Diagnosis
+    ): Promise<{ view: CrossLensView; dirError: string | null; badFiles: number }> =>
+      ipcRenderer.invoke('archive:cross', current),
   },
   /**
    * 长文台账。

@@ -255,6 +255,37 @@ export async function testConnection(cfg: Partial<LlmSettings>): Promise<TestRes
   }
 }
 
+/**
+ * 从 start 处的 `{` 开始，找第一个配平的 `}`。
+ *
+ * 只数结构里的花括号：字符串里的 `{` / `}` 与转义引号不参与配平。
+ * 找不到完整对象时返回 null——截断的输出不能被当成「半个对象」解析。
+ */
+function balancedObjectAt(t: string, start: number): string | null {
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (let i = start; i < t.length; i++) {
+    const ch = t[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') {
+      inStr = true;
+      continue;
+    }
+    if (ch === '{') depth += 1;
+    else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) return t.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 /** 从模型返回的文本中抠出 JSON。模型有时会加围栏或前后缀。 */
 export function extractJson(text: string): unknown {
   let t = text.trim();
@@ -267,20 +298,38 @@ export function extractJson(text: string): unknown {
   if (start === -1 || end === -1 || end <= start) {
     throw new LlmError('BAD_JSON', '返回内容里找不到 JSON 对象。');
   }
-  let slice = t.slice(start, end + 1);
 
-  try {
-    return JSON.parse(slice);
-  } catch {
-    // 常见机械错误：尾逗号、全角引号
-    slice = slice
+  /*
+   * 先取第一个配平的对象，再退回「第一个 { 到最后一个 }」。
+   *
+   * 真实评测里出现过「对象后面又跟了一个对象」：后者按最后一个 `}` 切，
+   * 会把两个对象拼在一起，JSON.parse 报「Unexpected non-whitespace character
+   * after JSON」。取第一个配平对象就能把这半句丢掉，且不改变正常输出。
+   * 如果第一个对象本身坏了，仍会退回去试一次原来的切片——不因为修一种坏法
+   * 就把另一种坏法（围栏外多一段、尾逗号）丢掉。
+   */
+  const first = balancedObjectAt(t, start);
+  const candidates: string[] = [];
+  if (first) candidates.push(first);
+  const outer = t.slice(start, end + 1);
+  if (outer !== first) candidates.push(outer);
+
+  let lastErr: unknown = null;
+  for (const raw of candidates) {
+    /* 常见机械错误：尾逗号、全角引号 */
+    const cleaned = raw
       .replace(/[“”]/g, '"')
       .replace(/,\s*([}\]])/g, '$1')
       .replace(/[\u00A0\u3000]/g, ' ');
-    try {
-      return JSON.parse(slice);
-    } catch (e2) {
-      throw new LlmError('BAD_JSON', `JSON 解析失败：${(e2 as Error).message}`);
+    const forms = raw === cleaned ? [raw] : [raw, cleaned];
+    for (const s of forms) {
+      try {
+        return JSON.parse(s);
+      } catch (e) {
+        lastErr = e;
+      }
     }
   }
+
+  throw new LlmError('BAD_JSON', `JSON 解析失败：${(lastErr as Error)?.message ?? '没有可解析的对象'}`);
 }

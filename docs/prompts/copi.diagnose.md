@@ -1,6 +1,6 @@
 # 提示词：教科书名录对照（诊断模式）
 
-> Textbook Fallacy Catalogue｜模式：诊断（diagnose）｜版本：v3.0.0
+> Textbook Fallacy Catalogue｜模式：诊断（diagnose）｜版本：v3.2.0
 > 判定类：给档位。
 > 这一份问的是：判断这段话站不站得住。
 > 判定单元：名录中的一个条目名

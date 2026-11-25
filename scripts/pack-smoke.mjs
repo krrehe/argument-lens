@@ -369,7 +369,8 @@ const checks = [
   ['侧栏的主张入口在', /"claims":[1-9]/.test(result)],
   ['顶栏「理论」入口在', /"theoryBtn":true/.test(result)],
   // 这几条新功能。它们的共同点是坏了不报错，所以进包之后要逐个数。
-  ['模式开关五档进了包', /"modeChips":5/.test(result)],
+  ['模式开关六档进了包', /"modeChips":6/.test(result)],
+  ['普通诊断不长深查账本', /"deepBlock":false/.test(result)],
   // 模式横幅：进包后最容易坏的一处是 MODE_META 被摇树摇掉，
   // 表现为报告照常渲染、横幅安静消失——而横幅是「这份为什么没有档位」的唯一解释。
   ['模式与横幅机制进了包', /"modeOn":"[a-z]+"/.test(result) && /"modeBanner":"/.test(result)],
@@ -814,6 +815,36 @@ const checks = [
           off.offNotes.includes('structure') &&
           all.refuteSvg === true &&
           all.repairSvg === true
+        );
+      } catch {
+        return false;
+      }
+    })(),
+  ],
+  /*
+   * 打包产物里的论证地图：开关得在、节点得画出来、点节点得能开详情、切回文字后正文得回来。
+   *
+   * 这一条复用真机冒烟留下的 `MAP` 探针，不另写一份交互：`@shared/map` 是纯函数、
+   * 地图组件与样式在另一个文件里——它们没进 asar 的典型表现不是报错，是开关在而图不出现，
+   * 或者点节点没反应，而包外的一切检查都还是绿的。
+   */
+  [
+    '打包产物里论证地图能开关、点节点出详情、切回文字正文回来',
+    (() => {
+      const line = log.split('\n').find((l) => l.includes('MAP {')) ?? '';
+      if (!line) return false;
+      try {
+        const r = JSON.parse(line.slice(line.indexOf('{')));
+        return (
+          r.switch === true &&
+          r.defaultText === true &&
+          r.on === true &&
+          Number(r.nodes) >= 5 &&
+          r.nodeClicked === true &&
+          r.detail?.open === true &&
+          Number(r.focus?.on?.dimNodes) > 0 &&
+          r.back?.map === false &&
+          r.back?.blocks === r.blocksBefore
         );
       } catch {
         return false;

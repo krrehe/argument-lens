@@ -35,7 +35,7 @@ function refuse(reason: string): never {
   console.error('  改提示词要走完整的三步，顺序不能换：');
   console.error('  1. 改 src/main/prompt/registry.ts 的 PROMPT_VERSION');
   console.error('  2. 在 PROMPT_VERSION_NOTE 最前面加一行，以新版本号开头，写清改了什么、为什么');
-  console.error('  3. npm run prompts（重导出 30 份）→ npm run prompt:lock（更新基线）');
+  console.error('  3. npm run prompts（重导出 36 份）→ npm run prompt:lock（更新基线）');
   console.error('  第 1、2 步是留痕，不是手续：旧报告靠版本号与指纹才能判断可比不可比。\n');
   process.exit(1);
 }
@@ -68,7 +68,7 @@ const changed = facts.filter((f) => old.fingerprints[f.key] !== now[f.key]);
  * 旧格式迁移：第一版基线只存了 noteCount，没存注记全文。
  * 报告里「这把尺子」那一栏现在要读 notes，所以这里允许补写一次。
  *
- * 只加字段，不放行任何内容变更：必须版本相同且 30 份指纹逐字全同，
+ * 只加字段，不放行任何内容变更：必须版本相同且 36 份指纹逐字全同，
  * 否则「顺手重跑一次生成器」就会变成绕过版本锁的捷径。
  * 也不许删掉基线再 --init——那条路等于把版本史凭空重建，是上一轮明令禁止的。
  */
@@ -80,7 +80,7 @@ if (legacy && (changed.length || old.version !== VERSION)) {
   );
 }
 if (legacy) {
-  console.log('  旧格式基线补写 notes 字段：版本与 30 份指纹逐字未变，只加注记全文。');
+  console.log('  旧格式基线补写 notes 字段：版本与 36 份指纹逐字未变，只加注记全文。');
 }
 
 if (changed.length) {
@@ -111,7 +111,7 @@ if (changed.length) {
   console.log(`✓ 基线已更新：v${old.version} → v${VERSION}，${changed.length} 份指纹变了，注记 ${old.noteCount} → ${NOTE_COUNT} 行`);
   for (const f of changed.slice(0, 6)) console.log(`  · ${f.key}: ${old.fingerprints[f.key]} → ${now[f.key]}`);
   if (changed.length > 6) console.log(`  · 其余 ${changed.length - 6} 份同上`);
-  console.log('  再确认 docs/prompts/ 下 30 份全文也已重导出（npm run prompts）。');
+  console.log('  再确认 docs/prompts/ 下 36 份全文也已重导出（npm run prompts）。');
   console.log('  prompts 与 lock 是两件不同的事，互为替代时 check:prompt-drift 都会红。');
 } else {
   console.log(`✓ 基线无需改动：v${VERSION}、${facts.length} 份指纹全部一致（这次只改了与提示词无关的东西）`);

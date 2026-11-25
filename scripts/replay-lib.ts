@@ -1,8 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { extractJson } from '../src/main/llm';
+import { applyDeepChallenges } from '@shared/deep';
 import { normalizeDiagnosis } from '../src/main/analyze';
+import { extractJson } from '../src/main/llm';
 import { diffReports, suspectOf, type ReplayDiff } from '@shared/replay';
 import type { Diagnosis } from '@shared/types';
 
@@ -102,6 +103,26 @@ export function replayOne(report: Diagnosis): ReplayOutcome {
     });
   } catch (e) {
     return { ...head, ok: false, failed: { stage: '归一化', why: (e as Error).message } };
+  }
+
+  /*
+   * 深查报告的第二遍原文也要重放：只重放第一遍会把「站住/削弱/推翻」
+   * 全部读成「未反驳」，差异会被误读成这次改动改了发现的状态。
+   */
+  if (report.mode === 'deep' && report.raw?.challenge && replayed.deep) {
+    let challengeParsed: unknown;
+    try {
+      challengeParsed = extractJson(report.raw.challenge.text);
+    } catch (e) {
+      return {
+        ...head,
+        ok: false,
+        failed: { stage: '归一化', why: `深查第二遍解析失败：${(e as Error).message}` },
+      };
+    }
+    const merged = applyDeepChallenges(replayed.deep, challengeParsed);
+    replayed.deep = merged.deep;
+    for (const d of merged.diagnostics) replayed.diagnostics.push(d);
   }
 
   /*

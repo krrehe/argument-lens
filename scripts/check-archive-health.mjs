@@ -21,6 +21,8 @@ const types = read('src/shared/types.ts');
 const app = read('src/renderer/src/App.tsx');
 const history = read('src/renderer/src/components/History.tsx');
 const styles = read('src/renderer/src/styles-history.css');
+const diag = read('src/renderer/src/components/Diagnosis.tsx');
+const crossStyles = read('src/renderer/src/styles-coverage.css');
 const workbench = read('src/renderer/public/workbench.html');
 
 let n = 0;
@@ -73,6 +75,36 @@ ck(/state:\s*'missing'/.test(probeBody), '单份探测没有区分「文件不�
 ck(/ipcMain\.handle\('archive:list',\s*\(\)\s*=>\s*listReports\(\)\)/.test(mainIndex), 'archive:list 形状变了，smoke 的独立真值会失效');
 ck(/ipcMain\.handle\('archive:get',\s*\(_e,\s*id:\s*string\)\s*=>\s*getReport\(id\)\)/.test(mainIndex), 'archive:get 形状变了');
 ck(/health:\s*archiveHealth\(\)/.test(mainIndex), '工作台数据没有带上体检结果');
+
+/* ── 4b. 深查发现库：纯读、有坏文件计数、界面真的接了 ── */
+const deepStart = mainIndex.indexOf("ipcMain.handle('archive:deep'");
+const deepEnd = mainIndex.indexOf('\n  });', deepStart);
+const deepBody = deepStart > 0 && deepEnd > deepStart ? mainIndex.slice(deepStart, deepEnd) : '';
+ck(deepBody.length > 100, '主进程没有注册 archive:deep（深查发现库）');
+ck(/reportScan\(\)/.test(deepBody) && /collectDeepFindings\(/.test(deepBody), '发现库没有走同一次目录扫描或没有汇总纯函数');
+ck(noWrite(deepBody), '发现库 handler 里出现了写盘调用；它必须是纯读');
+ck(/badFiles:\s*scan\.badFiles/.test(deepBody), '发现库没有把读不出来的报告份数带回去');
+ck(/deep:\s*\(\):\s*Promise<\{[^}]*DeepArchiveView/.test(preload), 'preload 没有以 DeepArchiveView 暴露 archive.deep()');
+ck(/tab === 'deep'/.test(history) && /data-deep-arc/.test(history), '历史面板没有接上深查发现页签');
+ck(/\.hs-deep-item/.test(styles), '深查发现库的样式没写（或类名改了没同步）');
+
+/* ── 4c. 同一段·多镜：纯读、当前报告一起回、界面真的接了 ── */
+const crossStart = mainIndex.indexOf("ipcMain.handle('archive:cross'");
+const crossEnd = mainIndex.indexOf('\n  });', crossStart);
+const crossBody = crossStart > 0 && crossEnd > crossStart ? mainIndex.slice(crossStart, crossEnd) : '';
+ck(crossBody.length > 100, '主进程没有注册 archive:cross（同一段·多镜）');
+ck(/reportScan\(\)/.test(crossBody) && /crossLensOf\(/.test(crossBody), '多镜没有走同一次目录扫描或没有用纯函数');
+ck(noWrite(crossBody), '多镜 handler 里出现了写盘调用；它必须是纯读');
+ck(/badFiles:\s*scan\.badFiles/.test(crossBody), '多镜没有把读不出来的报告份数带回去');
+ck(/cross:\s*\([\s\S]{0,120}Promise<\{[^}]*CrossLensView/.test(preload), 'preload 没有以 CrossLensView 暴露 archive.cross()');
+ck(/id="sec-crosslens"/.test(diag), '报告里没有接上多镜那一栏');
+const crossTsx = read('src/renderer/src/components/CrossLens.tsx');
+ck(/data-cross-row/.test(crossTsx), '多镜卡片没有逐行探针');
+ck(/data-cross-pick/.test(crossTsx), '没跑过的透镜没有「换过去」的入口');
+ck(/data-cross-open/.test(crossTsx), '多镜行没有「打开那份报告」的入口');
+ck(/onSwitchTheory=\{switchTheory\}/.test(app), 'App 没把换透镜接到多镜栏');
+ck(/onOpenReport=\{openReport\}/.test(app), 'App 没把打开存档接到多镜栏');
+ck(/\.cl-row/.test(crossStyles), '多镜卡片的样式没写（或类名改了没同步）');
 
 /* ── 5. 点开坏报告必须有话说，不能退回 `if (!d) return` ── */
 const openStart = app.indexOf('const openReport = useCallback');

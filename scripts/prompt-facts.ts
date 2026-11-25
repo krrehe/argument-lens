@@ -2,7 +2,7 @@
  * 提示词现场的只读事实层。
  *
  * 为什么要单独抽一层：`npm run prompts`（写导出件）、`npm run prompt:lock`（写基线）、
- * `npm run check:prompt-drift`（只读比对）三处都要知道「当前 30 份提示词到底是什么」。
+ * `npm run check:prompt-drift`（只读比对）三处都要知道「当前 36 份提示词到底是什么」。
  * 三处各装配一遍、各写一份指纹算法，迟早会有两处说的不是同一把尺子——
  * 而这类不一致不报错，只会让检查器拿自己算出来的数去验自己，稳稳地绿。
  *
@@ -56,7 +56,7 @@ export interface PromptFact {
   blockIds: string[];
 }
 
-/** 现场装配 30 份。顺序与 docs/prompts/README.md 的表格一致（透镜 × 模式）。 */
+/** 现场装配 36 份。顺序与 docs/prompts/README.md 的表格一致（透镜 × 模式）。 */
 export function currentFacts(): PromptFact[] {
   const out: PromptFact[] = [];
   for (const t of THEORIES) {

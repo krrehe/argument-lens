@@ -64,7 +64,15 @@ export function DivergenceCard({
       <div className="dv-head">
         <div className="dv-head-t">
           <span className="dv-title">分歧账</span>
-          <span className="dv-sum" data-dv-line title={value ? divergenceLine(value) : undefined}>
+          <span
+            className="dv-sum"
+            data-dv-line
+            title={
+              value
+                ? divergenceLine(value)
+                : '按 v1.1 §4.1，任何一句「这里有问题」都得先交代判定坐标；四格填不出，等于不写法律依据就判决。'
+            }
+          >
             {value ? divergenceLine(value) : '没填：判定坐标四格、收束模式、E4 登记册都没有'}
           </span>
         </div>
@@ -73,9 +81,7 @@ export function DivergenceCard({
         </button>
       </div>
 
-      {!value && !open && (
-        <p className="dv-why">按 v1.1 §4.1，任何一句「这里有问题」都得先交代判定坐标；四格填不出，等于不写法律依据就判决。</p>
-      )}
+      {/* 没填的后果在摘要的 title 上；收起态不再多一段常驻解释。 */}
 
       {open && (
         <div className="dv-body">

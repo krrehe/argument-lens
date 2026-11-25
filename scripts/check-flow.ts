@@ -466,12 +466,12 @@ ok(!/showRef/.test(diagTs), '渲染层不再自己写 showRef');
 ok(/MODE_META\[d\.mode\]\.showsRefute/.test(diagTs), '反驳栏读 MODE_META 那一个开关');
 const typesTs = src('src/shared/types.ts');
 ok(/showsRefute: boolean;/.test(typesTs), '开关定义在 ModeMeta 里');
-ok((typesTs.match(/showsRefute: (true|false),/g) || []).length === 5, '五个模式各有一个取值');
+ok((typesTs.match(/showsRefute: (true|false),/g) || []).length === 6, '六个模式各有一个取值');
 ok(
   MODE_META.fallacy.showsRefute === false && MODE_META.reconstruct.showsRefute === false,
   '这两个模式不给反驳栏：E1 的落点因此不存在，账本也不再给按钮',
 );
-ok(MODE_META.diagnose.showsRefute === true && MODE_META.interrogate.showsRefute === true, '另外三个模式仍然有反驳栏');
+ok(MODE_META.diagnose.showsRefute === true && MODE_META.deep.showsRefute === true && MODE_META.interrogate.showsRefute === true, '另外四个模式仍然有反驳栏');
 
 /* ─────────── 收口 ─────────── */
 

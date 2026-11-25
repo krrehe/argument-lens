@@ -537,3 +537,121 @@
   padding-top: 7px;
   border-top: 1px dashed var(--line-strong);
 }
+
+/* ─────────── 深查发现库（历史面板的第三个页签） ─────────── */
+
+.hs-deep-sum {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 6px 0 2px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.hs-deep-sum b {
+  font-family: var(--mono);
+  color: var(--ink);
+}
+.hs-deep-warn {
+  color: var(--weak);
+}
+.hs-deep-repeat {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.hs-deep-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.hs-deep-chip {
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 16px;
+}
+.hs-deep-chip:hover {
+  background: var(--muted-bg);
+  color: var(--ink);
+}
+.hs-deep-chip.on {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.hs-deep-select,
+.hs-deep-q {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 16px;
+}
+.hs-deep-q {
+  flex: 1 1 180px;
+  min-width: 140px;
+}
+
+.hs-deep-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 9px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.hs-deep-item:hover {
+  background: var(--muted-bg);
+}
+.hs-deep-item .hs-line1 {
+  gap: 8px;
+}
+.hs-deep-st {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.hs-st-confirmed {
+  color: var(--strong);
+}
+.hs-st-weakened {
+  color: var(--weak);
+}
+.hs-st-rejected {
+  color: var(--invalid);
+}
+.hs-st-open,
+.hs-st-unresolved {
+  color: var(--ink-3);
+}
+.hs-deep-kind {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.hs-deep-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.hs-deep-meta {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.hs-deep-quote {
+  font-size: 12px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}

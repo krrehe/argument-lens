@@ -8,6 +8,7 @@
  *   scopeGuard  什么情况下必须判为不适用
  *   checksSpec  checks 数组怎么生成、answer 怎么算
  *   lensShape   lens 对象的 JSON 形状
+ *   deep        深查模式下本透镜优先找什么、可用哪些 theoryRef 锚点
  *
  * 还有一样是可选的：index，该透镜要附的索引材料
  * （型式+CQ 表、十规则表、名录、PTA 特征表）。
@@ -22,5 +23,6 @@ export interface LensFragment {
   scopeGuard: string[];
   checksSpec: string;
   lensShape: string;
+  deep: string;
   index?: string;
 }

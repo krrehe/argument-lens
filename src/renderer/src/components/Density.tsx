@@ -139,7 +139,7 @@ export function DensityBar() {
           完整
         </button>
       </div>
-      <span className="db-note" data-density-line>
+      <span className="db-note" data-density-line title={densityLine(density)}>
         {densityLine(density)}
       </span>
       <details className="db-bounds">
@@ -161,18 +161,15 @@ export function DensityBar() {
  * 摊在第一屏。收成一行，想看尺度、失效条件与出处的人点开就有，字一个没少。
  */
 export function BriefFold({ children }: { children: ReactNode }) {
-  const { density } = useDensity();
+  /*
+   * 默认收起，而且与「简洁 / 完整」解耦。
+   *
+   * 之前完整态会强行展开这一整面说明，同时把折叠入口藏掉——左栏立刻变成
+   * 一大堵字，既收不回去，也看不出报告从哪里开始。完整态要展开的是报告里的
+   * 核对层，不是左栏的透镜说明书；想看尺度与失效条件的人点一下就有。
+   */
   return (
-    /*
-     * key 跟着模式走：切模式时重建一次，开合状态跟着新默认走。
-     * 不跟着每次父组件重渲染走——用户自己点开的那一下不能被覆盖回去。
-     */
-    <details
-      key={density}
-      className="brief-fold"
-      data-brief-fold
-      open={density === PREVIEW_DENSITY}
-    >
+    <details className="brief-fold" data-brief-fold>
       <summary className="bf-sum">这副透镜怎么问 · 点开看尺度、失效条件与出处</summary>
       {children}
     </details>

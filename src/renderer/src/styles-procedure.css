@@ -98,14 +98,6 @@
   background: var(--muted-bg);
 }
 
-.bf-why {
-  margin: 0;
-  padding: 0 11px 9px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--ink-3);
-}
-
 /* 「填了但这份报告还不认」：比常规说明重一档——它不是背景知识，是「你刚才那一下没生效」。 */
 .bf-pend {
   margin: 0;
@@ -502,7 +494,6 @@
   white-space: nowrap;
 }
 
-.dv-why,
 .dv-hint,
 .dv-lead {
   margin: 0;

@@ -330,6 +330,90 @@ select {
   font-weight: 600;
 }
 
+/*
+ * 顶栏「参考」：三条只在核对时打开的入口，收成一个摘要 + 一块弹层。
+ * 闭合时 details 的内容仍在 DOM 里（探针与截图按 data-panel 取得到），
+ * 只是不占顶栏那一行。弹层是唯一允许投影的一类，账单色仍然只用语义层。
+ */
+.ref-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.ref-menu > summary {
+  list-style: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  color: var(--ink-2);
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms, color 150ms;
+}
+
+.ref-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ref-menu > summary::after {
+  content: '▾';
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.ref-menu[open] > summary,
+.ref-menu > summary:hover {
+  background: var(--muted-bg);
+  color: var(--ink);
+}
+
+.ref-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  width: 320px;
+  padding: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--panel);
+  box-shadow: var(--shadow-popover);
+}
+
+.ref-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms, color 150ms;
+}
+
+.ref-item:hover {
+  background: var(--muted-bg);
+}
+
+.ref-k {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ref-s {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
 /* ═══════ 透镜条 ═══════ */
 
 .lens-bar {
@@ -340,6 +424,132 @@ select {
   border-bottom: 1px solid var(--line);
   overflow-x: auto;
   flex: 0 0 auto;
+}
+
+/* 六块并排时，行首得有一句话说明它们是什么；不加底色，避免又长出一条标签。 */
+.lens-k {
+  flex: 0 0 auto;
+  align-self: center;
+  padding-right: 4px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  white-space: nowrap;
+  cursor: help;
+}
+
+/*
+ * 当前透镜 + 「换一副」。默认只占一行；点开后六颗芯片以网格铺在下面，
+ * 不合并、不翻译，也不把六副压成一个可比较的总分。
+ */
+.lens-pick {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lens-pick > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--ink);
+  list-style: none;
+  cursor: pointer;
+  transition: background-color 150ms, color 150ms;
+}
+
+.lens-pick > summary::-webkit-details-marker {
+  display: none;
+}
+
+.lens-pick > summary:hover,
+.lens-pick[open] > summary {
+  background: var(--muted-bg);
+}
+
+.lens-cur {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 判定单元只在一行里出现：太长时省略，完整句在摘要的 title 上。 */
+.lens-cur-u {
+  display: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+:root[data-density='full'] .lens-cur-u {
+  display: inline;
+}
+
+.lens-swap {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.lens-swap::after {
+  content: '▾';
+  margin-left: 4px;
+}
+
+.lens-pick[open] .lens-swap::after {
+  content: '▴';
+}
+
+.lens-menu {
+  margin-top: 6px;
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--line);
+}
+
+.lens-note {
+  margin: 0 0 6px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.lens-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+/* 六副透镜是同一层级的六个选择：窄窗两列、中窗三列、宽窗一行六列，
+   不让最后一块单独掉到第二行。 */
+@media (min-width: 900px) {
+  .lens-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .lens-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* 菜单里的芯片按格子铺，不再按 168px 定宽；单元最多两行，便于横向比较。 */
+.lens-grid .lens-chip {
+  width: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.lens-grid .lens-chip .u {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
 }
 
 .lens-chip {
@@ -407,6 +617,31 @@ select {
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+/*
+ * 窄窗口把左栏收窄，而不是把报告栏压成一条缝。
+ *
+ * 默认窗口 1380 在 150% 缩放下只有约 920 CSS px；再留 400 给左栏，
+ * 708 的读列连左右留白都放不下。这里只改两处宽度，不藏任何一栏。
+ */
+@media (max-width: 1280px) {
+  .side {
+    width: 340px;
+    flex: 0 0 340px;
+  }
+  .main {
+    padding: 16px 16px 52px;
+  }
+}
+@media (max-width: 1120px) {
+  .side {
+    width: 300px;
+    flex: 0 0 300px;
+  }
+  .main {
+    padding: 14px 12px 48px;
+  }
 }
 
 .side-head {
@@ -506,6 +741,48 @@ select {
   font-size: 12px;
   color: var(--ink-3);
   line-height: 1.6;
+}
+
+/*
+ * 左栏的「跑过的样本与同题复跑」折叠。
+ * 两栏内部各有自己的「看明细」，这里只负责把这一组历史统计收成一行摘要；
+ * 展开后仍是侧栏宽度内的两条账，不改任何数字与说明。
+ */
+.runs-fold {
+  flex: 0 0 auto;
+}
+
+.runs-fold > summary {
+  list-style: none;
+  padding: 2px 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.runs-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.runs-fold > summary::before {
+  content: '▸';
+  margin-right: 6px;
+}
+
+.runs-fold[open] > summary::before {
+  content: '▾';
+}
+
+.runs-fold > summary:hover {
+  color: var(--accent);
+}
+
+.runs-fold-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 2px;
 }
 
 /*
@@ -3876,6 +4153,101 @@ table.grid > caption.grid-note {
   font-size: 12px;
   color: var(--ink-3);
   letter-spacing: 0.06em;
+}
+
+/* ─────────── 报告头工具行 ─────────── */
+/*
+ * 文字/地图、阅读层级并排成一行；导出与三种换屏读法收进下面那条「更多」。
+ * 这里只做排布，不改两组控件自己的样子——层级按钮仍按 data-density 取。
+ */
+.rep-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+
+.rep-tools .mp-switch {
+  padding: 0;
+}
+
+/* 视图说明在文字模式里不占一行；地图模式仍保留「滚轮缩放」那句。 */
+.rep-tools .mp-switch-note {
+  display: none;
+}
+
+.rep-tools .density-bar {
+  flex: 1 1 320px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  gap: 8px;
+}
+
+.rep-tools .db-note {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * 「导出与另几种读法」：一条摘要换原来两排按钮。
+ * 摘要做成轻按钮（透明底、hairline 边），展开后内容不再套底色，
+ * 免得 exp-bar / rr-bar 各自的斑马底叠成两层。
+ */
+.rep-more {
+  margin-bottom: 12px;
+}
+
+.rep-more > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 1.6;
+  cursor: pointer;
+  transition: background-color 150ms, color 150ms;
+}
+
+.rep-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.rep-more > summary::before {
+  content: '▸';
+  color: var(--ink-3);
+}
+
+.rep-more[open] > summary::before {
+  content: '▾';
+}
+
+.rep-more > summary:hover {
+  background: var(--muted-bg);
+  color: var(--ink);
+}
+
+.rep-more-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.rep-more-body .exp-bar,
+.rep-more-body .rr-bar {
+  margin: 0;
 }
 
 /* ─────────── 导出条 ─────────── */

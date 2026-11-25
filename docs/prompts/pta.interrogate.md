@@ -1,6 +1,6 @@
 # 提示词：型式周期表三特征（提问模式）
 
-> Periodic Table of Arguments (PTA)｜模式：提问（interrogate）｜版本：v3.0.0
+> Periodic Table of Arguments (PTA)｜模式：提问（interrogate）｜版本：v3.2.0
 > 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：不替你下结论，只给你一串可以直接问出口的问题。
 > 判定单元：三个正交特征：阶（一阶／二阶）× 轴（谓词／主词）× 陈述类型（事实／价值／政策）

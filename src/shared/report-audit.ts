@@ -60,7 +60,18 @@ export function auditReport(d: Diagnosis): ReportAudit {
   const gaps: string[] = [];
   const notes: string[] = [];
   const claims = claimsOf(d);
-  const ids = new Set(claims.map((x) => x?.id).filter(Boolean));
+  const claimIds = new Set(claims.map((x) => x?.id).filter(Boolean));
+  /*
+   * 反驳与「此处合法」的落点有两种：一条主张，或一条检查项。
+   *
+   * 真实评测里模型会写 `targetId: "T-warrant"` / `"CQ5"`——那是 Toulmin 与
+   * 型式—CQ 的检查项编号，不是悬空引用。界面里的 `locationLabel` 与论证地图
+   * 都把检查项当合法落点解析；审计只认主张的话，会把真实存在的检查项报成
+   * 结构矛盾。假警报比漏报更糟：它会训练读者忽略这一栏。
+   * 正文里「切断 P1 与 C」那种引用仍只认主张（见下面第五节的 claimIds）。
+   */
+  const checkIds = new Set((d.checks ?? []).map((c) => c?.id).filter(Boolean));
+  const targetIds = new Set([...claimIds, ...checkIds]);
 
   /* ── 一 · 结论 ── */
   if (!d.conclusion?.text?.trim()) inv.push('结论为空');
@@ -202,7 +213,7 @@ export function auditReport(d: Diagnosis): ReportAudit {
   const mentioned = new Set(
     (d.defeat.cuts + ' ' + d.repair.missingPremise + ' ' + d.verdict.statement).match(/\b[PIM]\d+\b/g) ?? []
   );
-  const dangling = [...mentioned].filter((x) => !ids.has(x));
+  const dangling = [...mentioned].filter((x) => !claimIds.has(x));
   if (dangling.length) inv.push(`正文引用了不存在的主张编号 ${dangling.join('、')}`);
 
   /* ── 六 · 反驳与命名 ── */
@@ -226,7 +237,7 @@ export function auditReport(d: Diagnosis): ReportAudit {
      * 一条会把合法情况报成缺陷的断言，比没有断言更糟：它会训练人忽略报警。
      * 所以这一栏空着就空着，界面显示「未注明」，不解释、不算缺口。
      */
-    if (r.targetId && !ids.has(r.targetId)) inv.push(`反驳 ${r.id} 指向不存在的 ${r.targetId}`);
+    if (r.targetId && !targetIds.has(r.targetId)) inv.push(`反驳 ${r.id} 指向不存在的 ${r.targetId}`);
   }
   /*
    * 命名缺门槛字段：G4 本该拦掉这些条目不让显示，能走到这里说明 G4 漏了。
@@ -239,10 +250,34 @@ export function auditReport(d: Diagnosis): ReportAudit {
     }
   }
   for (const m of d.legitimateMoves) {
-    if (m.targetId && !ids.has(m.targetId)) inv.push(`「此处合法」指向不存在的 ${m.targetId}`);
+    if (m.targetId && !targetIds.has(m.targetId)) inv.push(`「此处合法」指向不存在的 ${m.targetId}`);
   }
 
-  /* ── 七 · 语境 ── */
+  /*
+   * ── 七 · 深查账本 ──
+   *
+   * 只核账本自己的形状：id 是否重复、每条有没有可回的位置、理论依据是否真的存在、
+   * 标了站住/削弱/推翻的有没有第二遍的反驳。**不判发现对不对**——那是模型写的候选。
+   * 落点/引文/理论依据对不上记 gaps：读者会觉得这条发现没落稳，但报告结构没坏。
+   */
+  if (d.deep) {
+    const deepIds = new Set<string>();
+    for (const f of d.deep.findings) {
+      if (deepIds.has(f.id)) inv.push(`深查发现 id 重复：${f.id}`);
+      deepIds.add(f.id);
+      if (!f.title.trim()) inv.push(`深查发现 ${f.id} 没有标题`);
+      if (!f.targetOk && !f.quoteOk) gaps.push(`深查发现 ${f.id} 没有能回到原文或报告的位置`);
+      if (!f.theoryOk) gaps.push(`深查发现 ${f.id} 的理论依据 ${f.theoryRef || '（空）'} 在主张库里找不到`);
+      if ((f.status === 'confirmed' || f.status === 'weakened' || f.status === 'rejected') && !f.challenge.trim()) {
+        inv.push(`深查发现 ${f.id} 标成「${f.status}」却没有第二遍的最强反驳`);
+      }
+    }
+    if (!d.deep.findings.length && !d.deep.unlocated.length) {
+      gaps.push('深查没有产出可复核的发现');
+    }
+  }
+
+  /* ── 八 · 语境 ── */
   if (!d.context.issue.trim() || d.context.issue.startsWith('（未能')) inv.push('争议之点没识别出来');
   if (d.scope.applicable && !d.context.dialogueTypeBasis.trim()) inv.push('对话类型没给依据');
 

@@ -12,6 +12,15 @@ import { highlightParts, parseTerms, WHERE_LABEL } from '@shared/archive-search'
 import { LEVEL_LABEL, THEORY_BY_ID } from '@shared/theories';
 import { objectionFieldName } from '@shared/objection';
 import { formatMoney } from '@shared/tokens';
+import {
+  DEEP_KINDS,
+  DEEP_KIND_LABEL,
+  DEEP_STATUSES,
+  DEEP_STATUS_LABEL,
+  type DeepKind,
+  type DeepStatus,
+} from '@shared/deep';
+import type { DeepArchiveView } from '@shared/deep-archive';
 
 /**
  * 历史面板。
@@ -34,9 +43,20 @@ import { formatMoney } from '@shared/tokens';
 interface Props {
   onOpen: (id: string) => void;
   onClose: () => void;
+  /** 预览页用：直接打开某个页签，省得为了拍一张图先点一下。 */
+  initialTab?: 'reports' | 'objections' | 'deep';
 }
 
-type Tab = 'reports' | 'objections';
+type Tab = 'reports' | 'objections' | 'deep';
+
+/** 终态到样式类的静态映射：拼 `st-${status}` 会让样式检查器只看到一个残缺类名。 */
+const DEEP_ST_CLASS: Record<DeepStatus, string> = {
+  confirmed: 'hs-st-confirmed',
+  weakened: 'hs-st-weakened',
+  rejected: 'hs-st-rejected',
+  open: 'hs-st-open',
+  unresolved: 'hs-st-unresolved',
+};
 
 /** 坏文件的三种原因说成人话，且与主进程 `ArchiveIssueKind` 一一对应。 */
 const ISSUE_LABEL: Record<ArchiveIssueKind, string> = {
@@ -58,8 +78,8 @@ export function when(at: number): string {
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日 ${hm}`;
 }
 
-export function HistoryPanel({ onOpen, onClose }: Props) {
-  const [tab, setTab] = useState<Tab>('reports');
+export function HistoryPanel({ onOpen, onClose, initialTab = 'reports' }: Props) {
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [list, setList] = useState<ReportMeta[]>([]);
   const [stats, setStats] = useState<ObjectionStat[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -75,6 +95,17 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
   const [found, setFound] = useState<ArchiveFind | null>(null);
   const [finding, setFinding] = useState(false);
   const [findError, setFindError] = useState<string | null>(null);
+  /*
+   * 深查发现库。与报告列表分开取：它要读全部报告，比列表重；
+   * 只有切到这个 tab 才读，读完缓存，不跟着搜索框重扫。
+   */
+  const [deepView, setDeepView] = useState<DeepArchiveView | null>(null);
+  const [deepErr, setDeepErr] = useState<string | null>(null);
+  const [deepBad, setDeepBad] = useState(0);
+  const [deepLoading, setDeepLoading] = useState(false);
+  const [deepStatus, setDeepStatus] = useState<'all' | DeepStatus>('all');
+  const [deepKind, setDeepKind] = useState<'all' | DeepKind>('all');
+  const [deepQ, setDeepQ] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -210,14 +241,56 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
             : 'none'
           : 'pending';
 
+  /*
+   * 深查发现库按需读一次。读失败要说出来：空表会被读成「没有发现」，
+   * 而那与「读不出来」是两件事。
+   */
+  const loadDeep = () => {
+    if (deepLoading) return;
+    setDeepLoading(true);
+    setDeepErr(null);
+    window.api.archive
+      .deep()
+      .then((r) => {
+        setDeepView(r.view);
+        setDeepErr(r.dirError);
+        setDeepBad(r.badFiles);
+      })
+      .catch((e: Error) => setDeepErr(e?.message ?? '原因不明'))
+      .finally(() => setDeepLoading(false));
+  };
+
+  /* 预览页可以直接落在「深查发现」页签；真机上它只是一个默认值。 */
+  useEffect(() => {
+    if (initialTab === 'deep' && !deepView && !deepLoading) loadDeep();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTab]);
+
+  const deepShown = useMemo(() => {
+    const needle = deepQ.trim();
+    return (deepView?.items ?? []).filter(
+      (x) =>
+        (deepStatus === 'all' || x.status === deepStatus) &&
+        (deepKind === 'all' || x.kind === deepKind) &&
+        (!needle || `${x.title} ${x.detail} ${x.quote} ${x.passageHead}`.includes(needle)),
+    );
+  }, [deepView, deepStatus, deepKind, deepQ]);
+
+  /*
+   * 反复出现的类型由纯函数排好，界面只画。
+   * 这里不按相关度重排——历史列表的先后必须仍是时间。
+   */
+  const deepRepeat = deepView?.repeats ?? [];
+
   return (
     <div className="mask" onClick={onClose}>
-      <div className="dialog hs-dialog" role="dialog" aria-label="历史与我的判断" onClick={(e) => e.stopPropagation()}>
+      <div className="dialog hs-dialog" role="dialog" aria-label="历史、我的判断与深查发现" onClick={(e) => e.stopPropagation()}>
         <div className="hs-head">
           <div className="hs-title">历史</div>
           <div className="hs-tabs">
             <button
               className={`hs-tab ${tab === 'reports' ? 'on' : ''}`}
+              data-hs-tab="reports"
               title={hasProblem ? `列表里能读到的 ${list.length} 份；另有 ${problemCount} 处对不上，见下方体检` : undefined}
               onClick={() => setTab('reports')}
             >
@@ -226,8 +299,23 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
                 {searching && finding ? `…/${list.length}` : searching ? `${shown.length}/${list.length}` : list.length}
               </span>
             </button>
-            <button className={`hs-tab ${tab === 'objections' ? 'on' : ''}`} onClick={() => setTab('objections')}>
+            <button
+              className={`hs-tab ${tab === 'objections' ? 'on' : ''}`}
+              data-hs-tab="objections"
+              onClick={() => setTab('objections')}
+            >
               我不同意过 <span className="hs-n">{stats.length}</span>
+            </button>
+            <button
+              className={`hs-tab ${tab === 'deep' ? 'on' : ''}`}
+              data-hs-tab="deep"
+              onClick={() => {
+                setTab('deep');
+                if (!deepView && !deepLoading) loadDeep();
+              }}
+              title="历次深查找出来的问题，按状态与类型汇总；点一条回到那份报告"
+            >
+              深查发现 <span className="hs-n">{deepView ? deepView.total : '…'}</span>
             </button>
           </div>
           <div className="hs-spacer" />
@@ -509,6 +597,117 @@ export function HistoryPanel({ onOpen, onClose }: Props) {
                 打开异议文件夹
               </button>
             </div>
+          </div>
+        )}
+
+        {tab === 'deep' && (
+          <div className="hs-body">
+            <p className="hs-note">
+              本机所有深查报告里的发现，按时间从新到旧汇总。<b>只汇总已落盘的账本</b>，不重新分析，
+              也不判发现真假；点一条回到那份报告，发现栏在报告最前面。
+            </p>
+
+            {deepLoading && !deepView && <p className="hs-empty">正在读本机存档…</p>}
+            {deepErr && (
+              <p className="hs-empty">
+                读不出来：{deepErr}。这不是「没有发现」，是这次没读到；可以关上再开一次。
+              </p>
+            )}
+
+            {!deepErr && deepView && (
+              <>
+                <div className="hs-deep-sum" data-deep-sum>
+                  <span><b>{deepView.reports}</b> 份深查报告</span>
+                  <span><b>{deepView.total}</b> 条发现</span>
+                  <span><b>{deepView.unlocated}</b> 条落不到原文</span>
+                  {deepBad > 0 && <span className="hs-deep-warn">另有 {deepBad} 份读不出来</span>}
+                </div>
+                {deepRepeat.length > 0 && (
+                  <p className="hs-deep-repeat" data-deep-repeat>
+                    反复出现：
+                    {deepRepeat.map((x, i) => (
+                      <span key={x.kind}>
+                        {i > 0 ? '、' : ''}
+                        {DEEP_KIND_LABEL[x.kind]}（{x.reports} 份）
+                      </span>
+                    ))}
+                  </p>
+                )}
+
+                {deepView.total === 0 ? (
+                  <p className="hs-empty" data-deep-empty>
+                    还没有深查发现。在分析页把模式切到「深查」跑一段；旧报告没有账本，不会被补造。
+                  </p>
+                ) : (
+                  <>
+                    <div className="hs-deep-filters">
+                      <button
+                        className={`hs-deep-chip ${deepStatus === 'all' ? 'on' : ''}`}
+                        onClick={() => setDeepStatus('all')}
+                      >
+                        全部 {deepView.total}
+                      </button>
+                      {DEEP_STATUSES.map((s) => (
+                        <button
+                          key={s}
+                          className={`hs-deep-chip ${deepStatus === s ? 'on' : ''}`}
+                          onClick={() => setDeepStatus(s)}
+                        >
+                          {DEEP_STATUS_LABEL[s]} {deepView.byStatus[s]}
+                        </button>
+                      ))}
+                      <select
+                        className="hs-deep-select"
+                        value={deepKind}
+                        onChange={(e) => setDeepKind(e.target.value as 'all' | DeepKind)}
+                        aria-label="按发现类型筛选"
+                      >
+                        <option value="all">所有类型</option>
+                        {DEEP_KINDS.map((k) => (
+                          <option key={k} value={k}>
+                            {DEEP_KIND_LABEL[k]}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        className="hs-deep-q"
+                        value={deepQ}
+                        onChange={(e) => setDeepQ(e.target.value)}
+                        placeholder="找标题、引文或原文"
+                        aria-label="在深查发现里查找"
+                      />
+                    </div>
+
+                    <div className="hs-list">
+                      {deepShown.map((x) => (
+                        <button
+                          key={`${x.reportId}-${x.findingId}`}
+                          className="hs-deep-item"
+                          data-deep-arc={`${x.reportId}-${x.findingId}`}
+                          onClick={() => onOpen(x.reportId)}
+                          title="打开这份报告；深查发现是报告第一节"
+                        >
+                          <span className="hs-line1">
+                            <span className={`hs-deep-st ${DEEP_ST_CLASS[x.status]}`}>
+                              {DEEP_STATUS_LABEL[x.status]}
+                            </span>
+                            <span className="hs-deep-kind">{DEEP_KIND_LABEL[x.kind]}</span>
+                            <b className="hs-deep-title">{x.title}</b>
+                          </span>
+                          <span className="hs-deep-meta">
+                            {when(x.at)} ·{' '}
+                            {THEORY_BY_ID[x.theory as keyof typeof THEORY_BY_ID]?.name ?? x.theory} ·{' '}
+                            {x.passageHead || '（原文为空）'}
+                          </span>
+                          {x.quote && <span className="hs-deep-quote">「{x.quote}」</span>}
+                        </button>
+                      ))}
+                      {deepShown.length === 0 && <p className="hs-empty">没有符合筛选的发现。</p>}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

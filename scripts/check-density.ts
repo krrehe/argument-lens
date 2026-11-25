@@ -125,7 +125,10 @@ ok(density.includes("window.addEventListener('al:reveal', onReveal)"), '目录�
 ok(density.includes('data-density="compact"') && density.includes('data-density="full"'), '两个按钮都按名字可点');
 ok(density.includes('DENSITY_BOUNDS.map'), '三条边界印在工具条里，不是只在文档里');
 ok(density.includes('@allow-silent:'), '读写本机偏好的 catch 写了理由');
-ok(density.includes('open={density === PREVIEW_DENSITY}'), '透镜说明在完整态展开');
+ok(
+  density.includes('data-brief-fold') && !density.includes('open={density === PREVIEW_DENSITY}'),
+  '透镜说明默认收起，完整态也不再强行展开'
+);
 
 const overview = src('src/renderer/src/components/Overview.tsx');
 ok(overview.includes("new CustomEvent('al:reveal'"), '点「跳到」会派发展开事件');
@@ -145,6 +148,10 @@ ok(mock.includes('<BriefFold>'), '预览页左栏同样可收起');
 
 const css = src('src/renderer/src/styles-density.css');
 ok(css.includes('.block.is-collapsed > .block-body'), '折叠规则指向 block-body');
+ok(
+  !css.includes(":root[data-density='full'] .brief-fold > .bf-sum"),
+  '完整态保留左栏说明的收起入口，不再把标题行藏掉'
+);
 /*
  * 只查「文件里有没有 display: none」是假绿：同一份样式表里别处也写着它
  * （完整态藏左栏 summary 那一条），折叠规则改成 display: block 照样全绿。
@@ -156,7 +163,7 @@ ok(
   !!foldRule && !/display:\s*block/.test(foldRule[1]),
   '折叠态不许把正文照常显示出来',
 );
-ok(css.includes(":root[data-density='full']"), '完整态有专门规则不额外多一行');
+ok(!css.includes("data-density='full'"), '完整态没有藏内容的专门规则');
 ok(!/^\s*:root\s*\{/m.test(css), '没有冒出第二份 :root 变量定义');
 for (const cls of [
   'density-bar',
@@ -302,6 +309,14 @@ ok(
 ok(
   /#__alNav \.ni\{[^}]*?font:11\.5px/.test(nav),
   '目录条目 11.5px：11px 在窄栏里偏小（体检确认项）',
+);
+ok(
+  nav.includes('window.innerWidth < 1200') && nav.includes('fitNav();'),
+  '窄窗自动收起目录，正文不再被 232px 的浮层压成一条缝',
+);
+ok(
+  nav.includes('body.al-nav-min .main{padding-right:52px}'),
+  '目录收起成竖条后，正文仍让出 52px，最后几个字不被盖住',
 );
 
 /* 截断必须配 title：字被省略号吃掉又没有 title，等于把话删了。 */

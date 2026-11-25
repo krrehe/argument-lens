@@ -1,6 +1,6 @@
 # 提示词：教科书名录对照（提问模式）
 
-> Textbook Fallacy Catalogue｜模式：提问（interrogate）｜版本：v3.0.0
+> Textbook Fallacy Catalogue｜模式：提问（interrogate）｜版本：v3.2.0
 > 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：不替你下结论，只给你一串可以直接问出口的问题。
 > 判定单元：名录中的一个条目名

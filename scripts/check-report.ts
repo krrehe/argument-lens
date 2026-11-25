@@ -16,8 +16,13 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { auditReport } from '@shared/report-audit';
+import { collectDeepFindings } from '@shared/deep-archive';
+import { crossLensOf } from '@shared/cross-lens';
+import type { AgreementItem } from '@shared/agreement';
+import { PROMPT_BASELINE } from '@shared/prompt-history';
+import { selfAuditOf } from '@shared/self-audit';
 import type { Diagnosis } from '@shared/types';
-import { checkItem, claim, diag, labelItem, refutation } from './fixture-report';
+import { checkItem, claim, diag, deepFinding, labelItem, refutation } from './fixture-report';
 
 let passed = 0;
 const failed: string[] = [];
@@ -30,6 +35,11 @@ function ok(cond: boolean, label: string, detail = ''): void {
 /** 断言不变量里出现了某段字样。抓的是「规则有没有响」，不是措辞。 */
 function has(d: Diagnosis, needle: string): boolean {
   return auditReport(d).invariants.some((x) => x.includes(needle));
+}
+
+/** 断言缺口里出现了某段字样。 */
+function hasGap(d: Diagnosis, needle: string): boolean {
+  return auditReport(d).gaps.some((x) => x.includes(needle));
 }
 
 const NOTHING_REFUTED = { scale: '量表', scaleValue: '', level: 'weakened' as const, statement: '', qualification: '', whatIsRefuted: 'argument-only' as const };
@@ -132,6 +142,90 @@ ok(
 
 ok(has(diag({ refutations: [refutation('R1', 'P7')] }), '指向不存在的 P7'), '反驳指向不存在的主张 → 报');
 
+/* ── 深查账本：只核形状，不判发现真假 ── */
+ok(
+  !has(diag({ mode: 'deep', deep: { findings: [deepFinding()], unlocated: [] } }), '深查'),
+  '深查：账本齐全时不报'
+);
+ok(
+  has(
+    diag({
+      mode: 'deep',
+      deep: { findings: [deepFinding({ challenge: '', status: 'confirmed' })], unlocated: [] },
+    }),
+    '最强反驳'
+  ),
+  '深查：标了站住却没写最强反驳 → 报'
+);
+ok(
+  hasGap(
+    diag({
+      mode: 'deep',
+      deep: { findings: [deepFinding({ targetOk: false, quoteOk: false })], unlocated: [] },
+    }),
+    '没有能回到原文'
+  ),
+  '深查：落点与引文都指不到 → 记缺口'
+);
+ok(
+  hasGap(
+    diag({ mode: 'deep', deep: { findings: [deepFinding({ theoryOk: false })], unlocated: [] } }),
+    '理论依据'
+  ),
+  '深查：理论依据对不上 → 记缺口'
+);
+ok(
+  has(
+    diag({
+      mode: 'deep',
+      deep: { findings: [deepFinding(), deepFinding()], unlocated: [] },
+    }),
+    'id 重复'
+  ),
+  '深查：id 重复 → 报'
+);
+ok(
+  hasGap(diag({ mode: 'deep', deep: { findings: [], unlocated: [] } }), '没有产出'),
+  '深查：空账本 → 记缺口'
+);
+
+/*
+ * 反驳与「此处合法」的落点可以是一条检查项，不只是主张。
+ * 真实评测里 T-warrant / CQ5 这类检查项被模型当成落点，界面用
+ * `locationLabel` 与论证地图都能解析到；审计若只认主张，就会把
+ * 真实存在的检查项报成悬空引用——这正是「假警报训练人忽略报警」。
+ */
+ok(
+  !has(
+    diag({
+      checks: [checkItem('CQ1', 'passed', '相关这一事实本身')],
+      refutations: [refutation('R1', 'CQ1')],
+    }),
+    '指向不存在的'
+  ),
+  '反驳指向真实检查项 → 不报'
+);
+
+ok(
+  !has(
+    diag({
+      checks: [checkItem('CQ1', 'passed', '相关这一事实本身')],
+      legitimateMoves: [
+        {
+          targetId: 'CQ1',
+          quote: '取消早读之后一本率下降',
+          what: '把相关当成因果这一步被文本自己限定了',
+          why: '作者紧接着写了「也可能有别的因素」，没有把相关说成因果',
+          tag: 'inferred',
+          confidence: 'medium',
+        },
+      ],
+    }),
+    '指向不存在的'
+  ),
+  '「此处合法」指向真实检查项 → 不报'
+);
+
 ok(
   has(
     diag({
@@ -174,12 +268,236 @@ ok(has(diag({ context: { ...good.context, issue: '（未能确定争议之点）
   ok(!a.invariants.some((i) => i.includes('证据')), '没写要什么证据不算矛盾');
 }
 
+/* ── 二·五 · 深查发现库：只汇总、不重判 ── */
+
+{
+  const a = diag({
+    id: 'a',
+    createdAt: 10,
+    mode: 'deep',
+    passage: '  第一段   原文  ',
+    deep: {
+      findings: [deepFinding({ id: 'D1', status: 'confirmed' })],
+      unlocated: [{ title: '候选', detail: '细节', why: '指不到' }],
+    },
+  });
+  const b = diag({
+    id: 'b',
+    createdAt: 20,
+    mode: 'deep',
+    passage: '第二段',
+    deep: {
+      findings: [deepFinding({ id: 'D2', kind: 'scope', status: 'weakened', title: '第二条' })],
+      unlocated: [],
+    },
+  });
+  const v = collectDeepFindings([a, b, diag({ id: 'c' })]);
+
+  ok(v.reports === 2, '发现库只数有深查账本的报告');
+  ok(v.total === 2, '发现库汇总全部发现');
+  ok(v.items[0].reportId === 'b' && v.items[0].findingId === 'D2', '发现库按报告时间从新到旧');
+  ok(v.unlocated === 1, '发现库把落不到原文的候选单独计数');
+  ok(v.byStatus.confirmed === 1 && v.byStatus.weakened === 1, '发现库按终态计数');
+  ok(v.byKind['cq-gap'] === 1 && v.byKind.scope === 1, '发现库按类型计数');
+  ok(v.items[1].passageHead === '第一段 原文', '发现库的原文开头折叠空白');
+
+  /*
+   * 反复出现按「报告份数」算，不按发现条数：同一份报告写三条同类型，
+   * 只说明那一份漏得多；两份报告各有一条，才叫反复出现。
+   */
+  const d = diag({
+    id: 'd',
+    createdAt: 30,
+    deep: { findings: [deepFinding({ id: 'D3' })], unlocated: [] },
+  });
+  const repeat = collectDeepFindings([a, b, d]);
+  ok(repeat.byKindReports['cq-gap'] === 2, '同一类型出现在两份报告里 → 记两份');
+  ok(repeat.byKindReports['scope'] === 1, '只出现一份的类型不虚报重复');
+  ok(repeat.repeats[0]?.kind === 'cq-gap' && repeat.repeats[0]?.reports === 2, '反复出现按报告份数排序，只列 ≥2 份的类型');
+}
+
+/* ── 二·六 · 自省：只汇总四类来源，不另判一遍 ── */
+
+{
+  const base = diag();
+  const withSelf = diag({
+    selfCheck: { ...base.selfCheck, unknowns: ['不知道机制那一环'], withdrawIf: ['如果原文给出机制'] },
+  });
+  const a = selfAuditOf(withSelf);
+  ok(
+    a.items.some((x) => x.source === 'model' && x.kind === 'unknown' && x.text.includes('机制')),
+    '自省把模型写的「不知道」原样摆出'
+  );
+  ok(a.items.some((x) => x.source === 'model' && x.kind === 'withdraw'), '自省把模型写的撤回条件原样摆出');
+  ok(!a.items.some((x) => x.kind === 'no-withdraw'), '模型写了自省条件 → 不补「没写」');
+
+  const silent = selfAuditOf(diag({ selfCheck: { ...base.selfCheck, unknowns: [], withdrawIf: [] } }));
+  ok(silent.items.some((x) => x.kind === 'no-withdraw'), '模型没写撤回条件 → 自省照实说没写');
+
+  const broken = diag({ conclusion: { ...base.conclusion, text: '  ' } });
+  const b = selfAuditOf(broken);
+  ok(
+    auditReport(broken).invariants.length > 0 && b.items.some((x) => x.source === 'local' && x.kind === 'invariant'),
+    '自省把本地数的结构矛盾摆出来'
+  );
+
+  const gap = diag({ refutations: [refutation('R1', 'C', { steelman: '' })] });
+  const c = selfAuditOf(gap);
+  ok(
+    auditReport(gap).gaps.length > 0 && c.items.some((x) => x.source === 'local' && x.kind === 'gap'),
+    '自省把本地数的缺口摆出来'
+  );
+
+  const deep = diag({
+    mode: 'deep',
+    verdict: { ...base.verdict, level: 'withstands' },
+    deep: {
+      findings: [deepFinding({ id: 'D1', status: 'weakened' }), deepFinding({ id: 'D2', status: 'rejected' })],
+      unlocated: [{ title: '指不到原文的候选', detail: '细节', why: '引文没落点' }],
+    },
+  });
+  const e = selfAuditOf(deep);
+  ok(e.items.some((x) => x.source === 'deep' && x.kind === 'unlocated'), '自省把落不到原文的候选摆出来');
+  ok(
+    e.items.some((x) => x.kind === 'weakened') && e.items.some((x) => x.kind === 'rejected'),
+    '自省把被削弱与被推翻分开摆'
+  );
+  ok(e.items.some((x) => x.kind === 'tension'), '全部发现被削弱/推翻而判读仍站住 → 自省指出两层并列');
+
+  ok(
+    selfAuditOf(base).items.some((x) => x.source === 'provenance' && x.kind === 'version'),
+    '报告没记版本 → 自省把版本不可复核摆出来'
+  );
+
+  /*
+   * 版本与指纹都对得上时不能再报一条：自省只报本地能证实的脱节，
+   * 否则每份新报告都会多一条「版本问题」，读者很快就不看了。
+   */
+  const same = diag({
+    mode: 'deep',
+    prompt: { version: PROMPT_BASELINE.version, fingerprint: PROMPT_BASELINE.fingerprints['walton.deep'] },
+  });
+  ok(
+    !selfAuditOf(same).items.some((x) => x.source === 'provenance'),
+    '版本与指纹都对得上 → 不自造一条版本问题'
+  );
+
+  const f = selfAuditOf(deep);
+  ok(f.items.length === f.model + f.local + f.deep + f.provenance, '自省的分来源计数与条目数一致');
+  ok(JSON.stringify(selfAuditOf(deep)) === JSON.stringify(selfAuditOf(deep)), '同一份报告两次自省结果全等');
+}
+
+/* ── 二·七 · 同一段 · 多镜：只并列，不投票 ── */
+
+{
+  const passage = '  同一段   文字 ';
+  const mk = (
+    id: string,
+    theory: string,
+    at: number,
+    patch: Partial<Diagnosis> = {},
+    mode = 'diagnose'
+  ): AgreementItem => ({
+    id,
+    at,
+    mode,
+    theory,
+    version: '3.2.0',
+    fingerprint: 'fp',
+    passage,
+    report: diag({ theory: theory as Diagnosis['theory'], ...patch }),
+  });
+  const waltonOld = mk('w1', 'walton', 10, {
+    overall: {
+      summary: '',
+      strongest: null,
+      weakest: { at: 'P1', what: '旧的一处', why: '' },
+      ifOneChange: null,
+    },
+  });
+  const waltonNew = mk('w2', 'walton', 20, {
+    overall: {
+      summary: '',
+      strongest: null,
+      weakest: { at: 'C', what: '新的一处', why: '' },
+      ifOneChange: null,
+    },
+  });
+  const toulmin = mk('t1', 'toulmin', 15, {
+    checks: [checkItem('T1', 'unanswered', '担保'), checkItem('T2', 'violated', '反驳')],
+  });
+  const notApplicable = mk('n1', 'copi', 25, {
+    scope: { applicable: false, reason: '这段是口号，不是论证', outOfScopeAt: null, partialNote: null },
+  });
+  const deep = mk('d1', 'pragma', 30, {}, 'deep');
+  const otherPassage = { ...mk('o1', 'copi', 40), passage: '别的原文' };
+  const view = crossLensOf(passage, 'diagnose', [
+    waltonOld,
+    waltonNew,
+    toulmin,
+    notApplicable,
+    deep,
+    otherPassage,
+  ]);
+
+  ok(view.rows.length === 3, '多镜只数同原文、同模式的报告');
+  ok(view.rows[0].theory === 'walton' && view.rows[0].weak === '新的一处', '同一副透镜取最近一份');
+  ok(view.rows[0].checks.total === 0, '检查项计数来自各自报告');
+  ok(
+    view.rows[1].theory === 'toulmin' &&
+      view.rows[1].weak.includes('被削弱') &&
+      view.rows[1].weakKind === 'verdict',
+    '没写整体分析时退回判读句'
+  );
+  ok(view.rows[0].weakKind === 'weakest', '有整体分析时取「最弱的一处」');
+  ok(
+    view.rows[1].checks.unanswered === 1 && view.rows[1].checks.violated === 1,
+    '未答与未过的检查项分开数'
+  );
+  ok(
+    view.rows[2].applicable === false &&
+      view.rows[2].reason.includes('口号') &&
+      view.rows[2].weak === '' &&
+      view.rows[2].weakKind === 'none',
+    '判了不适用的透镜不把理由当成「最弱的一处」'
+  );
+  ok(view.rows[2].checks.total === 0, '不适用的透镜不数检查项');
+  ok(view.missing.some((x) => x.theory === 'pragma'), '没跑过的透镜单列，不补假报告');
+  ok(/不换算档位|不投票/.test(view.line), '多镜总述写明不换算、不投票');
+  ok(/其中 1 副判了「不适用」/.test(view.line), '多镜总述把不适用单独说出来');
+  ok(/不可换算/.test(view.caveat), '并列不等于互相证实');
+
+  const current = diag({
+    id: 'cur',
+    theory: 'walton',
+    mode: 'diagnose',
+    createdAt: 30,
+    passage,
+    overall: {
+      summary: '',
+      strongest: null,
+      weakest: { at: 'C', what: '屏幕上这一处', why: '' },
+      ifOneChange: null,
+    },
+  });
+  const v2 = crossLensOf(passage, 'diagnose', [waltonNew, toulmin], current);
+  ok(v2.rows[0].weak === '屏幕上这一处', '当前报告比存档新时用当前的');
+
+  ok(crossLensOf('别的一段', 'diagnose', [waltonNew]).rows.length === 0, '原文不同 → 不误配');
+  ok(
+    JSON.stringify(
+      crossLensOf(passage, 'diagnose', [waltonOld, waltonNew, toulmin, notApplicable, deep, otherPassage])
+    ) === JSON.stringify(view),
+    '同一批报告两次多镜对照结果全等'
+  );
+}
+
 /* ── 四 · 确定性 ── */
 
 ok(JSON.stringify(auditReport(good)) === JSON.stringify(auditReport(good)), '同一份报告两次自检结果全等');
 
 /* 断言总数兜底：少跑就是静默跳过 */
-ok(passed >= 21, '断言总数不少于 21 项', `实际 ${passed}`);
+ok(passed >= 60, '断言总数不少于 60 项', `实际 ${passed}`);
 
 /* ── 五 · 真实报告现状（只打印，不断言） ── */
 

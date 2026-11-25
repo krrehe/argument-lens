@@ -22,6 +22,7 @@ import { LEDGER_ISOLATION, rowLine } from './ledger';
 import { pivotOf } from './pivot';
 import { flowOf } from './flow';
 import { briefGaps, briefLine } from './brief';
+import { deepMarkdown } from './deep';
 import {
   closureLabel,
   divergenceCaveats,
@@ -33,6 +34,7 @@ import {
 } from './divergence';
 import { prescriptionsOf } from './prescriptions';
 import { promptHistoryMarkdown, promptHistoryOf } from './prompt-history';
+import { SELF_AUDIT_KIND_LABEL, SELF_AUDIT_SOURCE_LABEL, selfAuditOf } from './self-audit';
 import { digestOf, type DigestNode } from './digest';
 import { revisionShortfall } from './overall';
 import { LEVEL_LABEL, THEORY_BY_ID } from './theories';
@@ -122,6 +124,33 @@ function digestMarkdown(d: Diagnosis): string[] {
     '> 这条链按报告里每条主张「支撑谁」排；一条理由同时支撑多处时只挂在第一处，其余位置在下面的「依据」与检查项里能查到。总结只压缩报告已有字段，不另评一句。'
   );
 
+  return out;
+}
+
+/**
+ * 自省：导出件里的同一份账。
+ *
+ * 只排 `selfAuditOf` 已经算好的四类线索，不在这里补一句「所以不可信」。
+ * 只有深查报告才有这一节：普通诊断没有深查账本，给它一块自省只会变成第二份评价。
+ */
+function selfAuditMarkdown(d: Diagnosis): string[] {
+  if (d.mode !== 'deep') return [];
+  const v = selfAuditOf(d);
+  if (!v.items.length) return [];
+  const out: string[] = [
+    '## 自省',
+    '',
+    '> 这是自省，不是判决：模型自认的、本地数的、深查账本里留下的分开摆；软件不另加一条判断。',
+    '',
+    `- ${v.line}`,
+    '',
+  ];
+  for (const x of v.items) {
+    out.push(
+      `- **${SELF_AUDIT_SOURCE_LABEL[x.source]} · ${SELF_AUDIT_KIND_LABEL[x.kind]}**　${oneLine(x.text)}`
+    );
+    if (x.detail) out.push(`  - ${oneLine(x.detail)}`);
+  }
   return out;
 }
 
@@ -222,6 +251,20 @@ export function reportToMarkdown(d: Diagnosis): string {
       out.push(`**如果只改一处${c.at ? `（${c.at}）` : ''}**：${oneLine(c.change)}${c.because ? `　——　${oneLine(c.because)}` : ''}`);
       out.push('');
     }
+  }
+
+  /* ── 深查发现 ── */
+  const deepMd = deepMarkdown(d.deep);
+  if (deepMd) {
+    out.push(deepMd);
+    out.push('');
+  }
+
+  /* ── 自省：紧跟深查账本，因为它一条来源就是那本账 ── */
+  const saMd = selfAuditMarkdown(d);
+  if (saMd.length) {
+    out.push(...saMd);
+    out.push('');
   }
 
   /* ── 范围：不适用就到此为止 ── */

@@ -83,6 +83,7 @@
     "check:pivot": "node scripts/run-check-pivot.mjs",
     "check:digest": "node scripts/run-check-digest.mjs",
     "check:overall": "node scripts/run-check-overall.mjs",
+    "check:map": "node scripts/run-check-map.mjs",
     "check:flow": "node scripts/run-check-flow.mjs",
     "check:divergence": "node scripts/run-check-divergence.mjs",
     "check:density": "node scripts/run-check-density.mjs",

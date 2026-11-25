@@ -15,7 +15,7 @@
  *
  * 改动提示词后必须走完三件事，顺序不能换：先在 registry.ts 换 PROMPT_VERSION 并
  * 在 PROMPT_VERSION_NOTE 最前面加一行（首行以新版本号开头），再 `npm run prompts`
- * 重新导出三十份全文、`npm run prompt:lock` 更新基线，最后 `npm run prompt:lint`
+ * 重新导出三十六份全文、`npm run prompt:lock` 更新基线，最后 `npm run prompt:lint`
  * 与 `npm run verify`（含 `check:prompt-drift`）。少一步会由检查器当场指出，
  * 完整理由见 docs/提示词工程.md 第九节。
  */

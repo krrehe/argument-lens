@@ -1,6 +1,6 @@
 # 提示词：ARS 三标准（诊断模式）
 
-> Acceptability · Relevance · Sufficiency｜模式：诊断（diagnose）｜版本：v3.0.0
+> Acceptability · Relevance · Sufficiency｜模式：诊断（diagnose）｜版本：v3.2.0
 > 判定类：给档位。
 > 这一份问的是：判断这段话站不站得住。
 > 判定单元：单个前提上的一个标准，或单条推理链接上的一个标准

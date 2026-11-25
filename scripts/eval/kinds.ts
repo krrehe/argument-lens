@@ -164,4 +164,8 @@ export const KINDS_BY_CASE: Record<string, KindId[]> = {
   'product-manual': ['scope'],
   'user-interviews': ['sample', 'normative'],
   'hoa-letter': ['overdiagnosis'],
+
+  /* 第六个模式（深查）的语料：换两个新场景，避免与已有段共享写法 */
+  'deep-lab-meeting': ['causal', 'warrant'],
+  'deep-policy-note': ['causal', 'selection'],
 };

@@ -17,7 +17,7 @@ import { digestOf } from '@shared/digest';
 import { prescriptionsOf } from '@shared/prescriptions';
 import { markdownFileName, reportToMarkdown } from '@shared/report-markdown';
 import type { Diagnosis } from '@shared/types';
-import { checkItem, claim, diag, labelItem, refutation } from './fixture-report';
+import { checkItem, claim, deepFinding, diag, labelItem, refutation } from './fixture-report';
 
 let passed = 0;
 const failed: string[] = [];
@@ -179,6 +179,28 @@ ok(!md.includes('这条只是提示'), 'info 级诊断不进导出件', '记流�
   ok(offAt > 0 && offAt < offMd2.indexOf('## 这副透镜在本文本上不适用'), '不适用时也有总结，且排在「不适用」之前');
 }
 
+/* ── 七之三 · 自省：只跟着深查账本走 ── */
+
+/*
+ * 自省是给深查报告补的一层，不是给每份报告加的一段自我评价。
+ * 两条边界一起验：深查导出件必须把来源分开写清；普通诊断不许凭空多出一节。
+ */
+{
+  const deepMdFull = reportToMarkdown(
+    diag({
+      mode: 'deep',
+      deep: {
+        findings: [deepFinding({ id: 'D1', status: 'weakened' })],
+        unlocated: [{ title: '指不到原文的候选', detail: '细节', why: '引文没落点' }],
+      },
+    })
+  );
+  ok(deepMdFull.includes('## 自省'), '深查导出件有自省一节');
+  ok(deepMdFull.includes('模型自认') && deepMdFull.includes('深查账本'), '自省按来源分栏，不揉成一句话');
+  ok(/这是自省，不是判决/.test(deepMdFull), '导出件写明自省不是判决');
+  ok(!md.includes('## 自省'), '普通诊断不凭空多出一节自省');
+}
+
 /* ── 八 · 不适用：不许假装分析过 ── */
 
 {
@@ -233,7 +255,7 @@ ok(markdownFileName(full).endsWith('.md'), '文件名以 .md 结尾');
 ok(!/\n{3,}/.test(md), '没有连续空行堆出的空洞', '空段会被读成「这里本来该有东西」');
 
 /* 断言总数兜底：少跑就是静默跳过 */
-ok(passed >= 62, '断言总数不少于 62 项', `实际 ${passed}`);
+ok(passed >= 70, '断言总数不少于 70 项', `实际 ${passed}`);
 
 if (failed.length) {
   console.error(`\n✗ 导出件检查失败 ${failed.length} 项（通过 ${passed} 项）`);

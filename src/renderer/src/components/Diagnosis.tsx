@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   MODE_META,
   type AnalysisMode,
@@ -11,7 +11,7 @@ import {
   type Span,
 } from '@shared/types';
 import { ACCEPT_PILL, ANSWER_CLASS, ANSWER_LABEL, BURDEN_LABEL, CONF_LABEL, STRATEGY_LABEL, TAG_LABEL } from '@shared/labels';
-import { LEVEL_LABEL, THEORY_BY_ID } from '@shared/theories';
+import { LEVEL_LABEL, THEORY_BY_ID, type TheoryId } from '@shared/theories';
 import { DISPUTE_BY_ID, DISPUTE_SECTION, disputesIn, type DisputeId } from '@shared/disputes';
 import { topicsOf, type TopicHit } from '@shared/topics';
 import { academicOf, BY_TOOL_LABEL, type AcademicView, type ByTool } from '@shared/academic';
@@ -33,6 +33,7 @@ import { DivergenceView } from './DivergenceCard';
 import { PromptHistoryCard } from './PromptHistory';
 import { RefuteMap, RepairMap } from './DiagramMore';
 import { ViewBar, readStoredViews, writeStoredViews } from './ViewBar';
+import { ArgumentMapView, ReportSurfaceSwitch } from './ArgumentMap';
 import { crossNote, toneAudit } from '@shared/modal';
 import { VIEW_ORDER, normalizeViews, sanitizeViews, viewsOf, type ViewId, type ViewSpec } from '@shared/views';
 import { DisputeStrip, focusDispute } from './Disputes';
@@ -62,6 +63,12 @@ import { SchemeCqCard } from './SchemeCqCard';
 import { auditLine, rhetoricExpected } from '@shared/rhetoric';
 import { FieldTermsBar } from './FieldTermsBar';
 import { DensityBar, useDensity } from './Density';
+import { DeepFindings } from './DeepFindings';
+import { SelfAuditCard } from './SelfAudit';
+import { CrossLensCard } from './CrossLens';
+import { selfAuditOf } from '@shared/self-audit';
+import type { CrossLensView } from '@shared/cross-lens';
+import { deepLine } from '@shared/deep';
 import { isLedgerSection, sectionKey } from '@shared/ui-density';
 
 /* ═══════ 通用小件 ═══════ */
@@ -732,7 +739,7 @@ function CheckTable({ checks, sel }: { checks: CheckItem[]; sel: string | null }
       </thead>
       <tbody>
         {checks.map((c) => (
-          <tr key={c.id} className={sel === `#${c.id}` ? 'hit' : undefined}>
+          <tr key={c.id} id={`check-${c.id}`} className={sel === `#${c.id}` ? 'hit' : undefined}>
             <td className="id">{c.id}</td>
             <td className="q">
               {c.label}
@@ -1222,6 +1229,33 @@ const MODE_SECTIONS: Record<
     repairSub: '判完必须回答「怎么补」',
     repairPlain: '怎么把这段话补成站得住的版本。只判不补，等于把人拦在门口不告诉他往哪走。',
   },
+  /*
+   * 深查的第一遍就是诊断，所以判定、此处合法、反驳、修补的抬头与诊断同义；
+   * 它多出来的「深查发现」由独立区块承担，不在这张措辞表里。
+   */
+  deep: {
+    bannerClass: '',
+    verdictTitle: '判读',
+    verdictSub: (tName, scale) => `${tName}｜刻度：${scale}`,
+    verdictPlain:
+      '先说结论：这段论证站不站得住；以及这个结论只伤到他的论证，还是连他要你信的那句话一起否定了。这两件事差得很远。',
+    legitTitle: '此处合法',
+    legitSub: '清单法缺的那一栏',
+    legitPlain: '他做得对的地方。一个只会挑错的分析没法用——它会把对方做对的地方也算成错。',
+    legitEmpty: '本次未找到「此处合法」的位置。可能确实没有，也可能没认真找——后者是清单法的老毛病。',
+    labelTitle: '命名候选',
+    labelSub: '末端注释，不是判定；三条门槛齐备才显示',
+    labelPlain:
+      '教材里可能对得上的名字。给名字是有代价的，所以每条都附了「什么时候其实合法」和「这条判断最可能错在哪」。',
+    labelEmpty: '',
+    refTitle: '反驳',
+    refSub: (n) => `${n} 条，均带对方最强回击`,
+    refPlain:
+      '可以直接拿去说的话。每条都先替对方想了最能打的回击，并写了我方怎么接——不然你拿着它去，一句话就被人打回。',
+    refEmpty: '本次未生成反驳。',
+    repairSub: '判完必须回答「怎么补」',
+    repairPlain: '怎么把这段话补成站得住的版本。只判不补，等于把人拦在门口不告诉他往哪走。',
+  },
   redteam: {
     bannerClass: 'rt-banner',
     verdictTitle: '对手会打哪里',
@@ -1532,6 +1566,9 @@ export function DiagnosisView({
   initialPicked,
   initialTerms,
   initialTermsWords,
+  initialMap,
+  onSwitchTheory,
+  onOpenReport,
 }: {
   d: Diagnosis;
   /**
@@ -1567,8 +1604,47 @@ export function DiagnosisView({
   /** 预览页专用：展开「这一圈的词」并预填演示词，好让默认收起的那一栏有截图入口。 */
   initialTerms?: boolean;
   initialTermsWords?: string;
+  /** 预览页专用：直接开在论证地图，好让这一屏有截图入口。真应用默认是文字。 */
+  initialMap?: boolean;
+  /** 多镜栏里点一副没跑过的透镜：只切换透镜，不自动重跑。 */
+  onSwitchTheory?: (id: TheoryId) => void;
+  /** 多镜栏里打开另一份存档报告。 */
+  onOpenReport?: (id: string) => void;
 }) {
   const [sel, setSel] = useState<string | null>(null);
+  /*
+   * 同一段文字下，六副透镜各盯住了哪里。
+   *
+   * 只在真应用里取：预览页的 window.api 没有这条只读路径，取不到就整块不显示。
+   * 取的是存档里的历史报告，不调模型、不重跑；当前这份一起传过去，
+   * 免得刚跑完还没入索引时看到旧的一份。
+   */
+  const [cross, setCross] = useState<CrossLensView | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const api = window.api?.archive;
+    if (!api?.cross) return;
+    api
+      .cross(d)
+      .then((r) => {
+        if (alive) setCross(r.view);
+      })
+      .catch(() => {
+        // @allow-silent: 跨透镜对照是阅读辅助；取不到时整块不显示，报告本身仍完整可读。
+        if (alive) setCross(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [d]);
+  /**
+   * 报告是读字还是看图。
+   *
+   * 默认永远是文字：升级不能替读者改掉原来的阅读顺序。地图是一条**替代**
+   * 渲染分支（正文不挂载），不是报告里多出来的一节——两套东西同时在场时，
+   * 目录会指向看不见的区块。
+   */
+  const [surface, setSurface] = useState<'text' | 'map'>(initialMap ? 'map' : 'text');
   /**
    * 这次看哪几张图。
    *
@@ -1740,6 +1816,55 @@ export function DiagnosisView({
   };
 
   /*
+   * 深查账本里的落点与引文点进来：只导航与高亮，不改报告。
+   * 落点按编号分两类：C/P/I 回重构卡或原文标记，CQ/检查项回逐关检查。
+   * 指不到就退回那一节，不做「点了没反应」的假按钮。
+   */
+  const locateDeepTarget = (id: string) => {
+    if (!id) return;
+    if (id === 'C' || /^[PI]\d+$/.test(id)) {
+      setSel(id);
+      const mark = document.querySelector(`.passage mark[data-claim="${id}"]`);
+      if (mark) {
+        mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      const card = document.getElementById(`cl-${id}`);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      jumpTo('sec-structure');
+      return;
+    }
+    setSel(`#${id}`);
+    const row = document.getElementById(`check-${id}`);
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    jumpTo('sec-checks');
+  };
+  const locateDeepQuote = (quote: string) => {
+    const q = quote.trim();
+    if (!q) return;
+    const hit = [d.conclusion, ...d.intermediate, ...d.premises].find(
+      (c) => c?.quote && (c.quote.includes(q) || q.includes(c.quote))
+    );
+    if (hit) {
+      locateDeepTarget(hit.id);
+      return;
+    }
+    jumpTo('sec-passage');
+  };
+
+  /*
+   * 自省只在深查报告里出现：它读的是深查账本、第二遍终态与模型自检。
+   * 普通诊断没有深查账本，硬给它一块「自省」只会变成第二份自我评价。
+   */
+  const selfAudit = d.mode === 'deep' ? selfAuditOf(d) : null;
+
+  /*
    * 点开之后是**换一屏**，不是在报告末尾再添一段。
    * 报告本身一个字没动，回来时它还在原处。
    */
@@ -1747,6 +1872,15 @@ export function DiagnosisView({
   if (rescale) return <RescaleScreen d={d} initialPairs={initialPairs} onBack={() => setRescale(false)} />;
   if (conditions) {
     return <ConditionScreen passage={d.passage ?? ''} initialItems={initialItems} onBack={() => setConditions(false)} />;
+  }
+
+  if (surface === 'map') {
+    return (
+      <>
+        <ReportSurfaceSwitch surface={surface} onChange={setSurface} />
+        <ArgumentMapView key={d.id} d={d} />
+      </>
+    );
   }
 
   return (
@@ -1758,6 +1892,50 @@ export function DiagnosisView({
             {MODE_META[mode].banner}
           </div>
         </div>
+      )}
+
+      {/*
+        深查发现放在最前：它回答的是「这份诊断漏了什么」，
+        而下面的总结与逐条分析回答的是「这份诊断写了什么」。
+        没有 deep 的旧报告不长这一块；深查模式却没有账本时，也要把「没写」说出来。
+      */}
+      {d.mode === 'deep' && (
+        <Block
+          id="sec-deep"
+          title="深查发现"
+          sub={d.deep ? deepLine(d.deep) ?? '这一遍没有产出可复核的发现' : '这一遍没有返回发现账本'}
+          plain="第二遍找出来的候选：每条都指回原文或检查项，并在第二遍里挨过一次最强反驳。"
+        >
+          {d.deep ? (
+            <DeepFindings
+              key={d.id}
+              d={d}
+              deep={d.deep}
+              onOpenClaim={onOpenClaim}
+              onLocate={locateDeepTarget}
+              onLocateQuote={locateDeepQuote}
+            />
+          ) : (
+            <p className="dp-caveat">
+              这一遍没有返回发现账本，下面只是第一遍诊断；空着不是「没有问题」，是这一次没有写下来。
+            </p>
+          )}
+        </Block>
+      )}
+
+      {/*
+        自省紧跟在深查发现之后：先看「这一遍漏了什么」，再看「这份报告自己哪里可能错」。
+        没有线索时整块不出现——不摆一个「暂无自省」的空壳。
+      */}
+      {selfAudit && selfAudit.items.length > 0 && (
+        <Block
+          id="sec-selfaudit"
+          title="自省"
+          sub={selfAudit.line}
+          plain="模型自己承认的不知道、本地数出的结构问题、深查账本里的未落点与被削弱，分来源摆在一起。这里不新增判断，也不给可信度打分。"
+        >
+          <SelfAuditCard view={selfAudit} />
+        </Block>
       )}
 
       {/*
@@ -1791,16 +1969,24 @@ export function DiagnosisView({
       </Part>
 
       {/*
-        阅读层级放第一行：一进报告就得知道「还有一整层核对栏被收着」，
-        也知道怎么一次叫回来。它不替代导出条，不占导出条的位置。
+        一行换掉原来四条各自占位的带：文字/地图、阅读层级、导出、换屏读。
+        它们默认各占一行，读者还没读到第一节就先遇到四排按钮。
+        现在视图与层级并排，导出与三种换屏读法收进下面那条「更多」。
+        主线（上面那条总结）仍压在它们之前：先读判断，再决定带走还是换一种读法。
       */}
-      <DensityBar />
+      <div className="rep-tools" data-rep-tools>
+        <ReportSurfaceSwitch surface={surface} onChange={setSurface} />
+        <DensityBar />
+      </div>
 
       {/*
-        导出条放在最前，理由不是显眼，是它服务于「读完就走」的那一半用法：
-        报告再细，也只有少数人会一直开着窗口；多数人是看完、带走、在自己的写作软件里改。
-        放在最前面，意味着不用滚到底也能找到它。
+        导出与换屏读都是「读完之后要做的事」，不是读报告的前提。
+        收进一个默认合着的 details：摘要占一行，展开后四颗导出键、
+        三颗换屏读键与原来说明逐字不变。放在报告头部，不用滚到底。
       */}
+      <details className="rep-more" data-rep-more>
+        <summary>导出与另几种读法</summary>
+        <div className="rep-more-body">
       <div className="exp-bar">
         <button className="exp-btn" onClick={() => doExport('md')} disabled={exp.kind === 'busy'}>
           {exp.kind === 'busy' && exp.fmt === 'md' ? '正在导出…' : '导出为 Markdown'}
@@ -1880,6 +2066,8 @@ export function DiagnosisView({
           {rrWhy}
         </span>
       </div>
+        </div>
+      </details>
 
       {/* 先说清这份报告里的判断是谁写的，再往下读。默认只占两行，清单要点开。 */}
       <SourceBar d={d} />
@@ -1948,6 +2136,7 @@ export function DiagnosisView({
         }
       >
       <Block
+        id="sec-passage"
         title="原文"
         sub="点黄色处 → 上面定位条和图上一起亮；虚线句是报告没引用的"
         plain="他自己写的话。黄色是被拆出来的句子，点一下就知道它在结构图里是哪一格；上面那排编号是报告对这句话的读法，虚线是他没用到的话。"
@@ -2004,6 +2193,26 @@ export function DiagnosisView({
               这份报告没有给出整体分析（提示词 v3.0.0 起要求这一栏）。本地不补写——补出来的「整体判断」没有位置，读起来像一句通用评价。
             </p>
           )}
+        </Block>
+      )}
+      {/*
+        同一段文字跑过多副透镜时，才摆这一栏：只并列每副报告写下的「最弱的一处」。
+        它不显示档位、不排序、不投票——那些都会造出一个报告没做过的判断。
+        少于两副时整块不出现：一份报告自己跟自己没有对照可言。
+      */}
+      {cross && cross.rows.length >= 2 && (
+        <Block
+          id="sec-crosslens"
+          title="同一段，别的透镜看到什么"
+          sub={`${cross.rows.length} 副透镜跑过这段文字`}
+          plain="只并列每副透镜报告里写下的「最弱的一处」（没写就退到判读句）；不换算档位、不投票、不排名。换一副透镜不是换一个更准的答案，是换一双看不同地方的眼睛。"
+        >
+          <CrossLensCard
+            view={cross}
+            currentId={d.id}
+            onPickTheory={onSwitchTheory}
+            onOpenReport={onOpenReport}
+          />
         </Block>
       )}
       {pivot.rows.length > 0 && (

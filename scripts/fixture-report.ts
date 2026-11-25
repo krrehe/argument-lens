@@ -17,6 +17,7 @@ import type {
   LabelCandidate,
   Refutation,
 } from '@shared/types';
+import type { DeepFinding } from '@shared/deep';
 
 export function checkItem(id: string, answer: CheckAnswer, guards: string, label = id): CheckItem {
   return {
@@ -61,6 +62,27 @@ export function refutation(id: string, targetId: string, patch: Partial<Refutati
     burdenAfter: 'proponent',
     tag: 'argued',
     confidence: 'medium',
+    ...patch,
+  };
+}
+
+/** 一条深查发现。默认落点/引文/理论依据都对得上，方便只改一处来测坏法。 */
+export function deepFinding(patch: Partial<DeepFinding> = {}): DeepFinding {
+  return {
+    id: 'D1',
+    kind: 'cq-gap',
+    title: '报告没有问机制这一问',
+    detail: '这一段的相关—因果型式还差「机制」；报告只问了相关与第三因素。',
+    targetId: 'C',
+    quote: '取消早读之后',
+    theoryRef: 'T1-01',
+    method: 'lens-cq',
+    ifChanged: '如果原文给出了机制，这条就不成立。',
+    challenge: '原文可能已经用别的话交代了机制。',
+    status: 'confirmed',
+    targetOk: true,
+    quoteOk: true,
+    theoryOk: true,
     ...patch,
   };
 }

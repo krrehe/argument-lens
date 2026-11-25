@@ -2,7 +2,7 @@
  * 「这把尺子」：提示词版本、指纹与变更注记的只读追溯层。
  *
  * 这一关最要紧的不是「有没有这一栏」，而是**别让它假装能复核历史**。
- * 报告里存着三个月前那次装配的指纹，可本机只留有当前装机版的全文与 30 份指纹；
+ * 报告里存着三个月前那次装配的指纹，可本机只留有当前装机版的全文与 36 份指纹；
  * 拿今天的指纹去比旧报告，比出来的「不一致」是废话，还容易读成旧报告坏了。
  * 四种坏法逐条守：
  *
@@ -137,7 +137,7 @@ for (let i = 0; i < PROMPT_VERSION_NOTE.length; i++) {
   ok(PROMPT_BASELINE.notes[i] === PROMPT_VERSION_NOTE[i], `基线注记第 ${i + 1} 行与源码逐字相同`);
 }
 ok(PROMPT_BASELINE.notes[0]?.startsWith(PROMPT_VERSION) === true, '基线注记首行以当前版本号开头');
-ok(Object.keys(PROMPT_BASELINE.fingerprints).length === 30, '基线正好 30 份指纹');
+ok(Object.keys(PROMPT_BASELINE.fingerprints).length === 36, '基线正好 36 份指纹');
 for (const t of THEORIES) {
   for (const m of ANALYSIS_MODES) {
     const key = `${t.id}.${m}`;
@@ -236,7 +236,7 @@ const leaked = promptFiles.filter((p) => /PromptHistory|prompt-history|这把尺
 ok(leaked.length === 0, '提示词一个字没动：版本追溯不进模型上下文', leaked.join(','));
 const docFiles = readdirSync(resolve(process.cwd(), 'docs/prompts')).filter((n) => n.endsWith('.md'));
 const leakedDocs = docFiles.filter((n) => /这把尺子|sec-prompt-history/.test(src(`docs/prompts/${n}`)));
-ok(leakedDocs.length === 0, '三十份导出全文里没有这一栏的字', leakedDocs.join(','));
+ok(leakedDocs.length === 0, '三十六份导出全文里没有这一栏的字', leakedDocs.join(','));
 
 /* ─────────── 检查器自身 ─────────── */
 

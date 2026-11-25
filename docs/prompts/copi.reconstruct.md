@@ -1,6 +1,6 @@
 # 提示词：教科书名录对照（重构模式）
 
-> Textbook Fallacy Catalogue｜模式：重构（reconstruct）｜版本：v3.0.0
+> Textbook Fallacy Catalogue｜模式：重构（reconstruct）｜版本：v3.2.0
 > 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：先别判。把这段话拆成结构图，看清它靠什么撑着。
 > 判定单元：名录中的一个条目名

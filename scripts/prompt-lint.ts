@@ -324,6 +324,24 @@ const CONSUMED = [
 
   const unconsumed = CONSUMED.filter((k) => !keys.has(k));
   ok(unconsumed.length === 0, '代码读的字段提示词都承诺了', `提示词未提：${unconsumed.join('、')}`);
+
+  /*
+   * deep 必须是根对象里的字段。共享 schema 没有它时，模型会把 deep 拼在
+   * 根对象后面，extractJson 只取第一个配平对象，账本整块丢掉——诊断看起来还完全正常。
+   * 这条断言就是那次真模型评测抓到的失效的看门人。
+   */
+  const deepPrompt = buildPrompt('walton', 'deep');
+  const diagPrompt = buildPrompt('walton', 'diagnose');
+  ok(/"deep"\s*:\s*\{/.test(deepPrompt.system), '深查 schema 把 deep 写进根对象');
+  ok(!/"deep"\s*:\s*\{/.test(diagPrompt.system), '非深查 schema 不出现 deep');
+  ok(
+    /"theoryRef"/.test(deepPrompt.system) && /T3-02/.test(deepPrompt.system) && /本透镜的深查清单/.test(deepPrompt.system),
+    '深查提示词给出本透镜的 theoryRef 锚点（不是只举例一个）',
+  );
+  ok(
+    /T1-08/.test(buildPrompt('toulmin', 'deep').system) && !/T1-08/.test(deepPrompt.system),
+    '不同透镜的深查清单不同（toulmin 的锚点不是 walton 的副本）',
+  );
 }
 
 /* ── 5. 采样与预算 ── */

@@ -205,3 +205,33 @@
   outline: 2px solid var(--color-link-blue);
   outline-offset: 1px;
 }
+
+/* ── 简洁态：骨架全部保留，只把留白压掉一档 ───────────────────
+ * 封面的 96px 与 emoji 的 64px 是文档页的形态；但它们是装饰，
+ * 不是这份报告的第一句话。简洁态把这两处收小，标题与状态不动，
+ * 让「一 总结」早一屏出现。完整态与预览页的旧截图不受影响。 */
+:root[data-density='compact'] .doc-cover {
+  height: 64px;
+}
+
+:root[data-density='compact'] .doc-emoji {
+  width: 44px;
+  height: 44px;
+  margin-top: var(--spacing-8);
+  font-size: 24px;
+}
+
+:root[data-density='compact'] .doc-subtitle {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: var(--spacing-8);
+}
+
+:root[data-density='compact'] .doc-meta {
+  padding-bottom: var(--spacing-8);
+}
+
+:root[data-density='compact'] .doc-callout {
+  margin: var(--spacing-12) var(--spacing-8);
+  padding: var(--spacing-8) var(--spacing-12);
+}

@@ -1,6 +1,6 @@
 # 提示词：教科书名录对照（红队模式）
 
-> Textbook Fallacy Catalogue｜模式：红队（redteam）｜版本：v3.0.0
+> Textbook Fallacy Catalogue｜模式：红队（redteam）｜版本：v3.2.0
 > 判定类：给档位。
 > 这一份问的是：同一套型式与问题，换个方向问：他会怎么打你。
 > 判定单元：名录中的一个条目名

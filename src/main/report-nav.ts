@@ -34,6 +34,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
     /* 目录 232px + right 18px + 间隙 16px = 266px：正文补偿必须跟着宽度走，
        改宽度不改补偿会遮住正文最后几个字。这条等式由 check:density 守着。 */
     'body.al-nav-open .main{padding-right:266px}',
+    'body.al-nav-min .main{padding-right:52px}',
     '#__alNav{position:fixed;right:18px;top:56px;bottom:54px;width:232px;z-index:2147483000;display:flex;flex-direction:column;background:rgba(255,255,255,.97);border:1px solid #ded9cd;border-radius:8px;box-shadow:0 6px 22px rgba(45,40,30,.10);font:11.5px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#4a453c;overflow:hidden}',
     '#__alNav .nh{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid #ece7dc;flex:none}',
     '#__alNav .nh b{font-weight:600;font-size:11.5px;letter-spacing:.03em;flex:1;white-space:nowrap}',
@@ -94,6 +95,8 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
   }
 
   var panel = el('div'); panel.id = ID;
+  /* null = 跟随窗口宽度；true / false = 用户自己点过收起或展开，之后不再自动改。 */
+  var userMin = null;
   var head = el('div', 'nh');
   var title = el('b', '', '报告目录');
   var minBtn = el('button', '', '›');
@@ -488,11 +491,34 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
   }
 
   /* 目录是浮层，会压住右侧正文；展开时让主区自己让出这条宽度。
-     收起 / 空态时立刻还原，报告一个字都不用改写。 */
+     收起 / 空态时立刻还原，报告一个字都不用改写。
+     收起态也不是完全不占地方：右侧那 34px 的竖条仍会压住正文最后几个字，
+     所以另给一条 52px 的补偿（34 + right 18），两条不会同时生效。 */
   function syncBody(){
-    var open = HEADS.length > 0 && !panel.classList.contains('al-nav-min');
+    var min = HEADS.length > 0 && panel.classList.contains('al-nav-min');
+    var open = HEADS.length > 0 && !min;
     document.body.classList.toggle('al-nav-open', open);
+    document.body.classList.toggle('al-nav-min', min);
   }
+
+  /*
+   * 窄窗自动收起目录。
+   *
+   * 232px 的目录加上 34px 补偿，在 1200 以下的窗口里会把正文压成一条缝；
+   * 而这份界面的默认窗口在 150% 缩放下本来就不到 1000 CSS px。收起后
+   * 只剩右侧 34px 的竖条，点它仍能展开；用户一旦自己点过，就不再自动改。
+   */
+  function fitNav(){
+    if (HEADS.length === 0 || userMin !== null) return;
+    var narrow = window.innerWidth < 1200;
+    var min = panel.classList.contains('al-nav-min');
+    if (narrow === min) return;
+    panel.classList.toggle('al-nav-min', narrow);
+    minBtn.textContent = narrow ? '‹' : '›';
+    minBtn.title = narrow ? '展开目录' : '收起目录';
+    syncBody();
+  }
+  window.addEventListener('resize', fitNav);
 
   function scan(fresh){
     /* 报告换了（或区块重排）就退出逐节读。不恢复 SAVED：逐节读期间没写盘，
@@ -532,6 +558,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
       return;
     }
     panel.style.display = ''; syncBody();
+    fitNav();
     list.textContent = '';
     loadFold(!!fresh);
     hs.forEach(function(h, i){
@@ -609,6 +636,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
 
   minBtn.onclick = function(){
     var min = panel.classList.toggle('al-nav-min');
+    userMin = min;
     minBtn.textContent = min ? '‹' : '›';
     minBtn.title = min ? '展开目录' : '收起目录';
     syncBody();
@@ -617,6 +645,7 @@ export const REPORT_NAV_SCRIPT = String.raw`(function(){
   try {
     if (localStorage.getItem('alNavMin') === '1') {
       panel.classList.add('al-nav-min');
+      userMin = true;
       minBtn.textContent = '‹'; minBtn.title = '展开目录';
     }
   } catch (e) { /* @allow-silent: 读不到上次收起状态就用默认展开，不影响阅读 */ }

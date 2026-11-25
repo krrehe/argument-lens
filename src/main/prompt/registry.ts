@@ -26,7 +26,7 @@ import { blocksFor, REQUIRED_BLOCKS, type PromptBlock } from './blocks';
  * 每次改动提示词都必须改这里，并写清改了什么（见 docs/提示词工程.md 的变更表）。
  */
 
-export const PROMPT_VERSION = '3.0.0';
+export const PROMPT_VERSION = '3.2.0';
 
 /**
  * 变更记录。每次改版本号都要在这里留一行，说清改了什么、为什么。
@@ -36,6 +36,25 @@ export const PROMPT_VERSION = '3.0.0';
  * 没有这份记录，半年后有人会把它当冗余删掉，然后同一个 bug 再发生一次。
  */
 export const PROMPT_VERSION_NOTE: string[] = [
+  '3.2.0 深查按透镜分清单：每副透镜在 deep 模式多一节「本透镜的深查清单」，' +
+    '写清本透镜优先找什么、theoryRef 只能从哪几个主张 id 里选。' +
+    '原先 36 份深查共用同一张 12 个锚点的清单，六副透镜会得到六份措辞不同的通用批评；' +
+    '现在 walton 找 CQ 与型式、toulmin 找担保与 backing、pragma 找对话类型与规则、' +
+    'ars 找三标准漏斗、pta 找格子与二阶问题、copi 找成立条件与此处合法。' +
+    '只动深查六份：其余三十份的块与透镜片段一字未改；theoryRef 仍由本地核对是否存在。',
+  '3.1.1 修深查账本被丢在根对象外：共享 schema 里没有 deep，模型会先按 schema 把根对象收口，' +
+    '再把 deep 拼在后面；extractJson 只取第一个配平对象，于是账本整块丢掉，而诊断看起来完全正常。' +
+    '现在 deep 模式专用 schema 在根对象里写明 deep；deep.discover 也写明「必须写在根对象内」。' +
+    '同时给 theoryRef 一组可选 id（T1-07/T1-08/T2-01/T2-02/T2-06/T2-07/T3-02/T3-08/T3-09/T3-12/T4-01/T4-03）——' +
+    '原先只举例 T2-03、没给可用集合，模型无从判断哪些 id 真的存在，只能留空。' +
+    '起因是 42 段真模型评测：deep-lab-meeting 第一轮 0 条账本，deep-policy-note 3 条发现全部 theoryRef 为空；' +
+    '修复后两份深查 4 条发现，落点、引文、theoryRef 全部对上。',
+  '3.1.0 新增深查模式（deep）：第一遍在诊断全部要求之外输出 deep.findings，' +
+    '每条必须有 kind / title / detail、targetId 或 quote、theoryRef、ifChanged；没有落点的进 deep.unlocated，不丢。' +
+    '第二遍只输出 challenges，逐条写最强反驳与 confirmed / weakened / rejected / unresolved；' +
+    '不许新增发现、不许改 verdict、不许给分数。深查不新增透镜、不给新档位，发现是候选，不是判决。' +
+    '起因：用户要求「理论学术上的极致」，认为只把模型输出排版等于裸提示词；这一版把「找漏并接受反驳」做成一个分析动作。' +
+    '本地只核对落点、引文、理论依据与状态，不判发现真假。真模型是否照做未验。',
   '3.0.0 新增整体分析与三种改法（overall / revisions），只装在诊断与红队两个模式上：' +
     'overall.summary 要求把整段论证当一个整体写成 3–6 句，说清它在用什么路数、为什么这样组织、这样组织让读者付出了什么；' +
     'strongest / weakest / ifOneChange 三格必须指回报告里真实存在的编号，指不出就 null，不许拿「整体结构」凑数；' +
@@ -192,6 +211,11 @@ export const BUDGET = {
  */
 export const SAMPLING: Record<AnalysisMode, { temperature: number; maxTokens: number }> = {
   diagnose: { temperature: 0.2, maxTokens: 8192 },
+  /*
+   * 深查与诊断同温：它读的是诊断报告，不是另一次发散。
+   * 输出比诊断多一栏 findings，所以 maxTokens 不放低；两遍调用分别按这个上限。
+   */
+  deep: { temperature: 0.2, maxTokens: 8192 },
   redteam: { temperature: 0.35, maxTokens: 8192 },
   /*
    * 查谬误比诊断还低，这是有意的：这个模式唯一的失效方式是**凑名字**，
@@ -266,7 +290,21 @@ export function buildPrompt(theory: TheoryId, mode: AnalysisMode = 'diagnose'): 
   );
   push('lens.rules', `## 本透镜的硬约束\n\n${lens.rules.map((s, i) => `${i + 1}. ${s}`).join('\n')}`);
   push('lens.scopeGuard', `## 范围门：本透镜何时必须判为不适用\n\n${lens.scopeGuard.map((s) => `- ${s}`).join('\n')}`);
-  push('schema', `## 输出\n\n只输出一个 JSON 对象。不要 markdown 围栏，不要任何解释文字。\n\n${SHARED_SCHEMA}`);
+  /*
+   * 深查的发现清单按透镜分开。深查不是「再问一遍诊断」：
+   * walton 的漏点是 CQ，pragma 是规则与对话类型，toulmin 是担保……
+   * 同一份通用清单套到六副透镜上，最后只会得到六份措辞不同的通用批评。
+   */
+  if (mode === 'deep') {
+    push('lens.deep', `## 本透镜的深查清单\n\n${lens.deep}`);
+  }
+  /*
+   * 深查的 deep 字段必须写进根对象内部。只加给 deep，别的模式不该看到一个
+   * 自己用不上的根字段——既浪费预算，也会让模型以为这四种模式也要写账本。
+   */
+  const schemaText =
+    mode === 'deep' ? SHARED_SCHEMA.replace(/\n\}$/, `,\n${DEEP_SCHEMA}\n}`) : SHARED_SCHEMA;
+  push('schema', `## 输出\n\n只输出一个 JSON 对象。不要 markdown 围栏，不要任何解释文字。\n\n${schemaText}`);
   push('checks.spec', checkSpec(theory));
   push('lens.shape', `## 本透镜的 checks 与 lens 字段\n\n${lens.checksSpec}\n\n${lens.lensShape}`);
   if (lens.index) push('lens.index', lens.index);
@@ -293,6 +331,23 @@ export function buildPrompt(theory: TheoryId, mode: AnalysisMode = 'diagnose'): 
 }
 
 /* ─────────── 共享 JSON 形状 ─────────── */
+
+/**
+ * 深查专有的根字段。
+ *
+ * 只加在 deep 模式的 schema 里。不写的代价不是「少一栏」：共享 schema 里没有
+ * deep，模型会先按 schema 把根对象收口，再把 deep 拼在对象后面——
+ * extractJson 只取第一个配平对象，于是账本整块丢掉，而诊断看起来完全正常。
+ */
+const DEEP_SCHEMA = `  "deep": {
+    "findings": [{
+      "id": "D1", "kind": "missing-premise|cq-gap|equivocation|burden|evidence|structure|rhetoric|scope|alternative",
+      "title": "一句话", "detail": "它是什么、为什么诊断没覆盖",
+      "targetId": "C/P1/I1/检查项编号；指不到就空串", "quote": "原文逐字一句，或空串",
+      "theoryRef": "见本透镜的深查清单；或空串", "ifChanged": "什么会改变它", "status": "open"
+    }],
+    "unlocated": [{ "title": "…", "detail": "…", "why": "为何指不到" }]
+  }`;
 
 export const SHARED_SCHEMA = `{
   "context": {
@@ -580,6 +635,7 @@ function makeDelim(passage: string): string {
 /** 每种模式在 user 侧要说的那件事。与 system 里的角色块是同一件事的两种说法，故意重复一次。 */
 const MODE_TASK: Record<AnalysisMode, string> = {
   diagnose: '分析下面这段文本',
+  deep: '先诊断下面这段文本，再找这份诊断漏掉的问题（每条发现都要能指回原文或检查项）',
   redteam: '找出下面这段论证最容易被攻击的地方',
   fallacy: '找出下面这段文本里对得上教材条目的位置（不给判定）',
   reconstruct: '把下面这段文本的结构画出来（不给判定）',
@@ -595,6 +651,12 @@ const MODE_TASK: Record<AnalysisMode, string> = {
  */
 const MODE_EXTRA: Record<AnalysisMode, string[]> = {
   diagnose: ['legitimateMoves 至少认真检查一遍。没有就给空数组，但要真的检查过。'],
+  deep: [
+    '第一遍：先按诊断写完整报告；再在 deep.findings 里只写这份报告没有覆盖的问题。\n' +
+      '   每条必须有 kind/title/detail/targetId 或 quote/theoryRef/ifChanged；没有落点的进 deep.unlocated，并写 why。',
+    '发现不是新判读：不许改 verdict，不许给新档位，不许给分数或优先级。',
+    '第二遍会单独要求逐条反驳；本次只输出第一阶段 JSON，不要输出 challenges。',
+  ],
   redteam: [
     '主输出是 refutations，按「对方一开口就能把我打回去」的程度排序，最强的排第一条。\n' +
       '   每条必须带 steelman 的反面：这一击如果打空了，是因为什么。这一栏在本模式下叫「打空的风险」。',

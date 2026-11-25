@@ -1,0 +1,307 @@
+/*
+ * 全屏论证地图。
+ *
+ * 颜色只从 :root 语义层来（不写 hex/rgba）；字号只用 12 / 14 / 16；
+ * 圆角只 4px 与胶囊 999px；没有渐变、投影、transform 与位移动效。
+ * 地图本体是 SVG（viewBox 负责缩放平移），这里管外壳、详情与图例。
+ */
+
+/* ── 文字 / 地图 开关 ─────────────────────────────────────── */
+
+.mp-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-12);
+  padding: 0 0 var(--spacing-12);
+}
+
+.mp-seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-buttons);
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.mp-seg-btn {
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.mp-seg-btn + .mp-seg-btn {
+  border-left: 1px solid var(--line);
+}
+
+.mp-seg-btn:hover {
+  background: var(--muted-bg);
+}
+
+.mp-seg-btn.is-on {
+  background: var(--muted-bg);
+  color: var(--ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+.mp-switch-note {
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  line-height: var(--leading-body);
+}
+
+/* ── 地图外壳 ─────────────────────────────────────────────── */
+
+.mp-wrap {
+  margin-bottom: var(--spacing-24);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-cards);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.mp-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--spacing-12);
+  row-gap: var(--spacing-4);
+  padding: var(--spacing-12) var(--spacing-16);
+  border-bottom: 1px solid var(--line);
+}
+
+.mp-title {
+  font-size: var(--text-body-lg);
+  color: var(--ink);
+}
+
+.mp-sub {
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+.mp-count {
+  margin-left: auto;
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+.mp-canvas {
+  position: relative;
+  height: calc(100vh - 320px);
+  min-height: 460px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+
+.mp-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.mp-svg:active {
+  cursor: grabbing;
+}
+
+.mp-node {
+  cursor: pointer;
+}
+
+.mp-node:focus {
+  outline: none;
+}
+
+.mp-node:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── 缩放控制 ─────────────────────────────────────────────── */
+
+.mp-zoom {
+  position: absolute;
+  left: var(--spacing-12);
+  bottom: var(--spacing-12);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-buttons);
+  background: var(--panel);
+}
+
+.mp-pct {
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+.mp-zoom-btn {
+  min-width: 28px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--radius-buttons);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--text-body);
+  line-height: var(--leading-label);
+  cursor: pointer;
+}
+
+.mp-zoom-btn:hover {
+  background: var(--muted-bg);
+}
+
+/* ── 右侧详情 ─────────────────────────────────────────────── */
+
+.mp-side {
+  position: absolute;
+  top: var(--spacing-12);
+  right: var(--spacing-12);
+  bottom: var(--spacing-12);
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-cards);
+  background: var(--panel);
+}
+
+.mp-side-head {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  padding: var(--spacing-8) var(--spacing-12);
+  border-bottom: 1px solid var(--line);
+}
+
+.mp-side-title {
+  flex: 1;
+  font-size: var(--text-body);
+  color: var(--ink);
+}
+
+.mp-side-x {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--radius-buttons);
+  background: transparent;
+  color: var(--ink-3);
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+
+.mp-side-x:hover {
+  background: var(--muted-bg);
+}
+
+.mp-side-body {
+  padding: var(--spacing-8) var(--spacing-12) var(--spacing-12);
+}
+
+.mp-row {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: var(--spacing-8);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.mp-row:last-child {
+  border-bottom: 0;
+}
+
+.mp-k {
+  font-size: var(--text-label);
+  color: var(--ink-3);
+}
+
+.mp-v {
+  font-size: var(--text-body);
+  color: var(--ink-2);
+  line-height: var(--leading-body);
+  word-break: break-word;
+}
+
+.mp-quote {
+  color: var(--ink-2);
+}
+
+.mp-tag {
+  display: inline-block;
+  padding: 0 var(--spacing-8);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pills);
+  font-size: var(--text-label);
+  color: var(--ink-2);
+}
+
+/* ── 详情里的次要行 ───────────────────────────────────────── */
+/*
+ * 260px 的详情面板一屏放不下全部字段。关键行直出，出处与补充说明收进
+ * 「更多」：收起时多一行摘要，展开后仍是逐字来自报告的那些行。
+ */
+.mp-more {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.mp-more > summary {
+  list-style: none;
+  padding: 3px 0;
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.mp-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mp-more > summary::before {
+  content: '▸';
+  margin-right: 6px;
+}
+
+.mp-more[open] > summary::before {
+  content: '▾';
+}
+
+.mp-more > summary:hover {
+  color: var(--accent);
+}
+
+/* ── 图例、说明与挂不上的落点 ───────────────────────────────── */
+
+.mp-legend {
+  padding: var(--spacing-8) var(--spacing-16);
+  border-top: 1px solid var(--line);
+}
+
+.mp-note {
+  padding: var(--spacing-8) var(--spacing-16) var(--spacing-12);
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  line-height: var(--leading-body);
+}
+
+.mp-problems {
+  list-style: none;
+  padding: 0 var(--spacing-16) var(--spacing-12);
+}
+
+.mp-problem {
+  font-size: var(--text-label);
+  color: var(--invalid);
+  line-height: var(--leading-body);
+}

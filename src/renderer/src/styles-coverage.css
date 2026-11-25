@@ -117,3 +117,116 @@
   color: var(--ink-3);
   word-break: break-word;
 }
+
+/* ═══════ 同一段 · 六副透镜各盯住了哪里 ═══════ */
+
+.cl {
+  padding: 2px 0;
+}
+
+.cl-line {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.cl-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.cl-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.cl-name {
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.cl-weak {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink);
+  word-break: break-word;
+  /* 判读句可能很长：最多四行，完整文字在 title 里，不把整栏撑成一面墙。 */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cl-kind {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-right: 7px;
+  white-space: nowrap;
+}
+
+.cl-meta {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.cl-open {
+  grid-row: 1;
+  grid-column: 3;
+  align-self: start;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.cl-open:hover {
+  text-decoration: underline;
+}
+
+.cl-missing,
+.cl-caveat {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-3);
+  word-break: break-word;
+}
+
+.cl-missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.cl-pick {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-2);
+  color: var(--ink-2);
+  font-size: 12px;
+  padding: 1px 7px;
+  cursor: pointer;
+}
+
+.cl-pick:hover {
+  color: var(--accent);
+}
+
+.cl-pick-note {
+  flex-basis: 100%;
+  color: var(--ink-3);
+}
+

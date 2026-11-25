@@ -738,6 +738,31 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
               modeBanner: (document.querySelector('.mode-banner')?.textContent ?? '').slice(0, 30),
               modeOn: document.querySelector('.mode-chip.on')?.getAttribute('data-mode') ?? '',
               /*
+               * 深查发现账本。坏起来同样是「安静地少一块」，
+               * 所以单独数：块在不在、几条发现、每条有没有状态、
+               * 第二遍的最强反驳有没有落进卡片、落不到原文的候选有没有被吞。
+               */
+              deepBlock: !!document.querySelector('#sec-deep'),
+              deepCount: document.querySelectorAll('[data-deep-finding]').length,
+              deepLine: (document.querySelector('[data-deep-line]')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+              deepStatuses: [...document.querySelectorAll('[data-deep-status]')].map((e) => e.getAttribute('data-deep-status') ?? ''),
+              deepChallenges: document.querySelectorAll('.dp-challenge').length,
+              deepUnlocated: document.querySelectorAll('[data-deep-unlocated-list] li').length,
+              deepTheory: document.querySelectorAll('[data-deep-theory]').length,
+              deepTargetMiss: document.querySelectorAll('[data-deep-target-ok="0"]').length,
+              deepTargetBtns: document.querySelectorAll('[data-deep-target]').length,
+              deepQuoteBtns: document.querySelectorAll('[data-deep-quote]').length,
+              /*
+               * 自省账本。它只在深查报告里出现，坏法是「整块消失」或
+               * 「只剩一句总述、来源分不开」——页面照样完整，读者以为这报告自省过。
+               */
+              selfAuditBlock: !!document.querySelector('#sec-selfaudit'),
+              selfAuditCount: document.querySelectorAll('[data-self-audit-item]').length,
+              selfAuditLine: (document.querySelector('[data-self-audit-line]')?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+              selfAuditSources: [...document.querySelectorAll('[data-self-audit-item]')].map(
+                (e) => e.getAttribute('data-self-audit-source') ?? ''
+              ),
+              /*
                * 跑道上的「倒在哪一关」与元问题闸门。
                * 这两处是加在既有按钮上的类名，坏了的表现是跑道照常显示、
                * 只是没有那一道红边和那个「闸」字——页面完全正常，照样通过一切别的检查。
@@ -923,6 +948,172 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
             add(`RESULT ${state}`);
             break;
           }
+        }
+
+        /*
+         * 全屏论证地图：开关 → 节点数 → 点结论看详情 → 缩放 → 拖拽 → 切回文字。
+         *
+         * 这一块最容易「看起来正常」：开关在、图也在，但点节点没详情、滚轮不动、
+         * 切回文字后正文再也回不来。所以每一步都取一次 DOM，并在最后核对
+         * `.block` 数量回到原值——目录注入脚本靠这个数量重扫。
+         */
+        if (!canceled) {
+          const opened = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify((() => {
+              const open = document.querySelector('[data-map-open]');
+              const text = document.querySelector('[data-map-text]');
+              if (!open || !text) return { switch: false };
+              const defaultText = text.getAttribute('aria-pressed') === 'true';
+              const blocksBefore = document.querySelectorAll('.block').length;
+              open.click();
+              return { switch: true, defaultText, blocksBefore };
+            })())`)
+          ) as { switch: boolean; defaultText?: boolean; blocksBefore?: number };
+          await sleep(500);
+          const mapState = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify((() => {
+              const map = document.querySelector('[data-arg-map]');
+              if (map) map.scrollIntoView({ block: 'start' });
+              const svg = document.querySelector('.mp-svg');
+              return {
+                on: !!map,
+                nodes: document.querySelectorAll('[data-map-node]').length,
+                edges: document.querySelectorAll('[data-map-edge]').length,
+                count: (document.querySelector('[data-map-count]')?.textContent ?? '').replace(/\\s+/g, ' ').trim(),
+                edgeTitle: (document.querySelector('[data-map-edge] title')?.textContent ?? '').trim(),
+                viewBox: svg?.getAttribute('viewBox') ?? '',
+                overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+              };
+            })())`)
+          ) as {
+            on: boolean;
+            nodes: number;
+            edges: number;
+            count: string;
+            edgeTitle: string;
+            viewBox: string;
+            overflow: boolean;
+          };
+          await sleep(350);
+          const box = (await wc.executeJavaScript(`(() => {
+            const el = document.querySelector('[data-arg-map]');
+            if (!el) return null;
+            const b = el.getBoundingClientRect();
+            const y = Math.max(0, Math.round(b.top));
+            return {
+              x: Math.max(0, Math.round(b.left)),
+              y,
+              width: Math.round(b.width),
+              height: Math.max(0, Math.min(1200, Math.round(b.height), window.innerHeight - y)),
+            };
+          })()`)) as { x: number; y: number; width: number; height: number } | null;
+
+          /* 第一张拍整张图（详情未开），第二张拍点开结论之后的样子。 */
+          if (box && box.width > 200 && box.height > 200) {
+            const png = (await wc.capturePage(box)).toPNG();
+            const p = join(dirname(shot), 'map.png');
+            writeFileSync(p, png);
+            add(`MAPSHOT ${p} ${png.length} bytes`);
+          }
+
+          const clicked = await wc.executeJavaScript(`(() => {
+            const n = document.querySelector('[data-map-node="C"]');
+            if (!n) return false;
+            n.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            return true;
+          })()`);
+          await sleep(300);
+          const detail = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify({
+              open: !!document.querySelector('[data-map-detail]'),
+              text: (document.querySelector('[data-map-detail]')?.innerText ?? '').replace(/\\s+/g, ' ').slice(0, 120),
+            })`)
+          ) as { open: boolean; text: string };
+          if (box && box.width > 200 && box.height > 200) {
+            const png = (await wc.capturePage(box)).toPNG();
+            const p = join(dirname(shot), 'map-detail.png');
+            writeFileSync(p, png);
+            add(`MAPDETAILSHOT ${p} ${png.length} bytes`);
+          }
+
+          /*
+           * 聚焦模式：选中一个节点后，无关的节点与线默认淡下去。
+           * 这里读两样：淡化标记的数量，以及点「只看相连」之后是不是全亮回来。
+           * 只验按钮在不算数——按钮在而淡化为 0，等于这个功能没做。
+           */
+          const focusOn = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify({
+              btn: !!document.querySelector('[data-map-focus]'),
+              dimNodes: document.querySelectorAll('[data-map-node][data-map-dim="1"]').length,
+              dimEdges: document.querySelectorAll('[data-map-edge][data-map-dim="1"]').length,
+            })`)
+          ) as { btn: boolean; dimNodes: number; dimEdges: number };
+          await wc.executeJavaScript(`document.querySelector('[data-map-focus]')?.click()`);
+          await sleep(250);
+          const focusOff = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify({
+              text: (document.querySelector('[data-map-focus]')?.textContent ?? '').trim(),
+              dimNodes: document.querySelectorAll('[data-map-node][data-map-dim="1"]').length,
+            })`)
+          ) as { text: string; dimNodes: number };
+          await wc.executeJavaScript(`document.querySelector('[data-map-focus]')?.click()`);
+          await sleep(200);
+
+          /* 点空白处：详情应该关掉。点的是 svg 本身，不是节点或线。 */
+          const blankClicked = await wc.executeJavaScript(`(() => {
+            const svg = document.querySelector('.mp-svg');
+            if (!svg) return false;
+            svg.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            return true;
+          })()`);
+          await sleep(200);
+          const detailClosed = await wc.executeJavaScript(`!document.querySelector('[data-map-detail]')`);
+
+          const zoomBefore = await wc.executeJavaScript(`document.querySelector('.mp-svg')?.getAttribute('viewBox') ?? ''`);
+          await wc.executeJavaScript(`document.querySelector('[data-map-zoom-in]')?.click()`);
+          await sleep(300);
+          const zoomAfter = await wc.executeJavaScript(`document.querySelector('.mp-svg')?.getAttribute('viewBox') ?? ''`);
+          await wc.executeJavaScript(`document.querySelector('[data-map-zoom-fit]')?.click()`);
+          await sleep(300);
+          const fitBox = await wc.executeJavaScript(`document.querySelector('.mp-svg')?.getAttribute('viewBox') ?? ''`);
+
+          await wc.executeJavaScript(`(() => {
+            const svg = document.querySelector('.mp-svg');
+            if (!svg) return false;
+            const r = svg.getBoundingClientRect();
+            const mk = (type, x, y) => new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0, pointerId: 1 });
+            svg.dispatchEvent(mk('pointerdown', r.left + r.width / 2, r.top + r.height / 2));
+            svg.dispatchEvent(mk('pointermove', r.left + r.width / 2 + 60, r.top + r.height / 2 + 40));
+            svg.dispatchEvent(mk('pointerup', r.left + r.width / 2 + 60, r.top + r.height / 2 + 40));
+            return true;
+          })()`);
+          await sleep(300);
+          const dragBox = await wc.executeJavaScript(`document.querySelector('.mp-svg')?.getAttribute('viewBox') ?? ''`);
+
+          await wc.executeJavaScript(`document.querySelector('[data-map-text]')?.click()`);
+          await sleep(700);
+          const back = JSON.parse(
+            await wc.executeJavaScript(`JSON.stringify({
+              blocks: document.querySelectorAll('.block').length,
+              map: !!document.querySelector('[data-arg-map]'),
+            })`)
+          ) as { blocks: number; map: boolean };
+
+          add(
+            `MAP ${JSON.stringify({
+              ...opened,
+              ...mapState,
+              nodeClicked: clicked,
+              detail,
+              focus: { on: focusOn, off: focusOff },
+              blankClose: { clicked: blankClicked, detailClosed },
+              zoomBefore,
+              zoomAfter,
+              fitBox,
+              dragBox,
+              back,
+            })}`
+          );
         }
 
 
@@ -2118,6 +2309,29 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           add(`AGREEMENTRESULT ${JSON.stringify({ ...JSON.parse(aState), ...JSON.parse(aBefore), run: aRun, opened: aOpened, listLen: aListLen })}`);
 
           /*
+           * 同一段·多镜：真机走一遍 archive.cross。
+           *
+           * 只验接线与守恒：读得回、六副透镜恰好各占一行或一个 missing、坏文件数带回来。
+           * 「两副以上时界面长什么样」由 check:report 的纯函数样本负责——
+           * 假模型这段文字只跑过一副透镜，端到端造不出第二种，造了就是假数据作证。
+           */
+          const crossProbe = await wc.executeJavaScript(`(async () => {
+            const list = await window.api.archive.list();
+            if (!list.length) return JSON.stringify({ ok: false, why: 'no-list' });
+            const d = await window.api.archive.get(list[0].id);
+            if (!d) return JSON.stringify({ ok: false, why: 'no-body' });
+            const r = await window.api.archive.cross(d);
+            return JSON.stringify({
+              ok: true,
+              rows: r.view.rows.length,
+              missing: r.view.missing.length,
+              badFiles: r.badFiles,
+              line: r.view.line,
+            });
+          })()`);
+          add(`CROSSRESULT ${crossProbe}`);
+
+          /*
            * 挑两份摆在一起。
            *
            * 这一块验的是**接线**：入口在不在、没选够两份时按钮是不是真的不能点、
@@ -2813,6 +3027,33 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
         await new Promise((r) => setTimeout(r, 400));
 
         /*
+         * 深查发现页签：点进去，等 IPC 读完，记下总述/空态/条数，再切回报告页签。
+         * 默认跑道刚跑的是一份诊断，临时 userData 里没有深查账本，所以这里应当是空态；
+         * 若以后有 deep 报告混进来，空态断言会红——那说明夹具变了，不是功能坏了。
+         */
+        const deepLib = await wc.executeJavaScript(`(async () => {
+          const tab = document.querySelector('[data-hs-tab="deep"]');
+          if (!tab) return JSON.stringify({ found: false });
+          tab.click();
+          for (let i = 0; i < 40; i++) {
+            await new Promise((r) => setTimeout(r, 100));
+            if (document.querySelector('[data-deep-sum]') || document.querySelector('[data-deep-empty]')) break;
+          }
+          const probe = {
+            found: true,
+            tabOn: tab.classList.contains('on'),
+            sum: (document.querySelector('[data-deep-sum]')?.innerText || '').replace(/\\s+/g, ' ').trim(),
+            empty: !!document.querySelector('[data-deep-empty]'),
+            items: document.querySelectorAll('[data-deep-arc]').length,
+            note: (document.querySelector('[data-deep-empty]')?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 80),
+          };
+          document.querySelector('[data-hs-tab="reports"]')?.click();
+          return JSON.stringify(probe);
+        })()`);
+        add(`DEEPLIB ${deepLib}`);
+        await new Promise((r) => setTimeout(r, 300));
+
+        /*
          * 检索：拿刚读到的那一行摘要的开头当查询。
          *
          * 为什么不用写死的词：存档是用户自己的。写死一个「早读」，在有人的机器上一次也搜不到，
@@ -2978,10 +3219,25 @@ export function attachSmoke(mainWindow: BrowserWindow): void {
           };
         })())`;
         add(`DENSITYDOM before ${await wc.executeJavaScript(bodyProbe)}`);
-        await wc.executeJavaScript(`(() => {
-          document.querySelector('[data-fold]')?.click();
-          return true;
+        /*
+         * 简洁态里点「目录」上的栏名，那一栏应当展开。
+         *
+         * 旧探针找的是 `[data-fold]`，但正文区里从来没有这个属性——Block 只渲染
+         * block-head，折叠按钮那一版早已撤掉。于是这条断言一直点到空处，
+         * 「点栏名之后那一栏展开了」在简洁态跑道上永远是红的（不是这条改动弄红的）。
+         * 改成点真正存在的目录芯片：先找一个「目录里有、正文里收着」的栏，再点它。
+         */
+        const foldClick = await wc.executeJavaScript(`(() => {
+          const chips = [...document.querySelectorAll('[data-qnav]')];
+          const hit = chips.find((c) => {
+            const id = c.getAttribute('data-qnav');
+            return !!id && !!document.getElementById(id)?.classList.contains('is-collapsed');
+          });
+          if (!hit) return 'no-target';
+          hit.click();
+          return hit.getAttribute('data-qnav') || 'clicked';
         })()`);
+        add(`DENSITYDOM fold ${foldClick}`);
         await new Promise((r) => setTimeout(r, 250));
         add(
           `DENSITYDOM after ${await wc.executeJavaScript(`JSON.stringify((() => {

@@ -268,7 +268,7 @@ for (const t of THEORIES) {
     if (!wantRead && !all.includes('一步都不读语境七格')) promptMissing.push(`${t.id}.${m} 缺「不读语境」`);
   }
 }
-ok(promptMissing.length === 0, '30 份提示词都写明了本透镜读不读语境、读哪几格', promptMissing.slice(0, 5).join('、'));
+ok(promptMissing.length === 0, '36 份提示词都写明了本透镜读不读语境、读哪几格', promptMissing.slice(0, 5).join('、'));
 
 const arsP = buildPrompt('ars', 'diagnose').userTemplate;
 ok(arsP.includes('「受众类型」'), 'ars 的提示词点名了受众类型这一格');

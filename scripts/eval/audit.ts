@@ -9,7 +9,7 @@
  *
  * 跑法：node scripts/run-eval-audit.mjs
  */
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CASES, type EvalCase } from './cases';
@@ -113,26 +113,50 @@ function audit(c: EvalCase, d: Diagnosis): Row {
 const files = new Set(readdirSync(dir));
 const rows: Row[] = [];
 const errors: string[] = [];
+let stale = 0;
 
 /*
  * 先看成功产物，再看失败产物。
  * 反过来的话，一次早期失败的 error.json 会一直盖住后来成功的 json——
  * 「这条跑失败了」这个结论就永远撤不掉，而它早已不成立。
+ *
+ * 反过来也有一个洞：旧的成功产物会盖住**新的**失败。所以两边都在时看时间：
+ * 失败比成功新，就把「最近一次重跑失败」写进这一条的提示，并保留这一幕的
+ * 旧结果供审计（失败不销毁已有证据，但必须说出来）。
  */
 for (const c of CASES) {
-  if (files.has(`${c.id}.json`)) {
-    const raw = JSON.parse(readFileSync(resolve(dir, `${c.id}.json`), 'utf-8'));
-    rows.push(audit(c, raw.diagnosis as Diagnosis));
+  const successPath = resolve(dir, `${c.id}.json`);
+  const errorPath = resolve(dir, `${c.id}.error.json`);
+  const hasSuccess = files.has(`${c.id}.json`);
+  const hasError = files.has(`${c.id}.error.json`);
+  if (hasSuccess) {
+    const raw = JSON.parse(readFileSync(successPath, 'utf-8'));
+    const row = audit(c, raw.diagnosis as Diagnosis);
+    if (hasError && statSync(errorPath).mtimeMs > statSync(successPath).mtimeMs) {
+      const e = JSON.parse(readFileSync(errorPath, 'utf-8'));
+      const at = raw.at ? new Date(raw.at).toISOString().slice(0, 16).replace('T', ' ') : '时间不明';
+      row.notes.push(
+        `上次重跑失败：${e.code} ${e.error}。这一行审的是更早一次成功的产物（${at}），不是最近一次输出。`
+      );
+      errors.push(`${c.id}（重跑失败，下面是旧结果）：${e.code} ${e.error}`);
+      stale += 1;
+    }
+    rows.push(row);
     continue;
   }
-  if (files.has(`${c.id}.error.json`)) {
-    const e = JSON.parse(readFileSync(resolve(dir, `${c.id}.error.json`), 'utf-8'));
+  if (hasError) {
+    const e = JSON.parse(readFileSync(errorPath, 'utf-8'));
     errors.push(`${c.id}: ${e.code} ${e.error}`);
   }
 }
 
 const L: string[] = [];
-L.push(`# 评测审计（${rows.length}/${CASES.length} 条有结果）`, '');
+L.push(
+  `# 评测审计（${rows.length}/${CASES.length} 条有结果${
+    stale ? `；其中 ${stale} 条是更早一次的成功产物，最近一次重跑失败` : ''
+  }）`,
+  ''
+);
 
 L.push('## 一、不变量：破了就是 bug', '');
 const withInv = rows.filter((r) => r.invariants.length || r.notes.length);

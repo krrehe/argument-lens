@@ -1,4 +1,6 @@
 import { normalizeDiagnosis } from '../src/main/analyze';
+import { extractJson } from '../src/main/llm';
+import { applyDeepChallenges, validateDeep } from '@shared/deep';
 import { fallacyHits, mapSentences } from '@shared/fallacy-map';
 import type { TheoryId } from '@shared/theories';
 
@@ -439,6 +441,105 @@ ok(
   })(),
   '落点图：span 越界得空命中，图上不出现，也不冒充 failed'
 );
+
+/* ── 模型输出的 JSON 抠取 ── */
+/*
+ * 真实评测里出现过两种坏输出：
+ *   1. 正常 JSON 后面又跟了一段话（甚至第二个 JSON 对象）；
+ *   2. 围栏、全角引号、尾逗号这类机械错误。
+ * 第 1 种如果按「第一个 { 到最后一个 }」切片，会把后面的对象也吞进来，
+ * 然后报「Unexpected non-whitespace character after JSON」。
+ * 这里钉住：只取**第一个配平的 JSON 对象**，后面的内容不参与解析；
+ * 但截断的 JSON 必须继续报错，不能悄悄返回半个对象。
+ */
+const jsonOf = (s: string): any => {
+  try {
+    return extractJson(s);
+  } catch {
+    return undefined;
+  }
+};
+
+ok(jsonOf('{"a":1}')?.a === 1, 'JSON：普通对象照常解析');
+ok(jsonOf('```json\n{"a":1}\n```')?.a === 1, 'JSON：围栏照常剥掉');
+ok(jsonOf('{"a":1}{"b":2}')?.a === 1, 'JSON：后跟第二个对象时只取第一个，不把两个拼在一起');
+ok(jsonOf('{"a":1}\n\n以上是分析。')?.a === 1, 'JSON：后跟说明文字时只取前面的对象');
+ok(jsonOf('{"a":"} {","b":2}')?.a === '} {' && jsonOf('{"a":"} {","b":2}')?.b === 2, 'JSON：字符串里的花括号不当作结构');
+ok(jsonOf('{"a":"他说\\"好\\"","b":2}')?.a === '他说"好"', 'JSON：转义引号不打乱配平');
+ok(jsonOf('{"a":"x",}')?.a === 'x', 'JSON：尾逗号仍然修得回来');
+ok(jsonOf('{"a":“x”}')?.a === 'x', 'JSON：全角引号仍然修得回来');
+ok(jsonOf('{"a":{"b":1},"c":2}')?.a?.b === 1 && jsonOf('{"a":{"b":1},"c":2}')?.c === 2, 'JSON：嵌套对象返回外层，不截成内层');
+ok(jsonOf('{"a":1') === undefined, 'JSON：截断的对象必须报错，不返回半个');
+ok(jsonOf('{"a":{"b":1}') === undefined, 'JSON：外层截断时不把完整的内层对象顶上来');
+ok(jsonOf('这里没有 JSON') === undefined, 'JSON：找不到对象时仍然报错');
+
+/* ── 深查账本：只核落点/引文/理论依据/状态 ── */
+{
+  const base = normalizeDiagnosis({}, PASSAGE, 'walton');
+  const finding = {
+    id: 'D1',
+    kind: 'cq-gap',
+    title: '报告没有问这一问',
+    detail: '这一段的相关—因果型式还差「机制」这一问。',
+    targetId: 'C',
+    quote: '早读取消之后',
+    theoryRef: 'T1-01',
+    ifChanged: '如果原文给出了机制，这条就不成立。',
+    status: 'open',
+  };
+  const good = validateDeep({ findings: [finding] }, base, PASSAGE);
+  ok(
+    good.deep.findings.length === 1 &&
+      good.deep.findings[0].targetOk &&
+      good.deep.findings[0].quoteOk &&
+      good.deep.findings[0].theoryOk,
+    '深查：落点、引文、理论依据都对得上'
+  );
+
+  const lost = validateDeep(
+    {
+      findings: [
+        {
+          ...finding,
+          targetId: 'P9',
+          quote: '原文里没有这一句',
+          theoryRef: 'T9-99',
+        },
+      ],
+    },
+    base,
+    PASSAGE
+  );
+  ok(
+    lost.deep.findings.length === 0 && lost.deep.unlocated.length === 1,
+    '深查：落点与引文都指不到 → 进 unlocated，不丢'
+  );
+
+  const dupe = validateDeep({ findings: [finding, { ...finding }] }, base, PASSAGE);
+  ok(dupe.deep.findings.length === 1, '深查：id 重复只留一条');
+
+  const merged = applyDeepChallenges(good.deep, {
+    challenges: [
+      {
+        id: 'D1',
+        challenge: '原文可能已经用别的话交代了机制。',
+        status: 'confirmed',
+        ifChanged: '如果原文别处写了机制，这条要撤回。',
+      },
+    ],
+  });
+  ok(
+    merged.deep.findings[0].status === 'confirmed' &&
+      merged.deep.findings[0].challenge.includes('机制'),
+    '深查：第二遍的状态与最强反驳合并回账本'
+  );
+
+  const missing = applyDeepChallenges(good.deep, { challenges: [] });
+  ok(
+    missing.deep.findings[0].status === 'unresolved',
+    '深查：没被第二遍反驳到的发现标未决，不假装站住'
+  );
+}
 
 /* 同上：断言总数兜底，防止某段循环没跑起来而输出仍是全绿 */
 ok(passed >= 75, '断言总数不少于 75 项（少跑就是静默跳过）', `实际 ${passed}`);

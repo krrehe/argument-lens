@@ -1,3 +1,5 @@
+import type { DeepReport } from './deep';
+
 /**
  * 论证镜 · 核心数据契约（v2：透镜无关）
  *
@@ -709,18 +711,21 @@ export interface SelfCheck {
  * 「一个名字都没找到」因此是这个模式的正常结果，不是失败。
  *
  * 为什么不是第七副透镜：透镜决定「问什么问题」，模式决定「替谁问、判不判、给不给名字」。
- * 型式库、CQ、十规则在五种模式下是同一套，混进去会破坏六副透镜的不可通约性。
+ * 型式库、CQ、十规则在六种模式下是同一套，混进去会破坏六副透镜的不可通约性。
  *
- * 顺序即界面按钮顺序，按「评价性递减」排：诊断（判整体）→ 红队（判可攻击面）
- * → 查谬误（只命名，不判整体）→ 重构（只画结构）→ 提问（只出问句）。
+ * 顺序即界面按钮顺序，按「评价性递减」排：诊断（判整体）→ 深查（判整体，再找这份
+ * 诊断漏掉的问题）→ 红队（判可攻击面）→ 查谬误（只命名，不判整体）→ 重构（只画
+ * 结构）→ 提问（只出问句）。深查排在诊断之后，是因为它读的是诊断报告，不是另起
+ * 一套判定。
  * 这个顺序不是随便排的：相邻两个模式之间只差一件事，用户来回切的时候
- * 能看出「换掉的是哪一层」，而不是五把互不相干的工具。
+ * 能看出「换掉的是哪一层」，而不是六把互不相干的工具。
  */
-export type AnalysisMode = 'diagnose' | 'redteam' | 'fallacy' | 'reconstruct' | 'interrogate';
+export type AnalysisMode = 'diagnose' | 'deep' | 'redteam' | 'fallacy' | 'reconstruct' | 'interrogate';
 
 /** 模式的顺序即界面上按钮的顺序。改这里，界面跟着变，不用改两处。 */
 export const ANALYSIS_MODES: readonly AnalysisMode[] = [
   'diagnose',
+  'deep',
   'redteam',
   'fallacy',
   'reconstruct',
@@ -775,6 +780,18 @@ export const MODE_META: Record<AnalysisMode, ModeMeta> = {
     allowsLabels: true,
     showsRefute: true,
     banner: null,
+  },
+  deep: {
+    label: '深查',
+    hint: '先做一次标准诊断，再找这份诊断漏掉的问题，并逐条接受反驳。',
+    action: '深查这一段',
+    stageScope: '诊断并找漏',
+    stageVerdict: '逐条反驳发现',
+    givesVerdict: true,
+    allowsLabels: true,
+    showsRefute: true,
+    banner:
+      '深查模式。第一遍按标准做一次诊断并找这份诊断漏掉的问题；第二遍把每条发现交回模型，写最强反驳与「什么会改变它」。会跑两遍模型，费用与等待约为标准分析的两倍。发现是候选，不是判决。',
   },
   redteam: {
     label: '红队',
@@ -912,6 +929,15 @@ export interface Diagnosis {
   overall?: OverallAnalysis | null;
   revisions?: RevisionPath[] | null;
 
+  /**
+   * 深查发现（v3.1 新增）。
+   *
+   * 第一遍诊断 + 找漏、第二遍逐条反驳之后的发现账本。由模型写出；本地只核对
+   * 落点、引文、理论依据与状态，不判发现真假，也不参与档位折算。
+   * 旧存档没有这一栏，按「没做深查」处理，不补空账本。
+   */
+  deep?: DeepReport | null;
+
   /** 命名候选（名录透镜下是主输出，其他透镜下是末端注释，可空） */
   labels: LabelCandidate[];
   legitimateMoves: LegitimateMove[];
@@ -979,6 +1005,14 @@ export interface Diagnosis {
     text: string;
     /** 一共调用了几次；>1 说明前面有过格式损坏的重试 */
     attempts: number;
+    /**
+     * 深查第二遍（逐条反驳）的模型原文。
+     *
+     * 第一遍的 text 只包含诊断 + 发现；第二遍的 challenges 不并进 text，
+     * 否则重放会把两段拼成一份 JSON。重放时若这一栏存在，先按第一遍解析，
+     * 再把 challenges 合并回发现。
+     */
+    challenge?: { text: string; attempts: number };
   };
 
   /**

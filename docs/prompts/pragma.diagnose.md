@@ -1,6 +1,6 @@
 # 提示词：语用辩证（十规则）（诊断模式）
 
-> Pragma-Dialectics: Ten Rules for Critical Discussion｜模式：诊断（diagnose）｜版本：v3.0.0
+> Pragma-Dialectics: Ten Rules for Critical Discussion｜模式：诊断（diagnose）｜版本：v3.2.0
 > 判定类：给档位。
 > 这一份问的是：判断这段话站不站得住。
 > 判定单元：四阶段 × 十条规则中的某一条

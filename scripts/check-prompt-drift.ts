@@ -2,16 +2,16 @@
  * 提示词导出件的新鲜度与版本锁（只读）。
  *
  * 这个产品对用户承诺「有权看到自己被什么标准在衡量」，落点是 docs/prompts/ 下
- * 三十份可 diff 的全文，以及界面上的「提示词版本 vX.Y.Z」。在此之前，两件事
+ * 三十六份可 diff 的全文，以及界面上的「提示词版本 vX.Y.Z」。在此之前，两件事
  * 都只靠人记得：
  *
- *   1. 改了 blocks.ts 却忘了跑 npm run prompts → 三十份全文是旧尺子，
+ *   1. 改了 blocks.ts 却忘了跑 npm run prompts → 三十六份全文是旧尺子，
  *      而 prompt:lint 验的是运行时装配（新的），verify 全绿，没人发现；
  *   2. 改了内容却忘了改 PROMPT_VERSION / PROMPT_VERSION_NOTE →
  *      界面上同一个版本名指着两把不同的尺子，旧报告的可比性无从判断。
  *
  * 这里的做法不是「重新生成一遍再比」——那等于自己验自己。检查器只读磁盘，
- * 把三十份 md 里的 system / user 代码块与抬头字段抽出来，和现场装配逐字对；
+ * 把三十六份 md 里的 system / user 代码块与抬头字段抽出来，和现场装配逐字对；
  * 再对索引表的指纹、BASELINE.json 的指纹、版本注记行数与注记全文
  * （报告里「这把尺子」那一栏直接读基线里的注记，所以它也得逐字等于源码）。它一个字节都不写。
  *
@@ -45,7 +45,7 @@ const read = (p: string): string => readFileSync(p, 'utf-8');
 const src = (p: string): string => read(resolve(process.cwd(), p));
 
 const facts = currentFacts();
-ok(facts.length === 30, '现场装配出 30 份', String(facts.length));
+ok(facts.length === 36, '现场装配出 36 份', String(facts.length));
 
 /* ─────────── 路径锚：独立验一次，不吃共享层给的那份 ─────────── */
 
@@ -129,7 +129,7 @@ for (const f of facts) {
 
 /* 目录里不许混进别的东西：多出一份旧版全文，人就会 diff 错对象。 */
 const mdFiles = readdirSync(DOC_DIR).filter((n) => n.endsWith('.md'));
-ok(mdFiles.length === 31, 'docs/prompts/ 下正好 30 份全文 + 1 份索引', String(mdFiles.length));
+ok(mdFiles.length === 37, 'docs/prompts/ 下正好 36 份全文 + 1 份索引', String(mdFiles.length));
 ok(
   mdFiles.filter((n) => n !== 'README.md').every((n) => facts.some((f) => `${f.key}.md` === n)),
   '没有多余的旧版全文'
@@ -140,7 +140,7 @@ ok(
 const index = read(INDEX_PATH);
 ok(index.includes(`提示词版本 **v${VERSION}**`), '索引表写的是当前版本', VERSION);
 const tableRows = index.split(/\r?\n/).filter((l) => /^\| [a-z]+ \|/.test(l));
-ok(tableRows.length === 30, '索引表正好 30 行', String(tableRows.length));
+ok(tableRows.length === 36, '索引表正好 36 行', String(tableRows.length));
 for (const f of facts) {
   const row = tableRows.find((l) => l.split('|')[1]?.trim() === f.theory && l.includes(`\`${f.fingerprint.slice(0, 8)}\``));
   ok(!!row, `索引表里 ${f.key} 的指纹对得上`, f.fingerprint.slice(0, 8));
@@ -174,10 +174,10 @@ if (base) {
   ok(base.notes?.[0]?.startsWith(VERSION) === true, '基线注记首行以当前版本号开头');
   ok(!!base.fingerprints && typeof base.fingerprints === 'object', '基线里有一张指纹表');
   const keys = Object.keys(base.fingerprints ?? {});
-  ok(keys.length === 30, '基线正好 30 个键', String(keys.length));
+  ok(keys.length === 36, '基线正好 36 个键', String(keys.length));
   ok(
     keys.every((k) => facts.some((f) => f.key === k)) && facts.every((f) => keys.includes(f.key)),
-    '基线的键集合恰等于 30 份提示词'
+    '基线的键集合恰等于 36 份提示词'
   );
   for (const f of facts) {
     ok(base.fingerprints?.[f.key] === f.fingerprint, `基线 ${f.key} 的指纹是现场那一把尺子`, `${base.fingerprints?.[f.key]} vs ${f.fingerprint}`);
@@ -251,4 +251,4 @@ if (failed.length) {
   console.error('  若提示词内容真的改过，还必须走 npm run prompt:lock 的三步留痕。\n');
   process.exit(1);
 }
-console.log(`✓ 提示词导出件新鲜度与版本锁：${passed} 条（v${VERSION}、30 份全文）`);
+console.log(`✓ 提示词导出件新鲜度与版本锁：${passed} 条（v${VERSION}、36 份全文）`);

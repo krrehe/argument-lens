@@ -50,6 +50,8 @@ import { DEFAULT_THEORY, THEORIES, isTheoryId, type TheoryId } from '@shared/the
 import { samenessOf } from '@shared/sameness';
 import { portfolioOf } from '@shared/portfolio';
 import { agreementOf } from '@shared/agreement';
+import { crossLensOf } from '@shared/cross-lens';
+import { collectDeepFindings } from '@shared/deep-archive';
 import { buildPrompt, renderPrompt, SAMPLING, BUDGET } from './prompt';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -727,6 +729,43 @@ function registerIpc(): void {
   ipcMain.handle('archive:agreement', () => {
     const scan = reportScan();
     return { view: agreementOf(scan.items, scan.badFiles), dirError: scan.dirError };
+  });
+
+  /*
+   * 深查发现库：把历次深查的发现汇总成一份可以跨报告看的账。
+   *
+   * 与 agreement 同一次目录扫描口径：纯读、不写盘、不调模型。
+   * 坏文件数必须一起回去——少读一份不会报错，只会让「我在哪些地方反复漏」
+   * 这个结论建立在一份不完整的样本上，而界面看起来完全正常。
+   */
+  ipcMain.handle('archive:deep', () => {
+    const scan = reportScan();
+    /*
+     * reportScan 的 item 是「给对照用的摘要」（at / report），不是 Diagnosis。
+     * 发现库要的是报告本体里的 deep 栏，所以从 item.report 里取回整份报告；
+     * 摘要里没有 id 以外的字段也没关系——report 是 {...d} 去掉 raw 的副本。
+     */
+    const reports = scan.items
+      .map((x) => (x.report && typeof x.report === 'object' ? (x.report as Diagnosis) : null))
+      .filter((x): x is Diagnosis => !!x);
+    return { view: collectDeepFindings(reports), dirError: scan.dirError, badFiles: scan.badFiles };
+  });
+
+  /*
+   * 同一段文字，六副透镜各盯住了哪里。
+   *
+   * 纯读：只比较原文（空白归一后逐字相同）与模式，每副透镜取最近一份报告。
+   * 把当前这份一起传回来，是因为它可能刚跑完、还没被下一轮目录扫描读到；
+   * 没有它，读者会看到一份比自己屏幕上更旧的「同一副透镜」。
+   */
+  ipcMain.handle('archive:cross', (_e, current: Diagnosis) => {
+    const scan = reportScan();
+    const report = current && typeof current === 'object' ? current : undefined;
+    return {
+      view: crossLensOf(report?.passage ?? '', report?.mode ?? '', scan.items, report),
+      dirError: scan.dirError,
+      badFiles: scan.badFiles,
+    };
   });
 
   /*

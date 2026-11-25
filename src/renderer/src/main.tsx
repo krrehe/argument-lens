@@ -20,6 +20,8 @@ import './styles-longform.css';
 import './styles-docpage.css';
 import './styles-spine.css';
 import './styles-digest.css';
+import './styles-map.css';
+import './styles-deep.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

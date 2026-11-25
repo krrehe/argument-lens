@@ -4,6 +4,7 @@ import { THEORIES, THEORY_BY_ID, LEVEL_LABEL } from '@shared/theories';
 import { disputesIn } from '@shared/disputes';
 import { DiagnosisView } from './components/Diagnosis';
 import { HistoryPanel, when } from './components/History';
+import { collectDeepFindings } from '@shared/deep-archive';
 import { TheoryBrief } from './components/TheoryBrief';
 import { TheoryBaseDialog } from './components/TheoryBase';
 import { DisputeDialog } from './components/Disputes';
@@ -20,6 +21,7 @@ import { ObjectionCtx } from './components/Objection';
 import { portfolioOf } from '@shared/portfolio';
 import { agreementOf } from '@shared/agreement';
 import type { Diagnosis, Divergence, Objection } from '@shared/types';
+import type { DeepReport } from '@shared/deep';
 import type { ViewId } from '@shared/views';
 import { nextLinesOf } from '@shared/nextline';
 import { ANALYSIS_MODES, MODE_META, type ObjectionStat, type ReportMeta, type SearchWhere, type TheoryId, type UsageRow, type UsageSummary } from '@shared/types';
@@ -51,6 +53,8 @@ import './styles-longform.css';
 import './styles-docpage.css';
 import './styles-spine.css';
 import './styles-digest.css';
+import './styles-map.css';
+import './styles-deep.css';
 
 /*
  * ?lens=toulmin|ars|pta 可以换成另一副透镜的预览数据。
@@ -241,6 +245,67 @@ const D = withPromptHistory(
 );
 const t = THEORY_BY_ID[D.theory];
 const MOCK_DISPUTES = disputesIn(D);
+
+/* ?mode=deep 的发现账本夹具：落点/引文/理论依据都对得上 D。 */
+const MOCK_DEEP: DeepReport = {
+  findings: [
+    {
+      id: 'D1',
+      kind: 'cq-gap',
+      title: '报告没有把「机制」这一问走完',
+      detail: 'CQ2 指出了第三因素，但没有问「早读通过什么机制影响一本率」。',
+      targetId: 'CQ2',
+      quote: '这说明取消早读是错的',
+      theoryRef: 'T1-01',
+      method: 'lens-cq',
+      ifChanged: '如果原文给出了早读影响成绩的具体机制，这条就不成立。',
+      challenge: '报告已经在 CQ2 里问了第三因素，这条可能只是把同一问换个说法。',
+      status: 'weakened',
+      targetOk: true,
+      quoteOk: true,
+      theoryOk: true,
+    },
+    {
+      id: 'D2',
+      kind: 'missing-premise',
+      title: '从一本率下降到「取消早读是错的」缺一条桥',
+      detail: '一本率是不是衡量学校做法对错的尺子，这一步没有被说出来。',
+      targetId: 'P1',
+      quote: '我们学校去年取消了早读，今年高考一本率下降了 6 个百分点',
+      theoryRef: 'T2-03',
+      method: 'structural',
+      ifChanged: '如果原文明确说「一本率就是唯一标准」，这条桥就算写出来了。',
+      challenge: '「一本率=学校做法对错」是价值判断，不一定要由作者写出来。',
+      status: 'confirmed',
+      targetOk: true,
+      quoteOk: true,
+      theoryOk: true,
+    },
+    {
+      id: 'D3',
+      kind: 'alternative',
+      title: '降幅也可能来自命题难度或招生计划',
+      detail: '报告已经把这条列为反驳，但没有把它当作对「早读有效」的另一种解释来展开。',
+      targetId: 'P1',
+      quote: '今年高考一本率下降了 6 个百分点',
+      theoryRef: 'T3-01',
+      method: 'counterexample',
+      ifChanged: '如果同区域对照校的降幅明显更小，这条替代解释就弱了。',
+      challenge: '命题难度只是可能，原文没有给任何数据支持它。',
+      status: 'unresolved',
+      targetOk: true,
+      quoteOk: true,
+      theoryOk: true,
+    },
+  ],
+  unlocated: [
+    {
+      title: '学生睡眠可能也是被挤占的一头',
+      detail: '早读与睡眠的取舍可能影响成绩，但原文没有给出可引用的位置。',
+      why: '原文只提到早读和一本率，没有写睡眠或作息。',
+    },
+  ],
+};
 
 /*
  * ?digest=1：异议账（这份报告里你不同意哪几处）。
@@ -521,6 +586,30 @@ if (new URLSearchParams(location.search).get('dlg') === 'history') {
         missing: [],
         orphans: [],
         checkedAt: Date.now(),
+      }),
+      /*
+       * 发现库的替身：拿 ?mode=deep 的同一份账本，喂给真正的纯函数算一遍。
+       * 不手写计数——不然预览页好看，真机上的汇总却可能是错的。
+       */
+      deep: async () => ({
+        view: collectDeepFindings([
+          { ...D, id: 'r3', createdAt: H0 + 1000 * 60 * 90, deep: MOCK_DEEP },
+          /*
+           * 第二份只放一条同类发现：让预览页能拍到「反复出现」那一行。
+           * 同一份报告里写三条同类型不算反复出现，所以这里必须是两份报告。
+           */
+          {
+            ...D,
+            id: 'r2',
+            createdAt: H0 + 1000 * 60 * 40,
+            deep: {
+              findings: [{ ...MOCK_DEEP.findings[0], id: 'D9', title: '第二份报告也漏了同一类问题' }],
+              unlocated: [],
+            },
+          },
+        ]),
+        dirError: null,
+        badFiles: 0,
       }),
       /*
        * 检索的替身。预览页手上没有真报告，只有三行摘要——所以它只在摘要里找，
@@ -1018,6 +1107,7 @@ function Preview() {
               MODE_META[qMode].givesVerdict
                 ? D.verdict
                 : { ...D.verdict, level: 'undetermined' as const },
+            ...(qMode === 'deep' ? { deep: MOCK_DEEP } : {}),
           }
         : D;
   const [theoryOpen, setTheoryOpen] = useState(new URLSearchParams(location.search).get('dlg') === 'theory');
@@ -1042,24 +1132,55 @@ function Preview() {
           <i />
           大白话
         </button>
-        <button className="ghost-btn">术语表</button>
-        <button className="ghost-btn" onClick={() => setTheoryOpen(true)}>
-          理论
-        </button>
-        <button className="ghost-btn dp-open" onClick={() => setDispOpen(true)}>
-          争议
-          <span className="dp-open-n">{MOCK_DISPUTES.length}</span>
-        </button>
+        {/* 与真应用同一套顶栏分组：术语表 / 理论 / 争议 收进「参考」。 */}
+        <details className="ref-menu">
+          <summary>参考</summary>
+          <div className="ref-panel">
+            <button className="ref-item">
+              <span className="ref-k">术语表</span>
+              <span className="ref-s">这一圈的词，以及它在这里的意思</span>
+            </button>
+            <button className="ref-item" onClick={() => setTheoryOpen(true)}>
+              <span className="ref-k">理论</span>
+              <span className="ref-s">这份分析依据的每一条主张，以及它有多硬</span>
+            </button>
+            <button className="ref-item dp-open" onClick={() => setDispOpen(true)}>
+              <span className="ref-k">
+                争议
+                <span className="dp-open-n">{MOCK_DISPUTES.length}</span>
+              </span>
+              <span className="ref-s">这份判断里，学界两派分歧的地方</span>
+            </button>
+          </div>
+        </details>
         <button className="ghost-btn">设置</button>
       </header>
 
       <div className="lens-bar">
-        {THEORIES.map((x) => (
-          <button key={x.id} className={`lens-chip ${x.id === D.theory ? 'on' : ''}`}>
-            <span className="n">{x.name}</span>
-            <span className="u">{x.unit}</span>
-          </button>
-        ))}
+        <span className="lens-k" title="换一副透镜，同一处地方会被判成不同的东西——这不是错误，是这个工具的立场。">
+          透镜
+        </span>
+        {/* ?lens=1：默认收起；这个入口把展开后的六颗透镜拍下来。 */}
+        <details className="lens-pick" open={QS.get('lens') === '1'}>
+          <summary title={`${t.name}：${t.plainClaim}`}>
+            <span className="lens-cur">{t.name}</span>
+            <span className="lens-cur-u">{t.unit}</span>
+            <span className="lens-swap">换一副</span>
+          </summary>
+          <div className="lens-menu">
+            <p className="lens-note">
+              六副透镜各问各的，不合并，也不折算成一个总分。同一段话换一副，判出来的东西会变。
+            </p>
+            <div className="lens-grid" role="group" aria-label="换一副透镜">
+              {THEORIES.map((x) => (
+                <button key={x.id} className={`lens-chip ${x.id === D.theory ? 'on' : ''}`}>
+                  <span className="n">{x.name}</span>
+                  <span className="u">{x.unit}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
       </div>
       <div className="progress" />
 
@@ -1073,9 +1194,7 @@ function Preview() {
               <div className="spacer" />
               <button className="primary">分析</button>
             </div>
-            <p className="hint">
-              按「{t.name}」分析。换一副透镜，同一处地方会被判成不同的东西——这不是错误，是这个工具的立场。
-            </p>
+            <p className="hint">按「{t.name}」分析。</p>
             {/*
               ?seg=1：切分条展开的那一版，用来看「逐段跑」入口的版式。
               夹具是六段拼起来的同一篇——真应用里这一段文字来自用户粘贴。
@@ -1169,6 +1288,8 @@ function Preview() {
                   ? (QS.get('show')!.split(',').filter((x) => /^(structure|checks|verdict|refute|repair)$/.test(x)) as ViewId[])
                   : undefined
               }
+              /* ?map=1：直接开在论证地图，好让这一屏有截图入口；真应用默认是文字。 */
+              initialMap={QS.get('map') === '1'}
               /* ?terms=1：预填的四个词只为拍版式（两个命中、两个不命中），真应用里是空的。 */
               initialTerms={QS.get('terms') === '1'}
               initialTermsWords={QS.get('terms') === '1' ? '早读, 一本率, 成绩, 举证责任' : undefined}
@@ -1217,7 +1338,11 @@ function Preview() {
       {/* ?sideby=1：两份对照。这一屏只在有人挑了两份之后出现，所以必须留个入口拍它。 */}
       {QS.get('sideby') === '1' && <SideBySide pair={{ a: SIDEBY_A, b: SIDEBY_B }} fmt={when} onClose={() => {}} />}
       {new URLSearchParams(location.search).get('dlg') === 'history' && (
-        <HistoryPanel onOpen={() => {}} onClose={() => {}} />
+        <HistoryPanel
+          onOpen={() => {}}
+          onClose={() => {}}
+          initialTab={QS.get('hs') === 'deep' ? 'deep' : 'reports'}
+        />
       )}
       {new URLSearchParams(location.search).get('dlg') === 'usage' && (
         <UsagePanel onClose={() => {}} onChanged={() => {}} />

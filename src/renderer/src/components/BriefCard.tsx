@@ -58,8 +58,14 @@ export function BriefCard({
       <div className="bf-head">
         <span className="bf-k">立案</span>
         <span className="bf-sub">A1 取材 · A2 准入</span>
-        <span className="bf-line" data-brief-line>
-          {brief ? briefLine(brief) : '没填：谁说的 / 哪一版 / 原文还是转述'}
+        <span
+          className="bf-line"
+          data-brief-line
+          title="没立案不等于不能分析，但按 §2 A1，结论只能算「就文论文」：评的可能是转述、可能是删改过的某一版，而报告里不会有一句话提醒你这件事。"
+        >
+          {brief
+            ? briefLine(brief)
+            : '没填（结论只能算「就文论文」）：谁说的 / 哪一版 / 原文还是转述'}
         </span>
         <span className={`bf-verdict ${gaps.length === 0 ? 'ok' : 'gap'}`} data-brief-gaps={gaps.length}>
           {gaps.length === 0 ? '三问答清' : `缺 ${gaps.length} 问`}
@@ -81,12 +87,12 @@ export function BriefCard({
         </p>
       )}
 
-      {!open && (
-        <p className="bf-why">
-          没立案不等于不能分析，但按 §2 A1，结论只能算「就文论文」：评的可能是转述、可能是删改过的某一版，
-          而报告里不会有一句话提醒你这件事。
-        </p>
-      )}
+      {/*
+        没填的后果已经并进上面那行摘要（「结论只能算就文论文」），
+        不再在收起态另占一段解释：这张卡默认收起，一屏里同时还有四五个
+        默认收起的块，每块都带一段「为什么」就又是一面字。
+        完整理由留在这一行的 title 上，需要的人悬停能读全。
+      */}
 
       {open && (
         <div className="bf-body">

@@ -495,21 +495,129 @@ const payload = {
 
 const json = JSON.stringify(payload);
 
+/*
+ * 深查用的假数据。
+ *
+ * 第一遍在诊断 payload 上多一栏 deep.findings；第二遍只回 challenges。
+ * 落点、引文、理论依据都取自上面那份真样本，所以本地校验不会把它们丢掉。
+ */
+const deepJson = JSON.stringify({
+  ...payload,
+  deep: {
+    findings: [
+      {
+        id: 'D1',
+        kind: 'cq-gap',
+        title: '报告没有把「机制」这一问走完',
+        detail: 'CQ2 指出了第三因素，但没有问「早读通过什么机制影响一本率」。',
+        targetId: 'CQ2',
+        quote: '这说明取消早读是错的',
+        theoryRef: 'T1-01',
+        method: 'lens-cq',
+        ifChanged: '如果原文给出了早读影响成绩的具体机制，这条就不成立。',
+        status: 'open',
+      },
+      {
+        id: 'D2',
+        kind: 'missing-premise',
+        title: '从一本率下降到「取消早读是错的」缺一条桥',
+        detail: '一本率是不是衡量学校做法对错的尺子，这一步没有被说出来。',
+        targetId: 'P1',
+        quote: '我们学校去年取消了早读，今年高考一本率下降了 6 个百分点',
+        theoryRef: 'T2-03',
+        method: 'structural',
+        ifChanged: '如果原文明确说「一本率就是唯一标准」，这条桥就算写出来了。',
+        status: 'open',
+      },
+      {
+        id: 'D3',
+        kind: 'alternative',
+        title: '降幅也可能来自命题难度或招生计划',
+        detail: '报告已经把这条列为反驳，但没有把它当作对「早读有效」的另一种解释来展开。',
+        targetId: 'P1',
+        quote: '今年高考一本率下降了 6 个百分点',
+        theoryRef: 'T3-01',
+        method: 'counterexample',
+        ifChanged: '如果同区域对照校的降幅明显更小，这条替代解释就弱了。',
+        status: 'open',
+      },
+    ],
+    unlocated: [
+      {
+        title: '学生睡眠可能也是被挤占的一头',
+        detail: '早读与睡眠的取舍可能影响成绩，但原文没有给出可引用的位置。',
+        why: '原文只提到早读和一本率，没有写睡眠或作息。',
+      },
+    ],
+  },
+});
+
+const challengeJson = JSON.stringify({
+  challenges: [
+    {
+      id: 'D1',
+      challenge: '报告已经在 CQ2 里问了第三因素，这条可能只是把同一问换个说法。',
+      status: 'weakened',
+      reason: 'CQ2 已经覆盖了第三因素，机制这一问只是它的细化。',
+      ifChanged: '如果报告没有 CQ2，这条就成立。',
+    },
+    {
+      id: 'D2',
+      challenge: '「一本率=学校做法对错」是价值判断，不一定要由作者写出来。',
+      status: 'confirmed',
+      reason: '作者把一本率下降直接推成「取消早读是错的」，这条桥确实是隐含的。',
+      ifChanged: '如果原文明确交代了「一本率只是举例」，这条要撤回。',
+    },
+    {
+      id: 'D3',
+      challenge: '命题难度只是可能，原文没有给任何数据支持它。',
+      status: 'unresolved',
+      reason: '这条是候选解释，文本里没有足够信息判断它有多强。',
+      ifChanged: '如果给出同区域对照校的数据，这条可以定下来。',
+    },
+  ],
+});
+
 const server = createServer((req, res) => {
   let body = '';
   req.on('data', (c) => (body += c));
   req.on('end', () => {
     // 连接测试用小请求，回一句短的即可
     let isPing = false;
+    let systemText = '';
+    let userText = '';
     try {
       const parsed = JSON.parse(body || '{}');
-      const userMsg = parsed?.messages?.find?.((m) => m.role === 'user')?.content ?? '';
+      const messages = Array.isArray(parsed?.messages) ? parsed.messages : [];
+      const userMsg = messages.find?.((m) => m.role === 'user')?.content ?? '';
       isPing = typeof userMsg === 'string' && userMsg.trim() === 'ping';
+      /*
+       * system 与 user 分开收。深查的第一遍 system 里也有
+       * 「## 第二阶段：逐条反驳」这个标题，混在一起会把第一遍认成第二遍。
+       */
+      systemText = messages
+        .filter?.((m) => m.role === 'system')
+        .map((m) => (typeof m.content === 'string' ? m.content : ''))
+        .join('\n');
+      userText = messages
+        .filter?.((m) => m.role === 'user')
+        .map((m) => (typeof m.content === 'string' ? m.content : ''))
+        .join('\n');
     } catch {
       /* 解析失败就当正式请求 */
     }
 
-    const content = isPing ? 'pong' : json;
+    /*
+     * 深查：第二遍的 user 文本里写着「第二阶段：逐条反驳」；
+     * 第一遍的 system 文本里有 deep.findings。两者都回不同的假数据。
+     */
+    const content = isPing
+      ? 'pong'
+      : userText.includes('第二阶段：逐条反驳')
+        ? challengeJson
+        : systemText.includes('deep.findings')
+          ? deepJson
+          : json;
     const send = () =>
       res.end(
         JSON.stringify({

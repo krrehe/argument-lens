@@ -1,6 +1,6 @@
 # 提示词：型式周期表三特征（红队模式）
 
-> Periodic Table of Arguments (PTA)｜模式：红队（redteam）｜版本：v3.0.0
+> Periodic Table of Arguments (PTA)｜模式：红队（redteam）｜版本：v3.2.0
 > 判定类：给档位。
 > 这一份问的是：同一套型式与问题，换个方向问：他会怎么打你。
 > 判定单元：三个正交特征：阶（一阶／二阶）× 轴（谓词／主词）× 陈述类型（事实／价值／政策）

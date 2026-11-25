@@ -1,6 +1,6 @@
 # 提示词：论证型式与批判性问题（重构模式）
 
-> Argumentation Schemes & Critical Questions｜模式：重构（reconstruct）｜版本：v3.0.0
+> Argumentation Schemes & Critical Questions｜模式：重构（reconstruct）｜版本：v3.2.0
 > 描述类：不给档位，也不给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：先别判。把这段话拆成结构图，看清它靠什么撑着。
 > 判定单元：型式的一条批判性问题（CQ）

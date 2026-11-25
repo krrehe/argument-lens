@@ -13,7 +13,7 @@
  *
  * 数据来源是 `docs/prompts/BASELINE.json`，不是新开一条 IPC，也不是给预览页造夹具：
  * 那份基线由 `npm run prompt:lock` 生成，`check:prompt-drift` 逐字比对它与
- * `PROMPT_VERSION_NOTE`、30 份装配指纹。界面、导出件、检查器读的是同一份落盘事实。
+ * `PROMPT_VERSION_NOTE`、全部装配指纹。界面、导出件、检查器读的是同一份落盘事实。
  * 改提示词却没跑 lock，这一栏会与源码脱节——由那道关卡当场指出。
  *
  * 三条不可省的边界（少一条，这一栏就在假装能复核历史）：
@@ -146,8 +146,13 @@ export function promptHistoryOf(
       ? `v${reportVersion} 这一版当时留下的注记在下面，逐字摘自本机基线。`
       : `本机变更史里没有 v${reportVersion} 这一行注记，不能凭版本号推断当时改了什么。`;
 
+  /*
+   * 份数从基线自己数，不写死。写死 30 之后加了深查的 6 份，
+   * 这一句仍然说 30——界面与基线各说各的，而它读起来完全正常。
+   */
+  const fingerprintCount = Object.keys(src.fingerprints ?? {}).length;
   const caveats = [
-    `本机只留有当前装机版 v${currentVersion} 的提示词全文与 30 份指纹；更早版本的全文没有存档，所以这里不能把旧指纹重算一遍。`,
+    `本机只留有当前装机版 v${currentVersion} 的提示词全文与 ${fingerprintCount} 份指纹；更早版本的全文没有存档，所以这里不能把旧指纹重算一遍。`,
     '注记是人写下的「当时为什么这么改」，不是对那一版效果的评价；软件不判哪一版更好，也不判这处改动有没有用。',
     '报告里的指纹是那次装配算出来的，它只能证明当时算过，证明不了那次判定对不对。',
   ];

@@ -1,6 +1,6 @@
 # 提示词：论证型式与批判性问题（查谬误模式）
 
-> Argumentation Schemes & Critical Questions｜模式：查谬误（fallacy）｜版本：v3.0.0
+> Argumentation Schemes & Critical Questions｜模式：查谬误（fallacy）｜版本：v3.2.0
 > 命名类：不给档位，给名字；level 恒为 undetermined，由代码强制。
 > 这一份问的是：把可疑的地方对上教材里的名字——每个名字都要指得出原文哪一句，并说清它什么时候其实合法。
 > 判定单元：型式的一条批判性问题（CQ）

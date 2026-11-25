@@ -48,7 +48,7 @@ const settingsFile = join(smokeUserData, 'settings.json');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /*
- * 模式：默认诊断。SMOKE_MODE 可传 diagnose / redteam / fallacy / reconstruct / interrogate。
+ * 模式：默认诊断。SMOKE_MODE 可传 diagnose / deep / redteam / fallacy / reconstruct / interrogate。
  *
  * 这里**必须**用 SMOKE_* 而不是 AL_*：AL_MODE 是传给子进程（应用）的那个，
  * 本进程读 AL_MODE 也能读到（因为 env 展开了），但读错名字会拿到 undefined，
@@ -241,6 +241,17 @@ if (!existsSync(trace)) {
 
 const log = readFileSync(trace, 'utf-8');
 const resultLine = log.split('\n').find((l) => l.includes('RESULT')) ?? '';
+
+/* 全屏论证地图那一组动作的读数。没有这一行时下面每一条都按失败算，不静默跳过。 */
+const mapLine = log.split('\n').find((l) => l.includes('MAP {')) ?? '';
+let mapObj = null;
+try {
+  mapObj = mapLine ? JSON.parse(mapLine.slice(mapLine.indexOf('{'))) : null;
+} catch {
+  // @allow-silent: 行被写坏时 mapObj 保持 null，下面的断言会逐条报红；这里不该让整趟自检崩掉。
+  mapObj = null;
+}
+const vbW = (s) => Number(String(s ?? '').split(/\s+/)[2] ?? 0);
 /*
  * 只认以「DOM {」开头的那一行，不用 includes('DOM')。
  *
@@ -269,7 +280,7 @@ function jOf(line, key) {
  * 空态的三样东西各自单独断言，因为它们坏法不同：
  *   整块消失（empty:false）→ 用户对着一片空白，不知道该干什么；
  *   步骤缺一步（steps<3）→ 新用户在第二步迷路；
- *   模式提示没跟上（modeChips≠5）→ 加模式时漏改了空态文案，首屏与功能脱节。
+ *   模式提示没跟上（modeChips≠6）→ 加模式时漏改了空态文案，首屏与功能脱节。
  */
 if (process.env.SMOKE_EMPTY === '1') {
   const line = log.split('\n').find((l) => l.includes('EMPTYDOM')) ?? '';
@@ -285,7 +296,7 @@ if (process.env.SMOKE_EMPTY === '1') {
     ['空态标题不是空串', j('title').length >= 4],
     ['三步引导齐', j('steps') === 3],
     ['报告样例四步齐', j('emSteps') === 4],
-    ['模式开关五档（空态同款跑道）', j('modeChips') === 5],
+    ['模式开关六档（空态同款跑道）', j('modeChips') === 6],
     ['模式提示不是空串', j('modeNote').length >= 4],
     ['空态文案与功能一致（提到查谬误）', j('emptyP').includes('查谬误')],
     ['截图产出', existsSync(shot)],
@@ -469,6 +480,38 @@ const checks = [
   ['板块全部渲染', blocks >= 16],
   ['无失败提示', resultLine.includes('"failed":false')],
   /*
+   * 全屏论证地图。
+   *
+   * 这一组的每一条都对应一种「页面看起来正常、功能其实没了」的坏法：
+   * 开关默认跑到地图上（改变了原有阅读顺序）、图在但节点没画、点节点没详情、
+   * 放大没反应、拖拽没反应、切回文字后正文回不来（目录会指着空处）、
+   * 图把窗口撑出横向滚动条。最后一条截图是给人眼看的，不是断言。
+   */
+  ['论证地图开关在', mapObj?.switch === true],
+  ['默认仍然是文字，不改变原阅读顺序', mapObj?.defaultText === true],
+  ['切到地图后地图出现', mapObj?.on === true],
+  ['地图把结论、前提、检查等节点都画出来了', Number(mapObj?.nodes) >= 5],
+  ['地图上有连线', Number(mapObj?.edges) >= 1],
+  [
+    '地图顶部按支撑 / 打向 / 改向分别计数',
+    /支撑\s*\d+/.test(String(mapObj?.count ?? '')) &&
+      /打向\s*\d+/.test(String(mapObj?.count ?? '')) &&
+      /改向\s*\d+/.test(String(mapObj?.count ?? '')),
+  ],
+  ['连线悬停能读出类型与两端', String(mapObj?.edgeTitle ?? '').includes('→')],
+  ['点结论节点出现右侧详情', mapObj?.nodeClicked === true && mapObj?.detail?.open === true],
+  ['详情里写着结论', String(mapObj?.detail?.text ?? '').includes('结论')],
+  ['选中后无关节点与线会淡下去', Number(mapObj?.focus?.on?.dimNodes) > 0 && Number(mapObj?.focus?.on?.dimEdges) > 0],
+  ['聚焦可切回看全部', mapObj?.focus?.off?.text === '只看相连' && Number(mapObj?.focus?.off?.dimNodes) === 0],
+  ['点空白处关掉详情', mapObj?.blankClose?.clicked === true && mapObj?.blankClose?.detailClosed === true],
+  ['放大真的缩小了取景框', vbW(mapObj?.zoomAfter) > 0 && vbW(mapObj?.zoomAfter) < vbW(mapObj?.zoomBefore)],
+  ['适应回到全图', !!mapObj?.fitBox && mapObj.fitBox === mapObj.viewBox],
+  ['拖拽改变了取景框', !!mapObj?.dragBox && mapObj.dragBox !== mapObj.fitBox],
+  ['地图没有横向溢出', mapObj?.overflow === false],
+  ['切回文字后正文回来', mapObj?.back?.blocks === mapObj?.blocksBefore && mapObj?.back?.map === false],
+  ['地图截图产出', existsSync(resolve(outDir, 'map.png'))],
+  ['地图详情截图产出', existsSync(resolve(outDir, 'map-detail.png'))],
+  /*
    * 「有一件事没做成」的提示条必须是 0。
    *
    * 这条断言的方向和上面几项相反：别的元素是怕少，它是怕多——
@@ -483,7 +526,7 @@ const checks = [
    * 少了页面照常跑，所以各自单独断言。异议按钮尤其要数——
    * 它是唯一一处让工具承认「可能是我错」的入口，静默消失最容易被忽略。
    */
-  ['模式开关五档', resultLine.includes('"modeChips":5')],
+  ['模式开关六档', resultLine.includes('"modeChips":6')],
   /*
    * 命名栏与模式的契约。
    *
@@ -1142,11 +1185,70 @@ const checks = [
       return on === 'diagnose' ? banner === '' : banner.length > 0;
     })(),
   ],
+  /*
+   * 深查账本。只在 SMOKE_MODE=deep 的跑道上验；其余模式必须**不长**这一块，
+   * 否则一份普通诊断会凭空多出一栏「深查发现」，读者会以为它深查过。
+   */
+  ...(SMOKE_MODE === 'deep'
+    ? [
+        ['深查发现账本在', jOf(resultLine, 'deepBlock') === 'true'],
+        ['深查至少有 3 条发现', Number(jOf(resultLine, 'deepCount')) >= 3],
+        ['深查总述带计数', /处发现/.test(String(jOf(resultLine, 'deepLine')))],
+        [
+          '深查每条都有终态（站住/削弱/推翻/未决）',
+          (() => {
+            let st = [];
+            try {
+              st = JSON.parse(resultLine.slice(resultLine.indexOf('{'))).deepStatuses ?? [];
+            } catch {
+              st = [];
+            }
+            return (
+              Array.isArray(st) &&
+              st.length >= 3 &&
+              st.every((x) => ['confirmed', 'weakened', 'rejected', 'unresolved'].includes(String(x)))
+            );
+          })(),
+        ],
+        ['深查第二遍的反驳落进卡片', Number(jOf(resultLine, 'deepChallenges')) >= 2],
+        ['深查落不到原文的候选没被吞', Number(jOf(resultLine, 'deepUnlocated')) >= 1],
+        ['深查理论依据可点', Number(jOf(resultLine, 'deepTheory')) >= 1],
+        ['深查落点可点回报告', Number(jOf(resultLine, 'deepTargetBtns')) >= 1],
+        ['深查引文可点回原文', Number(jOf(resultLine, 'deepQuoteBtns')) >= 1],
+        ['深查没有把落点对不上的发现混进正常计数', Number(jOf(resultLine, 'deepTargetMiss')) === 0],
+        ['自省账本在', jOf(resultLine, 'selfAuditBlock') === 'true'],
+        ['自省至少留 4 条线索', Number(jOf(resultLine, 'selfAuditCount')) >= 4],
+        [
+          '自省总述把来源分开计数',
+          /模型自认/.test(String(jOf(resultLine, 'selfAuditLine'))) &&
+            /深查账本/.test(String(jOf(resultLine, 'selfAuditLine'))),
+        ],
+        [
+          '自省来源真的分了类（模型与深查都在）',
+          (() => {
+            let src = [];
+            try {
+              src = JSON.parse(resultLine.slice(resultLine.indexOf('{'))).selfAuditSources ?? [];
+            } catch {
+              src = [];
+            }
+            return Array.isArray(src) && src.includes('model') && src.includes('deep');
+          })(),
+        ],
+      ]
+    : [
+        ['非深查模式不长深查账本', jOf(resultLine, 'deepBlock') === 'false'],
+        ['非深查模式不长自省账本', jOf(resultLine, 'selfAuditBlock') === 'false'],
+      ]),
   // 同上：这里也必须读 SMOKE_PANEL。读错的话这一项是「静默不跑」，
   // 输出里既没有通过也没有失败，看上去像全过了——那是最坏的一种假绿。
   ...(process.env.SMOKE_PANEL === 'history'
     ? [
         ['历史列表读到存档', /"rows":([1-9]\d*)/.test(panelLine())],
+        ['历史面板有「深查发现」页签', /"found":true/.test(deepLibLine())],
+        ...(SMOKE_MODE === 'deep'
+          ? [['有深查账本时发现库读到了条目', /"empty":false/.test(deepLibLine()) && /"items":([1-9]\d*)/.test(deepLibLine())]]
+          : [['没有深查账本时发现库说的是「还没有深查发现」', /"empty":true/.test(deepLibLine())]]),
         /*
          * 检索这一组验的是「说了就要真搜」：状态是 hit 而不是 pending、
          * 行数真的变了、片段里带着搜的那几个字并加了亮、清空之后回到原样、
@@ -1222,6 +1324,10 @@ const checks = [
 
 function panelLine() {
   return log.split('\n').find((l) => l.includes('PANELDOM')) ?? '';
+}
+
+function deepLibLine() {
+  return log.split('\n').find((l) => l.includes('DEEPLIB')) ?? '';
 }
 
 function findLine() {
@@ -1701,6 +1807,18 @@ if (process.env.SMOKE_AGREEMENT === '1') {
     ],
     ['同题复跑：总述不劝、不评价', !/建议|应该|稳定|可靠/.test(agLine), agLine],
     ['同题复跑：这一栏没有报错', String(ag.error ?? '') === ''],
+  );
+
+  const cr = jOfLine('CROSSRESULT');
+  checks.push(
+    ['多镜：archive.cross 读得回', cr.ok === true, String(cr.why ?? '')],
+    [
+      '多镜：六副透镜各占一行或一个 missing（不丢、不补假）',
+      Number(cr.rows) + Number(cr.missing) === 6,
+      `rows ${cr.rows} + missing ${cr.missing}`,
+    ],
+    ['多镜：坏文件数一起回来', Number.isFinite(Number(cr.badFiles)), String(cr.badFiles)],
+    ['多镜：总述不是空话', String(cr.line ?? '').length > 0, String(cr.line ?? '')],
   );
 }
 

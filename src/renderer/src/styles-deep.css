@@ -1,0 +1,293 @@
+/*
+ * 深查发现账本。
+ *
+ * 颜色只从语义层来；字号只用 12 / 14 / 16；圆角只 4px 与胶囊 999px；
+ * 没有投影、渐变、位移动效；hover 只变背景色。
+ * 每条发现是一段带发丝线的记录，不是卡片墙——这里要读的是文字，不是装饰。
+ */
+
+.dp {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dp-line {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink);
+  line-height: var(--leading-body);
+}
+
+.dp-caveat {
+  margin: 0 0 4px;
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  line-height: var(--leading-body);
+}
+
+.dp-sub {
+  margin: 0 0 4px;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink);
+}
+
+.dp-find {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.dp-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.dp-kind {
+  flex: 0 0 auto;
+  font-size: var(--text-label);
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+
+.dp-title {
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink);
+  line-height: var(--leading-body);
+}
+
+.dp-status {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: var(--radius-pills);
+  background: var(--muted-bg);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  white-space: nowrap;
+}
+
+/* 形状 + 颜色 + 文字三重编码：不靠颜色单独传意思。 */
+.dp-status::before {
+  margin-right: 4px;
+}
+
+.dp-status-confirmed {
+  color: var(--strong);
+}
+.dp-status-confirmed::before {
+  content: '●';
+}
+
+.dp-status-weakened {
+  color: var(--weak);
+}
+.dp-status-weakened::before {
+  content: '◐';
+}
+
+.dp-status-rejected {
+  color: var(--invalid);
+}
+.dp-status-rejected::before {
+  content: '○';
+}
+
+.dp-status-open,
+.dp-status-unresolved {
+  color: var(--ink-3);
+}
+.dp-status-open::before,
+.dp-status-unresolved::before {
+  content: '◌';
+}
+
+.dp-detail {
+  margin: 6px 0 0;
+  font-size: var(--text-body);
+  color: var(--ink-2);
+  line-height: var(--leading-body);
+}
+
+.dp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  line-height: var(--leading-body);
+}
+
+.dp-target,
+.dp-quote {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 能回到报告的那一处：看起来像链接，但只做定位，不改任何判定。 */
+.dp-loc {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+  border-radius: var(--radius-buttons);
+  transition: background-color 150ms;
+}
+
+.dp-loc:hover {
+  background: var(--muted-bg);
+}
+
+.dp-theory {
+  padding: 0 2px;
+  border: 0;
+  border-radius: var(--radius-buttons);
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--text-label);
+  text-decoration: underline;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.dp-theory:hover {
+  background: var(--muted-bg);
+}
+
+.dp-theory-miss {
+  color: var(--ink-3);
+}
+
+.dp-if {
+  margin: 6px 0 0;
+  font-size: var(--text-label);
+  color: var(--ink-2);
+  line-height: var(--leading-body);
+}
+
+.dp-challenge {
+  margin: 6px 0 0;
+  padding-left: 10px;
+  border-left: 1px solid var(--line-strong);
+  font-size: var(--text-label);
+  color: var(--ink-2);
+  line-height: var(--leading-body);
+}
+
+/* ─────────── 自省 ─────────── */
+
+.sa {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sa-line {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink);
+  line-height: var(--leading-body);
+}
+
+.sa-caveat {
+  margin: 0 0 4px;
+  font-size: var(--text-label);
+  color: var(--ink-3);
+  line-height: var(--leading-body);
+}
+
+.sa-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sa-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-label);
+  line-height: var(--leading-body);
+}
+
+.sa-src,
+.sa-kind {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.sa-src {
+  padding: 1px 6px;
+  border-radius: var(--radius-pills);
+  background: var(--muted-bg);
+}
+
+.sa-text {
+  flex: 1 1 260px;
+  min-width: 0;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.sa-detail {
+  flex: 1 1 100%;
+  padding-left: 0;
+  color: var(--ink-3);
+}
+
+.dp-more {
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-buttons);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.dp-more:hover {
+  background: var(--muted-bg);
+}
+
+.dp-unlocated {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.dp-unlocated-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dp-unlocated-list li {
+  padding: 4px 0;
+  font-size: var(--text-label);
+  color: var(--ink-2);
+  line-height: var(--leading-body);
+}
+
+.dp-why {
+  color: var(--ink-3);
+}

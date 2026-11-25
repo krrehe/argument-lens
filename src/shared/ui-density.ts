@@ -61,7 +61,9 @@ export const LEDGER_SECTIONS = [
   'sec-limits',
   'sec-context',
   'sec-lens',
+  'sec-crosslens',
   'sec-selfcheck',
+  'sec-selfaudit',
   'sec-divergence',
   'sec-prompt-history',
 ] as const;

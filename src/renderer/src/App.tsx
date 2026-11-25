@@ -1049,6 +1049,46 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [run, stop, loading, settingsOpen, onboard, histOpen, usageOpen, glossOpen, theoryOpen, dispOpen]);
 
+  /*
+   * 顶栏「参考」与透镜条「换一副」这两块弹层：点外面或按 Esc 收起来。
+   *
+   * 原生 details 不会自己关。这两块都只在选一次时打开，
+   * 点完不关，它们就一直压着下面的报告。Esc 先收菜单再交给全局，
+   * 免得「合上菜单」顺手把正在跑的分析也停了。
+   */
+  const refMenu = useRef<HTMLDetailsElement | null>(null);
+  const lensMenu = useRef<HTMLDetailsElement | null>(null);
+  const closeRefMenu = () => {
+    if (refMenu.current) refMenu.current.open = false;
+  };
+  const closeLensMenu = () => {
+    if (lensMenu.current) lensMenu.current.open = false;
+  };
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      for (const el of [refMenu.current, lensMenu.current]) {
+        if (el?.open && !el.contains(e.target as Node)) el.open = false;
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      let hit = false;
+      for (const el of [refMenu.current, lensMenu.current]) {
+        if (el?.open) {
+          el.open = false;
+          hit = true;
+        }
+      }
+      if (hit) e.stopPropagation();
+    };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
   /** 换透镜不自动重跑：跑一次要花钱和时间，而且旧结果仍有对照价值。 */
   const switchTheory = (id: TheoryId) => setTheory(id);
 
@@ -1265,6 +1305,17 @@ export default function App() {
     setPendingParent(diag.id);
   }, [diag]);
 
+  /*
+   * 样本账与同题复跑只在「本机真跑过东西」时才有内容。两者都是按分析之前
+   * 的一眼事实，不是报告的一部分；默认各占一行，再加两条明细入口，会把
+   * 输入区撑成一张账本。收进一个折叠，摘要占一行，点开还是原来那两栏。
+   */
+  const hasRuns =
+    (!!folio?.view && (folio.view.reports > 0 || folio.view.badFiles > 0)) ||
+    (!!agree?.view && agree.view.repeat.length > 0) ||
+    !!folio?.dirError ||
+    !!agree?.dirError;
+
   return (
     <DensityProvider persist>
     <PlainCtx.Provider value={plain}>
@@ -1291,35 +1342,59 @@ export default function App() {
             <i />
             大白话
           </button>
-          {/* 顶栏按钮带 data-panel：截图脚本要按名字点它，不能靠第几个 button 猜 */}
-          <button className="ghost-btn" data-panel="glossary" onClick={() => setGlossOpen(true)}>
-            术语表
-          </button>
-          <button
-            className="ghost-btn"
-            data-panel="theory"
-            onClick={() => {
-              setFocusClaim(undefined);
-              setTheoryOpen(true);
-            }}
-            title="这份分析依据的每一条主张，以及它有多硬"
-          >
-            理论
-          </button>
-          <button
-            className="ghost-btn dp-open"
-            data-panel="disputes"
-            onClick={() => setDispOpen(true)}
-            title="这份判断里，学界两派分歧的地方"
-          >
-            争议
-            {disputes.length > 0 && <span className="dp-open-n">{disputes.length}</span>}
-          </button>
+          {/*
+            术语表、理论、争议都是「要核对时才打开一次」的入口，常驻顶栏会
+            和「历史 / 设置」这两件真动作挤成一条等宽的按钮带。收进「参考」，
+            一条摘要换三条按钮；闭合的 details 内容仍在 DOM 里，
+            截图与端到端探针按 data-panel 取得到，不算隐藏功能。
+          */}
+          <details className="ref-menu" data-ref-menu ref={refMenu}>
+            <summary>参考</summary>
+            <div className="ref-panel">
+              <button
+                className="ref-item"
+                data-panel="glossary"
+                onClick={() => {
+                  closeRefMenu();
+                  setGlossOpen(true);
+                }}
+              >
+                <span className="ref-k">术语表</span>
+                <span className="ref-s">这一圈的词，以及它在这里的意思</span>
+              </button>
+              <button
+                className="ref-item"
+                data-panel="theory"
+                onClick={() => {
+                  closeRefMenu();
+                  setFocusClaim(undefined);
+                  setTheoryOpen(true);
+                }}
+              >
+                <span className="ref-k">理论</span>
+                <span className="ref-s">这份分析依据的每一条主张，以及它有多硬</span>
+              </button>
+              <button
+                className="ref-item dp-open"
+                data-panel="disputes"
+                onClick={() => {
+                  closeRefMenu();
+                  setDispOpen(true);
+                }}
+              >
+                <span className="ref-k">
+                  争议
+                  {disputes.length > 0 && <span className="dp-open-n">{disputes.length}</span>}
+                </span>
+                <span className="ref-s">这份判断里，学界两派分歧的地方</span>
+              </button>
+            </div>
+          </details>
           <button
             className="ghost-btn"
             data-panel="history"
             onClick={() => setHistOpen(true)}
-            title="跑过的报告，以及你不认同过的判定"
+            title="跑过的报告、你不认同过的判定，以及跨报告的深查发现"
           >
             历史
           </button>
@@ -1334,17 +1409,48 @@ export default function App() {
         </header>
 
         <div className="lens-bar">
-          {THEORIES.map((t) => (
-            <button
-              key={t.id}
-              className={`lens-chip ${t.id === theory ? 'on' : ''}`}
-              onClick={() => switchTheory(t.id)}
-              title={`${t.name}\n\n${t.plainClaim}\n\n什么时候别用：${t.failsWhen[0]}`}
-            >
-              <span className="n">{t.name}</span>
-              <span className="u">{plain ? t.plainUnit : t.unit}</span>
-            </button>
-          ))}
+          {/* 行首标签补上「这六块是什么」；立场句放 title，不再在左栏底部重复一遍。 */}
+          <span
+            className="lens-k"
+            title="换一副透镜，同一处地方会被判成不同的东西——这不是错误，是这个工具的立场。"
+          >
+            透镜
+          </span>
+          {/*
+            六颗芯片常驻时占掉整整一行，而每次分析只用一个。
+            默认收成「当前透镜 + 换一副」：当前那副的名字与判定单元就在眼前，
+            点开仍是完整的六颗（不合并、不翻译），并写明它们不可折算。
+            芯片闭合时仍在 DOM 里，端到端按 .lens-chip 数得到六副。
+          */}
+          <details className="lens-pick" data-lens-pick ref={lensMenu}>
+            <summary title={`${profile.name}：${profile.plainClaim}`}>
+              <span className="lens-cur">{profile.name}</span>
+              <span className="lens-cur-u">{plain ? profile.plainUnit : profile.unit}</span>
+              <span className="lens-swap">换一副</span>
+            </summary>
+            <div className="lens-menu">
+              <p className="lens-note">
+                六副透镜各问各的，不合并，也不折算成一个总分。同一段话换一副，判出来的东西会变。
+              </p>
+              <div className="lens-grid" role="group" aria-label="换一副透镜">
+                {THEORIES.map((t) => (
+                  <button
+                    key={t.id}
+                    className={`lens-chip ${t.id === theory ? 'on' : ''}`}
+                    data-lens={t.id}
+                    onClick={() => {
+                      switchTheory(t.id);
+                      closeLensMenu();
+                    }}
+                    title={`${t.name}\n\n${t.plainClaim}\n\n什么时候别用：${t.failsWhen[0]}`}
+                  >
+                    <span className="n">{t.name}</span>
+                    <span className="u">{plain ? t.plainUnit : t.unit}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </details>
         </div>
 
         {loading ? (
@@ -1409,9 +1515,7 @@ export default function App() {
                       data-cap-status="on"
                       title="读的是剪贴板，不是你鼠标选中的那段文字。选中文本需要在别的程序里模拟 Ctrl+C，那会改动剪贴板，也可能触发粘贴副作用，所以这一步没有做。先复制，再按这里写的键。"
                     >
-                      按 <b>{capStatus.human}</b> 把剪贴板里的字叫进来。
-                      <br />
-                      框里是你写的字时，只问、不覆盖。
+                      按 <b>{capStatus.human}</b> 叫入剪贴板；框里有字时只问不覆盖。
                     </div>
                   ) : (
                     <div className="cap-hint off" data-cap-status="off">
@@ -1591,20 +1695,28 @@ export default function App() {
                   样本账放在按钮正下方：这句话的意义是「按下去之前，先看一眼自己
                   试过几种文字」。放远了就只是装饰。它是唯一一处文字全部来自本地
                   存档、一个字都不来自模型的地方。
+
+                  它和同题复跑都只在真跑过之后才有内容，所以合进同一个折叠：
+                  默认只占一行摘要，按分析之前的主线（原文 → 立案 → 模式 → 跑）
+                  不再被两组历史统计隔开。两栏内部的「看明细」原样保留。
                 */}
-                <PortfolioBar view={folio?.view ?? null} dirError={folio?.dirError ?? null} fmt={when} />
-                {/*
-                  紧接着样本账：样本账说「落在 6 组文字上」，这一栏说「同一组里的报告彼此一样吗」。
-                  两句话合起来才说清一件裸提示词永远不知道的事——你重复跑的是同一个输入，
-                  而重复跑出来的东西是不是同一份。
-                */}
-                <AgreementBar view={agree?.view ?? null} dirError={agree?.dirError ?? null} fmt={when} onCompare={openPair} />
+                {hasRuns && (
+                  <details className="runs-fold" data-runs-fold>
+                    <summary>跑过的样本与同题复跑（本机存档）</summary>
+                    <div className="runs-fold-body">
+                      <PortfolioBar view={folio?.view ?? null} dirError={folio?.dirError ?? null} fmt={when} />
+                      {/*
+                        紧接着样本账：样本账说「落在 6 组文字上」，这一栏说「同一组里的报告彼此一样吗」。
+                        两句话合起来才说清一件裸提示词永远不知道的事——你重复跑的是同一个输入，
+                        而重复跑出来的东西是不是同一份。
+                      */}
+                      <AgreementBar view={agree?.view ?? null} dirError={agree?.dirError ?? null} fmt={when} onCompare={openPair} />
+                    </div>
+                  </details>
+                )}
+                {/* 透镜立场已经写在透镜条的标签上；这里只留真会按的两个键。 */}
                 <p className="hint">
-                  {/* 模式条下面那行 mode-note 已经显示过 MODE_META[mode].hint，
-                      这里再重复一遍，同一句话会在 50px 内出现两次。这里只说透镜立场。 */}
-                  这副透镜是「{profile.name}」。换一副透镜，同一处地方会被判成不同的东西——这不是错误，是这个工具的立场。
-                  <br />
-                  <b>Ctrl/⌘+Enter</b> 直接跑；跑起来之后按 <b>Esc</b> 停。
+                  <b>Ctrl/⌘+Enter</b> 跑 · <b>Esc</b> 停
                 </p>
                 {usage?.balance.runsLeft === 0 && (
                   <button className="u-exhausted" onClick={() => setUsageOpen(true)}>
@@ -1824,6 +1936,8 @@ export default function App() {
                   <DiagnosisView
                     d={diag}
                     onLoadRepair={loadRepair}
+                    onSwitchTheory={switchTheory}
+                    onOpenReport={openReport}
                     onOpenClaim={(id) => {
                       // 从报告里的边界栏点一条主张进来：打开库并滚到那一条。
                       // 「点开能看到出处与反对意见」这句话要是点不动，文档就比软件自信了。
